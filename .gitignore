@@ -1,0 +1,51 @@
+# ── Python ────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+*.whl
+
+# ── Virtual environments ──────────────────────────────
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# ── Database (user data — never commit) ──────────────
+data/journal.db
+data/journal.db-journal
+data/journal.db-wal
+data/journal.db-shm
+data/*.bak_*
+
+# ── Uploaded images (user data) ──────────────────────
+data/images/*
+!data/images/.gitkeep
+
+# ── IDE / Editor ─────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── OS ───────────────────────────────────────────────
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# ── Misc ─────────────────────────────────────────────
+*.log
+*.bak
+*.tmp
+.env

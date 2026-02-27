@@ -1,0 +1,649 @@
+{% extends "base.html" %}
+{% block title %}Analytics — Trade Journal{% endblock %}
+
+{% block extra_styles %}
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 22px 24px;
+}
+.chart-title {
+  font-family: var(--font-display);
+  font-size: 17px; letter-spacing: 2px;
+  color: var(--text); margin-bottom: 3px;
+}
+.chart-sub {
+  font-size: 10px; color: var(--muted);
+  letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 18px;
+}
+
+/* Fixed-height chart wrappers — prevents runaway expansion */
+.chart-box {
+  position: relative;
+  width: 100%;
+}
+.chart-box-220 { height: 220px; }
+.chart-box-260 { height: 260px; }
+.chart-box-180 { height: 180px; }
+
+.analytics-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+.analytics-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+
+/* Pre-trade patience wheel */
+.patience-wrap {
+  display: flex; align-items: center; gap: 32px;
+}
+.patience-donut-box {
+  position: relative; width: 220px; height: 220px; flex-shrink: 0;
+}
+.patience-legend {
+  flex: 1; display: flex; flex-direction: column; gap: 8px;
+}
+.legend-row {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-mono); font-size: 11px;
+}
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.legend-tag { color: var(--text); flex: 1; }
+.legend-pct { color: var(--muted2); font-size: 10px; min-width: 36px; text-align: right; }
+.legend-count { color: var(--muted); font-size: 10px; min-width: 28px; text-align: right; }
+.patience-center-label {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  text-align: center; pointer-events: none;
+}
+.patience-center-pct  { font-family: var(--font-display); font-size: 28px; color: var(--accent); }
+.patience-center-sub  { font-size: 9px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
+
+/* Tag table */
+.tag-filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 18px; }
+.filter-btn {
+  padding: 4px 12px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px;
+  border: 1px solid var(--border2); background: var(--surface2); color: var(--muted2);
+  cursor: pointer; transition: all 0.12s;
+  clip-path: polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%);
+}
+.filter-btn:hover  { color:var(--text); border-color:var(--muted); }
+.filter-btn.active { background:rgba(79,255,176,0.1); border-color:var(--accent); color:var(--accent); }
+
+.no-data { text-align:center; padding:60px 20px; color:var(--muted); }
+.no-data-icon { font-size:36px; margin-bottom:12px; opacity:0.3; }
+
+/* Minimum sample warning inside chart cards */
+.min-sample-msg {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 180px; gap: 10px; color: var(--muted);
+}
+.min-sample-icon { font-size: 28px; opacity: 0.35; }
+.min-sample-text { font-size: 11px; letter-spacing: 0.5px; text-align: center; line-height: 1.6; }
+.min-sample-count {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--border2); letter-spacing: 1px;
+}
+
+/* Streak card */
+.streak-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.streak-stat {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 2px; padding: 14px 16px; text-align: center;
+}
+.streak-stat-label { font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.streak-stat-val   { font-family: var(--font-display); font-size: 28px; letter-spacing: 2px; }
+.streak-current-W  { color: var(--green); }
+.streak-current-L  { color: var(--red); }
+.streak-current-B  { color: var(--muted2); }
+
+/* Sparkline row */
+.streak-sparkline { display: flex; gap: 3px; align-items: flex-end; flex-wrap: wrap; }
+.spark-label { font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.spark-dot {
+  width: 18px; height: 18px; border-radius: 2px; display: flex;
+  align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; font-family: var(--font-mono);
+}
+.spark-W { background: rgba(79,255,176,0.2);  color: var(--green); border: 1px solid rgba(79,255,176,0.4); }
+.spark-L { background: rgba(255,77,109,0.2);  color: var(--red);   border: 1px solid rgba(255,77,109,0.4); }
+.spark-B { background: rgba(138,150,170,0.15);color: var(--muted); border: 1px solid var(--border); }
+{% endblock %}
+
+{% block content %}
+
+<div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:28px;">
+  <div>
+    <div class="page-title">Analytics</div>
+    <div class="page-sub">Tag performance · Time patterns · P&L breakdown</div>
+  </div>
+</div>
+
+{% if data.overall and data.overall.total_trades %}
+
+<!-- Overall Stats -->
+<div class="stat-grid" style="margin-bottom:24px;">
+  <div class="stat-block">
+    <div class="stat-label">Total Trades</div>
+    <div class="stat-value">{{ data.overall.total_trades }}</div>
+  </div>
+  <div class="stat-block">
+    <div class="stat-label">Win Rate</div>
+    {% set wr = (data.overall.wins / data.overall.total_trades * 100)|round|int %}
+    <div class="stat-value {{ 'pnl-pos' if wr >= 50 else 'pnl-neg' }}">{{ wr }}%</div>
+  </div>
+  <div class="stat-block">
+    <div class="stat-label">Net P&L</div>
+    {% set tp = data.overall.total_pnl or 0 %}
+    <div class="stat-value {{ 'pnl-pos' if tp >= 0 else 'pnl-neg' }}">
+      {{ '+' if tp >= 0 else '' }}${{ '%.2f'|format(tp) }}
+    </div>
+  </div>
+  <div class="stat-block">
+    <div class="stat-label">Avg P&L / Trade</div>
+    {% set ap = data.overall.avg_pnl or 0 %}
+    <div class="stat-value {{ 'pnl-pos' if ap >= 0 else 'pnl-neg' }}">
+      {{ '+' if ap >= 0 else '' }}${{ '%.2f'|format(ap) }}
+    </div>
+  </div>
+  <div class="stat-block">
+    <div class="stat-label">Best Trade</div>
+    <div class="stat-value pnl-pos">+${{ '%.2f'|format(data.overall.best_trade or 0) }}</div>
+  </div>
+  <div class="stat-block">
+    <div class="stat-label">Worst Trade</div>
+    <div class="stat-value pnl-neg">${{ '%.2f'|format(data.overall.worst_trade or 0) }}</div>
+  </div>
+</div>
+
+<!-- ── Pre-Trade Patience Wheel ── -->
+{% set pre_tags = data.tag_stats | selectattr('group_id','equalto','pre') | list %}
+{% if pre_tags %}
+<div class="chart-card" style="margin-bottom:20px;">
+  <div class="chart-title">Pre-Trade Mindset</div>
+  <div class="chart-sub">Distribution of mental state tags across all tagged trades</div>
+  <div class="patience-wrap">
+    <div class="patience-donut-box">
+      <canvas id="chart-pretrade"></canvas>
+      <div class="patience-center-label">
+        <div class="patience-center-pct" id="patience-pct">—</div>
+        <div class="patience-center-sub">patient</div>
+      </div>
+    </div>
+    <div class="patience-legend" id="patience-legend"></div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Row 1: Daily P&L + Time of Day ── -->
+<div class="analytics-grid-2">
+  <div class="chart-card">
+    <div class="chart-title">Daily P&L</div>
+    <div class="chart-sub">Net per trading day</div>
+    <div class="chart-box chart-box-220">
+      <canvas id="chart-daily"></canvas>
+    </div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">Time of Day</div>
+    <div class="chart-sub">Avg P&L by entry hour</div>
+    <div class="chart-box chart-box-220">
+      <canvas id="chart-time"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ── Row 2: With Tags + Setup Win Rate ── -->
+<div class="analytics-grid-2">
+  <div class="chart-card">
+    <div class="chart-title">Avg P&L — With Tags</div>
+    <div class="chart-sub">When trading with these factors</div>
+    <div id="with-wrap">
+      <div class="chart-box chart-box-220"><canvas id="chart-with"></canvas></div>
+    </div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">Win Rate — Setup Types</div>
+    <div class="chart-sub">% winning trades per setup</div>
+    <div id="setup-wrap">
+      <div class="chart-box chart-box-260"><canvas id="chart-setup"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Row 3: P&L by Day of Week + Streak ── -->
+<div class="analytics-grid-2">
+  <div class="chart-card">
+    <div class="chart-title">P&L by Day of Week</div>
+    <div class="chart-sub">Total net P&L per weekday</div>
+    <div class="chart-box chart-box-220"><canvas id="chart-dow"></canvas></div>
+  </div>
+  <div class="chart-card" id="streak-card">
+    <div class="chart-title">Win / Loss Streaks</div>
+    <div class="chart-sub">Consecutive trade outcomes</div>
+    <div id="streak-content"></div>
+  </div>
+</div>
+
+<!-- ── Tag Performance Table ── -->
+<div class="chart-card" style="margin-bottom:24px;">
+  <div class="chart-title">Tag Performance Table</div>
+  <div class="chart-sub">P&L and win rate by tag group</div>
+  <div class="tag-filter-row">
+    <button class="filter-btn active" data-group="all"     onclick="filterTable('all')">All</button>
+    <button class="filter-btn" data-group="with"    onclick="filterTable('with')">With</button>
+    <button class="filter-btn" data-group="against" onclick="filterTable('against')">Against</button>
+    <button class="filter-btn" data-group="volume"  onclick="filterTable('volume')">Volume</button>
+    <button class="filter-btn" data-group="exit"    onclick="filterTable('exit')">Exit</button>
+    <button class="filter-btn" data-group="setup"   onclick="filterTable('setup')">Setup</button>
+    <button class="filter-btn" data-group="pre"     onclick="filterTable('pre')">Pre-Trade</button>
+  </div>
+  <div style="overflow-x:auto;">
+    <table class="data-table" id="tag-table">
+      <thead>
+        <tr>
+          <th>Group</th><th>Tag</th><th>Trades</th>
+          <th>Wins</th><th>Win Rate</th><th>Avg P&L</th><th>Total P&L</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in data.tag_stats %}
+        <tr data-group="{{ row.group_id }}">
+          <td><span class="tag-chip tag-{{ row.group_id }}">{{ row.group_id }}</span></td>
+          <td style="color:var(--text);">{{ row.tag }}</td>
+          <td>{{ row.total }}</td>
+          <td>{{ row.wins }}</td>
+          <td class="{{ 'pnl-pos' if row.win_rate >= 50 else 'pnl-neg' }}">{{ row.win_rate }}%</td>
+          <td class="{{ 'pnl-pos' if row.avg_pnl >= 0 else 'pnl-neg' }}">
+            {{ '+' if row.avg_pnl >= 0 else '' }}${{ '%.2f'|format(row.avg_pnl) }}
+          </td>
+          <td class="{{ 'pnl-pos' if row.total_pnl >= 0 else 'pnl-neg' }}">
+            {{ '+' if row.total_pnl >= 0 else '' }}${{ '%.2f'|format(row.total_pnl) }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% else %}
+<div class="no-data">
+  <div class="no-data-icon">📊</div>
+  <p>No tagged data yet. Import trades and add tags to see analytics.</p>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const RAW = {{ data_json|safe }};
+
+Chart.defaults.color      = '#5a6477';
+Chart.defaults.font.family = "'DM Mono', monospace";
+Chart.defaults.font.size   = 11;
+
+const gridColor  = 'rgba(42,48,68,0.9)';
+const tickColor  = '#4a5568';
+const labelColor = '#8a96aa';
+
+// Shared scale config
+const xyScales = {
+  x: { grid: { color: gridColor }, ticks: { color: tickColor } },
+  y: { grid: { color: gridColor }, ticks: { color: tickColor } }
+};
+
+// All charts use maintainAspectRatio:false + the .chart-box wrapper controls height
+const base = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { display: false } },
+  scales: xyScales,
+};
+
+// ── Pre-Trade Patience Wheel ─────────────────────────────────────────────────
+(function() {
+  const canvas = document.getElementById('chart-pretrade');
+  if (!canvas) return;
+
+  const preTags = RAW.tag_stats.filter(t => t.group_id === 'pre');
+  if (!preTags.length) return;
+
+  // Semantic color map — green family = patient, warm/red family = negative
+  const TAG_COLORS = {
+    // Patient — greens
+    'Trade came to me':    '#4fffb0',   // bright mint green
+    'Intuition / Mkt Feel':'#1a9e6a',   // deep forest green
+    // Negative — warm/red tones, each visually distinct
+    'Not sure about context': '#ff4d6d', // red
+    'Quick Profit Attitude':  '#ffb347', // amber
+    'Revenge Mindset':        '#ff6b35', // orange-red
+    'Boredom':                '#c3a6ff', // muted purple
+    'Distracted':             '#ff8c94', // soft pink-red
+  };
+  const FALLBACK_COLORS = ['#8a96aa','#5a6477','#4a5568'];
+
+  const NEGATIVE = new Set([
+    'Quick Profit Attitude','Revenge Mindset','Boredom','Distracted','Not sure about context'
+  ]);
+  const totalTagged  = preTags.reduce((s, t) => s + t.total, 0);
+  const patientCount = preTags
+    .filter(t => !NEGATIVE.has(t.tag))
+    .reduce((s, t) => s + t.total, 0);
+  const patientPct = totalTagged ? Math.round(patientCount / totalTagged * 100) : 0;
+
+  // Sort: patient tags first, then negative — makes the green arc appear together
+  const sortedTags = [
+    ...preTags.filter(t => !NEGATIVE.has(t.tag)),
+    ...preTags.filter(t =>  NEGATIVE.has(t.tag)),
+  ];
+
+  const labels = sortedTags.map(t => t.tag);
+  const values = sortedTags.map(t => t.total);
+  const colors = sortedTags.map((t, i) =>
+    TAG_COLORS[t.tag] || FALLBACK_COLORS[i % FALLBACK_COLORS.length]
+  );
+
+  new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: colors.map(c => c + 'cc'),
+        borderColor: colors,
+        borderWidth: 2,
+        hoverOffset: 8,
+        // Slightly thicker border on patient arc to emphasise the split
+        borderWidth: sortedTags.map(t => NEGATIVE.has(t.tag) ? 1 : 2),
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      cutout: '68%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1f2e',
+          borderColor: '#2a3044',
+          borderWidth: 1,
+          titleColor: '#8a96aa',
+          bodyColor: '#e8ecf4',
+          callbacks: {
+            title: ctx => ctx[0].label,
+            label: ctx => {
+              const pct = totalTagged ? Math.round(ctx.parsed / totalTagged * 100) : 0;
+              const sign = NEGATIVE.has(ctx.label) ? '⚠ ' : '✓ ';
+              return `  ${sign}${ctx.parsed} trades (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // Centre label — colour shifts green→red based on patience score
+  const pctEl = document.getElementById('patience-pct');
+  pctEl.textContent = patientPct + '%';
+  pctEl.style.color = patientPct >= 60 ? '#4fffb0'
+                    : patientPct >= 40 ? '#ffb347'
+                    :                    '#ff4d6d';
+
+  // Legend — patient group first with divider, then negative group
+  const legendEl = document.getElementById('patience-legend');
+  legendEl.innerHTML = '';
+
+  // Section header helper
+  const mkHeader = txt => {
+    const h = document.createElement('div');
+    h.style.cssText = 'font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin:6px 0 4px;padding-bottom:4px;border-bottom:1px solid var(--border);';
+    h.textContent = txt;
+    legendEl.appendChild(h);
+  };
+
+  mkHeader('Patient');
+  sortedTags.forEach((t, i) => {
+    if (i === preTags.filter(x => !NEGATIVE.has(x.tag)).length) mkHeader('Needs attention');
+    const pct = totalTagged ? Math.round(t.total / totalTagged * 100) : 0;
+    const row = document.createElement('div');
+    row.className = 'legend-row';
+    row.innerHTML = `
+      <span class="legend-dot" style="background:${colors[i]};box-shadow:0 0 6px ${colors[i]}50;"></span>
+      <span class="legend-tag">${t.tag}</span>
+      <span class="legend-pct">${pct}%</span>
+      <span class="legend-count">${t.total}×</span>
+    `;
+    legendEl.appendChild(row);
+  });
+})();
+
+// ── Daily P&L ────────────────────────────────────────────────────────────────
+if (RAW.daily && RAW.daily.length) {
+  new Chart(document.getElementById('chart-daily'), {
+    type: 'bar',
+    data: {
+      labels: RAW.daily.map(d => d.date.slice(5)),
+      datasets: [{
+        data: RAW.daily.map(d => d.pnl),
+        backgroundColor: RAW.daily.map(d => d.pnl >= 0 ? 'rgba(79,255,176,0.55)' : 'rgba(255,77,109,0.55)'),
+        borderColor:     RAW.daily.map(d => d.pnl >= 0 ? '#4fffb0' : '#ff4d6d'),
+        borderWidth: 1, borderRadius: 2,
+      }]
+    },
+    options: {
+      ...base,
+      plugins: {
+        ...base.plugins,
+        tooltip: {
+          callbacks: { label: ctx => ` $${ctx.parsed.y.toFixed(2)}` }
+        }
+      },
+      scales: {
+        x: { ...xyScales.x, ticks: { color: tickColor, maxRotation: 45 } },
+        y: { ...xyScales.y, ticks: { color: tickColor, callback: v => '$'+v } }
+      }
+    }
+  });
+}
+
+// ── Time of Day ───────────────────────────────────────────────────────────────
+if (RAW.time_stats && RAW.time_stats.length) {
+  new Chart(document.getElementById('chart-time'), {
+    type: 'bar',
+    data: {
+      labels: RAW.time_stats.map(t => t.hour + ':00'),
+      datasets: [{
+        data: RAW.time_stats.map(t => t.avg_pnl),
+        backgroundColor: RAW.time_stats.map(t => t.avg_pnl >= 0 ? 'rgba(0,207,255,0.5)' : 'rgba(255,77,109,0.5)'),
+        borderColor:     RAW.time_stats.map(t => t.avg_pnl >= 0 ? '#00cfff' : '#ff4d6d'),
+        borderWidth: 1, borderRadius: 2,
+      }]
+    },
+    options: {
+      ...base,
+      scales: {
+        x: { ...xyScales.x },
+        y: { ...xyScales.y, ticks: { color: tickColor, callback: v => '$'+v } }
+      }
+    }
+  });
+}
+
+// ── Minimum sample size helper ────────────────────────────────────────────────
+const MIN_SAMPLES = 5;
+
+function showMinSample(wrapperId, qualifiedCount, totalCount) {
+  const wrap = document.getElementById(wrapperId);
+  if (!wrap) return;
+  wrap.innerHTML = `
+    <div class="min-sample-msg">
+      <div class="min-sample-icon">🔬</div>
+      <div class="min-sample-text">
+        Not enough data yet.<br>Need at least ${MIN_SAMPLES} trades per tag.
+      </div>
+      <div class="min-sample-count">${qualifiedCount} of ${totalCount} tags have enough data</div>
+    </div>`;
+}
+
+// ── With Tags avg P&L ─────────────────────────────────────────────────────────
+const withTags = RAW.tag_stats.filter(t => t.group_id === 'with' && t.total >= MIN_SAMPLES);
+const withAll  = RAW.tag_stats.filter(t => t.group_id === 'with');
+if (withTags.length) {
+  new Chart(document.getElementById('chart-with'), {
+    type: 'bar',
+    data: {
+      labels: withTags.map(t => t.tag),
+      datasets: [{
+        data: withTags.map(t => t.avg_pnl),
+        backgroundColor: withTags.map(t => t.avg_pnl >= 0 ? 'rgba(79,255,176,0.55)' : 'rgba(255,77,109,0.55)'),
+        borderColor:     withTags.map(t => t.avg_pnl >= 0 ? '#4fffb0' : '#ff4d6d'),
+        borderWidth: 1, borderRadius: 2,
+      }]
+    },
+    options: {
+      ...base, indexAxis: 'y',
+      scales: {
+        x: { ...xyScales.x, ticks: { color: tickColor, callback: v => '$'+v } },
+        y: { ...xyScales.y, ticks: { color: labelColor, font: { size: 10 } } }
+      }
+    }
+  });
+  // Dim the wrapper note if some tags were filtered
+  if (withTags.length < withAll.length) {
+    const note = document.createElement('div');
+    note.style.cssText = 'font-size:10px;color:var(--muted);letter-spacing:0.5px;margin-top:8px;';
+    note.textContent = `Showing ${withTags.length}/${withAll.length} tags with ≥${MIN_SAMPLES} trades`;
+    document.getElementById('with-wrap').appendChild(note);
+  }
+} else {
+  showMinSample('with-wrap', 0, withAll.length);
+}
+
+// ── Setup win rate ────────────────────────────────────────────────────────────
+const setupTags = RAW.tag_stats.filter(t => t.group_id === 'setup' && t.total >= MIN_SAMPLES);
+const setupAll  = RAW.tag_stats.filter(t => t.group_id === 'setup');
+if (setupTags.length) {
+  new Chart(document.getElementById('chart-setup'), {
+    type: 'bar',
+    data: {
+      labels: setupTags.map(t => t.tag.length > 22 ? t.tag.slice(0,22)+'…' : t.tag),
+      datasets: [{
+        data: setupTags.map(t => t.win_rate),
+        backgroundColor: setupTags.map(t => t.win_rate >= 50 ? 'rgba(180,127,255,0.55)' : 'rgba(255,77,109,0.45)'),
+        borderColor:     setupTags.map(t => t.win_rate >= 50 ? '#b47fff' : '#ff4d6d'),
+        borderWidth: 1, borderRadius: 2,
+      }]
+    },
+    options: {
+      ...base, indexAxis: 'y',
+      scales: {
+        x: { min:0, max:100, grid:{color:gridColor}, ticks:{color:tickColor, callback: v => v+'%'} },
+        y: { grid:{color:gridColor}, ticks:{color:labelColor, font:{size:10}} }
+      }
+    }
+  });
+  if (setupTags.length < setupAll.length) {
+    const note = document.createElement('div');
+    note.style.cssText = 'font-size:10px;color:var(--muted);letter-spacing:0.5px;margin-top:8px;';
+    note.textContent = `Showing ${setupTags.length}/${setupAll.length} tags with ≥${MIN_SAMPLES} trades`;
+    document.getElementById('setup-wrap').appendChild(note);
+  }
+} else {
+  showMinSample('setup-wrap', 0, setupAll.length);
+}
+
+// ── P&L by Day of Week ────────────────────────────────────────────────────────
+const DOW_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+if (RAW.dow_stats && RAW.dow_stats.length) {
+  // Fill gaps so all weekdays appear
+  const dowMap = {};
+  RAW.dow_stats.forEach(d => dowMap[d.dow] = d);
+  const tradingDays = [1,2,3,4,5]; // Mon–Fri
+  const dowLabels = tradingDays.map(d => DOW_NAMES[d]);
+  const dowPnl    = tradingDays.map(d => dowMap[d] ? dowMap[d].total_pnl : 0);
+  const dowCount  = tradingDays.map(d => dowMap[d] ? dowMap[d].total : 0);
+
+  new Chart(document.getElementById('chart-dow'), {
+    type: 'bar',
+    data: {
+      labels: dowLabels,
+      datasets: [{
+        label: 'Net P&L',
+        data: dowPnl,
+        backgroundColor: dowPnl.map(v => v >= 0 ? 'rgba(79,255,176,0.55)' : 'rgba(255,77,109,0.55)'),
+        borderColor:     dowPnl.map(v => v >= 0 ? '#4fffb0' : '#ff4d6d'),
+        borderWidth: 1, borderRadius: 3,
+      }]
+    },
+    options: {
+      ...base,
+      plugins: {
+        ...base.plugins,
+        tooltip: {
+          backgroundColor: '#1a1f2e', borderColor: '#2a3044', borderWidth: 1,
+          titleColor: '#8a96aa', bodyColor: '#e8ecf4',
+          callbacks: {
+            label: ctx => {
+              const idx = ctx.dataIndex;
+              const cnt = dowCount[idx];
+              return [
+                ` Net P&L: $${ctx.parsed.y.toFixed(2)}`,
+                ` Trades:  ${cnt}`
+              ];
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ...xyScales.x },
+        y: { ...xyScales.y, ticks: { color: tickColor, callback: v => '$'+v } }
+      }
+    }
+  });
+}
+
+// ── Win / Loss Streak ─────────────────────────────────────────────────────────
+(function() {
+  const el = document.getElementById('streak-content');
+  if (!el || !RAW.streaks) return;
+  const s = RAW.streaks;
+
+  const curLabel = s.current_type === 'W' ? 'Win Streak'
+                 : s.current_type === 'L' ? 'Loss Streak'
+                 : 'Breakeven';
+  const curClass = `streak-current-${s.current_type || 'B'}`;
+  const curSign  = s.current_type === 'W' ? '▲' : s.current_type === 'L' ? '▼' : '—';
+
+  el.innerHTML = `
+    <div class="streak-grid">
+      <div class="streak-stat">
+        <div class="streak-stat-label">Current</div>
+        <div class="streak-stat-val ${curClass}">${curSign}${s.current}</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:4px;letter-spacing:1px;">${curLabel}</div>
+      </div>
+      <div class="streak-stat">
+        <div class="streak-stat-label">Best Win Run</div>
+        <div class="streak-stat-val" style="color:var(--green);">${s.best_win}</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:4px;letter-spacing:1px;">consecutive</div>
+      </div>
+      <div class="streak-stat">
+        <div class="streak-stat-label">Worst Loss Run</div>
+        <div class="streak-stat-val" style="color:var(--red);">${s.worst_loss}</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:4px;letter-spacing:1px;">consecutive</div>
+      </div>
+    </div>
+    <div class="spark-label">Last ${s.history.length} trades</div>
+    <div class="streak-sparkline">
+      ${s.history.map(r => `<div class="spark-dot spark-${r}">${r}</div>`).join('')}
+    </div>
+  `;
+})();
+
+// ── Table filter ──────────────────────────────────────────────────────────────
+function filterTable(group) {
+  document.querySelectorAll('.filter-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.group === group));
+  document.querySelectorAll('#tag-table tbody tr').forEach(row =>
+    row.style.display = (group === 'all' || row.dataset.group === group) ? '' : 'none');
+}
+</script>
+{% endblock %}

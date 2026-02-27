@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Not Found{% endblock %}
+{% block content %}
+<div style="text-align:center; padding:120px 32px;">
+  <div style="font-family:var(--font-display); font-size:120px; color:var(--border); line-height:1; letter-spacing:8px;">404</div>
+  <div style="color:var(--muted2); font-size:14px; margin:16px 0 32px; letter-spacing:1px;">{{ message }}</div>
+  <a href="/" class="btn btn-primary">← Back to Journal</a>
+</div>
+{% endblock %}

@@ -1,0 +1,335 @@
+{% extends "base.html" %}
+{% block title %}Trade Journal — Dashboard{% endblock %}
+
+{% block extra_styles %}
+.import-zone {
+  border: 2px dashed var(--border2);
+  padding: 24px 32px;
+  text-align: center;
+  transition: all 0.2s;
+  cursor: pointer;
+  background: var(--surface);
+  position: relative;
+  border-radius: 2px;
+  margin-bottom: 20px;
+}
+.import-zone.drag-over { border-color: var(--accent); background: rgba(79,255,176,0.03); }
+.import-zone input[type=file] { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%; }
+.import-body { display:flex;align-items:center;gap:20px;justify-content:center;flex-wrap:wrap; }
+.import-icon { font-size:28px;flex-shrink:0; }
+.import-text { text-align:left; }
+.import-title { color:var(--text);font-size:13px;letter-spacing:0.5px;margin-bottom:2px; }
+.import-sub   { color:var(--muted);font-size:11px; }
+.importing    { animation:pulse 1s ease infinite; }
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+.filter-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.filter-label { font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);white-space:nowrap; }
+.filter-presets { display:flex;gap:4px; }
+.preset-btn {
+  padding: 4px 12px;
+  font-family: var(--font-mono); font-size:10px; letter-spacing:1px;
+  border: 1px solid var(--border2); background: var(--surface2); color: var(--muted2);
+  cursor: pointer; transition: all 0.12s;
+  clip-path: polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%);
+}
+.preset-btn:hover  { color:var(--text); border-color:var(--muted); }
+.preset-btn.active { background:rgba(79,255,176,0.1); border-color:var(--accent); color:var(--accent); }
+.date-input {
+  background: var(--surface2); border: 1px solid var(--border2); color: var(--text);
+  padding: 5px 10px; font-family: var(--font-mono); font-size:11px; border-radius:1px; cursor:pointer;
+}
+.date-input:focus { outline:none; border-color:var(--accent); }
+.filter-sep { width:1px;height:20px;background:var(--border2);flex-shrink:0; }
+
+.win-bar { display:inline-block;height:4px;background:var(--border2);width:56px;vertical-align:middle;border-radius:2px;position:relative;overflow:hidden; }
+.win-bar-fill { position:absolute;left:0;top:0;bottom:0;background:var(--green);border-radius:2px; }
+
+.del-btn {
+  background:transparent; border:1px solid transparent; color:var(--muted);
+  padding:4px 8px; font-size:13px; cursor:pointer; border-radius:2px; transition:all 0.15s; line-height:1;
+}
+.del-btn:hover { background:rgba(255,77,109,0.1); border-color:var(--red); color:var(--red); }
+
+.empty-state { text-align:center;padding:80px 32px;color:var(--muted); }
+.empty-icon  { font-size:48px;margin-bottom:16px;opacity:0.3; }
+.empty-title { font-family:var(--font-display);font-size:24px;letter-spacing:2px;color:var(--muted2);margin-bottom:8px; }
+
+.modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:100;align-items:center;justify-content:center; }
+.modal-overlay.show { display:flex; }
+.modal { background:var(--surface);border:1px solid var(--border2);padding:32px;width:380px;border-radius:2px; }
+.modal h3 { font-family:var(--font-display);font-size:22px;letter-spacing:2px;color:var(--red);margin-bottom:8px; }
+.modal p  { color:var(--muted2);font-size:12px;line-height:1.6;margin-bottom:24px; }
+.modal-actions { display:flex;gap:8px;justify-content:flex-end; }
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:24px;">
+  <div>
+    <div class="page-title">Trade Journal</div>
+    <div class="page-sub">ES Futures · Discretionary · Market Profile
+      {% if portfolio_id %}<span id="port-label-header" style="margin-left:8px;"></span>{% endif %}
+    </div>
+  </div>
+  {% if days %}
+  <div class="stat-grid">
+    <div class="stat-block">
+      <div class="stat-label">Days Shown</div>
+      <div class="stat-value">{{ days|length }}</div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-label">Trades</div>
+      <div class="stat-value">{{ days|sum(attribute='trade_count') }}</div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-label">Net P&L</div>
+      {% set total = days|sum(attribute='total_pnl') %}
+      <div class="stat-value {{ 'pnl-pos' if total >= 0 else 'pnl-neg' }}">
+        {{ '+' if total >= 0 else '' }}${{ '%.2f'|format(total or 0) }}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Import Zone -->
+<div class="import-zone" id="drop-zone">
+  <input type="file" accept=".csv,.xlsx,.xls" id="drop-input">
+  <div class="import-body">
+    <div class="import-icon">📂</div>
+    <div class="import-text">
+      <div class="import-title">Drop CSV or Excel fills file here, or click to browse</div>
+      <div class="import-sub">Tradovate / TradeStation format · Imports into selected portfolio</div>
+    </div>
+    <div onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+      <span style="font-size:10px;color:var(--muted);letter-spacing:1px;">Imports to:</span>
+      <span id="import-portfolio-badge" style="font-size:11px;color:var(--accent);font-family:var(--font-mono);">— None —</span>
+    </div>
+  </div>
+</div>
+
+<!-- Date Filter Bar -->
+<form id="filter-form" method="get" action="/">
+  <input type="hidden" name="portfolio" id="f-portfolio" value="{{ portfolio_id or '' }}">
+  <input type="hidden" name="preset"    id="f-preset"    value="{{ preset }}">
+  <div class="filter-bar">
+    <span class="filter-label">Period</span>
+    <div class="filter-presets">
+      <button type="button" class="preset-btn {{ 'active' if preset=='7d'  }}" onclick="setPreset('7d')">7D</button>
+      <button type="button" class="preset-btn {{ 'active' if preset=='30d' }}" onclick="setPreset('30d')">30D</button>
+      <button type="button" class="preset-btn {{ 'active' if preset=='90d' }}" onclick="setPreset('90d')">90D</button>
+      <button type="button" class="preset-btn {{ 'active' if preset=='ytd' }}" onclick="setPreset('ytd')">YTD</button>
+      <button type="button" class="preset-btn {{ 'active' if preset=='all' }}" onclick="setPreset('all')">All</button>
+    </div>
+    <div class="filter-sep"></div>
+    <span class="filter-label">Custom</span>
+    <input type="date" class="date-input" id="f-from" name="from" value="{{ date_from }}" onchange="setPreset('custom')">
+    <span style="color:var(--muted);font-size:11px;">to</span>
+    <input type="date" class="date-input" id="f-to"   name="to"   value="{{ date_to }}"   onchange="setPreset('custom')">
+    <button type="submit" class="btn btn-ghost" style="padding:5px 14px;font-size:10px;margin-left:auto;">Apply</button>
+  </div>
+</form>
+
+{% if days %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+  <h2>Trading Days</h2>
+  <span style="color:var(--muted);font-size:10px;letter-spacing:1.5px;">{{ days|length }} DAYS</span>
+</div>
+
+<div class="card" style="overflow-x:auto;">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Trades</th>
+        <th>Net P&L</th>
+        <th>Win Rate</th>
+        <th>Record</th>
+        <th style="text-align:right;">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for day in days %}
+      {% set wr  = (day.wins / day.trade_count * 100)|round|int if day.trade_count else 0 %}
+      {% set pnl = day.total_pnl or 0 %}
+      <tr id="row-{{ day.id }}">
+        <td>
+          <a href="/day/{{ day.id }}" class="link" style="font-size:14px;font-weight:500;">{{ day.date }}</a>
+        </td>
+        <td style="color:var(--text);">{{ day.trade_count }}</td>
+        <td>
+          <span class="{{ 'pnl-pos' if pnl >= 0 else 'pnl-neg' }}" style="font-size:14px;">
+            {{ '+' if pnl >= 0 else '' }}${{ '%.2f'|format(pnl) }}
+          </span>
+        </td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="{{ 'pnl-pos' if wr >= 50 else 'pnl-neg' }}">{{ wr }}%</span>
+            <span class="win-bar"><span class="win-bar-fill" style="width:{{ wr }}%"></span></span>
+          </div>
+        </td>
+        <td style="color:var(--muted);">{{ day.wins }}/{{ day.trade_count }} W</td>
+        <td style="text-align:right;">
+          <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end;">
+            <a href="/day/{{ day.id }}" class="btn btn-ghost" style="padding:5px 12px;font-size:10px;">View →</a>
+            <button class="del-btn" onclick="confirmDelete({{ day.id }}, '{{ day.date }}')" title="Delete day">🗑</button>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">📊</div>
+  <div class="empty-title">No trading days in this range</div>
+  <p style="font-size:12px;margin-bottom:20px;">
+    Import a fills CSV above, or widen your date range.
+  </p>
+</div>
+{% endif %}
+
+<!-- Delete Confirm Modal -->
+<div class="modal-overlay" id="del-modal">
+  <div class="modal">
+    <h3>Delete Day?</h3>
+    <p id="del-modal-text"></p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn" id="del-confirm-btn"
+        style="background:var(--red);color:#fff;clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);">
+        Delete
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const TODAY = '{{ today }}';
+
+  // Keep the f-portfolio hidden input in sync with nav selector
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+      const active = getActivePortfolio();
+      document.getElementById('f-portfolio').value = active;
+      updateImportBadge(active);
+    }, 150);
+  });
+
+  // Also update when portfolio changes via nav
+  const _base = window.setGlobalPortfolio;
+  window.setGlobalPortfolio = function(id) {
+    if (_base) _base(id);
+    document.getElementById('f-portfolio').value = id;
+    updateImportBadge(id);
+  };
+
+  function updateImportBadge(id) {
+    const badge = document.getElementById('import-portfolio-badge');
+    if (!badge) return;
+    const sel = document.getElementById('global-portfolio-select');
+    const opt = sel ? sel.querySelector(`option[value="${id}"]`) : null;
+    if (opt && id) {
+      badge.textContent = opt.textContent;
+      badge.style.color = opt.dataset.color || 'var(--accent)';
+    } else {
+      badge.textContent = '— None —';
+      badge.style.color = 'var(--muted)';
+    }
+  }
+
+  // Date presets
+  function setPreset(p) {
+    document.getElementById('f-preset').value = p;
+    const now = new Date(TODAY);
+    let from, to = TODAY;
+    if      (p === '7d')  { from = off(now, -7); }
+    else if (p === '30d') { from = off(now, -30); }
+    else if (p === '90d') { from = off(now, -90); }
+    else if (p === 'ytd') { from = `${now.getFullYear()}-01-01`; }
+    else if (p === 'all') { from = '2000-01-01'; to = '2099-12-31'; }
+    else                  { return; }
+    document.getElementById('f-from').value = from;
+    document.getElementById('f-to').value   = to;
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    const btn = document.querySelector(`.preset-btn[onclick="setPreset('${p}')"]`);
+    if (btn) btn.classList.add('active');
+    document.getElementById('filter-form').submit();
+  }
+  function off(d, days) {
+    const n = new Date(d); n.setDate(n.getDate() + days); return n.toISOString().slice(0,10);
+  }
+
+  // Import
+  async function handleFile(file) {
+    if (!file) return;
+    const zone = document.getElementById('drop-zone');
+    zone.classList.add('importing');
+    zone.querySelector('.import-title').textContent = `Importing ${file.name}...`;
+    const portfolioId = getActivePortfolio();
+    const form = new FormData();
+    form.append('file', file);
+    if (portfolioId) form.append('portfolio_id', portfolioId);
+    try {
+      const res  = await fetch('/api/import', { method:'POST', body:form });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error || 'Import failed', true); return; }
+      const days = data.days.map(d => `${d.date} (${d.trade_count} trades)`).join(', ');
+      showToast(`Imported: ${days}`);
+      setTimeout(() => location.reload(), 900);
+    } catch(e) {
+      showToast('Network error — is the server running?', true);
+    } finally {
+      zone.classList.remove('importing');
+      zone.querySelector('.import-title').textContent = 'Drop CSV or Excel fills file here, or click to browse';
+    }
+  }
+  const zone = document.getElementById('drop-zone');
+  const inp  = document.getElementById('drop-input');
+  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
+  inp.addEventListener('change', () => handleFile(inp.files[0]));
+
+  // Delete
+  let pendingDeleteId = null;
+  function confirmDelete(id, dateStr) {
+    pendingDeleteId = id;
+    document.getElementById('del-modal-text').textContent =
+      `Delete all trades for ${dateStr}? This permanently removes all fills, tags and notes.`;
+    document.getElementById('del-modal').classList.add('show');
+    document.getElementById('del-confirm-btn').onclick = executeDelete;
+  }
+  function closeModal() {
+    document.getElementById('del-modal').classList.remove('show');
+    pendingDeleteId = null;
+  }
+  async function executeDelete() {
+    if (!pendingDeleteId) return;
+    closeModal();
+    const id = pendingDeleteId;
+    const res = await fetch(`/api/day/${id}`, { method:'DELETE' });
+    if (res.ok) {
+      const row = document.getElementById('row-' + id);
+      if (row) { row.style.opacity='0'; row.style.transition='opacity 0.3s'; setTimeout(()=>row.remove(),300); }
+      showToast('Day deleted');
+    } else { showToast('Delete failed', true); }
+  }
+  document.getElementById('del-modal').addEventListener('click', e => { if (e.target===document.getElementById('del-modal')) closeModal(); });
+</script>
+{% endblock %}

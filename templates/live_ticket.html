@@ -1,0 +1,1231 @@
+{% extends "base.html" %}
+{% block title %}Live Trade — Trade Journal{% endblock %}
+
+{% block extra_styles %}
+/* ═══════════════════════════════════════════════════════════
+   THE TICKET — Single-viewport live trade interface
+   ═══════════════════════════════════════════════════════════ */
+
+/* Override page padding for full-height layout */
+.page { padding: 20px 32px 20px; max-width:1400px; }
+
+/* ── Command Bar (Proposal B hybrid) ── */
+.cmd-bar {
+  display:flex; align-items:center; gap:1px;
+  background:var(--border); border:1px solid var(--border);
+  margin-bottom:16px; height:48px;
+}
+.cmd-bar > * { background:var(--surface); height:100%; display:flex; align-items:center; }
+.cmd-dir {
+  gap:0; padding:0;
+}
+.cmd-dir-btn {
+  padding:0 14px; height:100%; border:none; cursor:pointer;
+  font-family:var(--font-mono); font-size:12px; letter-spacing:2px;
+  text-transform:uppercase; transition:all 0.12s; background:var(--surface);
+  color:var(--muted2);
+}
+.cmd-dir-btn:hover { color:var(--text); background:var(--surface2); }
+.cmd-dir-btn.sel-long  { background:rgba(79,255,176,0.12); color:var(--green); }
+.cmd-dir-btn.sel-short { background:rgba(255,77,109,0.12); color:var(--red); }
+
+.cmd-inst {
+  gap:0; padding:0;
+}
+.cmd-inst-btn {
+  padding:0 12px; height:100%; border:none; cursor:pointer;
+  font-family:var(--font-mono); font-size:11px; letter-spacing:1px;
+  transition:all 0.12s; background:var(--surface); color:var(--muted2);
+}
+.cmd-inst-btn:hover { background:var(--surface2); color:var(--text); }
+.cmd-inst-btn.active { color:var(--accent2); background:rgba(0,207,255,0.08); }
+
+.cmd-field { padding:0 12px; flex-shrink:0; }
+.cmd-field label {
+  font-size:8px; letter-spacing:1.5px; text-transform:uppercase;
+  color:var(--muted); margin-right:6px; white-space:nowrap;
+}
+.cmd-field input {
+  background:transparent; border:none; border-bottom:1px solid var(--border2);
+  color:var(--text); font-family:var(--font-mono); font-size:14px;
+  padding:2px 0; outline:none; transition:border-color 0.15s;
+}
+.cmd-field input:focus { border-bottom-color:var(--accent); }
+.cmd-field input.w-price { width:90px; }
+.cmd-field input.w-qty   { width:50px; }
+.cmd-field input.w-time  { width:70px; }
+
+.cmd-mode { gap:0; padding:0; }
+.cmd-mode-btn {
+  padding:0 12px; height:100%; border:none; cursor:pointer;
+  font-family:var(--font-mono); font-size:10px; letter-spacing:1px;
+  transition:all 0.12s; background:var(--surface); color:var(--muted2);
+}
+.cmd-mode-btn:hover { background:var(--surface2); color:var(--text); }
+.cmd-mode-btn.active { color:var(--warn); background:rgba(255,179,71,0.08); }
+
+.cmd-go {
+  padding:0; flex-shrink:0;
+}
+.cmd-go-btn {
+  height:100%; padding:0 24px; border:none; cursor:pointer;
+  background:var(--accent); color:var(--btn-text);
+  font-family:var(--font-mono); font-size:11px; letter-spacing:2px;
+  text-transform:uppercase; font-weight:500;
+  transition:all 0.15s;
+  clip-path:polygon(8px 0%,100% 0%,100% 100%,0% 100%);
+}
+.cmd-go-btn:hover { background:#6fffbe; }
+.cmd-go-btn:disabled { opacity:0.3; cursor:not-allowed; }
+
+/* ── Main Split: Position Map (left) + Controls (right) ── */
+.ticket-body {
+  display:grid; grid-template-columns:1fr 340px;
+  gap:1px; background:var(--border); border:1px solid var(--border);
+  min-height: calc(100vh - 200px);
+}
+.ticket-left  { background:var(--surface); overflow-y:auto; }
+.ticket-right { background:var(--surface); display:flex; flex-direction:column; }
+
+/* ── Empty state ── */
+.empty-state {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  height:100%; color:var(--muted); gap:12px; padding:40px;
+}
+.empty-state-icon { font-size:40px; opacity:0.25; }
+.empty-state-hint { font-size:11px; color:var(--border2); text-align:center; line-height:1.8; }
+.empty-state-hint kbd {
+  background:var(--surface2); border:1px solid var(--border2); padding:1px 6px;
+  font-family:var(--font-mono); font-size:10px; border-radius:2px; color:var(--muted2);
+}
+
+/* ── Open Trade Card ── */
+.trade-card {
+  border-bottom:1px solid var(--border); padding:0;
+  animation: fadeIn 0.3s ease both;
+}
+.trade-card.collapsed { cursor:pointer; }
+.trade-card.collapsed:hover { background:var(--surface2); }
+
+.tc-header {
+  display:flex; align-items:center; gap:12px;
+  padding:12px 18px; cursor:pointer;
+  transition:background 0.1s;
+}
+.tc-header:hover { background:rgba(255,255,255,0.015); }
+
+.tc-dir-badge {
+  font-family:var(--font-mono); font-size:10px; letter-spacing:1.5px;
+  padding:3px 10px; font-weight:500;
+  clip-path:polygon(3px 0%,100% 0%,calc(100% - 3px) 100%,0% 100%);
+}
+.tc-dir-long  { background:rgba(79,255,176,0.15); color:var(--green); }
+.tc-dir-short { background:rgba(255,77,109,0.15); color:var(--red); }
+
+.tc-title { font-size:13px; color:var(--text); flex:1; }
+.tc-title span { color:var(--muted); font-size:11px; }
+
+.tc-pnl {
+  font-family:var(--font-display); font-size:22px; letter-spacing:1px;
+}
+
+.tc-status {
+  font-size:9px; letter-spacing:2px; text-transform:uppercase;
+  padding:2px 8px; border-radius:1px;
+}
+.tc-status-open   { color:var(--warn); background:rgba(255,179,71,0.1); }
+.tc-status-closed { color:var(--green); background:rgba(79,255,176,0.08); }
+
+/* ── Position Map (expanded card body) ── */
+.tc-body { padding:0 18px 18px; display:none; }
+.trade-card.expanded .tc-body { display:block; }
+
+.portion-row {
+  display:grid; grid-template-columns:42px 1fr 90px 80px;
+  align-items:center; gap:0; padding:8px 0;
+  border-bottom:1px solid rgba(34,38,49,0.5);
+}
+.portion-row:last-of-type { border-bottom:none; }
+
+.pr-label { font-size:10px; color:var(--muted); letter-spacing:1px; }
+.pr-levels {
+  display:flex; align-items:center; gap:6px; font-size:12px;
+}
+.pr-stop-val, .pr-tp-val {
+  font-family:var(--font-mono); padding:2px 6px;
+  border:1px solid transparent; cursor:text; transition:all 0.12s; border-radius:1px;
+}
+.pr-stop-val { color:var(--red); }
+.pr-tp-val   { color:var(--green); }
+.pr-stop-val:hover, .pr-tp-val:hover { border-color:var(--border2); background:var(--bg); }
+.pr-arrow { color:var(--border2); font-size:10px; }
+
+.pr-risk {
+  font-family:var(--font-mono); font-size:11px; text-align:right;
+}
+
+.pr-status {
+  font-size:9px; letter-spacing:1.5px; text-transform:uppercase; text-align:right;
+}
+.pr-status-open    { color:var(--muted2); }
+.pr-status-struck  { color:var(--green); }
+
+/* Inline edit for stop/tp prices */
+.pr-edit-input {
+  width:80px; background:var(--bg); border:1px solid var(--accent);
+  color:var(--text); font-family:var(--font-mono); font-size:12px;
+  padding:2px 6px; outline:none; border-radius:1px;
+}
+
+/* ── Stats strip below position map ── */
+.tc-stats {
+  display:grid; grid-template-columns:repeat(4,1fr);
+  gap:1px; background:var(--border); margin-top:12px;
+}
+.tc-stat {
+  background:var(--surface2); padding:10px 12px;
+}
+.tc-stat-label { font-size:8px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:3px; }
+.tc-stat-value { font-family:var(--font-display); font-size:20px; letter-spacing:1px; line-height:1; }
+
+/* ── Notes + Tags (inline, compact) ── */
+.tc-meta { margin-top:12px; display:flex; gap:10px; align-items:flex-start; }
+.tc-notes-input {
+  flex:1; background:var(--bg); border:1px solid var(--border);
+  color:var(--text); font-family:var(--font-mono); font-size:11px;
+  padding:6px 10px; outline:none; resize:none; min-height:32px; max-height:80px;
+  transition:border-color 0.15s; line-height:1.5;
+}
+.tc-notes-input:focus { border-color:var(--accent); }
+
+.tc-actions { margin-top:12px; display:flex; gap:8px; justify-content:flex-end; align-items:center; }
+
+/* ── Execution log under card ── */
+.tc-exec-log { margin-top:8px; }
+.exec-entry {
+  display:grid; grid-template-columns:80px 40px 40px 70px 50px 70px 30px;
+  gap:4px; padding:4px 0; font-size:10px; color:var(--muted2);
+  border-bottom:1px solid rgba(34,38,49,0.3);
+  align-items:center;
+}
+.exec-entry:last-child { border-bottom:none; }
+
+/* ── RIGHT PANEL ── */
+.rp-section {
+  padding:16px 18px; border-bottom:1px solid var(--border);
+}
+.rp-title {
+  font-size:9px; letter-spacing:2.5px; text-transform:uppercase;
+  color:var(--muted); margin-bottom:12px;
+}
+
+/* Quick Exit Buttons */
+.qe-grid {
+  display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;
+  margin-bottom:10px;
+}
+.qe-btn {
+  padding:12px 8px; border:1px solid var(--border2); background:var(--surface2);
+  cursor:pointer; text-align:center; transition:all 0.12s;
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+}
+.qe-btn:hover { border-color:var(--muted); background:var(--surface3); }
+.qe-btn:active { transform:scale(0.97); }
+.qe-btn-label { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted2); }
+.qe-btn-price { font-family:var(--font-mono); font-size:13px; color:var(--text); }
+.qe-btn-pnl   { font-size:10px; }
+
+.qe-btn.qe-tp  { border-left:2px solid var(--green); }
+.qe-btn.qe-tp:hover  { border-color:var(--green); background:rgba(79,255,176,0.06); }
+.qe-btn.qe-stop { border-left:2px solid var(--red); }
+.qe-btn.qe-stop:hover { border-color:var(--red); background:rgba(255,77,109,0.06); }
+
+.qe-full-row { grid-column: 1 / -1; }
+
+/* Manual exit row */
+.qe-manual {
+  display:grid; grid-template-columns:1fr 1fr auto; gap:6px; margin-top:6px;
+}
+.qe-manual input {
+  background:var(--bg); border:1px solid var(--border2); color:var(--text);
+  font-family:var(--font-mono); font-size:11px; padding:8px 10px; outline:none;
+}
+.qe-manual input:focus { border-color:var(--accent); }
+.qe-manual-btn {
+  padding:8px 14px; border:1px solid var(--border2); background:var(--surface2);
+  color:var(--muted2); font-family:var(--font-mono); font-size:10px; letter-spacing:1px;
+  cursor:pointer; transition:all 0.12s; text-transform:uppercase;
+}
+.qe-manual-btn:hover { color:var(--text); border-color:var(--muted); }
+
+/* Trail stop section */
+.trail-grid {
+  display:flex; flex-direction:column; gap:6px;
+}
+.trail-row {
+  display:grid; grid-template-columns:36px 1fr 60px; gap:6px; align-items:center;
+}
+.trail-label { font-size:10px; color:var(--muted); letter-spacing:1px; }
+.trail-input {
+  background:var(--bg); border:1px solid var(--border2); color:var(--text);
+  font-family:var(--font-mono); font-size:12px; padding:6px 8px; outline:none;
+  width:100%; transition:border-color 0.15s;
+}
+.trail-input:focus { border-color:var(--accent); }
+.trail-apply {
+  padding:6px 10px; border:1px solid var(--border2); background:var(--surface2);
+  color:var(--muted2); font-family:var(--font-mono); font-size:9px; cursor:pointer;
+  transition:all 0.12s; text-transform:uppercase; letter-spacing:1px;
+}
+.trail-apply:hover { color:var(--text); border-color:var(--muted); }
+
+/* Tags slide-out panel */
+.tags-panel {
+  position:fixed; top:56px; right:-420px; width:400px; bottom:0;
+  background:var(--bg); border-left:1px solid var(--border);
+  z-index:100; transition:right 0.25s cubic-bezier(0.4,0,0.2,1);
+  overflow-y:auto; padding:20px;
+}
+.tags-panel.open { right:0; }
+.tags-panel-overlay {
+  position:fixed; inset:0; top:56px; background:rgba(0,0,0,0.4);
+  z-index:99; display:none; cursor:pointer;
+}
+.tags-panel-overlay.open { display:block; }
+
+.tp-group { margin-bottom:16px; }
+.tp-group-label {
+  font-size:9px; letter-spacing:2px; text-transform:uppercase;
+  color:var(--muted); margin-bottom:8px; display:flex; align-items:center; gap:8px;
+}
+.tp-group-label::after { content:''; flex:1; height:1px; background:var(--border); }
+.tp-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+.tp-tags { display:flex; flex-wrap:wrap; gap:5px; }
+
+.tp-tag-btn {
+  background:var(--surface2); border:1px solid var(--border2); color:var(--muted2);
+  padding:4px 10px; font-family:var(--font-mono); font-size:10px; cursor:pointer;
+  transition:all 0.12s; letter-spacing:0.5px;
+  clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%);
+}
+.tp-tag-btn:hover { background:var(--surface3); color:var(--text); }
+.tp-tag-btn.active-with    { background:rgba(79,255,176,0.12); border-color:var(--green); color:var(--green); }
+.tp-tag-btn.active-against { background:rgba(255,77,109,0.12); border-color:var(--red); color:var(--red); }
+.tp-tag-btn.active-vol     { background:rgba(0,207,255,0.12); border-color:var(--accent2); color:var(--accent2); }
+.tp-tag-btn.active-exit    { background:rgba(255,179,71,0.12); border-color:var(--warn); color:var(--warn); }
+.tp-tag-btn.active-setup   { background:rgba(180,127,255,0.12); border-color:var(--purple); color:var(--purple); }
+.tp-tag-btn.active-pre     { background:rgba(138,150,170,0.15); border-color:var(--muted2); color:var(--text); }
+
+/* Push bar */
+.push-row {
+  display:flex; align-items:center; gap:8px; margin-top:12px;
+}
+
+/* Day P&L footer */
+.day-footer {
+  margin-top:auto; padding:16px 18px;
+  border-top:1px solid var(--border); background:var(--surface2);
+}
+.day-footer-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:4px; }
+.day-footer-val   { font-family:var(--font-display); font-size:28px; letter-spacing:1px; }
+
+/* ── Pushed trade tray ── */
+.pushed-tray {
+  padding:10px 18px; border-bottom:1px solid var(--border);
+  display:grid; grid-template-columns: auto 1fr auto auto;
+  align-items:center; gap:12px; opacity:0.5;
+  transition:opacity 0.15s;
+}
+.pushed-tray:hover { opacity:0.8; }
+
+/* ── Date Range Filter Bar ── */
+.date-filter-bar {
+  display:flex; align-items:center; gap:8px; margin-bottom:12px;
+}
+.df-btn {
+  padding:5px 14px; border:1px solid var(--border2); background:var(--surface);
+  color:var(--muted2); font-family:var(--font-mono); font-size:10px; letter-spacing:1px;
+  cursor:pointer; transition:all 0.12s; text-transform:uppercase;
+}
+.df-btn:hover { color:var(--text); border-color:var(--muted); background:var(--surface2); }
+.df-btn.active { color:var(--accent); border-color:var(--accent); background:rgba(79,255,176,0.06); }
+
+.df-custom {
+  display:none; align-items:center; gap:6px; margin-left:4px;
+}
+.df-custom.visible { display:flex; }
+.df-custom input {
+  background:var(--bg); border:1px solid var(--border2); color:var(--text);
+  font-family:var(--font-mono); font-size:10px; padding:5px 8px; outline:none;
+  transition:border-color 0.15s;
+}
+.df-custom input:focus { border-color:var(--accent); }
+.df-custom-go {
+  padding:5px 10px; border:1px solid var(--accent); background:transparent;
+  color:var(--accent); font-family:var(--font-mono); font-size:9px; letter-spacing:1px;
+  cursor:pointer; transition:all 0.12s; text-transform:uppercase;
+}
+.df-custom-go:hover { background:var(--accent); color:var(--btn-text); }
+
+.df-label {
+  font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted);
+  margin-right:4px;
+}
+
+/* ── No active trade message in right panel ── */
+.rp-empty {
+  display:flex; align-items:center; justify-content:center;
+  flex:1; color:var(--border2); font-size:11px; letter-spacing:1px;
+  text-transform:uppercase;
+}
+{% endblock %}
+
+{% block nav_actions %}
+<a href="/live-legacy" class="btn btn-ghost" style="font-size:9px;padding:5px 12px;">Legacy View</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- ═══════════════════════════════════════════════════════════
+     DATE RANGE FILTER
+     ═══════════════════════════════════════════════════════════ -->
+<div class="date-filter-bar">
+  <span class="df-label">Show:</span>
+  <button class="df-btn {{ 'active' if active_range == 'today' }}" onclick="setDateRange('today')">Today</button>
+  <button class="df-btn {{ 'active' if active_range == 'yesterday' }}" onclick="setDateRange('yesterday')">Yesterday</button>
+  <button class="df-btn {{ 'active' if active_range == 'week' }}" onclick="setDateRange('week')">Last 7 Days</button>
+  <button class="df-btn {{ 'active' if active_range == 'month' }}" onclick="setDateRange('month')">Last 30 Days</button>
+  <button class="df-btn {{ 'active' if active_range == 'custom' }}" id="df-custom-btn" onclick="toggleCustomRange()">Custom</button>
+  <div class="df-custom {{ 'visible' if active_range == 'custom' }}" id="df-custom-fields">
+    <input type="date" id="df-from" value="{{ date_from }}">
+    <span style="color:var(--muted);">→</span>
+    <input type="date" id="df-to" value="{{ date_to }}">
+    <button class="df-custom-go" onclick="applyCustomRange()">Go</button>
+  </div>
+  <div style="flex:1;"></div>
+  <span style="font-size:10px;color:var(--muted);" id="date-range-label"></span>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     COMMAND BAR — Trade Entry Strip
+     ═══════════════════════════════════════════════════════════ -->
+<div class="cmd-bar" id="cmd-bar">
+  <div class="cmd-dir">
+    <button class="cmd-dir-btn sel-long" id="cmd-long" onclick="setDir('Long')">LONG</button>
+    <button class="cmd-dir-btn" id="cmd-short" onclick="setDir('Short')">SHORT</button>
+  </div>
+  <div class="cmd-inst">
+    <button class="cmd-inst-btn active" id="cmd-mes" onclick="setInst('MES')">MES</button>
+    <button class="cmd-inst-btn" id="cmd-es" onclick="setInst('ES')">ES</button>
+  </div>
+  <div class="cmd-field">
+    <label>@</label>
+    <input type="number" step="0.25" id="cmd-price" class="w-price" placeholder="6900" autocomplete="off">
+  </div>
+  <div class="cmd-field">
+    <label>×</label>
+    <input type="number" min="1" id="cmd-qty" class="w-qty" placeholder="6" autocomplete="off">
+  </div>
+  <div class="cmd-field">
+    <label>⏱</label>
+    <input type="time" id="cmd-time" class="w-time">
+  </div>
+  <div class="cmd-mode">
+    <button class="cmd-mode-btn active" id="cmd-full" onclick="setMode('full')">FULL</button>
+    <button class="cmd-mode-btn" id="cmd-partials" onclick="setMode('partials')">3-WAY</button>
+  </div>
+  <div class="cmd-go">
+    <button class="cmd-go-btn" id="cmd-enter" onclick="openTrade()">ENTER ↵</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MAIN BODY — Left: Trades | Right: Controls
+     ═══════════════════════════════════════════════════════════ -->
+<div class="ticket-body">
+
+  <!-- LEFT PANEL — Trade cards stream -->
+  <div class="ticket-left" id="trades-list">
+
+    <div style="padding:12px 18px 8px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);">
+      <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);">
+        {% if active_range == 'today' %}Today
+        {% elif active_range == 'yesterday' %}Yesterday
+        {% elif active_range == 'week' %}Last 7 Days
+        {% elif active_range == 'month' %}Last 30 Days
+        {% elif active_range == 'custom' %}{{ date_from }} → {{ date_to }}
+        {% endif %}
+      </div>
+      <div style="font-size:10px;color:var(--muted2);" id="trade-count-label"></div>
+    </div>
+
+    {% for t in open_trades %}
+    <!-- Open trade card rendered by server, then managed by JS -->
+    {% endfor %}
+
+    {% for t in closed_trades %}
+    <div class="pushed-tray">
+      <span class="tc-dir-badge {{ 'tc-dir-long' if t.direction == 'Long' else 'tc-dir-short' }}">{{ t.direction[:1] }}</span>
+      <span style="font-size:12px;">{{ t.total_qty }}× {{ t.instrument }} @ {{ t.entry_price }}</span>
+      <span class="tc-pnl {{ 'pnl-pos' if t.realized_pnl >= 0 else 'pnl-neg' }}" style="font-size:16px;">
+        ${{ '%.2f'|format(t.realized_pnl) }}
+      </span>
+      <span class="tc-status tc-status-closed">pushed ✓</span>
+    </div>
+    {% endfor %}
+
+    <div class="empty-state" id="empty-state" {% if open_trades or closed_trades %}style="display:none;"{% endif %}>
+      <div class="empty-state-icon">⚡</div>
+      <div>No trades today.</div>
+      <div class="empty-state-hint">
+        Fill the bar above and press <kbd>Enter</kbd> to open a trade.
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL — Quick actions & controls -->
+  <div class="ticket-right" id="right-panel">
+    <div class="rp-empty" id="rp-empty">Select or open a trade</div>
+
+    <!-- Populated by JS when a trade is active -->
+    <div id="rp-controls" style="display:none;">
+      <div class="rp-section">
+        <div class="rp-title">Quick Exit</div>
+        <div id="qe-buttons"></div>
+        <div class="qe-manual">
+          <input type="number" step="0.25" id="man-price" placeholder="Price">
+          <input type="number" min="1" id="man-qty" placeholder="Qty">
+          <button class="qe-manual-btn" onclick="manualExit()">Exit</button>
+        </div>
+      </div>
+
+      <div class="rp-section">
+        <div class="rp-title">Trail Stops</div>
+        <div class="trail-grid" id="trail-stops"></div>
+      </div>
+
+      <div class="rp-section" style="flex:1;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div class="rp-title" style="margin:0;">Trade Notes</div>
+          <button class="tp-tag-btn" style="font-size:9px;padding:3px 8px;" onclick="openTagsPanel()">+ Tags ▸</button>
+        </div>
+        <textarea class="tc-notes-input" id="rp-notes" placeholder="Rationale, observations..." style="width:100%;margin-top:8px;"></textarea>
+        <div class="push-row">
+          <button class="btn btn-ghost" style="padding:6px 14px;font-size:9px;flex:1;" onclick="cancelActiveTrade()">Cancel</button>
+          <button class="btn btn-primary" style="padding:6px 18px;font-size:10px;flex:2;" onclick="pushActiveTrade()">Save & Push →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Day total footer -->
+    <div class="day-footer">
+      <div class="day-footer-label">
+        {% if active_range == 'today' %}Today's P&L
+        {% elif active_range == 'yesterday' %}Yesterday's P&L
+        {% elif active_range == 'week' %}Week P&L
+        {% elif active_range == 'month' %}Month P&L
+        {% else %}Period P&L{% endif %}
+      </div>
+      <div class="day-footer-val pnl-zero" id="day-pnl">$0.00</div>
+    </div>
+  </div>
+</div>
+
+<!-- Tags slide-out panel -->
+<div class="tags-panel-overlay" id="tags-overlay" onclick="closeTagsPanel()"></div>
+<div class="tags-panel" id="tags-panel">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <span style="font-family:var(--font-display);font-size:18px;letter-spacing:2px;">Tags</span>
+    <button class="btn btn-ghost" style="padding:4px 12px;font-size:9px;" onclick="closeTagsPanel()">✕ Close</button>
+  </div>
+  {% for g in tag_groups %}
+  <div class="tp-group">
+    <div class="tp-group-label">
+      <span class="tp-dot" style="background:{{ 'var(--green)' if g.id == 'with' else 'var(--red)' if g.id == 'against' else 'var(--accent2)' if g.id == 'volume' else 'var(--warn)' if g.id == 'exit' else 'var(--purple)' if g.id == 'setup' else 'var(--muted)' }};"></span>
+      {{ g.label }}
+    </div>
+    <div class="tp-tags" id="tp-tags-{{ g.id }}">
+      {% for tag in g.tags %}
+      <button class="tp-tag-btn" data-group="{{ g.id }}" data-tag="{{ tag }}" data-multi="{{ 'true' if g.multi else 'false' }}"
+        data-active-class="{{ g.active_class }}"
+        onclick="toggleTag('{{ g.id }}','{{ tag }}',{{ 'true' if g.multi else 'false' }},this)">{{ tag }}</button>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const TAG_GROUPS = {{ tags_json|safe }};
+const INST_CONFIG = {{ instrument_config_json|safe }};
+const TRADE_DEFAULTS = {{ trade_defaults_json|safe }};
+
+// ── State ────────────────────────────────────────────────────────────────────
+let formDir  = 'Long';
+let formInst = 'MES';
+let formMode = 'full';
+let activeTrade = null;  // Full trade object when one is selected
+let activeTags = {};
+let allTrades = [];      // All open trades loaded from server
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  // Set default time to now
+  const now = new Date();
+  document.getElementById('cmd-time').value =
+    String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+
+  // Focus price field
+  document.getElementById('cmd-price').focus();
+
+  // Load server-rendered open trades
+  const serverTrades = {{ open_trades|tojson }};
+  serverTrades.forEach(t => {
+    try { t.tags = typeof t.tags_json === 'string' ? JSON.parse(t.tags_json) : (t.tags_json || {}); } catch(e) { t.tags = {}; }
+    allTrades.push(t);
+    renderTradeCard(t);
+  });
+
+  // Auto-select first open trade
+  if (allTrades.length > 0) {
+    selectTrade(allTrades[0].id);
+  }
+
+  updateDayPnl();
+
+  // Keyboard shortcut: Enter in price/qty fields opens trade
+  ['cmd-price','cmd-qty'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => {
+      if (e.key === 'Enter') openTrade();
+    });
+  });
+});
+
+// ── Command Bar Toggles ──────────────────────────────────────────────────────
+function setDir(d) {
+  formDir = d;
+  document.getElementById('cmd-long').className = 'cmd-dir-btn' + (d === 'Long' ? ' sel-long' : '');
+  document.getElementById('cmd-short').className = 'cmd-dir-btn' + (d === 'Short' ? ' sel-short' : '');
+}
+function setInst(i) {
+  formInst = i;
+  document.getElementById('cmd-mes').className = 'cmd-inst-btn' + (i === 'MES' ? ' active' : '');
+  document.getElementById('cmd-es').className = 'cmd-inst-btn' + (i === 'ES' ? ' active' : '');
+}
+function setMode(m) {
+  formMode = m;
+  document.getElementById('cmd-full').className = 'cmd-mode-btn' + (m === 'full' ? ' active' : '');
+  document.getElementById('cmd-partials').className = 'cmd-mode-btn' + (m === 'partials' ? ' active' : '');
+}
+
+// ── Open Trade ───────────────────────────────────────────────────────────────
+async function openTrade() {
+  const price = parseFloat(document.getElementById('cmd-price').value);
+  const qty   = parseInt(document.getElementById('cmd-qty').value);
+  const time  = document.getElementById('cmd-time').value;
+  if (!price || !qty || !time) { showToast('Fill price, qty & time', true); return; }
+
+  const pid = document.getElementById('global-portfolio-select')?.value || null;
+  const res = await fetch('/api/live', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      direction: formDir, instrument: formInst, entry_price: price,
+      entry_time: time, total_qty: qty, mode: formMode,
+      notes: '', tags: {}, portfolio_id: pid ? parseInt(pid) : null
+    })
+  });
+  const data = await res.json();
+  if (!data.ok) { showToast(data.error || 'Failed', true); return; }
+
+  // Fetch full trade with levels
+  const r2 = await fetch(`/api/live/${data.id}/recalc`);
+  const calc = await r2.json();
+
+  const trade = {
+    id: data.id, direction: formDir, instrument: formInst,
+    entry_price: price, entry_time: time, total_qty: qty,
+    mode: formMode, status: 'open', notes: '', tags: {},
+    levels: [], executions: [], calc: calc
+  };
+
+  // Fetch levels
+  const r3 = await fetch(`/api/live/${data.id}/recalc`);
+  // We need the full trade object — reload from server
+  const fullRes = await fetch(`/live?_data=${data.id}`, {headers:{'Accept':'application/json'}});
+  // Actually let's just use what we have and fetch levels from recalc
+  trade.calc = calc;
+
+  // Derive levels from defaults for rendering
+  const isLong = formDir === 'Long';
+  const dpp = INST_CONFIG[formInst]?.dollars_per_point || 5;
+  if (formMode === 'partials') {
+    const bq = Math.floor(qty/3), rem = qty%3;
+    const qtys = [bq,bq,bq]; for(let i=0;i<rem;i++) qtys[i]++;
+    const sd = parseFloat(TRADE_DEFAULTS.partial_stop_points);
+    const tds = [parseFloat(TRADE_DEFAULTS.partial_tp1_points),parseFloat(TRADE_DEFAULTS.partial_tp2_points),parseFloat(TRADE_DEFAULTS.partial_tp3_points)];
+    for(let i=0;i<3;i++) {
+      const sp = isLong ? price - sd : price + sd;
+      const tp = isLong ? price + tds[i] : price - tds[i];
+      trade.levels.push({level_type:'stop',portion:i+1,qty:qtys[i],price:sp});
+      trade.levels.push({level_type:'tp',portion:i+1,qty:qtys[i],price:tp});
+    }
+  } else {
+    const sd = parseFloat(TRADE_DEFAULTS.full_stop_points);
+    const td = parseFloat(TRADE_DEFAULTS.full_tp_points);
+    trade.levels.push({level_type:'stop',portion:1,qty:qty,price:isLong?price-sd:price+sd});
+    trade.levels.push({level_type:'tp',portion:1,qty:qty,price:isLong?price+td:price-td});
+  }
+
+  allTrades.push(trade);
+  document.getElementById('empty-state').style.display = 'none';
+  renderTradeCard(trade);
+  selectTrade(trade.id);
+
+  // Clear form
+  document.getElementById('cmd-price').value = '';
+  document.getElementById('cmd-qty').value = '';
+  const now2 = new Date();
+  document.getElementById('cmd-time').value = String(now2.getHours()).padStart(2,'0')+':'+String(now2.getMinutes()).padStart(2,'0');
+
+  showToast(`${formDir} ${qty}× ${formInst} @ ${price}`);
+}
+
+// ── Render Trade Card ────────────────────────────────────────────────────────
+function renderTradeCard(t) {
+  const existing = document.getElementById('tc-'+t.id);
+  if (existing) existing.remove();
+
+  const isLong = t.direction === 'Long';
+  const dpp = INST_CONFIG[t.instrument]?.dollars_per_point || 5;
+  const calc = t.calc || {};
+  const levels = t.levels || [];
+  const executions = t.executions || [];
+  const entry = t.entry_price;
+
+  // Portions
+  const stops = levels.filter(l=>l.level_type==='stop').sort((a,b)=>a.portion-b.portion);
+  const tps   = levels.filter(l=>l.level_type==='tp').sort((a,b)=>a.portion-b.portion);
+
+  // Which portions are exited
+  const portionExited = {};
+  executions.forEach(e => { portionExited[e.portion] = (portionExited[e.portion]||0) + e.qty; });
+
+  let portionsHtml = '';
+  const numPortions = t.mode === 'partials' ? 3 : 1;
+
+  for (let p = 1; p <= numPortions; p++) {
+    const stop = stops.find(s=>s.portion===p);
+    const tp = tps.find(t2=>t2.portion===p);
+    if (!stop) continue;
+    const origQty = stop.qty;
+    const exited = portionExited[p] || 0;
+    const rem = origQty - exited;
+    const isStruck = rem <= 0;
+
+    const stopPnl = isLong ? (stop.price - entry)*origQty*dpp : (entry - stop.price)*origQty*dpp;
+    const riskStr = stopPnl < 0 ? `<span class="pnl-neg">-$${Math.abs(stopPnl).toFixed(0)}</span>` : `<span class="pnl-pos">+$${stopPnl.toFixed(0)}</span>`;
+
+    portionsHtml += `
+    <div class="portion-row">
+      <div class="pr-label">P${p} ${origQty}×</div>
+      <div class="pr-levels">
+        <span class="pr-stop-val" data-trade="${t.id}" data-portion="${p}" data-type="stop" onclick="editPrice(this)">${stop.price}</span>
+        <span class="pr-arrow">→</span>
+        <span class="pr-tp-val" data-trade="${t.id}" data-portion="${p}" data-type="tp" onclick="editPrice(this)">${tp ? tp.price : '—'}</span>
+      </div>
+      <div class="pr-risk">${riskStr}</div>
+      <div class="pr-status ${isStruck ? 'pr-status-struck' : 'pr-status-open'}">${isStruck ? '✓ STRUCK' : 'OPEN'}</div>
+    </div>`;
+  }
+
+  // Exec log entries
+  let execHtml = '';
+  executions.forEach(e => {
+    const cls = e.pnl > 0 ? 'pnl-pos' : e.pnl < 0 ? 'pnl-neg' : 'pnl-zero';
+    execHtml += `<div class="exec-entry" id="exec-${e.id}">
+      <span style="text-transform:capitalize;">${e.exec_type.replace('_',' ')}</span>
+      <span>P${e.portion}</span><span>${e.qty}×</span>
+      <span>${e.price}</span><span>${e.exec_time}</span>
+      <span class="${cls}">$${e.pnl.toFixed(2)}</span>
+      <span style="cursor:pointer;color:var(--muted);" onclick="deleteExec(${t.id},${e.id})">✕</span>
+    </div>`;
+  });
+
+  const realized = calc.realized_pnl || 0;
+  const netExp = calc.net_stop_exposure;
+  const reward = calc.potential_reward || 0;
+  const remaining = calc.remaining_qty ?? t.total_qty;
+
+  const html = `
+  <div class="trade-card expanded" id="tc-${t.id}" onclick="if(event.target.closest('.portion-row,.tc-stats,.tc-exec-log,.pr-edit-input'))return; selectTrade(${t.id});">
+    <div class="tc-header">
+      <span class="tc-dir-badge ${isLong ? 'tc-dir-long' : 'tc-dir-short'}">${t.direction}</span>
+      <span class="tc-title">${t.total_qty}× ${t.instrument} @ ${t.entry_price} <span>${t.entry_time}</span></span>
+      <span class="tc-pnl ${realized >= 0 ? 'pnl-pos' : 'pnl-neg'}" id="tc-pnl-${t.id}">${realized >= 0 ? '+' : ''}$${realized.toFixed(2)}</span>
+      <span class="tc-status tc-status-open">open</span>
+    </div>
+    <div class="tc-body">
+      ${portionsHtml}
+      <div class="tc-stats">
+        <div class="tc-stat"><div class="tc-stat-label">Remaining</div><div class="tc-stat-value" id="tc-rem-${t.id}">${remaining}</div></div>
+        <div class="tc-stat"><div class="tc-stat-label">Realized</div><div class="tc-stat-value ${realized>0?'pnl-pos':realized<0?'pnl-neg':'pnl-zero'}" id="tc-real-${t.id}">${realized>=0?'+':''}$${realized.toFixed(2)}</div></div>
+        <div class="tc-stat"><div class="tc-stat-label">Net Risk</div><div class="tc-stat-value" id="tc-risk-${t.id}" style="color:${netExp!=null&&netExp<0?'var(--red)':'var(--green)'};">${netExp!=null?(netExp<0?'-$'+Math.abs(netExp).toFixed(2):'+$'+netExp.toFixed(2)):'—'}</div></div>
+        <div class="tc-stat"><div class="tc-stat-label">Upside</div><div class="tc-stat-value pnl-pos" id="tc-up-${t.id}">+$${reward.toFixed(2)}</div></div>
+      </div>
+      ${execHtml ? '<div class="tc-exec-log">'+execHtml+'</div>' : ''}
+    </div>
+  </div>`;
+
+  const emptyEl = document.getElementById('empty-state');
+  if (emptyEl) emptyEl.insertAdjacentHTML('beforebegin', html);
+  else document.getElementById('trades-list').insertAdjacentHTML('beforeend', html);
+}
+
+// ── Select Trade (populate right panel) ──────────────────────────────────────
+function selectTrade(id) {
+  const t = allTrades.find(tr => tr.id === id);
+  if (!t) return;
+  activeTrade = t;
+  try { activeTags = typeof t.tags === 'object' ? {...t.tags} : JSON.parse(t.tags_json||'{}'); } catch(e) { activeTags = {}; }
+
+  // Highlight card
+  document.querySelectorAll('.trade-card').forEach(c => c.style.outline = '');
+  const card = document.getElementById('tc-'+id);
+  if (card) card.style.outline = '1px solid var(--accent)';
+
+  // Show controls
+  document.getElementById('rp-empty').style.display = 'none';
+  document.getElementById('rp-controls').style.display = 'flex';
+  document.getElementById('rp-controls').style.flexDirection = 'column';
+  document.getElementById('rp-controls').style.flex = '1';
+
+  // Notes
+  document.getElementById('rp-notes').value = t.notes || '';
+
+  // Build Quick Exit buttons
+  buildQuickExitButtons(t);
+  buildTrailStops(t);
+  syncTagButtons();
+}
+
+function buildQuickExitButtons(t) {
+  const container = document.getElementById('qe-buttons');
+  const levels = t.levels || [];
+  const isLong = t.direction === 'Long';
+  const dpp = INST_CONFIG[t.instrument]?.dollars_per_point || 5;
+  const entry = t.entry_price;
+  const executions = t.executions || [];
+
+  const portionExited = {};
+  executions.forEach(e => { portionExited[e.portion] = (portionExited[e.portion]||0) + e.qty; });
+
+  const tps = levels.filter(l=>l.level_type==='tp').sort((a,b)=>a.portion-b.portion);
+  const stops = levels.filter(l=>l.level_type==='stop').sort((a,b)=>a.portion-b.portion);
+
+  let html = '<div class="qe-grid">';
+
+  if (t.mode === 'partials') {
+    tps.forEach(tp => {
+      const stop = stops.find(s=>s.portion===tp.portion);
+      const origQty = stop ? stop.qty : tp.qty;
+      const exited = portionExited[tp.portion] || 0;
+      const rem = origQty - exited;
+      if (rem <= 0) {
+        html += `<div class="qe-btn qe-tp" style="opacity:0.3;cursor:default;"><div class="qe-btn-label">TP${tp.portion}</div><div class="qe-btn-price" style="text-decoration:line-through;">${tp.price}</div><div class="qe-btn-pnl pnl-pos">✓</div></div>`;
+        return;
+      }
+      const pnl = isLong ? (tp.price-entry)*rem*dpp : (entry-tp.price)*rem*dpp;
+      html += `<div class="qe-btn qe-tp" onclick="quickExit(${t.id},'tp_hit',${tp.portion},${rem},${tp.price})">
+        <div class="qe-btn-label">TP${tp.portion}</div><div class="qe-btn-price">${tp.price}</div>
+        <div class="qe-btn-pnl pnl-pos">+$${pnl.toFixed(0)} · ${rem}×</div></div>`;
+    });
+  } else {
+    const tp = tps[0]; const stop = stops[0];
+    if (tp) {
+      const rem = (t.calc?.remaining_qty) ?? t.total_qty;
+      const pnl = isLong ? (tp.price-entry)*rem*dpp : (entry-tp.price)*rem*dpp;
+      html += `<div class="qe-btn qe-tp qe-full-row" onclick="quickExit(${t.id},'tp_hit',1,${rem},${tp.price})">
+        <div class="qe-btn-label">TARGET</div><div class="qe-btn-price">${tp.price}</div>
+        <div class="qe-btn-pnl pnl-pos">+$${pnl.toFixed(0)} · ${rem}×</div></div>`;
+    }
+  }
+
+  // Stop all button
+  const totalRem = (t.calc?.remaining_qty) ?? t.total_qty;
+  if (totalRem > 0) {
+    const firstStop = stops[0];
+    if (firstStop) {
+      html += `<div class="qe-btn qe-stop qe-full-row" onclick="quickStopAll(${t.id})">
+        <div class="qe-btn-label">STOP ALL</div><div class="qe-btn-price">${firstStop.price}</div>
+        <div class="qe-btn-pnl pnl-neg">${totalRem}× remaining</div></div>`;
+    }
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function buildTrailStops(t) {
+  const container = document.getElementById('trail-stops');
+  const stops = (t.levels||[]).filter(l=>l.level_type==='stop').sort((a,b)=>a.portion-b.portion);
+  const executions = t.executions || [];
+  const portionExited = {};
+  executions.forEach(e => { portionExited[e.portion] = (portionExited[e.portion]||0) + e.qty; });
+
+  let html = '';
+  stops.forEach(s => {
+    const rem = s.qty - (portionExited[s.portion]||0);
+    if (rem <= 0) return;
+    html += `<div class="trail-row">
+      <div class="trail-label">${t.mode==='partials'?'P'+s.portion:'Stop'}</div>
+      <input class="trail-input" type="number" step="0.25" value="${s.price}" id="trail-${t.id}-${s.portion}">
+      <button class="trail-apply" onclick="trailStop(${t.id},${s.portion})">Set</button>
+    </div>`;
+  });
+  container.innerHTML = html || '<div style="font-size:10px;color:var(--border2);">No open portions</div>';
+}
+
+// ── Quick Exit (ONE CLICK!) ──────────────────────────────────────────────────
+async function quickExit(tradeId, type, portion, qty, price) {
+  const now = new Date();
+  const time = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+
+  const res = await fetch(`/api/live/${tradeId}/execute`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({exec_type:type, portion, qty, price, exec_time:time})
+  });
+  const data = await res.json();
+  if (!data.ok) { showToast(data.error||'Failed',true); return; }
+
+  // Update local state
+  const t = allTrades.find(tr=>tr.id===tradeId);
+  if (t) {
+    t.executions = t.executions || [];
+    t.executions.push({id:data.exec_id, exec_type:type, portion, qty, price, exec_time:time, pnl:data.pnl});
+    t.calc = data.calc;
+    renderTradeCard(t);
+    if (activeTrade && activeTrade.id === tradeId) selectTrade(tradeId);
+  }
+  updateDayPnl();
+  showToast(`${type.replace('_',' ')} · $${data.pnl.toFixed(2)}`);
+}
+
+async function quickStopAll(tradeId) {
+  const t = allTrades.find(tr=>tr.id===tradeId);
+  if (!t) return;
+  const stops = (t.levels||[]).filter(l=>l.level_type==='stop').sort((a,b)=>a.portion-b.portion);
+  const execs = t.executions || [];
+  const portionExited = {};
+  execs.forEach(e => { portionExited[e.portion] = (portionExited[e.portion]||0) + e.qty; });
+
+  for (const s of stops) {
+    const rem = s.qty - (portionExited[s.portion]||0);
+    if (rem > 0) {
+      await quickExit(tradeId, 'stop_hit', s.portion, rem, s.price);
+    }
+  }
+}
+
+async function manualExit() {
+  if (!activeTrade) return;
+  const price = parseFloat(document.getElementById('man-price').value);
+  let qtyToExit = parseInt(document.getElementById('man-qty').value);
+  if (!price || !qtyToExit) { showToast('Enter price and qty', true); return; }
+
+  // Calculate remaining qty per portion
+  const execs = activeTrade.executions || [];
+  const portionExited = {};
+  execs.forEach(e => { portionExited[e.portion] = (portionExited[e.portion]||0) + e.qty; });
+  const stops = (activeTrade.levels||[]).filter(l=>l.level_type==='stop').sort((a,b)=>a.portion-b.portion);
+
+  // Build list of open portions with remaining qty
+  const openPortions = [];
+  for (const s of stops) {
+    const rem = s.qty - (portionExited[s.portion]||0);
+    if (rem > 0) openPortions.push({portion: s.portion, remaining: rem});
+  }
+
+  // Distribute exit qty across open portions sequentially
+  for (const op of openPortions) {
+    if (qtyToExit <= 0) break;
+    const exitFromThis = Math.min(qtyToExit, op.remaining);
+    await quickExit(activeTrade.id, 'manual_exit', op.portion, exitFromThis, price);
+    qtyToExit -= exitFromThis;
+  }
+
+  document.getElementById('man-price').value = '';
+  document.getElementById('man-qty').value = '';
+}
+
+// ── Trail Stop ───────────────────────────────────────────────────────────────
+async function trailStop(tradeId, portion) {
+  const input = document.getElementById(`trail-${tradeId}-${portion}`);
+  if (!input) return;
+  const newPrice = parseFloat(input.value);
+  const t = allTrades.find(tr=>tr.id===tradeId);
+  if (!t) return;
+
+  // Rebuild all levels with updated stop
+  const isLong = t.direction === 'Long';
+  const dpp = INST_CONFIG[t.instrument]?.dollars_per_point || 5;
+  const entry = t.entry_price;
+  const newLevels = (t.levels||[]).map(lv => {
+    const l = {...lv};
+    if (l.level_type === 'stop' && l.portion === portion) {
+      l.price = newPrice;
+      const pnl = isLong ? (newPrice-entry)*l.qty*dpp : (entry-newPrice)*l.qty*dpp;
+      l.risk_dollars = Math.max(-pnl,0);
+      l.reward_dollars = 0;
+    }
+    return l;
+  });
+
+  const res = await fetch(`/api/live/${tradeId}/levels`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({levels:newLevels})
+  });
+  const data = await res.json();
+  if (data.ok) {
+    t.levels = newLevels;
+    t.calc = data.calc;
+    renderTradeCard(t);
+    if (activeTrade && activeTrade.id === tradeId) selectTrade(tradeId);
+    showToast(`Stop ${t.mode==='partials'?'P'+portion:''} → ${newPrice}`);
+  }
+}
+
+// ── Inline Price Edit (click on stop/tp value in position map) ───────────────
+function editPrice(el) {
+  if (el.querySelector('input')) return; // already editing
+  const tradeId = parseInt(el.dataset.trade);
+  const portion = parseInt(el.dataset.portion);
+  const type = el.dataset.type;
+  const currentVal = el.textContent.trim();
+  if (currentVal === '—') return;
+
+  const input = document.createElement('input');
+  input.type = 'number'; input.step = '0.25'; input.value = currentVal;
+  input.className = 'pr-edit-input';
+  el.textContent = '';
+  el.appendChild(input);
+  input.focus(); input.select();
+
+  const commit = async () => {
+    const newPrice = parseFloat(input.value);
+    if (!newPrice || newPrice === parseFloat(currentVal)) {
+      el.textContent = currentVal; return;
+    }
+    const t = allTrades.find(tr=>tr.id===tradeId);
+    if (!t) return;
+
+    const isLong = t.direction === 'Long';
+    const dpp = INST_CONFIG[t.instrument]?.dollars_per_point || 5;
+    const entry = t.entry_price;
+    const newLevels = (t.levels||[]).map(lv => {
+      const l = {...lv};
+      if (l.level_type === type && l.portion === portion) {
+        l.price = newPrice;
+        if (type === 'stop') {
+          const pnl = isLong ? (newPrice-entry)*l.qty*dpp : (entry-newPrice)*l.qty*dpp;
+          l.risk_dollars = Math.max(-pnl,0); l.reward_dollars = 0;
+        } else {
+          const pnl = isLong ? (newPrice-entry)*l.qty*dpp : (entry-newPrice)*l.qty*dpp;
+          l.risk_dollars = 0; l.reward_dollars = Math.max(pnl,0);
+        }
+      }
+      return l;
+    });
+
+    const res = await fetch(`/api/live/${tradeId}/levels`, {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({levels:newLevels})
+    });
+    const data = await res.json();
+    if (data.ok) {
+      t.levels = newLevels; t.calc = data.calc;
+      renderTradeCard(t);
+      if (activeTrade && activeTrade.id === tradeId) selectTrade(tradeId);
+    } else { el.textContent = currentVal; }
+  };
+
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', e => { if(e.key==='Enter') input.blur(); if(e.key==='Escape'){el.textContent=currentVal;} });
+}
+
+// ── Delete Execution ─────────────────────────────────────────────────────────
+async function deleteExec(tradeId, execId) {
+  const res = await fetch(`/api/live/${tradeId}/execution/${execId}`, {method:'DELETE'});
+  const data = await res.json();
+  if (data.ok) {
+    const t = allTrades.find(tr=>tr.id===tradeId);
+    if (t) {
+      t.executions = (t.executions||[]).filter(e=>e.id!==execId);
+      t.calc = data.calc;
+      renderTradeCard(t);
+      if (activeTrade && activeTrade.id === tradeId) selectTrade(tradeId);
+    }
+    updateDayPnl();
+    showToast('Execution removed');
+  }
+}
+
+// ── Push to Journal ──────────────────────────────────────────────────────────
+async function pushActiveTrade() {
+  if (!activeTrade) return;
+  const res = await fetch(`/api/live/${activeTrade.id}/push`, {method:'POST'});
+  const data = await res.json();
+  if (!data.ok) { showToast(data.error||'Failed',true); return; }
+
+  // Collapse into pushed tray
+  const card = document.getElementById('tc-'+activeTrade.id);
+  if (card) {
+    const t = activeTrade;
+    const realized = t.calc?.realized_pnl || 0;
+    card.outerHTML = `<div class="pushed-tray">
+      <span class="tc-dir-badge ${t.direction==='Long'?'tc-dir-long':'tc-dir-short'}">${t.direction[0]}</span>
+      <span style="font-size:12px;">${t.total_qty}× ${t.instrument} @ ${t.entry_price}</span>
+      <span class="tc-pnl ${realized>=0?'pnl-pos':'pnl-neg'}" style="font-size:16px;">${realized>=0?'+':''}$${realized.toFixed(2)}</span>
+      <span class="tc-status tc-status-closed">pushed ✓</span>
+    </div>`;
+  }
+
+  allTrades = allTrades.filter(tr=>tr.id!==activeTrade.id);
+  activeTrade = null;
+
+  // Select next open trade or show empty
+  if (allTrades.length > 0) { selectTrade(allTrades[0].id); }
+  else {
+    document.getElementById('rp-empty').style.display = 'flex';
+    document.getElementById('rp-controls').style.display = 'none';
+  }
+  updateDayPnl();
+  showToast('Pushed to journal ✓');
+}
+
+async function cancelActiveTrade() {
+  if (!activeTrade) return;
+  if (!confirm('Cancel this trade?')) return;
+  await fetch(`/api/live/${activeTrade.id}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({status:'cancelled'})
+  });
+  document.getElementById('tc-'+activeTrade.id)?.remove();
+  allTrades = allTrades.filter(tr=>tr.id!==activeTrade.id);
+  activeTrade = null;
+  if (allTrades.length > 0) selectTrade(allTrades[0].id);
+  else {
+    document.getElementById('rp-empty').style.display = 'flex';
+    document.getElementById('rp-controls').style.display = 'none';
+  }
+  showToast('Trade cancelled');
+}
+
+// ── Tags ─────────────────────────────────────────────────────────────────────
+function openTagsPanel() {
+  document.getElementById('tags-panel').classList.add('open');
+  document.getElementById('tags-overlay').classList.add('open');
+  syncTagButtons();
+}
+function closeTagsPanel() {
+  document.getElementById('tags-panel').classList.remove('open');
+  document.getElementById('tags-overlay').classList.remove('open');
+}
+
+function syncTagButtons() {
+  document.querySelectorAll('.tp-tag-btn').forEach(btn => {
+    const gid = btn.dataset.group, tag = btn.dataset.tag, ac = btn.dataset.activeClass;
+    const tags = activeTags[gid] || [];
+    if (tags.includes(tag)) btn.classList.add(ac);
+    else btn.classList.remove(ac);
+  });
+}
+
+function toggleTag(gid, tag, multi, btn) {
+  if (!activeTrade) return;
+  if (!activeTags[gid]) activeTags[gid] = [];
+  const arr = activeTags[gid], ac = btn.dataset.activeClass, idx = arr.indexOf(tag);
+  if (multi) { idx>=0 ? (arr.splice(idx,1),btn.classList.remove(ac)) : (arr.push(tag),btn.classList.add(ac)); }
+  else {
+    document.querySelectorAll(`.tp-tag-btn[data-group="${gid}"]`).forEach(b=>b.classList.remove(b.dataset.activeClass));
+    idx>=0 ? activeTags[gid]=[] : (activeTags[gid]=[tag],btn.classList.add(ac));
+  }
+  activeTrade.tags = activeTags;
+  fetch(`/api/live/${activeTrade.id}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({tags:activeTags})
+  });
+}
+
+// ── Notes auto-save ──────────────────────────────────────────────────────────
+let noteTimer = null;
+document.getElementById('rp-notes')?.addEventListener('input', function() {
+  if (!activeTrade) return;
+  activeTrade.notes = this.value;
+  clearTimeout(noteTimer);
+  noteTimer = setTimeout(() => {
+    fetch(`/api/live/${activeTrade.id}`, {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({notes: this.value})
+    });
+  }, 600);
+});
+
+// ── Day P&L ──────────────────────────────────────────────────────────────────
+function updateDayPnl() {
+  let total = 0;
+  allTrades.forEach(t => { total += t.calc?.realized_pnl || 0; });
+  // Also count pushed trades from server render
+  let pushedCount = 0;
+  document.querySelectorAll('.pushed-tray .tc-pnl').forEach(el => {
+    const val = parseFloat(el.textContent.replace(/[^-\d.]/g,''));
+    if (!isNaN(val)) total += val;
+    pushedCount++;
+  });
+  const el = document.getElementById('day-pnl');
+  el.textContent = (total>=0?'+':'') + '$' + total.toFixed(2);
+  el.className = 'day-footer-val ' + (total>0?'pnl-pos':total<0?'pnl-neg':'pnl-zero');
+
+  // Update trade count
+  const totalTrades = allTrades.length + pushedCount;
+  const countEl = document.getElementById('trade-count-label');
+  if (countEl) countEl.textContent = totalTrades + ' trade' + (totalTrades !== 1 ? 's' : '');
+}
+// ── Date Range Filter ─────────────────────────────────────────────────────
+function setDateRange(range) {
+  const params = new URLSearchParams(window.location.search);
+  params.set('range', range);
+  params.delete('from');
+  params.delete('to');
+  window.location.href = '/live?' + params.toString();
+}
+
+function toggleCustomRange() {
+  const fields = document.getElementById('df-custom-fields');
+  const btn = document.getElementById('df-custom-btn');
+  const isVisible = fields.classList.contains('visible');
+  if (isVisible) {
+    fields.classList.remove('visible');
+    btn.classList.remove('active');
+  } else {
+    fields.classList.add('visible');
+    btn.classList.add('active');
+    document.getElementById('df-from').focus();
+  }
+}
+
+function applyCustomRange() {
+  const from = document.getElementById('df-from').value;
+  const to = document.getElementById('df-to').value;
+  if (!from || !to) { showToast('Select both dates', true); return; }
+  if (from > to) { showToast('From date must be before To date', true); return; }
+  const params = new URLSearchParams(window.location.search);
+  params.set('range', 'custom');
+  params.set('from', from);
+  params.set('to', to);
+  window.location.href = '/live?' + params.toString();
+}
+</script>
+{% endblock %}

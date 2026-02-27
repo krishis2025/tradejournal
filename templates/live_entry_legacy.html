@@ -1,0 +1,487 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Trade #' ~ trade.id if trade else 'New Live Trade' }} — Trade Journal{% endblock %}
+
+{% block extra_styles %}
+.lt-header { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:24px; }
+.setup-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+  gap: 1px; background: var(--border); border: 1px solid var(--border); margin-bottom: 20px;
+}
+.setup-cell { background: var(--surface); padding: 16px 18px; }
+.setup-cell label { display:block; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
+.setup-cell select, .setup-cell input {
+  width:100%; background:var(--bg); border:1px solid var(--border2); color:var(--text);
+  font-family:var(--font-mono); font-size:13px; padding:8px 10px; outline:none; transition:border-color 0.15s;
+}
+.setup-cell select:focus, .setup-cell input:focus { border-color:var(--accent); }
+.setup-cell select { cursor:pointer; appearance:none; -webkit-appearance:none; }
+
+.tag-panel   { padding:20px; display:grid; grid-template-columns:1fr 1fr; gap:16px; background:var(--surface); border:1px solid var(--border); margin-bottom:20px; }
+.tag-panel-3 { padding:16px 20px 20px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; background:var(--surface); border:1px solid var(--border); border-top:none; }
+.tag-group   { background:var(--surface2); border:1px solid var(--border); border-radius:2px; padding:14px; }
+.tg-label    { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:10px; display:flex; align-items:center; gap:8px; }
+.tg-label::after { content:''; flex:1; height:1px; background:var(--border); }
+.tg-dot      { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+.tags-row    { display:flex; flex-wrap:wrap; gap:6px; }
+
+.tag-btn {
+  background:var(--surface2); border:1px solid var(--border2); color:var(--muted2);
+  padding:4px 10px; font-family:var(--font-mono); font-size:10px; cursor:pointer;
+  transition:all 0.12s; letter-spacing:0.5px;
+  clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%);
+}
+.tag-btn:hover { background:var(--surface3); color:var(--text); border-color:var(--muted); }
+.tag-btn.active-with    { background:rgba(79,255,176,0.12); border-color:var(--green); color:var(--green); }
+.tag-btn.active-against { background:rgba(255,77,109,0.12); border-color:var(--red); color:var(--red); }
+.tag-btn.active-vol     { background:rgba(0,207,255,0.12); border-color:var(--accent2); color:var(--accent2); }
+.tag-btn.active-exit      { background:rgba(255,179,71,0.12); border-color:var(--warn); color:var(--warn); }
+.tag-btn.active-setup     { background:rgba(180,127,255,0.12); border-color:var(--purple); color:var(--purple); }
+.tag-btn.active-pre       { background:rgba(138,150,170,0.15); border-color:var(--muted2); color:var(--text); }
+.tag-btn.active-pre-good  { background:rgba(79,255,176,0.12); border-color:var(--green); color:var(--green); }
+.tag-btn.active-pre-bad   { background:rgba(255,77,109,0.12); border-color:var(--red); color:var(--red); }
+.tag-btn.active-exit-good { background:rgba(79,255,176,0.12); border-color:var(--green); color:var(--green); }
+.tag-btn.active-exit-bad  { background:rgba(255,77,109,0.12); border-color:var(--red); color:var(--red); }
+.tag-btn.active-vol-avg   { background:rgba(0,207,255,0.12); border-color:var(--accent2); color:var(--accent2); }
+.tag-btn.active-vol-high  { background:rgba(79,255,176,0.12); border-color:var(--green); color:var(--green); }
+.tag-btn.active-vol-low   { background:rgba(255,77,109,0.12); border-color:var(--red); color:var(--red); }
+
+.notes-area {
+  width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text);
+  font-family:var(--font-mono); font-size:12px; padding:10px 12px; resize:vertical; min-height:60px;
+  outline:none; transition:border-color 0.2s; line-height:1.7;
+}
+.notes-area:focus { border-color:var(--accent); }
+.notes-area::placeholder { color:var(--border2); }
+
+.levels-table { width:100%; border-collapse:collapse; }
+.levels-table th {
+  text-align:left; padding:10px 14px; font-size:9px; letter-spacing:2px;
+  text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--border);
+  background:var(--surface); font-weight:400;
+}
+.levels-table td { padding:10px 14px; border-bottom:1px solid rgba(34,38,49,0.7); color:var(--muted2); font-size:12px; }
+.levels-table tr.stop-row td { color:var(--red); }
+.levels-table tr.tp-row td   { color:var(--green); }
+.levels-table tr.total-row td { border-top:2px solid var(--border2); font-size:13px; color:var(--text); font-weight:500; }
+.levels-table input {
+  background:var(--bg); border:1px solid var(--border2); color:inherit;
+  font-family:var(--font-mono); font-size:12px; padding:4px 8px; width:100px; outline:none; transition:border-color 0.15s;
+}
+.levels-table input:focus { border-color:var(--accent); }
+
+.risk-stats {
+  display:grid; grid-template-columns:repeat(5, 1fr);
+  gap:1px; background:var(--border); border:1px solid var(--border); margin-bottom:20px;
+}
+.risk-stat { background:var(--surface); padding:18px 20px; }
+.risk-stat-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
+.risk-stat-value { font-family:var(--font-display); font-size:26px; letter-spacing:1px; line-height:1; }
+
+.exec-section { background:var(--surface); border:1px solid var(--border); margin-bottom:20px; }
+.exec-header { padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+.exec-table { width:100%; border-collapse:collapse; }
+.exec-table th {
+  text-align:left; padding:10px 14px; font-size:9px; letter-spacing:2px;
+  text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--border);
+  background:var(--surface2); font-weight:400;
+}
+.exec-table td { padding:10px 14px; border-bottom:1px solid rgba(34,38,49,0.5); font-size:12px; color:var(--muted2); }
+.exec-table tr:last-child td { border-bottom:none; }
+
+.exec-form {
+  display:grid; grid-template-columns: 140px 80px 80px 100px 100px auto;
+  gap:1px; background:var(--border); border-top:1px solid var(--border2);
+}
+.exec-form > div { background:var(--surface2); padding:10px 12px; }
+.exec-form select, .exec-form input {
+  width:100%; background:var(--bg); border:1px solid var(--border2); color:var(--text);
+  font-family:var(--font-mono); font-size:11px; padding:6px 8px; outline:none;
+}
+.exec-form select:focus, .exec-form input:focus { border-color:var(--accent); }
+.ef-label { font-size:8px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:4px; }
+
+.closed-banner {
+  background:rgba(79,255,176,0.06); border:1px solid rgba(79,255,176,0.25);
+  padding:16px 24px; margin-bottom:20px; display:flex; align-items:center; justify-content:space-between;
+}
+.closed-banner.loss { background:rgba(255,77,109,0.06); border-color:rgba(255,77,109,0.25); }
+
+.sec-title {
+  font-family:var(--font-display); font-size:17px; letter-spacing:2px;
+  color:var(--muted2); margin:24px 0 10px; display:flex; align-items:center; gap:10px;
+}
+.sec-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+.push-bar {
+  display:flex; align-items:center; justify-content:space-between;
+  background:var(--surface); border:1px solid var(--border); border-top:2px solid var(--accent);
+  padding:16px 24px; margin-bottom:20px;
+}
+{% endblock %}
+
+{% block nav_actions %}
+<a href="/live-legacy" class="btn btn-ghost">← All Trades</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="lt-header">
+  <div>
+    <div class="page-title">{{ 'Live Trade #' ~ trade.id if trade else 'New Live Trade' }}</div>
+    <div class="page-sub">{{ 'Position management &amp; execution log' if trade else 'Set up your trade plan before entry' }}</div>
+  </div>
+  {% if trade and trade.status == 'open' %}
+  <button class="btn btn-ghost" style="color:var(--red);border-color:var(--red);" onclick="cancelTrade()">Cancel Trade</button>
+  {% endif %}
+</div>
+
+{% if trade and trade.status == 'closed' %}
+<div class="closed-banner {{ 'loss' if trade.realized_pnl < 0 else '' }}">
+  <div>
+    <span style="font-size:13px;letter-spacing:1px;">✓ SAVED TO JOURNAL</span>
+    <span style="margin-left:16px;font-family:var(--font-display);font-size:24px;letter-spacing:1px;"
+          class="{{ 'pnl-pos' if trade.realized_pnl >= 0 else 'pnl-neg' }}">
+      ${{ '%.2f'|format(trade.realized_pnl) }}
+    </span>
+    <span style="margin-left:12px;font-size:11px;color:var(--muted);">
+      {{ trade.direction }} {{ trade.total_qty }}× {{ trade.instrument }} @ {{ trade.entry_price }}
+    </span>
+  </div>
+  <div style="display:flex;gap:10px;">
+    {% if trade.journal_trade_id %}
+    <a href="/trade/{{ trade.journal_trade_id }}" class="btn btn-ghost">View in Journal →</a>
+    {% endif %}
+    <a href="/live/new" class="btn btn-primary">+ New Trade</a>
+  </div>
+</div>
+{% endif %}
+
+{% if not trade or trade.status == 'open' %}
+
+<!-- ── PRE-TRADE CONTEXT ── -->
+<div class="sec-title">Pre-Trade Context</div>
+<div class="tag-panel" id="tag-panel">
+  {% for g in tag_groups[:2] %}
+  <div class="tag-group">
+    <div class="tg-label">
+      <span class="tg-dot" style="background:{{ 'var(--green)' if g.id == 'with' else 'var(--red)' }};"></span>{{ g.label }}
+    </div>
+    <div class="tags-row" id="tags-{{ g.id }}">
+      {% for tag in g.tags %}
+      <button class="tag-btn" data-tag="{{ tag }}" data-group="{{ g.id }}" data-multi="{{ 'true' if g.multi else 'false' }}"
+        data-active-class="{{ g.active_class }}"
+        onclick="toggleLocalTag('{{ g.id }}','{{ tag }}',{{ 'true' if g.multi else 'false' }}, this)">{{ tag }}</button>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<div class="tag-panel-3" style="border:1px solid var(--border);border-top:none;margin-top:-20px;margin-bottom:20px;">
+  {% for g in tag_groups[2:] %}
+  <div class="tag-group">
+    <div class="tg-label">
+      <span class="tg-dot" style="background:{{ 'var(--accent2)' if g.id == 'volume' else 'var(--warn)' if g.id == 'exit' else 'var(--purple)' if g.id == 'setup' else 'var(--muted)' }};"></span>{{ g.label }}
+    </div>
+    <div class="tags-row" id="tags-{{ g.id }}">
+      {% for tag in g.tags %}
+      {% if g.id == 'pre' %}
+        {% if tag in ['Trade came to me', 'Intuition / Mkt Feel'] %}{% set active_cls = 'active-pre-good' %}
+        {% else %}{% set active_cls = 'active-pre-bad' %}{% endif %}
+      {% elif g.id == 'exit' %}
+        {% if tag == 'Planned — Monitored Continuation' %}{% set active_cls = 'active-exit-good' %}
+        {% else %}{% set active_cls = 'active-exit-bad' %}{% endif %}
+      {% elif g.id == 'volume' %}
+        {% if tag == 'Avg' %}{% set active_cls = 'active-vol-avg' %}
+        {% elif tag == 'Above Avg' %}{% set active_cls = 'active-vol-high' %}
+        {% elif tag == 'Below Avg' %}{% set active_cls = 'active-vol-low' %}
+        {% else %}{% set active_cls = g.active_class %}{% endif %}
+      {% else %}{% set active_cls = g.active_class %}{% endif %}
+      <button class="tag-btn" data-tag="{{ tag }}" data-group="{{ g.id }}" data-multi="{{ 'true' if g.multi else 'false' }}"
+        data-active-class="{{ active_cls }}"
+        onclick="toggleLocalTag('{{ g.id }}','{{ tag }}',{{ 'true' if g.multi else 'false' }}, this)">{{ tag }}</button>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<div style="margin-bottom:20px;">
+  <div class="tg-label" style="margin-bottom:8px;"><span class="tg-dot" style="background:var(--muted);"></span>Trade Rationale / Notes</div>
+  <textarea class="notes-area" id="trade-notes" placeholder="Why are you taking this trade? What do you see in the market?">{{ trade.notes if trade else '' }}</textarea>
+</div>
+
+<!-- ── TRADE SETUP ── -->
+<div class="sec-title">Trade Setup</div>
+<div class="setup-grid">
+  <div class="setup-cell"><label>Direction</label>
+    <select id="f-direction" {{ 'disabled' if trade else '' }}>
+      <option value="Long" {{ 'selected' if trade and trade.direction == 'Long' else '' }}>Long</option>
+      <option value="Short" {{ 'selected' if trade and trade.direction == 'Short' else '' }}>Short</option>
+    </select></div>
+  <div class="setup-cell"><label>Instrument</label>
+    <select id="f-instrument" {{ 'disabled' if trade else '' }}>
+      <option value="MES" {{ 'selected' if trade and trade.instrument == 'MES' else '' }}>MES</option>
+      <option value="ES" {{ 'selected' if trade and trade.instrument == 'ES' else '' }}>ES</option>
+    </select></div>
+  <div class="setup-cell"><label>Entry Price</label>
+    <input type="number" id="f-entry-price" step="0.25" placeholder="6900.00"
+      value="{{ trade.entry_price if trade else '' }}" {{ 'disabled' if trade else '' }}></div>
+  <div class="setup-cell"><label>Entry Time</label>
+    <input type="time" id="f-entry-time" value="{{ trade.entry_time if trade else '' }}" {{ 'disabled' if trade else '' }}></div>
+  <div class="setup-cell"><label>Total Qty</label>
+    <input type="number" id="f-qty" min="1" placeholder="6"
+      value="{{ trade.total_qty if trade else '' }}" {{ 'disabled' if trade else '' }}></div>
+  <div class="setup-cell"><label>Mode</label>
+    <select id="f-mode" {{ 'disabled' if trade else '' }}>
+      <option value="full" {{ 'selected' if trade and trade.mode == 'full' else '' }}>Full Position</option>
+      <option value="partials" {{ 'selected' if trade and trade.mode == 'partials' else '' }}>Partials (3-way)</option>
+    </select></div>
+</div>
+{% if not trade %}
+<div style="text-align:right;margin-bottom:32px;">
+  <button class="btn btn-primary" onclick="createTrade()">Enter Trade →</button>
+</div>
+{% endif %}
+
+{% if trade %}
+<!-- ── RISK EXPOSURE ── -->
+<div class="sec-title">Risk Exposure</div>
+<div class="risk-stats">
+  <div class="risk-stat"><div class="risk-stat-label">Remaining Qty</div><div class="risk-stat-value" id="rs-remaining">{{ trade.total_qty }}</div></div>
+  <div class="risk-stat"><div class="risk-stat-label">Realized P&L</div><div class="risk-stat-value pnl-zero" id="rs-realized">$0.00</div></div>
+  <div class="risk-stat"><div class="risk-stat-label">Worst Case (if stopped)</div><div class="risk-stat-value" id="rs-netrisk" style="color:var(--red);">$0.00</div></div>
+  <div class="risk-stat"><div class="risk-stat-label">Potential Reward</div><div class="risk-stat-value pnl-pos" id="rs-reward">$0.00</div></div>
+  <div class="risk-stat"><div class="risk-stat-label">Risk : Reward</div><div class="risk-stat-value" id="rs-rr" style="color:var(--accent2);">—</div></div>
+</div>
+
+<!-- ── STOPS & TARGETS ── -->
+<div class="sec-title">Stops &amp; Targets</div>
+<div style="background:var(--surface);border:1px solid var(--border);margin-bottom:20px;">
+  <table class="levels-table"><thead>
+    <tr><th>Level</th><th>Portion</th><th>Qty</th><th>Price</th><th>Risk ($)</th><th>Reward ($)</th></tr>
+  </thead><tbody id="levels-body"></tbody></table>
+</div>
+
+<!-- ── EXECUTION LOG ── -->
+<div class="sec-title">Execution Log</div>
+<div class="exec-section">
+  <div class="exec-header">
+    <h2 style="font-size:15px;">Fills &amp; Exits</h2>
+    <span style="font-size:10px;color:var(--muted);letter-spacing:1px;">LOG EACH EXIT AS IT HAPPENS</span>
+  </div>
+  <table class="exec-table"><thead>
+    <tr><th>Type</th><th>Portion</th><th>Qty</th><th>Price</th><th>Time</th><th>P&L</th><th></th></tr>
+  </thead><tbody id="exec-body">
+    {% if trade and trade.executions %}{% for e in trade.executions %}
+    <tr id="exec-row-{{ e.id }}">
+      <td style="text-transform:capitalize;">{{ e.exec_type|replace('_',' ') }}</td>
+      <td>{{ e.portion }}</td><td>{{ e.qty }}</td><td>{{ e.price }}</td><td>{{ e.exec_time }}</td>
+      <td class="{{ 'pnl-pos' if e.pnl > 0 else 'pnl-neg' if e.pnl < 0 else 'pnl-zero' }}">${{ '%.2f'|format(e.pnl) }}</td>
+      <td><button class="btn btn-ghost" style="padding:4px 8px;font-size:9px;" onclick="deleteExec({{ e.id }})">✕</button></td>
+    </tr>{% endfor %}{% endif %}
+  </tbody></table>
+  <div class="exec-form">
+    <div><div class="ef-label">Type</div><select id="ex-type">
+      <option value="tp_hit">Target Hit</option><option value="stop_hit">Stop Hit</option><option value="manual_exit">Manual Exit</option>
+    </select></div>
+    <div><div class="ef-label">Portion</div><select id="ex-portion">
+      {% if trade and trade.mode == 'partials' %}<option value="1">1</option><option value="2">2</option><option value="3">3</option>
+      {% else %}<option value="1">1</option>{% endif %}
+    </select></div>
+    <div><div class="ef-label">Qty</div><input type="number" id="ex-qty" min="1" placeholder="2"></div>
+    <div><div class="ef-label">Price</div><input type="number" id="ex-price" step="0.25" placeholder="6905"></div>
+    <div><div class="ef-label">Time</div><input type="time" id="ex-time"></div>
+    <div style="display:flex;align-items:flex-end;">
+      <button class="btn btn-primary" style="width:100%;padding:8px 12px;" onclick="addExecution()">Log Exit</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── PUSH TO JOURNAL ── -->
+<div class="push-bar">
+  <div>
+    <span style="font-size:11px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;">Done with this trade?</span>
+    <span style="font-size:11px;color:var(--muted2);margin-left:8px;">Save to journal and free up the page for your next trade.</span>
+  </div>
+  <button class="btn btn-primary" onclick="pushToJournal()">Save &amp; Push to Journal →</button>
+</div>
+{% endif %}
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const TAG_GROUPS  = {{ tags_json|safe }};
+const INST_CONFIG = {{ instrument_config_json|safe }};
+const TRADE = {{ trade|tojson if trade else 'null' }};
+let   CALC  = {{ calc_json|default('null')|safe }};
+
+let localTags = {};
+try { if (TRADE && TRADE.tags_json) localTags = typeof TRADE.tags_json === 'string' ? JSON.parse(TRADE.tags_json) : TRADE.tags_json; } catch(e) {}
+
+document.addEventListener('DOMContentLoaded', () => {
+  for (const [gid, tags] of Object.entries(localTags)) {
+    const c = document.getElementById('tags-' + gid);
+    if (!c) continue;
+    c.querySelectorAll('.tag-btn').forEach(b => { if (tags.includes(b.dataset.tag)) b.classList.add(b.dataset.activeClass); });
+  }
+  if (TRADE) { renderLevels(); updateRiskPanel(); }
+  if (!TRADE) {
+    const now = new Date();
+    document.getElementById('f-entry-time').value = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  }
+});
+
+function toggleLocalTag(gid, tag, multi, btn) {
+  if (!localTags[gid]) localTags[gid] = [];
+  const arr = localTags[gid], ac = btn.dataset.activeClass, idx = arr.indexOf(tag);
+  if (multi) { idx >= 0 ? (arr.splice(idx,1), btn.classList.remove(ac)) : (arr.push(tag), btn.classList.add(ac)); }
+  else { btn.parentElement.querySelectorAll('.tag-btn').forEach(b => b.classList.remove(b.dataset.activeClass)); idx >= 0 ? localTags[gid] = [] : (localTags[gid] = [tag], btn.classList.add(ac)); }
+  if (TRADE) fetch(`/api/live/${TRADE.id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({tags: localTags})});
+}
+
+async function createTrade() {
+  const d = document.getElementById('f-direction').value, inst = document.getElementById('f-instrument').value;
+  const ep = parseFloat(document.getElementById('f-entry-price').value), et = document.getElementById('f-entry-time').value;
+  const qty = parseInt(document.getElementById('f-qty').value), mode = document.getElementById('f-mode').value;
+  const notes = document.getElementById('trade-notes').value;
+  if (!ep || !et || !qty) { showToast('Fill in entry price, time and qty', true); return; }
+  const pid = document.getElementById('global-portfolio-select')?.value || null;
+  const res = await fetch('/api/live', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({direction:d, instrument:inst, entry_price:ep, entry_time:et, total_qty:qty, mode, notes, tags:localTags, portfolio_id: pid ? parseInt(pid) : null})});
+  const data = await res.json();
+  if (data.ok) window.location.href = '/live/' + data.id;
+  else showToast(data.error || 'Failed', true);
+}
+
+function renderLevels() {
+  if (!TRADE) return;
+  const tbody = document.getElementById('levels-body');
+  if (!tbody) return;
+  const levels = TRADE.levels || [], isLong = TRADE.direction === 'Long';
+  const dpp = INST_CONFIG[TRADE.instrument]?.dollars_per_point || 5, entry = TRADE.entry_price;
+  const stops = levels.filter(l => l.level_type === 'stop').sort((a,b) => a.portion - b.portion);
+  const tps = levels.filter(l => l.level_type === 'tp').sort((a,b) => a.portion - b.portion);
+  let totalStopPnl = 0, totalReward = 0, html = '';
+
+  stops.forEach(s => {
+    const pnl = isLong ? (s.price - entry) * s.qty * dpp : (entry - s.price) * s.qty * dpp;
+    totalStopPnl += pnl;
+    const cls = pnl > 0 ? 'pnl-pos' : 'pnl-neg';
+    const pfx = pnl > 0 ? '+$' : '-$';
+    html += `<tr class="stop-row"><td>⬤ STOP</td><td>${TRADE.mode === 'partials' ? s.portion : '—'}</td><td>${s.qty}</td>
+      <td><input type="number" step="0.25" value="${s.price}" data-type="stop" data-portion="${s.portion}" data-qty="${s.qty}" onchange="updateLevel()"></td>
+      <td class="${cls}">${pfx}${Math.abs(pnl).toFixed(2)}</td><td>—</td></tr>`;
+  });
+
+  tps.forEach(t => {
+    const pnl = isLong ? (t.price - entry) * t.qty * dpp : (entry - t.price) * t.qty * dpp;
+    totalReward += Math.max(pnl, 0);
+    html += `<tr class="tp-row"><td>◎ TARGET</td><td>${TRADE.mode === 'partials' ? t.portion : '—'}</td><td>${t.qty}</td>
+      <td><input type="number" step="0.25" value="${t.price}" data-type="tp" data-portion="${t.portion}" data-qty="${t.qty}" onchange="updateLevel()"></td>
+      <td>—</td><td class="pnl-pos">+$${Math.max(pnl,0).toFixed(2)}</td></tr>`;
+  });
+
+  const rd = totalStopPnl < 0 ? `<span class="pnl-neg">-$${Math.abs(totalStopPnl).toFixed(2)}</span>` : `<span class="pnl-pos">+$${totalStopPnl.toFixed(2)}</span>`;
+  html += `<tr class="total-row"><td colspan="2">TOTAL</td><td>${TRADE.total_qty}</td><td></td><td>${rd}</td><td class="pnl-pos">+$${totalReward.toFixed(2)}</td></tr>`;
+  tbody.innerHTML = html;
+}
+
+let lvlTimer = null;
+function updateLevel() {
+  clearTimeout(lvlTimer);
+  lvlTimer = setTimeout(async () => {
+    const rows = document.querySelectorAll('#levels-body input[data-type]');
+    const newLevels = [], isLong = TRADE.direction === 'Long';
+    const dpp = INST_CONFIG[TRADE.instrument]?.dollars_per_point || 5, entry = TRADE.entry_price;
+    rows.forEach(inp => {
+      const type = inp.dataset.type, portion = parseInt(inp.dataset.portion), qty = parseInt(inp.dataset.qty), price = parseFloat(inp.value);
+      let risk = 0, reward = 0;
+      if (type === 'stop') {
+        const pnl = isLong ? (price - entry) * qty * dpp : (entry - price) * qty * dpp;
+        risk = Math.max(-pnl, 0); reward = 0;
+      } else {
+        const pnl = isLong ? (price - entry) * qty * dpp : (entry - price) * qty * dpp;
+        reward = Math.max(pnl, 0);
+      }
+      newLevels.push({level_type:type, portion, qty, price, risk_dollars: Math.round(risk*100)/100, reward_dollars: Math.round(reward*100)/100});
+    });
+    const res = await fetch(`/api/live/${TRADE.id}/levels`, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({levels:newLevels})});
+    const data = await res.json();
+    if (data.ok) { TRADE.levels = newLevels.map((l,i) => ({...l, id:i})); CALC = data.calc; renderLevels(); updateRiskPanel(); }
+  }, 400);
+}
+
+function updateRiskPanel() {
+  if (!CALC) return;
+  const rem = CALC.remaining_qty || 0, realized = CALC.realized_pnl || 0;
+  const risk = CALC.current_risk || 0, reward = CALC.potential_reward || 0;
+  const net = CALC.net_stop_exposure;
+
+  document.getElementById('rs-remaining').textContent = rem;
+
+  const rR = document.getElementById('rs-realized');
+  rR.textContent = (realized >= 0 ? '+' : '') + '$' + realized.toFixed(2);
+  rR.className = 'risk-stat-value ' + (realized > 0 ? 'pnl-pos' : realized < 0 ? 'pnl-neg' : 'pnl-zero');
+
+  const rN = document.getElementById('rs-netrisk');
+  if (net !== undefined && net !== null) {
+    if (net < 0) { rN.textContent = '-$' + Math.abs(net).toFixed(2); rN.style.color = 'var(--red)'; }
+    else { rN.textContent = '+$' + net.toFixed(2); rN.style.color = 'var(--green)'; }
+  } else { rN.textContent = '$0.00'; rN.style.color = 'var(--muted2)'; }
+
+  document.getElementById('rs-reward').textContent = '+$' + reward.toFixed(2);
+
+  const rRR = document.getElementById('rs-rr');
+  if (risk > 0 && reward > 0) { rRR.textContent = '1 : ' + (reward / risk).toFixed(1); rRR.style.color = 'var(--accent2)'; }
+  else if (risk === 0 && realized > 0) { rRR.textContent = 'Risk Free ✓'; rRR.style.color = 'var(--green)'; }
+  else { rRR.textContent = '—'; rRR.style.color = 'var(--accent2)'; }
+}
+
+async function addExecution() {
+  const t = document.getElementById('ex-type').value, p = parseInt(document.getElementById('ex-portion').value);
+  const q = parseInt(document.getElementById('ex-qty').value), pr = parseFloat(document.getElementById('ex-price').value);
+  const tm = document.getElementById('ex-time').value;
+  if (!q || !pr || !tm) { showToast('Fill in qty, price and time', true); return; }
+  const res = await fetch(`/api/live/${TRADE.id}/execute`, {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({exec_type:t, portion:p, qty:q, price:pr, exec_time:tm})});
+  const data = await res.json();
+  if (data.ok) {
+    const cls = data.pnl > 0 ? 'pnl-pos' : data.pnl < 0 ? 'pnl-neg' : 'pnl-zero';
+    document.getElementById('exec-body').insertAdjacentHTML('beforeend',
+      `<tr id="exec-row-${data.exec_id}"><td style="text-transform:capitalize;">${t.replace('_',' ')}</td><td>${p}</td><td>${q}</td><td>${pr}</td><td>${tm}</td>
+       <td class="${cls}">$${data.pnl.toFixed(2)}</td><td><button class="btn btn-ghost" style="padding:4px 8px;font-size:9px;" onclick="deleteExec(${data.exec_id})">✕</button></td></tr>`);
+    CALC = data.calc; updateRiskPanel();
+    document.getElementById('ex-qty').value = ''; document.getElementById('ex-price').value = '';
+    showToast(`Exit logged: $${data.pnl.toFixed(2)}`);
+  } else showToast(data.error || 'Failed', true);
+}
+
+async function deleteExec(id) {
+  if (!confirm('Remove this execution?')) return;
+  const res = await fetch(`/api/live/${TRADE.id}/execution/${id}`, {method:'DELETE'});
+  const data = await res.json();
+  if (data.ok) { document.getElementById('exec-row-'+id)?.remove(); CALC = data.calc; updateRiskPanel(); showToast('Execution removed'); }
+}
+
+async function pushToJournal() {
+  if (!confirm('Save this trade to the journal?')) return;
+  const res = await fetch(`/api/live/${TRADE.id}/push`, {method:'POST'});
+  const data = await res.json();
+  if (data.ok) { showToast('Saved to journal ✓'); setTimeout(() => location.reload(), 800); }
+  else showToast(data.error || 'Failed', true);
+}
+
+async function cancelTrade() {
+  if (!confirm('Cancel this trade?')) return;
+  await fetch(`/api/live/${TRADE.id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'cancelled'})});
+  window.location.href = '/live';
+}
+
+let noteTimer = null;
+document.getElementById('trade-notes')?.addEventListener('input', function() {
+  if (!TRADE) return; clearTimeout(noteTimer);
+  noteTimer = setTimeout(() => fetch(`/api/live/${TRADE.id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({notes: this.value})}), 600);
+});
+</script>
+{% endblock %}

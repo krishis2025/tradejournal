@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Live Trades — Trade Journal{% endblock %}
+
+{% block extra_styles %}
+.live-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 3px solid transparent; border-radius: 2px;
+  padding: 18px 22px; margin-bottom: 10px;
+  display: grid; grid-template-columns: 100px 80px 100px 1fr 120px 120px 100px;
+  align-items: center; gap: 12px;
+  transition: background 0.12s;
+}
+.live-card:hover { background: var(--surface2); }
+.live-card.long  { border-left-color: var(--green); }
+.live-card.short { border-left-color: var(--red); }
+.live-card.closed { opacity: 0.6; }
+
+.lc-label { font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.lc-val   { font-size: 13px; color: var(--text); }
+
+.empty-state {
+  text-align: center; padding: 60px 20px;
+  color: var(--muted); font-size: 13px;
+}
+.empty-state-icon { font-size: 32px; margin-bottom: 12px; opacity: 0.4; }
+
+.section-label {
+  font-family: var(--font-display); font-size: 18px; letter-spacing: 2px;
+  color: var(--muted2); margin: 28px 0 12px;
+}
+{% endblock %}
+
+{% block nav_actions %}
+<a href="/live-legacy/new" class="btn btn-primary">+ New Live Trade</a>
+{% endblock %}
+
+{% block content %}
+
+<div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:8px;">
+  <div>
+    <div class="page-title">Live Trades</div>
+    <div class="page-sub">Real-time trade entry &amp; position management</div>
+  </div>
+</div>
+
+{% if open_trades %}
+<div class="section-label">● Open Positions</div>
+{% for t in open_trades %}
+<a href="/live-legacy/{{ t.id }}" style="text-decoration:none;">
+  <div class="live-card {{ t.direction|lower }}">
+    <div>
+      <div class="lc-label">Direction</div>
+      <div class="lc-val">
+        <span class="badge {{ 'badge-long' if t.direction == 'Long' else 'badge-short' }}">{{ t.direction }}</span>
+      </div>
+    </div>
+    <div>
+      <div class="lc-label">Instrument</div>
+      <div class="lc-val">{{ t.instrument }}</div>
+    </div>
+    <div>
+      <div class="lc-label">Entry</div>
+      <div class="lc-val">{{ t.entry_price }}</div>
+    </div>
+    <div>
+      <div class="lc-label">Qty</div>
+      <div class="lc-val">{{ t.total_qty }} × {{ t.instrument }}</div>
+    </div>
+    <div>
+      <div class="lc-label">Mode</div>
+      <div class="lc-val" style="text-transform:capitalize;">{{ t.mode }}</div>
+    </div>
+    <div>
+      <div class="lc-label">Time</div>
+      <div class="lc-val">{{ t.entry_time }}</div>
+    </div>
+    <div>
+      <div class="lc-label">Status</div>
+      <div class="lc-val" style="color:var(--warn);">● OPEN</div>
+    </div>
+  </div>
+</a>
+{% endfor %}
+{% endif %}
+
+{% if not open_trades and not closed_trades %}
+<div class="empty-state" style="margin-top:60px;">
+  <div class="empty-state-icon">📊</div>
+  <div>No live trades yet.</div>
+  <div style="margin-top:8px;">
+    <a href="/live-legacy/new" class="btn btn-primary" style="margin-top:16px;">+ New Live Trade</a>
+  </div>
+</div>
+{% endif %}
+
+{% if closed_trades %}
+<div class="section-label" style="margin-top:36px;">✓ Closed Today</div>
+{% for t in closed_trades %}
+<a href="/live-legacy/{{ t.id }}" style="text-decoration:none;">
+  <div class="live-card closed {{ t.direction|lower }}">
+    <div>
+      <div class="lc-label">Direction</div>
+      <div class="lc-val">
+        <span class="badge {{ 'badge-long' if t.direction == 'Long' else 'badge-short' }}">{{ t.direction }}</span>
+      </div>
+    </div>
+    <div>
+      <div class="lc-label">Instrument</div>
+      <div class="lc-val">{{ t.instrument }}</div>
+    </div>
+    <div>
+      <div class="lc-label">Entry</div>
+      <div class="lc-val">{{ t.entry_price }}</div>
+    </div>
+    <div>
+      <div class="lc-label">Qty</div>
+      <div class="lc-val">{{ t.total_qty }} × {{ t.instrument }}</div>
+    </div>
+    <div>
+      <div class="lc-label">P&L</div>
+      <div class="lc-val {{ 'pnl-pos' if t.realized_pnl > 0 else 'pnl-neg' if t.realized_pnl < 0 else 'pnl-zero' }}">
+        {{ '$%.2f'|format(t.realized_pnl) }}
+      </div>
+    </div>
+    <div>
+      <div class="lc-label">Time</div>
+      <div class="lc-val">{{ t.entry_time }}</div>
+    </div>
+    <div>
+      <div class="lc-label">Status</div>
+      <div class="lc-val" style="color:var(--green);">✓ CLOSED</div>
+    </div>
+  </div>
+</a>
+{% endfor %}
+{% endif %}
+
+{% endblock %}

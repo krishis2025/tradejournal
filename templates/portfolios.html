@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+{% block title %}Portfolios — Trade Journal{% endblock %}
+
+{% block extra_styles %}
+.port-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.port-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+  position: relative;
+}
+.port-card:hover { border-color: var(--border2); }
+
+.port-card-accent {
+  height: 3px;
+  width: 100%;
+}
+
+.port-card-body { padding: 20px; }
+
+.port-name {
+  font-family: var(--font-display);
+  font-size: 22px; letter-spacing: 2px;
+  margin-bottom: 4px;
+}
+
+.port-desc { font-size: 11px; color: var(--muted); margin-bottom: 16px; line-height:1.5; min-height:16px; }
+
+.port-stats { display:flex;gap:20px;margin-bottom:16px; }
+.port-stat { flex:1; }
+.port-stat-label { font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:2px; }
+.port-stat-val   { font-size:16px;font-family:var(--font-display);letter-spacing:1px; }
+
+.port-actions { display:flex;gap:8px; }
+
+/* Color picker row */
+.color-row { display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px; }
+.color-swatch {
+  width:24px;height:24px;border-radius:50%;cursor:pointer;
+  border:2px solid transparent;transition:transform 0.12s,border-color 0.12s;
+  flex-shrink:0;
+}
+.color-swatch:hover   { transform:scale(1.2); }
+.color-swatch.selected{ border-color:#fff; transform:scale(1.15); }
+
+/* Form panel */
+.form-panel {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  padding: 28px;
+  margin-bottom: 32px;
+  display: none;
+}
+.form-panel.show { display: block; }
+
+.form-row { display:flex;flex-direction:column;gap:4px;margin-bottom:16px; }
+.form-label { font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted); }
+.form-input {
+  background:var(--surface2);border:1px solid var(--border2);color:var(--text);
+  padding:9px 12px;font-family:var(--font-mono);font-size:13px;
+  border-radius:1px;outline:none;transition:border-color 0.2s;width:100%;
+}
+.form-input:focus { border-color:var(--accent); }
+.form-input::placeholder { color:var(--border2); }
+
+/* Empty */
+.empty-state { text-align:center;padding:60px 32px;color:var(--muted); }
+.empty-icon  { font-size:48px;margin-bottom:16px;opacity:0.3; }
+
+/* Modal */
+.modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:100;align-items:center;justify-content:center; }
+.modal-overlay.show { display:flex; }
+.modal { background:var(--surface);border:1px solid var(--border2);padding:32px;width:380px;border-radius:2px; }
+.modal h3 { font-family:var(--font-display);font-size:22px;letter-spacing:2px;color:var(--red);margin-bottom:8px; }
+.modal p  { color:var(--muted2);font-size:12px;line-height:1.6;margin-bottom:24px; }
+.modal-actions { display:flex;gap:8px;justify-content:flex-end; }
+{% endblock %}
+
+{% block nav_actions %}
+<a href="/" class="btn btn-ghost">← Dashboard</a>
+{% endblock %}
+
+{% block content %}
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;">
+  <div>
+    <div class="page-title">Portfolios</div>
+    <div class="page-sub">Manage trading accounts and portfolios</div>
+  </div>
+  <button class="btn btn-primary" onclick="showForm()">+ New Portfolio</button>
+</div>
+
+<!-- Create / Edit Form -->
+<div class="form-panel" id="port-form-panel">
+  <h2 style="margin-bottom:20px;" id="form-title">New Portfolio</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <div>
+      <div class="form-row">
+        <label class="form-label">Name *</label>
+        <input class="form-input" id="f-name" placeholder="e.g. Apex, TakeProfit Trader">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Description</label>
+        <input class="form-input" id="f-desc" placeholder="e.g. Apex 105540000001423">
+      </div>
+    </div>
+    <div>
+      <div class="form-row">
+        <label class="form-label">Color</label>
+        <div class="color-row" id="color-row"></div>
+        <input type="hidden" id="f-color" value="#4fffb0">
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:8px;">
+    <button class="btn btn-primary" onclick="submitForm()">Save Portfolio</button>
+    <button class="btn btn-ghost" onclick="hideForm()">Cancel</button>
+  </div>
+</div>
+
+{% if portfolios %}
+<div class="port-grid">
+  {% for p in portfolios %}
+  {% set pnl = p.total_pnl or 0 %}
+  <div class="port-card" id="port-card-{{ p.id }}">
+    <div class="port-card-accent" style="background:{{ p.color }};"></div>
+    <div class="port-card-body">
+      <div class="port-name" style="color:{{ p.color }};">{{ p.name }}</div>
+      <div class="port-desc">{{ p.description or '—' }}</div>
+      <div class="port-stats">
+        <div class="port-stat">
+          <div class="port-stat-label">Days</div>
+          <div class="port-stat-val">{{ p.day_count or 0 }}</div>
+        </div>
+        <div class="port-stat">
+          <div class="port-stat-label">Trades</div>
+          <div class="port-stat-val">{{ p.trade_count or 0 }}</div>
+        </div>
+        <div class="port-stat">
+          <div class="port-stat-label">Net P&L</div>
+          <div class="port-stat-val {{ 'pnl-pos' if pnl >= 0 else 'pnl-neg' }}">
+            {{ '+' if pnl >= 0 else '' }}${{ '%.0f'|format(pnl) }}
+          </div>
+        </div>
+      </div>
+      <div class="port-actions">
+        <a href="/?portfolio={{ p.id }}" class="btn btn-ghost" style="padding:5px 12px;font-size:10px;">View Days →</a>
+        <button class="btn btn-ghost" style="padding:5px 12px;font-size:10px;"
+          onclick="editPortfolio({{ p.id }}, '{{ p.name|e }}', '{{ p.description|e }}', '{{ p.color }}')">Edit</button>
+        <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px;color:var(--muted);"
+          onclick="confirmDeletePort({{ p.id }}, '{{ p.name|e }}')">🗑</button>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">📁</div>
+  <p style="margin-bottom:16px;">No portfolios yet. Create one to organize trades by account.</p>
+  <button class="btn btn-primary" onclick="showForm()">+ Create First Portfolio</button>
+</div>
+{% endif %}
+
+<!-- Delete Confirm Modal -->
+<div class="modal-overlay" id="del-modal">
+  <div class="modal">
+    <h3>Delete Portfolio?</h3>
+    <p id="del-modal-text"></p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn" id="del-confirm-btn"
+        style="background:var(--red);color:#fff;clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);">
+        Delete Portfolio
+      </button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const COLORS = [
+    '#4fffb0','#00cfff','#ffb347','#ff4d6d',
+    '#b47fff','#ff9de2','#7eb8ff','#ffe66d',
+    '#ff6b6b','#51cf66','#339af0','#f06595'
+  ];
+
+  let editingId = null;
+
+  // ── Color swatches ─────────────────────────────────────────────────────
+  function buildSwatches(selected) {
+    const row = document.getElementById('color-row');
+    row.innerHTML = '';
+    COLORS.forEach(c => {
+      const s = document.createElement('div');
+      s.className = 'color-swatch' + (c === selected ? ' selected' : '');
+      s.style.background = c;
+      s.title = c;
+      s.onclick = () => {
+        row.querySelectorAll('.color-swatch').forEach(x => x.classList.remove('selected'));
+        s.classList.add('selected');
+        document.getElementById('f-color').value = c;
+      };
+      row.appendChild(s);
+    });
+  }
+
+  buildSwatches('#4fffb0');
+
+  // ── Form show/hide ─────────────────────────────────────────────────────
+  function showForm(name='', desc='', color='#4fffb0') {
+    editingId = null;
+    document.getElementById('form-title').textContent = 'New Portfolio';
+    document.getElementById('f-name').value  = name;
+    document.getElementById('f-desc').value  = desc;
+    document.getElementById('f-color').value = color;
+    buildSwatches(color);
+    document.getElementById('port-form-panel').classList.add('show');
+    document.getElementById('f-name').focus();
+    document.getElementById('port-form-panel').scrollIntoView({behavior:'smooth', block:'start'});
+  }
+
+  function hideForm() {
+    document.getElementById('port-form-panel').classList.remove('show');
+    editingId = null;
+  }
+
+  function editPortfolio(id, name, desc, color) {
+    editingId = id;
+    document.getElementById('form-title').textContent = `Edit — ${name}`;
+    document.getElementById('f-name').value  = name;
+    document.getElementById('f-desc').value  = desc;
+    document.getElementById('f-color').value = color;
+    buildSwatches(color);
+    document.getElementById('port-form-panel').classList.add('show');
+    document.getElementById('port-form-panel').scrollIntoView({behavior:'smooth', block:'start'});
+  }
+
+  // ── Submit ─────────────────────────────────────────────────────────────
+  async function submitForm() {
+    const name  = document.getElementById('f-name').value.trim();
+    const desc  = document.getElementById('f-desc').value.trim();
+    const color = document.getElementById('f-color').value;
+
+    if (!name) { showToast('Portfolio name is required', true); return; }
+
+    const url    = editingId ? `/api/portfolio/${editingId}` : '/api/portfolio';
+    const method = editingId ? 'PUT' : 'POST';
+
+    try {
+      const res  = await fetch(url, {
+        method, headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({name, description: desc, color})
+      });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error || 'Save failed', true); return; }
+      showToast(editingId ? 'Portfolio updated' : 'Portfolio created');
+      setTimeout(() => location.reload(), 600);
+    } catch(e) { showToast('Network error', true); }
+  }
+
+  // ── Delete ─────────────────────────────────────────────────────────────
+  let pendingDelId = null;
+
+  function confirmDeletePort(id, name) {
+    pendingDelId = id;
+    document.getElementById('del-modal-text').textContent =
+      `Delete portfolio "${name}"? Your trading days and trades will be kept, but they will no longer be associated with this portfolio.`;
+    document.getElementById('del-confirm-btn').onclick = executeDeletePort;
+    document.getElementById('del-modal').classList.add('show');
+  }
+
+  function closeModal() {
+    document.getElementById('del-modal').classList.remove('show');
+    pendingDelId = null;
+  }
+
+  async function executeDeletePort() {
+    if (!pendingDelId) return;
+    closeModal();
+    try {
+      const res = await fetch(`/api/portfolio/${pendingDelId}`, {method:'DELETE'});
+      if (res.ok) {
+        const card = document.getElementById('port-card-' + pendingDelId);
+        if (card) { card.style.opacity='0'; card.style.transition='opacity 0.3s'; setTimeout(()=>card.remove(),300); }
+        showToast('Portfolio deleted');
+      } else { showToast('Delete failed', true); }
+    } catch(e) { showToast('Network error', true); }
+  }
+
+  document.getElementById('del-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('del-modal')) closeModal();
+  });
+</script>
+{% endblock %}

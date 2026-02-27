@@ -1,0 +1,592 @@
+{% extends "base.html" %}
+{% block title %}{{ day.date }} — Trade Journal{% endblock %}
+
+{% block extra_styles %}
+/* ── Trade cards ── */
+.trade-row-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 3px solid transparent; border-radius: 2px;
+  margin-bottom: 12px; overflow: hidden; transition: border-color 0.15s;
+}
+.trade-row-card.long  { border-left-color: var(--green); }
+.trade-row-card.short { border-left-color: var(--red); }
+
+.trade-row-header {
+  display: grid;
+  grid-template-columns: 64px 90px 1fr 1fr 1fr 90px 48px;
+  align-items: center; cursor: pointer; user-select: none;
+}
+.trc { padding:14px 16px; border-right:1px solid var(--border); }
+.trc:last-child { border-right:none; }
+.trc-label { font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:2px; }
+.trc-val   { font-size:13px;color:var(--text); }
+
+.expand-toggle { display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:16px;transition:transform 0.25s,color 0.15s; }
+.trade-row-card.expanded .expand-toggle { transform:rotate(180deg);color:var(--accent); }
+
+.trade-detail { max-height:0;overflow:hidden;transition:max-height 0.5s cubic-bezier(0.4,0,0.2,1);border-top:0px solid var(--border); }
+.trade-row-card.expanded .trade-detail { max-height:2400px;border-top-width:1px; }
+
+.fills-mini th { padding:7px 14px;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);background:var(--surface); }
+.fills-mini td { padding:8px 14px;font-size:12px;color:var(--muted2);border-bottom:1px solid rgba(34,38,49,0.5); }
+.fills-mini tr:last-child td { border-bottom:none; }
+.fill-buy  { color:var(--green) !important; }
+.fill-sell { color:var(--red)   !important; }
+
+/* ── Tags ── */
+.tag-panel   { padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:16px;background:var(--surface2); }
+.tag-panel-3 { padding:16px 20px 20px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;background:var(--surface2);border-top:1px solid var(--border); }
+.tag-group   { background:var(--surface);border:1px solid var(--border);border-radius:2px;padding:14px; }
+.tg-label    { font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:8px; }
+.tg-label::after { content:'';flex:1;height:1px;background:var(--border); }
+.tg-dot      { width:6px;height:6px;border-radius:50%;flex-shrink:0; }
+.tags-row    { display:flex;flex-wrap:wrap;gap:6px; }
+
+.tag-btn {
+  background:var(--surface2);border:1px solid var(--border2);color:var(--muted2);
+  padding:4px 10px;font-family:var(--font-mono);font-size:10px;cursor:pointer;
+  transition:all 0.12s;letter-spacing:0.5px;
+  clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%);
+}
+.tag-btn:hover { background:var(--surface3);color:var(--text);border-color:var(--muted); }
+.tag-btn.active-with    { background:rgba(79,255,176,0.12);border-color:var(--green);color:var(--green); }
+.tag-btn.active-against { background:rgba(255,77,109,0.12);border-color:var(--red);color:var(--red); }
+.tag-btn.active-vol     { background:rgba(0,207,255,0.12);border-color:var(--accent2);color:var(--accent2); }
+.tag-btn.active-exit      { background:rgba(255,179,71,0.12);border-color:var(--warn);color:var(--warn); }
+.tag-btn.active-setup     { background:rgba(180,127,255,0.12);border-color:var(--purple);color:var(--purple); }
+.tag-btn.active-pre       { background:rgba(138,150,170,0.15);border-color:var(--muted2);color:var(--text); }
+.tag-btn.active-pre-good  { background:rgba(79,255,176,0.12);border-color:var(--green);color:var(--green); }
+.tag-btn.active-pre-bad   { background:rgba(255,77,109,0.12);border-color:var(--red);color:var(--red); }
+.tag-btn.active-exit-good { background:rgba(79,255,176,0.12);border-color:var(--green);color:var(--green); }
+.tag-btn.active-exit-bad  { background:rgba(255,77,109,0.12);border-color:var(--red);color:var(--red); }
+.tag-btn.active-vol-avg   { background:rgba(0,207,255,0.12);border-color:var(--accent2);color:var(--accent2); }
+.tag-btn.active-vol-high  { background:rgba(79,255,176,0.12);border-color:var(--green);color:var(--green); }
+.tag-btn.active-vol-low   { background:rgba(255,77,109,0.12);border-color:var(--red);color:var(--red); }
+
+/* ── Notes ── */
+.notes-wrap { padding:0 20px 20px;background:var(--surface2); }
+.notes-area {
+  width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);
+  font-family:var(--font-mono);font-size:12px;padding:10px 12px;resize:vertical;min-height:60px;
+  outline:none;transition:border-color 0.2s;line-height:1.7;
+}
+.notes-area:focus { border-color:var(--accent); }
+.notes-area::placeholder { color:var(--border2); }
+
+/* ── Images ── */
+.images-wrap { padding:0 20px 20px;background:var(--surface2); }
+.images-drop-zone {
+  border: 2px dashed var(--border2); border-radius:2px; padding:20px;
+  text-align:center; cursor:pointer; position:relative; transition:all 0.2s;
+  background:var(--bg);
+}
+.images-drop-zone:hover,
+.images-drop-zone.drag-over { border-color:var(--accent); background:rgba(79,255,176,0.03); }
+.images-drop-zone input[type=file] { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%; }
+.images-drop-text { font-size:11px;color:var(--muted);letter-spacing:0.5px; }
+
+.image-grid { display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px; }
+.image-thumb {
+  position:relative; width:120px;
+  border:1px solid var(--border); border-radius:2px; overflow:hidden;
+  background:var(--bg); transition:border-color 0.15s;
+}
+.image-thumb:hover { border-color:var(--accent2); }
+.image-thumb img { width:100%;height:80px;object-fit:cover;display:block;cursor:pointer; }
+.image-thumb-caption {
+  padding:4px 6px; font-size:9px; color:var(--muted); font-family:var(--font-mono);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  background:var(--surface2); border-top:1px solid var(--border);
+}
+.image-thumb-del {
+  position:absolute;top:3px;right:3px;background:rgba(0,0,0,0.7);
+  border:none;color:var(--muted);font-size:11px;cursor:pointer;
+  border-radius:2px;padding:2px 5px;transition:color 0.15s;
+}
+.image-thumb-del:hover { color:var(--red); }
+
+/* ── Lightbox ── */
+.lightbox {
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);
+  z-index:200;align-items:center;justify-content:center;
+}
+.lightbox.show { display:flex; }
+.lightbox-img  { max-width:90vw;max-height:85vh;object-fit:contain;border:1px solid var(--border2); }
+.lightbox-close {
+  position:fixed;top:20px;right:28px;background:none;border:none;
+  color:var(--muted2);font-size:28px;cursor:pointer;transition:color 0.15s;z-index:201;
+}
+.lightbox-close:hover { color:var(--text); }
+.lightbox-caption {
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  color:var(--muted2);font-family:var(--font-mono);font-size:12px;letter-spacing:0.5px;
+  background:rgba(0,0,0,0.7);padding:6px 16px;border-radius:2px;
+}
+
+/* ── Day chart ── */
+.day-chart-wrap {
+  background:var(--surface);border:1px solid var(--border);border-radius:2px;
+  padding:20px;margin-bottom:20px;
+}
+.day-chart-title { font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px; }
+
+.trade-view-link {
+  display:inline-flex;align-items:center;gap:4px;font-size:10px;letter-spacing:1px;
+  color:var(--muted2);transition:color 0.15s;padding:3px 8px;border:1px solid var(--border);border-radius:1px;
+}
+.trade-view-link:hover { color:var(--accent2);border-color:var(--accent2); }
+{% endblock %}
+
+{% block nav_actions %}
+<a href="/" class="btn btn-ghost">← Dashboard</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="/">Journal</a>
+  <span class="sep">›</span>
+  <span>{{ day.date }}</span>
+  {% if day.portfolio_name %}
+  <span class="sep">·</span>
+  <span style="color:{{ day.portfolio_color }};">{{ day.portfolio_name }}</span>
+  {% endif %}
+</div>
+
+<div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:28px;">
+  <div>
+    <div class="page-title">{{ day.date }}</div>
+    <div class="page-sub">{{ trades|length }} trades · MES{% if day.portfolio_name %} · {{ day.portfolio_name }}{% endif %}</div>
+  </div>
+  {% set total_pnl = trades|sum(attribute='pnl') %}
+  {% set wins = trades|selectattr('pnl','gt',0)|list|length %}
+  {% set wr = (wins / trades|length * 100)|round|int if trades else 0 %}
+  <div class="stat-grid">
+    <div class="stat-block"><div class="stat-label">Trades</div><div class="stat-value">{{ trades|length }}</div></div>
+    <div class="stat-block">
+      <div class="stat-label">Win Rate</div>
+      <div class="stat-value {{ 'pnl-pos' if wr >= 50 else 'pnl-neg' }}">{{ wr }}%</div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-label">Net P&L</div>
+      <div class="stat-value {{ 'pnl-pos' if total_pnl >= 0 else 'pnl-neg' }}">
+        {{ '+' if total_pnl >= 0 else '' }}${{ '%.2f'|format(total_pnl) }}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Day P&L Chart ── -->
+{% if trades %}
+<div class="day-chart-wrap">
+  <div class="day-chart-title">Cumulative P&L — {{ day.date }}</div>
+  <canvas id="day-pnl-chart" height="90"></canvas>
+</div>
+{% endif %}
+
+<!-- ── Trade Cards ── -->
+{% set dot_colors = {
+  'dot-with':'#4fffb0','dot-against':'#ff4d6d','dot-vol':'#00cfff',
+  'dot-exit':'#ffb347','dot-setup':'#b47fff','dot-pre':'#8a96aa','dot-entry':'#8a96aa'
+} %}
+
+{% for trade in trades %}
+{% set dir_cls = 'long' if trade.direction == 'Long' else 'short' %}
+{% set pnl_cls = 'pnl-pos' if trade.pnl >= 0 else 'pnl-neg' %}
+<div class="trade-row-card {{ dir_cls }}" id="trade-card-{{ trade.id }}">
+
+  <div class="trade-row-header" onclick="toggleCard({{ trade.id }})">
+    <div class="trc">
+      <div style="font-family:var(--font-display);font-size:26px;color:var(--border2);line-height:1;">T{{ trade.trade_num }}</div>
+    </div>
+    <div class="trc">
+      <div class="trc-label">Direction</div>
+      <span class="badge badge-{{ dir_cls }}">{{ trade.direction }}</span>
+      {% if trade.is_open %}<span class="badge" style="background:rgba(255,179,71,0.15);border-color:var(--warn);color:var(--warn);font-size:9px;margin-left:4px;">OPEN</span>{% endif %}
+    </div>
+    <div class="trc">
+      <div class="trc-label">Entry → Exit</div>
+      <div class="trc-val">{{ trade.entry_time }} → {{ trade.exit_time }}</div>
+    </div>
+    <div class="trc">
+      <div class="trc-label">Avg Entry → Exit</div>
+      <div class="trc-val">{{ '%.2f'|format(trade.avg_entry) }} → {{ '%.2f'|format(trade.avg_exit) }}</div>
+    </div>
+    <div class="trc">
+      <div class="trc-label">Tags</div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px;">
+        {% for tag in (trade.tags.get('with',[]) + trade.tags.get('setup',[])) %}
+          <span class="tag-chip tag-with" style="font-size:9px;">{{ tag }}</span>
+        {% endfor %}
+        {% if not trade.tags.get('with') and not trade.tags.get('setup') %}
+          <span style="color:var(--border2);font-size:10px;">—</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="trc">
+      <div class="trc-label">P&L</div>
+      <div class="trc-val {{ pnl_cls }}" style="font-size:15px;font-weight:500;">
+        {{ '+' if trade.pnl >= 0 else '' }}${{ '%.2f'|format(trade.pnl) }}
+      </div>
+    </div>
+    <div class="trc expand-toggle">▾</div>
+  </div>
+
+  <div class="trade-detail" id="detail-{{ trade.id }}">
+    <!-- Fills -->
+    <div class="fills-mini" style="background:var(--bg);">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead><tr>
+          <th>Time</th><th>Side</th><th>Qty</th><th>Price</th>
+          <th style="text-align:right;padding-right:16px;">
+            <a href="/trade/{{ trade.id }}" class="trade-view-link">Open Trade ↗</a>
+          </th>
+        </tr></thead>
+        <tbody>
+          {% for f in trade.fills %}
+          <tr>
+            <td>{{ f.fill_time }}</td>
+            <td class="{{ 'fill-buy' if f.side == 'Buy' else 'fill-sell' }}">{{ f.side }}</td>
+            <td>{{ f.qty }}</td>
+            <td>{{ '%.2f'|format(f.price) }}</td>
+            <td></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Tags 2×2 -->
+    {% set EXIT_GOOD = ['Planned — Monitored Continuation'] %}
+    {% set VOL_MAP   = {'Avg':'active-vol-avg','Above Avg':'active-vol-high','Below Avg':'active-vol-low'} %}
+    <div class="tag-panel">
+      {% for g in tag_groups[:4] %}
+      <div class="tag-group">
+        <div class="tg-label">
+          <span class="tg-dot" style="background:{{ dot_colors[g.dot] }};box-shadow:0 0 6px {{ dot_colors[g.dot] }}40;"></span>
+          {{ g.label }}
+        </div>
+        <div class="tags-row" id="tags-{{ trade.id }}-{{ g.id }}">
+          {% for tag in g.tags %}
+          {% if g.id == 'exit' %}
+            {% set active_cls = 'active-exit-good' if tag in EXIT_GOOD else 'active-exit-bad' %}
+          {% elif g.id == 'volume' %}
+            {% set active_cls = VOL_MAP.get(tag, g.active_class) %}
+          {% else %}
+            {% set active_cls = g.active_class %}
+          {% endif %}
+          <button class="tag-btn {{ active_cls if tag in trade.tags.get(g.id, []) else '' }}"
+            data-tag="{{ tag }}"
+            data-active-class="{{ active_cls }}"
+            onclick="toggleTag({{ trade.id }},'{{ g.id }}','{{ tag }}',{{ 'true' if g.multi else 'false' }})">{{ tag }}</button>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Tags 3-col -->
+    {% set PRE_GOOD = ['Trade came to me', 'Intuition / Mkt Feel'] %}
+    <div class="tag-panel-3">
+      {% for g in tag_groups[4:] %}
+      <div class="tag-group">
+        <div class="tg-label">
+          <span class="tg-dot" style="background:#8a96aa;"></span>{{ g.label }}
+        </div>
+        <div class="tags-row" id="tags-{{ trade.id }}-{{ g.id }}">
+          {% for tag in g.tags %}
+          {% if g.id == 'pre' %}
+            {% set active_cls = 'active-pre-good' if tag in PRE_GOOD else 'active-pre-bad' %}
+          {% else %}
+            {% set active_cls = g.active_class %}
+          {% endif %}
+          <button class="tag-btn {{ active_cls if tag in trade.tags.get(g.id, []) else '' }}"
+            data-tag="{{ tag }}"
+            data-active-class="{{ active_cls }}"
+            onclick="toggleTag({{ trade.id }},'{{ g.id }}','{{ tag }}',{{ 'true' if g.multi else 'false' }})">{{ tag }}</button>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Notes -->
+    <div class="notes-wrap">
+      <div class="tg-label" style="padding-top:16px;margin-bottom:8px;">
+        <span class="tg-dot" style="background:var(--muted);"></span>Notes
+      </div>
+      <textarea class="notes-area" placeholder="Rationale, observations, lessons..."
+        oninput="scheduleNoteSave({{ trade.id }}, this.value)">{{ trade.notes }}</textarea>
+    </div>
+
+    <!-- Images -->
+    <div class="images-wrap">
+      <div class="tg-label" style="padding-top:4px;margin-bottom:10px;">
+        <span class="tg-dot" style="background:var(--muted);"></span>Screenshots
+        <span style="font-size:9px;color:var(--muted);margin-left:4px;">saved permanently on disk</span>
+      </div>
+
+      <!-- Existing images -->
+      <div class="image-grid" id="img-grid-{{ trade.id }}">
+        {% for img in trade.images %}
+        <div class="image-thumb" id="img-thumb-{{ img.id }}">
+          <img src="/images/{{ img.filename }}" alt="{{ img.caption }}"
+               onclick="openLightbox('/images/{{ img.filename }}', '{{ img.caption|e }}')">
+          <div class="image-thumb-caption" title="{{ img.caption }}">{{ img.caption or img.filename }}</div>
+          <button class="image-thumb-del" onclick="deleteImage({{ img.id }})">✕</button>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Drop zone -->
+      <div class="images-drop-zone" id="img-drop-{{ trade.id }}"
+           ondragover="imgDragOver(event)" ondragleave="imgDragLeave(event)"
+           ondrop="imgDrop(event, {{ trade.id }})">
+        <input type="file" accept="image/*" id="img-input-{{ trade.id }}"
+               onchange="uploadImages({{ trade.id }}, this.files)">
+        <div class="images-drop-text">📎 Drop screenshots here or click to upload · JPG, PNG, WebP</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endfor %}
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img class="lightbox-img" id="lightbox-img" src="" alt="">
+  <div class="lightbox-caption" id="lightbox-caption"></div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+const TAG_GROUPS = {{ tags_json|safe }};
+
+// ── Card expand ──────────────────────────────────────────────────────────────
+function toggleCard(id) {
+  document.getElementById('trade-card-' + id).classList.toggle('expanded');
+}
+const hash = window.location.hash;
+if (hash) {
+  const id = hash.replace('#trade-', '');
+  const c  = document.getElementById('trade-card-' + id);
+  if (c) { c.classList.add('expanded'); c.scrollIntoView({behavior:'smooth',block:'start'}); }
+}
+
+// ── Day P&L Chart ────────────────────────────────────────────────────────────
+(function buildChart() {
+  const canvas = document.getElementById('day-pnl-chart');
+  if (!canvas) return;
+
+  const trades = [
+    {% for t in trades %}
+    { num: {{ t.trade_num }}, pnl: {{ t.pnl }}, time: '{{ t.entry_time }}', dir: '{{ t.direction }}' },
+    {% endfor %}
+  ];
+  if (!trades.length) return;
+
+  // Cumulative P&L line
+  let cum = 0;
+  const labels   = ['Start'];
+  const cumData  = [0];
+  const barData  = [null];      // Start slot — no bar
+  const barColors = ['transparent'];  // Start slot — no color
+
+  trades.forEach(t => {
+    cum += t.pnl;
+    labels.push(`T${t.num} ${t.time}`);
+    cumData.push(parseFloat(cum.toFixed(2)));
+    barData.push(parseFloat(t.pnl.toFixed(2)));
+    const bc = t.pnl > 0 ? 'rgba(79,255,176,0.65)'
+                 : t.pnl < 0 ? 'rgba(255,77,109,0.65)'
+                 :              'rgba(255,179,71,0.65)';
+    barColors.push(bc);
+  });
+
+  const finalColor = cum >= 0 ? '#4fffb0' : '#ff4d6d';
+
+  new Chart(canvas, {
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'line',
+          label: 'Cumulative P&L',
+          data: cumData,
+          borderColor: finalColor,
+          backgroundColor: finalColor + '15',
+          borderWidth: 2,
+          pointRadius: 4,
+          pointBackgroundColor: finalColor,
+          pointBorderColor: '#0b0d10',
+          pointBorderWidth: 1,
+          fill: true,
+          tension: 0.3,
+          yAxisID: 'y',
+        },
+        {
+          type: 'bar',
+          label: 'Trade P&L',
+          data: barData,
+          backgroundColor: barColors,
+          borderColor: barColors.map(c => c === 'transparent' ? 'transparent' : c.replace('0.65','1.0')),
+          borderWidth: 1,
+          borderRadius: 2,
+          yAxisID: 'y',
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1f2e',
+          borderColor: '#2a3044',
+          borderWidth: 1,
+          titleColor: '#8a96aa',
+          bodyColor: '#e8ecf4',
+          callbacks: {
+            label: ctx => {
+              if (ctx.parsed.y === null) return null;
+              const v = ctx.parsed.y;
+              const sign = v >= 0 ? '+' : '';
+              return ` ${ctx.dataset.label}: ${sign}$${v.toFixed(2)}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid:  { color: '#1e2436' },
+          ticks: { color: '#4a5568', font: { size: 10 } }
+        },
+        y: {
+          grid:  { color: '#1e2436' },
+          ticks: {
+            color: '#4a5568', font: { size: 10 },
+            callback: v => `$${v}`
+          }
+        }
+      }
+    }
+  });
+})();
+
+// ── Tags ─────────────────────────────────────────────────────────────────────
+async function toggleTag(tradeId, groupId, tag, multi) {
+  const container = document.getElementById(`tags-${tradeId}-${groupId}`);
+  const buttons   = container.querySelectorAll('.tag-btn');
+  const group     = TAG_GROUPS.find(g => g.id === groupId);
+  if (!group) return;
+
+  // Each button may have its own active class (e.g. pre-trade good/bad coloring)
+  // Build a map of tag → active class from data attributes, fall back to group default
+  const tagActiveClass = {};
+  buttons.forEach(b => {
+    tagActiveClass[b.dataset.tag] = b.dataset.activeClass || group.active_class;
+  });
+
+  // Determine currently active tags
+  const active = new Set(
+    [...buttons]
+      .filter(b => b.classList.contains(tagActiveClass[b.dataset.tag]))
+      .map(b => b.dataset.tag)
+  );
+
+  // Toggle
+  if (active.has(tag)) {
+    active.delete(tag);
+  } else {
+    if (!multi) active.clear();
+    active.add(tag);
+  }
+
+  // Apply classes
+  buttons.forEach(b => {
+    const cls = tagActiveClass[b.dataset.tag];
+    b.classList.toggle(cls, active.has(b.dataset.tag));
+  });
+
+  await fetch(`/api/trade/${tradeId}/tags`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({group_id: groupId, tags: [...active]})
+  });
+}
+
+// ── Notes ────────────────────────────────────────────────────────────────────
+const noteTimers = {};
+function scheduleNoteSave(tradeId, value) {
+  clearTimeout(noteTimers[tradeId]);
+  noteTimers[tradeId] = setTimeout(() => {
+    fetch(`/api/trade/${tradeId}/notes`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({notes: value})
+    }).then(() => showToast('Saved'));
+  }, 800);
+}
+
+// ── Image upload ─────────────────────────────────────────────────────────────
+function imgDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+function imgDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+function imgDrop(e, tradeId) {
+  e.preventDefault(); e.currentTarget.classList.remove('drag-over');
+  uploadImages(tradeId, e.dataTransfer.files);
+}
+
+async function uploadImages(tradeId, files) {
+  if (!files || !files.length) return;
+  for (const file of Array.from(files)) {
+    const form = new FormData();
+    form.append('image', file);
+    form.append('caption', file.name.replace(/\.[^.]+$/, ''));
+    try {
+      const res  = await fetch(`/api/trade/${tradeId}/images`, { method:'POST', body:form });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error || 'Upload failed', true); continue; }
+      appendImageThumb(tradeId, data);
+      showToast('Screenshot saved');
+    } catch(e) { showToast('Upload error', true); }
+  }
+}
+
+function appendImageThumb(tradeId, img) {
+  const grid = document.getElementById('img-grid-' + tradeId);
+  const div  = document.createElement('div');
+  div.className = 'image-thumb';
+  div.id = 'img-thumb-' + img.id;
+  div.innerHTML = `
+    <img src="${img.url}" alt="${img.caption}" onclick="openLightbox('${img.url}','${img.caption.replace(/'/g,"\\'")}')">
+    <div class="image-thumb-caption" title="${img.caption}">${img.caption || img.url.split('/').pop()}</div>
+    <button class="image-thumb-del" onclick="deleteImage(${img.id})">✕</button>
+  `;
+  grid.appendChild(div);
+}
+
+async function deleteImage(imageId) {
+  const res = await fetch(`/api/image/${imageId}`, { method:'DELETE' });
+  if (res.ok) {
+    const el = document.getElementById('img-thumb-' + imageId);
+    if (el) { el.style.opacity='0';el.style.transition='opacity 0.2s';setTimeout(()=>el.remove(),200); }
+    showToast('Screenshot deleted');
+  } else { showToast('Delete failed', true); }
+}
+
+// ── Lightbox ──────────────────────────────────────────────────────────────────
+function openLightbox(url, caption) {
+  document.getElementById('lightbox-img').src     = url;
+  document.getElementById('lightbox-caption').textContent = caption || '';
+  document.getElementById('lightbox').classList.add('show');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('show');
+  document.getElementById('lightbox-img').src = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+</script>
+{% endblock %}
