@@ -2,6 +2,32 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [1.1.0] — 2026-02-28
+
+### Live Trade — Multiple Simultaneous Trades
+- Open and manage multiple live trades at the same time
+- Color-coded trade cards (6 distinct colors) with numbered banners (T1, T2, T3…)
+- Tabbed right panel — each open trade gets its own tab with color dot indicator
+- Active trade banner showing trade number, direction, instrument, and entry details
+- Active card glow effect on left panel; inactive cards dimmed for focus
+- Flash animation on trade switch for clear visual feedback
+- New trade opens without interrupting current active trade (toast notification instead)
+
+### Trade Detail — Execution Replay
+- Pushed live trades now store full execution detail (levels + executions) as JSON
+- Trade detail page shows execution breakdown with entry/exit types (TP hit, stop hit, manual exit)
+- Fills table now includes `exit_type` column for granular exit tracking
+
+### Database
+- New `execution_json` column on `trades` table for live trade execution history
+- New `exit_type` column on `fills` table (tp_hit, stop_hit, manual_exit, or NULL for imports)
+- Auto-migration for both new columns on existing databases
+
+### Settings
+- Updated settings page layout and tag configuration improvements
+
+---
+
 ## [1.0.0] — 2025-02-27
 
 ### Initial Release

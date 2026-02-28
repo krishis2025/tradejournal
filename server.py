@@ -80,9 +80,17 @@ def trade_view(trade_id):
     trade = db.get_trade_by_id(trade_id)
     if not trade:
         return render_template("404.html", message=f"Trade #{trade_id} not found"), 404
+    # Parse execution_json if present (from live trade push)
+    exec_detail = None
+    if trade.get("execution_json"):
+        try:
+            exec_detail = json.loads(trade["execution_json"])
+        except (json.JSONDecodeError, TypeError):
+            pass
     return render_template(
         "trade.html",
         trade=trade,
+        exec_detail=exec_detail,
         tag_groups=logic.get_tag_groups(),
         tags_json=json.dumps(logic.get_tag_groups())
     )

@@ -85,7 +85,7 @@
   min-height: calc(100vh - 200px);
 }
 .ticket-left  { background:var(--surface); overflow-y:auto; }
-.ticket-right { background:var(--surface); display:flex; flex-direction:column; }
+/* .ticket-right styled in RIGHT PANEL section below */
 
 /* ── Empty state ── */
 .empty-state {
@@ -106,6 +106,31 @@
 }
 .trade-card.collapsed { cursor:pointer; }
 .trade-card.collapsed:hover { background:var(--surface2); }
+
+/* Trade card banner colors */
+.tc-banner {
+  display:flex; align-items:center; gap:8px; padding:6px 18px;
+  font-size:10px; letter-spacing:2px; text-transform:uppercase;
+  font-family:var(--font-mono); border-bottom:1px solid rgba(34,38,49,0.5);
+}
+.tc-banner-label { font-weight:500; }
+.tc-banner-sub { font-size:9px; color:var(--muted); letter-spacing:1px; }
+
+/* 6 distinct trade colors */
+.tc-color-0 .tc-banner { background:rgba(79,255,176,0.08); color:var(--green); border-left:3px solid var(--green); }
+.tc-color-1 .tc-banner { background:rgba(0,207,255,0.08); color:#00cfff; border-left:3px solid #00cfff; }
+.tc-color-2 .tc-banner { background:rgba(255,179,71,0.08); color:#ffb347; border-left:3px solid #ffb347; }
+.tc-color-3 .tc-banner { background:rgba(180,127,255,0.08); color:#b47fff; border-left:3px solid #b47fff; }
+.tc-color-4 .tc-banner { background:rgba(255,107,107,0.08); color:#ff6b6b; border-left:3px solid #ff6b6b; }
+.tc-color-5 .tc-banner { background:rgba(88,166,255,0.08); color:#58a6ff; border-left:3px solid #58a6ff; }
+
+/* Left border stripe for whole card */
+.tc-color-0 { border-left:3px solid var(--green); }
+.tc-color-1 { border-left:3px solid #00cfff; }
+.tc-color-2 { border-left:3px solid #ffb347; }
+.tc-color-3 { border-left:3px solid #b47fff; }
+.tc-color-4 { border-left:3px solid #ff6b6b; }
+.tc-color-5 { border-left:3px solid #58a6ff; }
 
 .tc-header {
   display:flex; align-items:center; gap:12px;
@@ -219,6 +244,98 @@
   color:var(--muted); margin-bottom:12px;
 }
 
+/* Tab bar */
+.rp-tabs {
+  display:flex; border-bottom:1px solid var(--border); background:var(--surface2);
+  overflow-x:auto; flex-shrink:0;
+}
+.rp-tab {
+  padding:10px 16px; font-family:var(--font-mono); font-size:10px; letter-spacing:1px;
+  color:var(--muted2); cursor:pointer; transition:all 0.12s; border:none; background:transparent;
+  border-bottom:2px solid transparent; white-space:nowrap;
+  display:flex; align-items:center; gap:6px; text-transform:uppercase;
+}
+.rp-tab:hover { color:var(--text); background:var(--surface3); }
+.rp-tab.active { color:var(--accent); border-bottom-color:var(--accent); background:var(--surface); }
+.rp-tab-dot {
+  width:6px; height:6px; border-radius:50%; flex-shrink:0;
+}
+
+/* Active trade banner — large, impossible to miss */
+.rp-active-banner {
+  padding:14px 18px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:12px;
+  transition:all 0.3s ease;
+}
+.rp-active-num {
+  font-family:var(--font-display); font-size:28px; letter-spacing:3px;
+  line-height:1;
+}
+.rp-active-info {
+  display:flex; flex-direction:column; gap:2px;
+}
+.rp-active-dir-badge {
+  font-family:var(--font-mono); font-size:11px; letter-spacing:1.5px;
+  padding:3px 10px; font-weight:500;
+  clip-path:polygon(3px 0%,100% 0%,calc(100% - 3px) 100%,0% 100%);
+  display:inline-block; width:fit-content;
+}
+.rp-active-dir-badge.long  { background:rgba(79,255,176,0.15); color:var(--green); }
+.rp-active-dir-badge.short { background:rgba(255,77,109,0.15); color:var(--red); }
+.rp-active-detail {
+  font-family:var(--font-mono); font-size:12px; color:var(--text); letter-spacing:0.5px;
+}
+
+/* Right panel color theming — border + tint per trade */
+.ticket-right {
+  background:var(--surface); display:flex; flex-direction:column;
+  transition:border-color 0.3s, background 0.3s;
+  border-left:3px solid var(--border);
+}
+.ticket-right.rp-color-0 { border-left-color:var(--green); }
+.ticket-right.rp-color-0 .rp-active-banner { background:rgba(79,255,176,0.06); }
+.ticket-right.rp-color-0 .rp-active-num { color:var(--green); }
+.ticket-right.rp-color-1 { border-left-color:#00cfff; }
+.ticket-right.rp-color-1 .rp-active-banner { background:rgba(0,207,255,0.06); }
+.ticket-right.rp-color-1 .rp-active-num { color:#00cfff; }
+.ticket-right.rp-color-2 { border-left-color:#ffb347; }
+.ticket-right.rp-color-2 .rp-active-banner { background:rgba(255,179,71,0.06); }
+.ticket-right.rp-color-2 .rp-active-num { color:#ffb347; }
+.ticket-right.rp-color-3 { border-left-color:#b47fff; }
+.ticket-right.rp-color-3 .rp-active-banner { background:rgba(180,127,255,0.06); }
+.ticket-right.rp-color-3 .rp-active-num { color:#b47fff; }
+.ticket-right.rp-color-4 { border-left-color:#ff6b6b; }
+.ticket-right.rp-color-4 .rp-active-banner { background:rgba(255,107,107,0.06); }
+.ticket-right.rp-color-4 .rp-active-num { color:#ff6b6b; }
+.ticket-right.rp-color-5 { border-left-color:#58a6ff; }
+.ticket-right.rp-color-5 .rp-active-banner { background:rgba(88,166,255,0.06); }
+.ticket-right.rp-color-5 .rp-active-num { color:#58a6ff; }
+
+/* Flash animation on trade switch */
+@keyframes rpFlash {
+  0% { opacity:1; }
+  25% { opacity:0.4; }
+  50% { opacity:1; }
+  75% { opacity:0.6; }
+  100% { opacity:1; }
+}
+.rp-flash { animation: rpFlash 0.4s ease-out; }
+
+/* Left panel: active card glow, inactive cards dim */
+.trade-card { transition:opacity 0.25s, outline 0.25s, box-shadow 0.25s; }
+.trade-card.tc-dimmed { opacity:0.45; }
+.trade-card.tc-active-glow {
+  opacity:1;
+  box-shadow:0 0 0 2px var(--accent), 0 0 16px rgba(79,255,176,0.15);
+}
+/* Per-color glow */
+.trade-card.tc-active-glow.tc-color-0 { box-shadow:0 0 0 2px var(--green), 0 0 16px rgba(79,255,176,0.2); }
+.trade-card.tc-active-glow.tc-color-1 { box-shadow:0 0 0 2px #00cfff, 0 0 16px rgba(0,207,255,0.2); }
+.trade-card.tc-active-glow.tc-color-2 { box-shadow:0 0 0 2px #ffb347, 0 0 16px rgba(255,179,71,0.2); }
+.trade-card.tc-active-glow.tc-color-3 { box-shadow:0 0 0 2px #b47fff, 0 0 16px rgba(180,127,255,0.2); }
+.trade-card.tc-active-glow.tc-color-4 { box-shadow:0 0 0 2px #ff6b6b, 0 0 16px rgba(255,107,107,0.2); }
+.trade-card.tc-active-glow.tc-color-5 { box-shadow:0 0 0 2px #58a6ff, 0 0 16px rgba(88,166,255,0.2); }
+
 /* Quick Exit Buttons */
 .qe-grid {
   display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;
@@ -241,6 +358,11 @@
 .qe-btn.qe-stop:hover { border-color:var(--red); background:rgba(255,77,109,0.06); }
 
 .qe-full-row { grid-column: 1 / -1; }
+.qe-section-label {
+  grid-column:1/-1; font-size:8px; letter-spacing:2px; text-transform:uppercase;
+  color:var(--muted); padding:6px 0 2px; border-top:1px solid var(--border);
+}
+.qe-section-label:first-child { border-top:none; padding-top:0; }
 
 /* Manual exit row */
 .qe-manual {
@@ -257,27 +379,6 @@
   cursor:pointer; transition:all 0.12s; text-transform:uppercase;
 }
 .qe-manual-btn:hover { color:var(--text); border-color:var(--muted); }
-
-/* Trail stop section */
-.trail-grid {
-  display:flex; flex-direction:column; gap:6px;
-}
-.trail-row {
-  display:grid; grid-template-columns:36px 1fr 60px; gap:6px; align-items:center;
-}
-.trail-label { font-size:10px; color:var(--muted); letter-spacing:1px; }
-.trail-input {
-  background:var(--bg); border:1px solid var(--border2); color:var(--text);
-  font-family:var(--font-mono); font-size:12px; padding:6px 8px; outline:none;
-  width:100%; transition:border-color 0.15s;
-}
-.trail-input:focus { border-color:var(--accent); }
-.trail-apply {
-  padding:6px 10px; border:1px solid var(--border2); background:var(--surface2);
-  color:var(--muted2); font-family:var(--font-mono); font-size:9px; cursor:pointer;
-  transition:all 0.12s; text-transform:uppercase; letter-spacing:1px;
-}
-.trail-apply:hover { color:var(--text); border-color:var(--muted); }
 
 /* Tags slide-out panel */
 .tags-panel {
@@ -483,8 +584,10 @@
     </div>
   </div>
 
-  <!-- RIGHT PANEL — Quick actions & controls -->
+  <!-- RIGHT PANEL — Tabbed Quick actions & controls -->
   <div class="ticket-right" id="right-panel">
+    <div class="rp-tabs" id="rp-tabs"></div>
+    <div class="rp-active-banner" id="rp-active-banner" style="display:none;"></div>
     <div class="rp-empty" id="rp-empty">Select or open a trade</div>
 
     <!-- Populated by JS when a trade is active -->
@@ -497,11 +600,6 @@
           <input type="number" min="1" id="man-qty" placeholder="Qty">
           <button class="qe-manual-btn" onclick="manualExit()">Exit</button>
         </div>
-      </div>
-
-      <div class="rp-section">
-        <div class="rp-title">Trail Stops</div>
-        <div class="trail-grid" id="trail-stops"></div>
       </div>
 
       <div class="rp-section" style="flex:1;">
@@ -682,7 +780,14 @@ async function openTrade() {
   allTrades.push(trade);
   document.getElementById('empty-state').style.display = 'none';
   renderTradeCard(trade);
-  selectTrade(trade.id);
+
+  // If no trade was active, select the new one. Otherwise keep current and just rebuild tabs.
+  if (!activeTrade) {
+    selectTrade(trade.id);
+  } else {
+    buildTabBar();
+    showToast(`${formDir} ${qty}× ${formInst} @ ${price} — click T${allTrades.length} tab to manage`);
+  }
 
   // Clear form
   document.getElementById('cmd-price').value = '';
@@ -759,8 +864,17 @@ function renderTradeCard(t) {
   const reward = calc.potential_reward || 0;
   const remaining = calc.remaining_qty ?? t.total_qty;
 
+  // Trade index for color and label
+  const tradeIdx = allTrades.indexOf(t);
+  const tradeNum = tradeIdx >= 0 ? tradeIdx + 1 : allTrades.length;
+  const colorIdx = (tradeNum - 1) % 6;
+
   const html = `
-  <div class="trade-card expanded" id="tc-${t.id}" onclick="if(event.target.closest('.portion-row,.tc-stats,.tc-exec-log,.pr-edit-input'))return; selectTrade(${t.id});">
+  <div class="trade-card expanded tc-color-${colorIdx}" id="tc-${t.id}" data-trade-id="${t.id}" onclick="if(event.target.closest('.portion-row,.tc-stats,.tc-exec-log,.pr-edit-input'))return; selectTrade(${t.id});">
+    <div class="tc-banner">
+      <span class="tc-banner-label">Trade ${tradeNum}</span>
+      <span class="tc-banner-sub">${t.direction} · ${t.instrument} · ${t.entry_time}</span>
+    </div>
     <div class="tc-header">
       <span class="tc-dir-badge ${isLong ? 'tc-dir-long' : 'tc-dir-short'}">${t.direction}</span>
       <span class="tc-title">${t.total_qty}× ${t.instrument} @ ${t.entry_price} <span>${t.entry_time}</span></span>
@@ -780,21 +894,71 @@ function renderTradeCard(t) {
   </div>`;
 
   const emptyEl = document.getElementById('empty-state');
-  if (emptyEl) emptyEl.insertAdjacentHTML('beforebegin', html);
-  else document.getElementById('trades-list').insertAdjacentHTML('beforeend', html);
+
+  // Insert card in correct position (ascending by allTrades order)
+  const myIdx = allTrades.indexOf(t);
+  const allCards = document.querySelectorAll('.trade-card[data-trade-id]');
+  let inserted = false;
+  for (const card of allCards) {
+    const cardId = parseInt(card.dataset.tradeId);
+    const cardIdx = allTrades.findIndex(tr => tr.id === cardId);
+    if (cardIdx > myIdx) {
+      card.insertAdjacentHTML('beforebegin', html);
+      inserted = true;
+      break;
+    }
+  }
+  if (!inserted) {
+    // Insert before pushed trays and empty state
+    const pushedTrays = document.querySelectorAll('.pushed-tray');
+    if (pushedTrays.length > 0) {
+      pushedTrays[0].insertAdjacentHTML('beforebegin', html);
+    } else if (emptyEl) {
+      emptyEl.insertAdjacentHTML('beforebegin', html);
+    } else {
+      document.getElementById('trades-list').insertAdjacentHTML('beforeend', html);
+    }
+  }
 }
 
 // ── Select Trade (populate right panel) ──────────────────────────────────────
+const TAB_COLORS = ['var(--green)', '#00cfff', '#ffb347', '#b47fff', '#ff6b6b', '#58a6ff'];
+let lastActiveId = null;
+
 function selectTrade(id) {
   const t = allTrades.find(tr => tr.id === id);
   if (!t) return;
   activeTrade = t;
   try { activeTags = typeof t.tags === 'object' ? {...t.tags} : JSON.parse(t.tags_json||'{}'); } catch(e) { activeTags = {}; }
 
-  // Highlight card
-  document.querySelectorAll('.trade-card').forEach(c => c.style.outline = '');
-  const card = document.getElementById('tc-'+id);
-  if (card) card.style.outline = '1px solid var(--accent)';
+  const tradeIdx = allTrades.indexOf(t);
+  const tradeNum = tradeIdx + 1;
+  const colorIdx = tradeIdx % 6;
+  const isSwitching = lastActiveId !== null && lastActiveId !== id;
+
+  // ── Left panel: glow active card, dim all others ──
+  document.querySelectorAll('.trade-card').forEach(c => {
+    c.style.outline = '';
+    c.classList.remove('tc-active-glow', 'tc-dimmed');
+    if (allTrades.length > 1) {
+      if (parseInt(c.dataset.tradeId) === id) {
+        c.classList.add('tc-active-glow');
+      } else {
+        c.classList.add('tc-dimmed');
+      }
+    }
+  });
+
+  // ── Right panel: color theme ──
+  const rp = document.getElementById('right-panel');
+  rp.className = 'ticket-right rp-color-' + colorIdx;
+
+  // Flash animation on switch
+  if (isSwitching) {
+    rp.classList.remove('rp-flash');
+    void rp.offsetWidth; // force reflow
+    rp.classList.add('rp-flash');
+  }
 
   // Show controls
   document.getElementById('rp-empty').style.display = 'none';
@@ -802,13 +966,47 @@ function selectTrade(id) {
   document.getElementById('rp-controls').style.flexDirection = 'column';
   document.getElementById('rp-controls').style.flex = '1';
 
+  // Build tab bar
+  buildTabBar();
+
+  // ── Active trade banner — large and unmistakable ──
+  const bannerEl = document.getElementById('rp-active-banner');
+  const dirClass = t.direction === 'Long' ? 'long' : 'short';
+  bannerEl.style.display = 'flex';
+  bannerEl.innerHTML = `
+    <span class="rp-active-num">T${tradeNum}</span>
+    <div class="rp-active-info">
+      <span class="rp-active-dir-badge ${dirClass}">${t.direction}</span>
+      <span class="rp-active-detail">${t.total_qty}× ${t.instrument} @ ${t.entry_price} · ${t.entry_time}</span>
+    </div>`;
+
   // Notes
   document.getElementById('rp-notes').value = t.notes || '';
 
-  // Build Quick Exit buttons
+  // Build Quick Exit buttons (TP + Stop + Manual)
   buildQuickExitButtons(t);
-  buildTrailStops(t);
   syncTagButtons();
+
+  // Toast on switch
+  if (isSwitching) {
+    showToast(`Switched to Trade ${tradeNum}`);
+  }
+  lastActiveId = id;
+}
+
+function buildTabBar() {
+  const TAB_COLORS = ['var(--green)', '#00cfff', '#ffb347', '#b47fff', '#ff6b6b', '#58a6ff'];
+  const container = document.getElementById('rp-tabs');
+  let html = '';
+  allTrades.forEach((t, i) => {
+    const isActive = activeTrade && activeTrade.id === t.id;
+    const color = TAB_COLORS[i % 6];
+    const label = `T${i+1}`;
+    html += `<button class="rp-tab ${isActive?'active':''}" onclick="selectTrade(${t.id})" style="${isActive?'border-bottom-color:'+color+';color:'+color+';':''}">
+      <span class="rp-tab-dot" style="background:${color};"></span>${label}</button>`;
+  });
+  container.innerHTML = html;
+  container.style.display = allTrades.length > 0 ? 'flex' : 'none';
 }
 
 function buildQuickExitButtons(t) {
@@ -828,6 +1026,8 @@ function buildQuickExitButtons(t) {
   let html = '<div class="qe-grid">';
 
   if (t.mode === 'partials') {
+    // ── TP Section ──
+    html += '<div class="qe-section-label">Take Profit</div>';
     tps.forEach(tp => {
       const stop = stops.find(s=>s.portion===tp.portion);
       const origQty = stop ? stop.qty : tp.qty;
@@ -842,50 +1042,46 @@ function buildQuickExitButtons(t) {
         <div class="qe-btn-label">TP${tp.portion}</div><div class="qe-btn-price">${tp.price}</div>
         <div class="qe-btn-pnl pnl-pos">+$${pnl.toFixed(0)} · ${rem}×</div></div>`;
     });
+
+    // ── Stop Section ──
+    html += '<div class="qe-section-label">Stop Hit</div>';
+    stops.forEach(s => {
+      const exited = portionExited[s.portion] || 0;
+      const rem = s.qty - exited;
+      if (rem <= 0) {
+        html += `<div class="qe-btn qe-stop" style="opacity:0.3;cursor:default;"><div class="qe-btn-label">S${s.portion}</div><div class="qe-btn-price" style="text-decoration:line-through;">${s.price}</div><div class="qe-btn-pnl">✓</div></div>`;
+        return;
+      }
+      const pnl = isLong ? (s.price-entry)*rem*dpp : (entry-s.price)*rem*dpp;
+      const pnlCls = pnl >= 0 ? 'pnl-pos' : 'pnl-neg';
+      const pnlStr = pnl >= 0 ? `+$${pnl.toFixed(0)}` : `-$${Math.abs(pnl).toFixed(0)}`;
+      html += `<div class="qe-btn qe-stop" onclick="quickExit(${t.id},'stop_hit',${s.portion},${rem},${s.price})">
+        <div class="qe-btn-label">S${s.portion}</div><div class="qe-btn-price">${s.price}</div>
+        <div class="qe-btn-pnl ${pnlCls}">${pnlStr} · ${rem}×</div></div>`;
+    });
+
   } else {
+    // Full mode: single TP + single Stop
     const tp = tps[0]; const stop = stops[0];
-    if (tp) {
-      const rem = (t.calc?.remaining_qty) ?? t.total_qty;
+    const rem = (t.calc?.remaining_qty) ?? t.total_qty;
+    if (tp && rem > 0) {
       const pnl = isLong ? (tp.price-entry)*rem*dpp : (entry-tp.price)*rem*dpp;
       html += `<div class="qe-btn qe-tp qe-full-row" onclick="quickExit(${t.id},'tp_hit',1,${rem},${tp.price})">
         <div class="qe-btn-label">TARGET</div><div class="qe-btn-price">${tp.price}</div>
         <div class="qe-btn-pnl pnl-pos">+$${pnl.toFixed(0)} · ${rem}×</div></div>`;
     }
-  }
-
-  // Stop all button
-  const totalRem = (t.calc?.remaining_qty) ?? t.total_qty;
-  if (totalRem > 0) {
-    const firstStop = stops[0];
-    if (firstStop) {
-      html += `<div class="qe-btn qe-stop qe-full-row" onclick="quickStopAll(${t.id})">
-        <div class="qe-btn-label">STOP ALL</div><div class="qe-btn-price">${firstStop.price}</div>
-        <div class="qe-btn-pnl pnl-neg">${totalRem}× remaining</div></div>`;
+    if (stop && rem > 0) {
+      const pnl = isLong ? (stop.price-entry)*rem*dpp : (entry-stop.price)*rem*dpp;
+      const pnlCls = pnl >= 0 ? 'pnl-pos' : 'pnl-neg';
+      const pnlStr = pnl >= 0 ? `+$${pnl.toFixed(0)}` : `-$${Math.abs(pnl).toFixed(0)}`;
+      html += `<div class="qe-btn qe-stop qe-full-row" onclick="quickExit(${t.id},'stop_hit',1,${rem},${stop.price})">
+        <div class="qe-btn-label">STOP</div><div class="qe-btn-price">${stop.price}</div>
+        <div class="qe-btn-pnl ${pnlCls}">${pnlStr} · ${rem}×</div></div>`;
     }
   }
 
   html += '</div>';
   container.innerHTML = html;
-}
-
-function buildTrailStops(t) {
-  const container = document.getElementById('trail-stops');
-  const stops = (t.levels||[]).filter(l=>l.level_type==='stop').sort((a,b)=>a.portion-b.portion);
-  const executions = t.executions || [];
-  const portionExited = {};
-  executions.forEach(e => { portionExited[e.portion] = (portionExited[e.portion]||0) + e.qty; });
-
-  let html = '';
-  stops.forEach(s => {
-    const rem = s.qty - (portionExited[s.portion]||0);
-    if (rem <= 0) return;
-    html += `<div class="trail-row">
-      <div class="trail-label">${t.mode==='partials'?'P'+s.portion:'Stop'}</div>
-      <input class="trail-input" type="number" step="0.25" value="${s.price}" id="trail-${t.id}-${s.portion}">
-      <button class="trail-apply" onclick="trailStop(${t.id},${s.portion})">Set</button>
-    </div>`;
-  });
-  container.innerHTML = html || '<div style="font-size:10px;color:var(--border2);">No open portions</div>';
 }
 
 // ── Quick Exit (ONE CLICK!) ──────────────────────────────────────────────────
@@ -911,22 +1107,6 @@ async function quickExit(tradeId, type, portion, qty, price) {
   }
   updateDayPnl();
   showToast(`${type.replace('_',' ')} · $${data.pnl.toFixed(2)}`);
-}
-
-async function quickStopAll(tradeId) {
-  const t = allTrades.find(tr=>tr.id===tradeId);
-  if (!t) return;
-  const stops = (t.levels||[]).filter(l=>l.level_type==='stop').sort((a,b)=>a.portion-b.portion);
-  const execs = t.executions || [];
-  const portionExited = {};
-  execs.forEach(e => { portionExited[e.portion] = (portionExited[e.portion]||0) + e.qty; });
-
-  for (const s of stops) {
-    const rem = s.qty - (portionExited[s.portion]||0);
-    if (rem > 0) {
-      await quickExit(tradeId, 'stop_hit', s.portion, rem, s.price);
-    }
-  }
 }
 
 async function manualExit() {
@@ -958,43 +1138,6 @@ async function manualExit() {
 
   document.getElementById('man-price').value = '';
   document.getElementById('man-qty').value = '';
-}
-
-// ── Trail Stop ───────────────────────────────────────────────────────────────
-async function trailStop(tradeId, portion) {
-  const input = document.getElementById(`trail-${tradeId}-${portion}`);
-  if (!input) return;
-  const newPrice = parseFloat(input.value);
-  const t = allTrades.find(tr=>tr.id===tradeId);
-  if (!t) return;
-
-  // Rebuild all levels with updated stop
-  const isLong = t.direction === 'Long';
-  const dpp = INST_CONFIG[t.instrument]?.dollars_per_point || 5;
-  const entry = t.entry_price;
-  const newLevels = (t.levels||[]).map(lv => {
-    const l = {...lv};
-    if (l.level_type === 'stop' && l.portion === portion) {
-      l.price = newPrice;
-      const pnl = isLong ? (newPrice-entry)*l.qty*dpp : (entry-newPrice)*l.qty*dpp;
-      l.risk_dollars = Math.max(-pnl,0);
-      l.reward_dollars = 0;
-    }
-    return l;
-  });
-
-  const res = await fetch(`/api/live/${tradeId}/levels`, {
-    method:'PUT', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({levels:newLevels})
-  });
-  const data = await res.json();
-  if (data.ok) {
-    t.levels = newLevels;
-    t.calc = data.calc;
-    renderTradeCard(t);
-    if (activeTrade && activeTrade.id === tradeId) selectTrade(tradeId);
-    showToast(`Stop ${t.mode==='partials'?'P'+portion:''} → ${newPrice}`);
-  }
 }
 
 // ── Inline Price Edit (click on stop/tp value in position map) ───────────────
@@ -1092,14 +1235,20 @@ async function pushActiveTrade() {
     </div>`;
   }
 
-  allTrades = allTrades.filter(tr=>tr.id!==activeTrade.id);
+  const pushedId = activeTrade.id;
+  allTrades = allTrades.filter(tr=>tr.id!==pushedId);
   activeTrade = null;
 
-  // Select next open trade or show empty
+  // Select next open trade tab or show empty
   if (allTrades.length > 0) { selectTrade(allTrades[0].id); }
   else {
     document.getElementById('rp-empty').style.display = 'flex';
     document.getElementById('rp-controls').style.display = 'none';
+    document.getElementById('rp-tabs').innerHTML = '';
+    document.getElementById('rp-tabs').style.display = 'none';
+    document.getElementById('rp-active-banner').style.display = 'none';
+    document.getElementById('right-panel').className = 'ticket-right';
+    lastActiveId = null;
   }
   updateDayPnl();
   showToast('Pushed to journal ✓');
@@ -1113,12 +1262,19 @@ async function cancelActiveTrade() {
     body: JSON.stringify({status:'cancelled'})
   });
   document.getElementById('tc-'+activeTrade.id)?.remove();
-  allTrades = allTrades.filter(tr=>tr.id!==activeTrade.id);
+  const cancelledId = activeTrade.id;
+  allTrades = allTrades.filter(tr=>tr.id!==cancelledId);
   activeTrade = null;
+
   if (allTrades.length > 0) selectTrade(allTrades[0].id);
   else {
     document.getElementById('rp-empty').style.display = 'flex';
     document.getElementById('rp-controls').style.display = 'none';
+    document.getElementById('rp-tabs').innerHTML = '';
+    document.getElementById('rp-tabs').style.display = 'none';
+    document.getElementById('rp-active-banner').style.display = 'none';
+    document.getElementById('right-panel').className = 'ticket-right';
+    lastActiveId = null;
   }
   showToast('Trade cancelled');
 }
@@ -1193,6 +1349,27 @@ function updateDayPnl() {
   const countEl = document.getElementById('trade-count-label');
   if (countEl) countEl.textContent = totalTrades + ' trade' + (totalTrades !== 1 ? 's' : '');
 }
+// ── Keyboard Shortcuts ───────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  // Don't trigger when typing in inputs
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  // Alt+1..9 → switch to trade tab N
+  if (e.altKey && e.key >= '1' && e.key <= '9') {
+    e.preventDefault();
+    const idx = parseInt(e.key) - 1;
+    if (idx < allTrades.length) selectTrade(allTrades[idx].id);
+  }
+  // Alt+T → cycle to next trade
+  if (e.altKey && e.key.toLowerCase() === 't') {
+    e.preventDefault();
+    if (allTrades.length < 2) return;
+    const curIdx = activeTrade ? allTrades.findIndex(t=>t.id===activeTrade.id) : -1;
+    const nextIdx = (curIdx + 1) % allTrades.length;
+    selectTrade(allTrades[nextIdx].id);
+  }
+});
+
 // ── Date Range Filter ─────────────────────────────────────────────────────
 function setDateRange(range) {
   const params = new URLSearchParams(window.location.search);

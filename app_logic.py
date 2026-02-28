@@ -596,10 +596,25 @@ def close_live_trade_to_journal(live_trade_id):
 
     realized_pnl = calc["realized_pnl"]
 
+    # Build execution detail JSON for journal (levels + executions from live trade)
+    levels = lt.get("levels", [])
+    exec_detail = {
+        "instrument": lt.get("instrument", "MES"),
+        "mode": lt.get("mode", "full"),
+        "entry_price": lt["entry_price"],
+        "levels": [{"level_type": lv["level_type"], "portion": lv["portion"],
+                     "qty": lv["qty"], "price": lv["price"]} for lv in levels],
+        "executions": [{"exec_type": e.get("exec_type",""), "portion": e["portion"],
+                        "qty": e["qty"], "price": e["price"], "exec_time": e["exec_time"],
+                        "pnl": e.get("pnl", 0)} for e in executions],
+    }
+    execution_json_str = json.dumps(exec_detail)
+
     trade_id = db.insert_trade(
         day_id, trade_num, lt["direction"], lt["total_qty"],
         lt["entry_price"], avg_exit, realized_pnl,
-        lt["entry_time"], exit_time, is_open=(calc["remaining_qty"] > 0)
+        lt["entry_time"], exit_time, is_open=(calc["remaining_qty"] > 0),
+        execution_json=execution_json_str
     )
 
     # Save tags from live trade
@@ -615,14 +630,15 @@ def close_live_trade_to_journal(live_trade_id):
         db.update_trade_notes(trade_id, lt["notes"])
 
     # Generate fills from entry + executions
-    # The entry is one fill (Buy for Long, Sell for Short)
+    # The entry is one fill (Buy for Long, Sell for Short) — no exit_type
     entry_side = "Buy" if lt["direction"] == "Long" else "Sell"
-    db.insert_fill(trade_id, lt["entry_time"], entry_side, lt["total_qty"], lt["entry_price"])
+    db.insert_fill(trade_id, lt["entry_time"], entry_side, lt["total_qty"], lt["entry_price"], exit_type=None)
 
-    # Each execution is a fill on the opposite side
+    # Each execution is a fill on the opposite side — carries its exit_type
     exit_side = "Sell" if lt["direction"] == "Long" else "Buy"
     for e in executions:
-        db.insert_fill(trade_id, e["exec_time"], exit_side, e["qty"], e["price"])
+        db.insert_fill(trade_id, e["exec_time"], exit_side, e["qty"], e["price"],
+                       exit_type=e.get("exec_type"))
 
     # Mark live trade as closed and link to journal
     db.update_live_trade(live_trade_id,

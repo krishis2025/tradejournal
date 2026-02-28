@@ -57,7 +57,8 @@ def init_db():
                 entry_time  TEXT    NOT NULL,
                 exit_time   TEXT    NOT NULL,
                 is_open     INTEGER NOT NULL DEFAULT 0,
-                notes       TEXT    NOT NULL DEFAULT ''
+                notes       TEXT    NOT NULL DEFAULT '',
+                execution_json TEXT              -- JSON: levels, executions from live trade (NULL for imports)
             );
 
             CREATE TABLE IF NOT EXISTS fills (
@@ -66,7 +67,8 @@ def init_db():
                 fill_time TEXT    NOT NULL,
                 side      TEXT    NOT NULL,
                 qty       INTEGER NOT NULL,
-                price     REAL    NOT NULL
+                price     REAL    NOT NULL,
+                exit_type TEXT                    -- tp_hit, stop_hit, manual_exit, or NULL (imports)
             );
 
             CREATE TABLE IF NOT EXISTS trade_tags (
@@ -162,6 +164,14 @@ def init_db():
             conn.execute(
                 "ALTER TABLE trading_days ADD COLUMN portfolio_id INTEGER REFERENCES portfolios(id) ON DELETE SET NULL"
             )
+        # Migration: add exit_type to fills
+        fill_cols = [r[1] for r in conn.execute("PRAGMA table_info(fills)").fetchall()]
+        if "exit_type" not in fill_cols:
+            conn.execute("ALTER TABLE fills ADD COLUMN exit_type TEXT")
+        # Migration: add execution_json to trades
+        trade_cols = [r[1] for r in conn.execute("PRAGMA table_info(trades)").fetchall()]
+        if "execution_json" not in trade_cols:
+            conn.execute("ALTER TABLE trades ADD COLUMN execution_json TEXT")
 
 
 # ── Portfolios ────────────────────────────────────────────────────────────────
@@ -363,21 +373,21 @@ def get_trade_by_id(trade_id):
         return td
 
 
-def insert_trade(day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open=False):
+def insert_trade(day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open=False, execution_json=None):
     with get_conn() as conn:
         cur = conn.execute("""
             INSERT INTO trades
-                (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, 1 if is_open else 0))
+                (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open, execution_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, 1 if is_open else 0, execution_json))
         return cur.lastrowid
 
 
-def insert_fill(trade_id, fill_time, side, qty, price):
+def insert_fill(trade_id, fill_time, side, qty, price, exit_type=None):
     with get_conn() as conn:
         conn.execute(
-            "INSERT INTO fills (trade_id, fill_time, side, qty, price) VALUES (?, ?, ?, ?, ?)",
-            (trade_id, fill_time, side, qty, price)
+            "INSERT INTO fills (trade_id, fill_time, side, qty, price, exit_type) VALUES (?, ?, ?, ?, ?, ?)",
+            (trade_id, fill_time, side, qty, price, exit_type)
         )
 
 

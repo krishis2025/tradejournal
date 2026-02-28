@@ -2,6 +2,41 @@
 {% block title %}Settings — Trade Journal{% endblock %}
 
 {% block extra_styles %}
+/* Settings sidebar layout */
+.settings-layout {
+  display:grid; grid-template-columns:200px 1fr; gap:1px;
+  background:var(--border); border:1px solid var(--border);
+  min-height:calc(100vh - 180px);
+}
+.settings-sidebar {
+  background:var(--surface); padding:0; position:sticky; top:0; align-self:start;
+}
+.settings-content {
+  background:var(--surface); padding:28px 32px; overflow-y:auto;
+}
+.sidebar-item {
+  display:flex; align-items:center; gap:10px; padding:14px 20px;
+  font-family:var(--font-mono); font-size:11px; letter-spacing:1.5px;
+  text-transform:uppercase; color:var(--muted2); cursor:pointer;
+  border-bottom:1px solid var(--border); border-left:3px solid transparent;
+  transition:all 0.12s; background:transparent;
+}
+.sidebar-item:hover { background:var(--surface2); color:var(--text); }
+.sidebar-item.active {
+  color:var(--accent); background:var(--surface2);
+  border-left-color:var(--accent);
+}
+.sidebar-icon { font-size:14px; width:20px; text-align:center; }
+.settings-section { display:none; }
+.settings-section.active { display:block; }
+.settings-section-title {
+  font-family:var(--font-display); font-size:24px; letter-spacing:3px;
+  color:var(--text); margin-bottom:6px;
+}
+.settings-section-sub {
+  font-size:11px; color:var(--muted); letter-spacing:1px; margin-bottom:24px;
+}
+
 .settings-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -276,239 +311,242 @@
 
 {% block content %}
 
-<div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:24px;">
+<div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:20px;">
   <div>
     <div class="page-title">Settings</div>
-    <div class="page-sub">Configure tags displayed in each trade section</div>
   </div>
   <button class="btn btn-primary" onclick="saveAll()">Save All Changes</button>
 </div>
 
-<div class="info-banner">
-  <span class="info-icon">ℹ</span>
-  <span>
-    Edit, reorder (drag), or add tags for each section. Changes take effect immediately on all trade views.
-    Click <strong>Reset</strong> on any section to restore the original default tags.
-  </span>
-</div>
-
-<!-- ── Theme Picker ── -->
-<div class="theme-section">
-  <div class="theme-section-title">Theme</div>
-  <div class="theme-grid" id="theme-grid"></div>
-</div>
-
-<!-- ── DB Admin toggle bar ── -->
-<div class="db-admin-bar">
-  <div class="db-admin-label">
-    <span class="db-admin-icon">🗄</span>
-    <div>
-      <div class="db-admin-title">DB Admin Mode</div>
-      <div class="db-admin-sub">Reveal export &amp; import tools for database backup / restore</div>
+<div class="settings-layout">
+  <!-- ── Sidebar ── -->
+  <div class="settings-sidebar">
+    <div class="sidebar-item active" onclick="showSection('tags',this)">
+      <span class="sidebar-icon">🏷</span> Tags
+    </div>
+    <div class="sidebar-item" onclick="showSection('db',this)">
+      <span class="sidebar-icon">🗄</span> DB Admin
+    </div>
+    <div class="sidebar-item" onclick="showSection('live',this)">
+      <span class="sidebar-icon">⚡</span> Live Trade
+    </div>
+    <div class="sidebar-item" onclick="showSection('theme',this)">
+      <span class="sidebar-icon">🎨</span> Theme
     </div>
   </div>
-  <div class="multi-toggle">
-    <span style="font-size:11px;color:var(--muted);letter-spacing:1px;">Off</span>
-    <div class="toggle-switch" id="db-admin-toggle" onclick="toggleDbAdmin(this)"></div>
-    <span style="font-size:11px;color:var(--muted);letter-spacing:1px;">On</span>
-  </div>
-</div>
 
-<!-- ── DB Admin panel (hidden until toggle on) ── -->
-<div class="db-admin-panel" id="db-admin-panel">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
-    <span style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--warn);">⚠ DB Admin</span>
-    <span style="font-size:10px;color:var(--muted);">Always export before importing. Import overwrites all current data.</span>
-  </div>
-  <div class="db-admin-grid">
+  <!-- ── Content Area ── -->
+  <div class="settings-content">
 
-    <!-- Export -->
-    <div class="db-action-card">
-      <div class="db-action-title">Export SQL</div>
-      <div class="db-action-desc">
-        Downloads your entire database as a <code>.sql</code> text file —
-        all trades, fills, tags, notes, screenshots, portfolios and settings.
-        Safe to keep as a backup before any code update.
-      </div>
-      <button class="btn btn-ghost" style="padding:7px 18px;font-size:10px;letter-spacing:1px;"
-              onclick="exportDb()">⬇ Download backup .sql</button>
-    </div>
+    <!-- ════════════ TAGS SECTION ════════════ -->
+    <div class="settings-section active" id="section-tags">
+      <div class="settings-section-title">Tags</div>
+      <div class="settings-section-sub">Edit, reorder (drag), or add tags for each section. Click Reset to restore defaults.</div>
 
-    <!-- Import -->
-    <div class="db-action-card">
-      <div class="db-action-title">Import SQL</div>
-      <div class="db-action-desc">
-        Restores a previously exported <code>.sql</code> file.
-        <strong style="color:var(--warn);">Overwrites all current data.</strong>
-        A <code>.bak</code> of the current database is auto-saved alongside
-        <code>journal.db</code> before the import runs.
-      </div>
-      <label class="db-import-label">
-        ⬆ Choose .sql file to restore
-        <input type="file" class="db-file-input" id="db-import-input"
-               accept=".sql" onchange="importDb(this)">
-      </label>
-      <div class="db-import-status" id="db-import-status"></div>
-    </div>
+      <div class="settings-grid" id="settings-grid">
+        {% set dot_colors = {
+          'dot-with':'#4fffb0','dot-against':'#ff4d6d','dot-vol':'#00cfff',
+          'dot-exit':'#ffb347','dot-setup':'#b47fff','dot-pre':'#8a96aa','dot-entry':'#8a96aa'
+        } %}
 
-  </div>
-</div>
+        {% for g in tag_groups %}
+        <div class="tag-config-card" id="card-{{ g.id }}" data-group="{{ g.id }}" data-multi="{{ 'true' if g.multi else 'false' }}">
+          <div class="tag-config-header">
+            <div class="tag-config-title">
+              <span class="tg-dot" style="background:{{ dot_colors[g.dot] }};box-shadow:0 0 8px {{ dot_colors[g.dot] }}50;"></span>
+              {{ g.label }}
+              <span style="font-size:11px;color:var(--muted);font-family:var(--font-mono);font-weight:400;letter-spacing:1px;">
+                ({{ g.tags|length }} tags)
+              </span>
+            </div>
+            <div class="multi-toggle">
+              <span>Multi-select</span>
+              <div class="toggle-switch {{ 'on' if g.multi else '' }}" id="multi-{{ g.id }}"
+                onclick="toggleMulti('{{ g.id }}', this)"></div>
+            </div>
+          </div>
 
-<div class="settings-grid" id="settings-grid">
-  {% set dot_colors = {
-    'dot-with':'#4fffb0','dot-against':'#ff4d6d','dot-vol':'#00cfff',
-    'dot-exit':'#ffb347','dot-setup':'#b47fff','dot-pre':'#8a96aa','dot-entry':'#8a96aa'
-  } %}
+          <div class="tag-config-body">
+            <div class="tag-list" id="list-{{ g.id }}" 
+                 ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '{{ g.id }}')">
+              {% for tag in g.tags %}
+              <div class="tag-item" draggable="true"
+                   ondragstart="onDragStart(event, '{{ g.id }}')"
+                   ondragend="onDragEnd(event)">
+                <span class="tag-item-handle">⠿</span>
+                <input class="tag-item-text" type="text" value="{{ tag }}"
+                       oninput="markDirty('{{ g.id }}')">
+                <button class="tag-item-del" onclick="removeTag(this)" title="Remove tag">✕</button>
+              </div>
+              {% endfor %}
+            </div>
 
-  {% for g in tag_groups %}
-  <div class="tag-config-card" id="card-{{ g.id }}" data-group="{{ g.id }}" data-multi="{{ 'true' if g.multi else 'false' }}">
-    <div class="tag-config-header">
-      <div class="tag-config-title">
-        <span class="tg-dot" style="background:{{ dot_colors[g.dot] }};box-shadow:0 0 8px {{ dot_colors[g.dot] }}50;"></span>
-        {{ g.label }}
-        <span style="font-size:11px;color:var(--muted);font-family:var(--font-mono);font-weight:400;letter-spacing:1px;">
-          ({{ g.tags|length }} tags)
-        </span>
-      </div>
-      <div class="multi-toggle">
-        <span>Multi-select</span>
-        <div class="toggle-switch {{ 'on' if g.multi else '' }}" id="multi-{{ g.id }}"
-          onclick="toggleMulti('{{ g.id }}', this)"></div>
+            <div class="add-tag-row">
+              <input class="add-tag-input" type="text" placeholder="Add new tag..."
+                     id="add-input-{{ g.id }}"
+                     onkeydown="if(event.key==='Enter') addTag('{{ g.id }}')">
+              <button class="add-tag-btn" onclick="addTag('{{ g.id }}')">+ Add</button>
+            </div>
+          </div>
+
+          <div class="tag-config-footer">
+            <span class="save-status" id="status-{{ g.id }}">—</span>
+            <div style="display:flex;gap:12px;align-items:center;">
+              <button class="reset-btn" onclick="resetGroup('{{ g.id }}')">↺ Reset to defaults</button>
+              <button class="btn btn-ghost" style="padding:5px 14px;font-size:10px;"
+                      onclick="saveGroup('{{ g.id }}')">Save</button>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
       </div>
     </div>
 
-    <div class="tag-config-body">
-      <div class="tag-list" id="list-{{ g.id }}" 
-           ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '{{ g.id }}')">
-        {% for tag in g.tags %}
-        <div class="tag-item" draggable="true"
-             ondragstart="onDragStart(event, '{{ g.id }}')"
-             ondragend="onDragEnd(event)">
-          <span class="tag-item-handle">⠿</span>
-          <input class="tag-item-text" type="text" value="{{ tag }}"
-                 oninput="markDirty('{{ g.id }}')">
-          <button class="tag-item-del" onclick="removeTag(this)" title="Remove tag">✕</button>
+    <!-- ════════════ DB ADMIN SECTION ════════════ -->
+    <div class="settings-section" id="section-db">
+      <div class="settings-section-title">DB Admin</div>
+      <div class="settings-section-sub">Export &amp; import your database for backup / restore / sync between machines</div>
+
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+        <span style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--warn);">⚠ Caution</span>
+        <span style="font-size:10px;color:var(--muted);">Always export before importing. Import overwrites all current data.</span>
+      </div>
+      <div class="db-admin-grid">
+        <!-- Export -->
+        <div class="db-action-card">
+          <div class="db-action-title">Export SQL</div>
+          <div class="db-action-desc">
+            Downloads your entire database as a <code>.sql</code> text file —
+            all trades, fills, tags, notes, screenshots, portfolios and settings.
+            Safe to keep as a backup before any code update.
+          </div>
+          <button class="btn btn-ghost" style="padding:7px 18px;font-size:10px;letter-spacing:1px;"
+                  onclick="exportDb()">⬇ Download backup .sql</button>
+        </div>
+
+        <!-- Import -->
+        <div class="db-action-card">
+          <div class="db-action-title">Import SQL</div>
+          <div class="db-action-desc">
+            Restores a previously exported <code>.sql</code> file.
+            <strong style="color:var(--warn);">Overwrites all current data.</strong>
+            A <code>.bak</code> of the current database is auto-saved before import.
+          </div>
+          <label class="db-import-label">
+            ⬆ Choose .sql file to restore
+            <input type="file" class="db-file-input" id="db-import-input"
+                   accept=".sql" onchange="importDb(this)">
+          </label>
+          <div class="db-import-status" id="db-import-status"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════ LIVE TRADE CONFIG SECTION ════════════ -->
+    <div class="settings-section" id="section-live">
+      <div class="settings-section-title">Live Trade Config</div>
+      <div class="settings-section-sub">Instrument tick values &amp; default stop/target distances</div>
+
+      <!-- Instrument Config -->
+      <div class="settings-grid" style="margin-bottom:24px;">
+        {% for inst_name, inst in instrument_config.items() %}
+        <div class="tag-config-card">
+          <div class="tag-config-header">
+            <div class="tag-config-title">
+              <span class="tg-dot" style="background:{{ 'var(--green)' if inst_name == 'MES' else 'var(--accent2)' }};"></span>
+              {{ inst_name }}
+            </div>
+          </div>
+          <div class="tag-config-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+              <div>
+                <label style="display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">$/Point</label>
+                <input type="number" step="0.01" class="add-tag-input" style="width:100%;padding:6px 8px;"
+                       id="inst-{{ inst_name }}-dpp" value="{{ inst.dollars_per_point }}">
+              </div>
+              <div>
+                <label style="display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">$/Tick</label>
+                <input type="number" step="0.01" class="add-tag-input" style="width:100%;padding:6px 8px;"
+                       id="inst-{{ inst_name }}-dpt" value="{{ inst.dollars_per_tick }}">
+              </div>
+              <div>
+                <label style="display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Ticks/Point</label>
+                <input type="number" step="1" class="add-tag-input" style="width:100%;padding:6px 8px;"
+                       id="inst-{{ inst_name }}-tpp" value="{{ inst.ticks_per_point }}">
+              </div>
+            </div>
+          </div>
         </div>
         {% endfor %}
       </div>
 
-      <div class="add-tag-row">
-        <input class="add-tag-input" type="text" placeholder="Add new tag..."
-               id="add-input-{{ g.id }}"
-               onkeydown="if(event.key==='Enter') addTag('{{ g.id }}')">
-        <button class="add-tag-btn" onclick="addTag('{{ g.id }}')">+ Add</button>
+      <!-- Trade Defaults -->
+      <div class="tag-config-card" style="margin-bottom:24px;">
+        <div class="tag-config-header">
+          <div class="tag-config-title">
+            <span class="tg-dot" style="background:var(--warn);"></span>
+            Default Stop &amp; Target Distances (points)
+          </div>
+        </div>
+        <div class="tag-config-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+            <!-- Full mode -->
+            <div>
+              <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:6px;">Full Position Mode</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div>
+                  <label style="display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Stop (pts)</label>
+                  <input type="number" step="0.25" class="add-tag-input" style="width:100%;padding:6px 8px;"
+                         id="td-full_stop_points" value="{{ trade_defaults.full_stop_points }}">
+                </div>
+                <div>
+                  <label style="display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Target (pts)</label>
+                  <input type="number" step="0.25" class="add-tag-input" style="width:100%;padding:6px 8px;"
+                         id="td-full_tp_points" value="{{ trade_defaults.full_tp_points }}">
+                </div>
+              </div>
+            </div>
+            <!-- Partials mode -->
+            <div>
+              <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:6px;">Partials Mode (3-way split)</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;">
+                <div>
+                  <label style="display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Stop (pts)</label>
+                  <input type="number" step="0.25" class="add-tag-input" style="width:100%;padding:6px 8px;"
+                         id="td-partial_stop_points" value="{{ trade_defaults.partial_stop_points }}">
+                </div>
+                <div>
+                  <label style="display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">TP1 (pts)</label>
+                  <input type="number" step="0.25" class="add-tag-input" style="width:100%;padding:6px 8px;"
+                         id="td-partial_tp1_points" value="{{ trade_defaults.partial_tp1_points }}">
+                </div>
+                <div>
+                  <label style="display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">TP2 (pts)</label>
+                  <input type="number" step="0.25" class="add-tag-input" style="width:100%;padding:6px 8px;"
+                         id="td-partial_tp2_points" value="{{ trade_defaults.partial_tp2_points }}">
+                </div>
+                <div>
+                  <label style="display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">TP3 (pts)</label>
+                  <input type="number" step="0.25" class="add-tag-input" style="width:100%;padding:6px 8px;"
+                         id="td-partial_tp3_points" value="{{ trade_defaults.partial_tp3_points }}">
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:16px;text-align:right;">
+            <button class="btn btn-primary" style="padding:7px 18px;font-size:10px;" onclick="saveLiveConfig()">Save Live Trade Config</button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="tag-config-footer">
-      <span class="save-status" id="status-{{ g.id }}">—</span>
-      <div style="display:flex;gap:12px;align-items:center;">
-        <button class="reset-btn" onclick="resetGroup('{{ g.id }}')">↺ Reset to defaults</button>
-        <button class="btn btn-ghost" style="padding:5px 14px;font-size:10px;"
-                onclick="saveGroup('{{ g.id }}')">Save</button>
-      </div>
+    <!-- ════════════ THEME SECTION ════════════ -->
+    <div class="settings-section" id="section-theme">
+      <div class="settings-section-title">Theme</div>
+      <div class="settings-section-sub">Choose a color theme for your journal</div>
+      <div class="theme-grid" id="theme-grid"></div>
     </div>
-  </div>
-  {% endfor %}
-</div>
 
-<!-- ═══════════════════════════════════════════════════════════════════════════
-     LIVE TRADE CONFIGURATION
-     ═══════════════════════════════════════════════════════════════════════════ -->
-<div style="margin-top:40px;">
-  <h2 style="font-family:var(--font-display);font-size:28px;letter-spacing:3px;color:var(--accent);margin-bottom:4px;">Live Trade Config</h2>
-  <div style="font-size:11px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:20px;">Instrument tick values &amp; default stop/target distances</div>
-</div>
-
-<!-- Instrument Config -->
-<div class="settings-grid" style="margin-bottom:24px;">
-  {% for inst_name, inst in instrument_config.items() %}
-  <div class="tag-config-card">
-    <div class="tag-config-header">
-      <div class="tag-config-title">
-        <span class="tg-dot" style="background:{{ 'var(--green)' if inst_name == 'MES' else 'var(--accent2)' }};"></span>
-        {{ inst_name }}
-      </div>
-    </div>
-    <div class="tag-config-body">
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
-        <div>
-          <label style="display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">$/Point</label>
-          <input type="number" step="0.01" class="add-tag-input" style="width:100%;padding:6px 8px;"
-                 id="inst-{{ inst_name }}-dpp" value="{{ inst.dollars_per_point }}">
-        </div>
-        <div>
-          <label style="display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">$/Tick</label>
-          <input type="number" step="0.01" class="add-tag-input" style="width:100%;padding:6px 8px;"
-                 id="inst-{{ inst_name }}-dpt" value="{{ inst.dollars_per_tick }}">
-        </div>
-        <div>
-          <label style="display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Ticks/Point</label>
-          <input type="number" step="1" class="add-tag-input" style="width:100%;padding:6px 8px;"
-                 id="inst-{{ inst_name }}-tpp" value="{{ inst.ticks_per_point }}">
-        </div>
-      </div>
-    </div>
-  </div>
-  {% endfor %}
-</div>
-
-<!-- Trade Defaults -->
-<div class="tag-config-card" style="margin-bottom:24px;">
-  <div class="tag-config-header">
-    <div class="tag-config-title">
-      <span class="tg-dot" style="background:var(--warn);"></span>
-      Default Stop &amp; Target Distances (points)
-    </div>
-  </div>
-  <div class="tag-config-body">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-      <!-- Full mode -->
-      <div>
-        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:6px;">Full Position Mode</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-          <div>
-            <label style="display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Stop (pts)</label>
-            <input type="number" step="0.25" class="add-tag-input" style="width:100%;padding:6px 8px;"
-                   id="td-full_stop_points" value="{{ trade_defaults.full_stop_points }}">
-          </div>
-          <div>
-            <label style="display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Target (pts)</label>
-            <input type="number" step="0.25" class="add-tag-input" style="width:100%;padding:6px 8px;"
-                   id="td-full_tp_points" value="{{ trade_defaults.full_tp_points }}">
-          </div>
-        </div>
-      </div>
-      <!-- Partials mode -->
-      <div>
-        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:6px;">Partials Mode (3-way split)</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;">
-          <div>
-            <label style="display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Stop (pts)</label>
-            <input type="number" step="0.25" class="add-tag-input" style="width:100%;padding:6px 8px;"
-                   id="td-partial_stop_points" value="{{ trade_defaults.partial_stop_points }}">
-          </div>
-          <div>
-            <label style="display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">TP1 (pts)</label>
-            <input type="number" step="0.25" class="add-tag-input" style="width:100%;padding:6px 8px;"
-                   id="td-partial_tp1_points" value="{{ trade_defaults.partial_tp1_points }}">
-          </div>
-          <div>
-            <label style="display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">TP2 (pts)</label>
-            <input type="number" step="0.25" class="add-tag-input" style="width:100%;padding:6px 8px;"
-                   id="td-partial_tp2_points" value="{{ trade_defaults.partial_tp2_points }}">
-          </div>
-          <div>
-            <label style="display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">TP3 (pts)</label>
-            <input type="number" step="0.25" class="add-tag-input" style="width:100%;padding:6px 8px;"
-                   id="td-partial_tp3_points" value="{{ trade_defaults.partial_tp3_points }}">
-          </div>
-        </div>
-      </div>
-    </div>
-    <div style="margin-top:16px;text-align:right;">
-      <button class="btn btn-primary" style="padding:7px 18px;font-size:10px;" onclick="saveLiveConfig()">Save Live Trade Config</button>
-    </div>
   </div>
 </div>
 
@@ -697,23 +735,13 @@
     }
   });
 
-  // ── DB Admin toggle ───────────────────────────────────────────────────
-  const DB_ADMIN_KEY = 'tj_db_admin_on';
-
-  function toggleDbAdmin(el) {
-    const on = !el.classList.contains('on');
-    el.classList.toggle('on', on);
-    document.getElementById('db-admin-panel').classList.toggle('visible', on);
-    localStorage.setItem(DB_ADMIN_KEY, on ? '1' : '');
+  // ── Sidebar section switching ───────────────────────────────────────
+  function showSection(id, el) {
+    document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+    document.getElementById('section-' + id).classList.add('active');
+    el.classList.add('active');
   }
-
-  // Restore toggle state from localStorage
-  (function() {
-    if (localStorage.getItem(DB_ADMIN_KEY)) {
-      const tog = document.getElementById('db-admin-toggle');
-      if (tog) { tog.classList.add('on'); document.getElementById('db-admin-panel').classList.add('visible'); }
-    }
-  })();
 
   // ── Export ────────────────────────────────────────────────────────────
   function exportDb() {

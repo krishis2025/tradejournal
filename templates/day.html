@@ -237,7 +237,7 @@
     <div class="fills-mini" style="background:var(--bg);">
       <table style="width:100%;border-collapse:collapse;">
         <thead><tr>
-          <th>Time</th><th>Side</th><th>Qty</th><th>Price</th>
+          <th>Time</th><th>Side</th><th>Qty</th><th>Price</th><th>Type</th>
           <th style="text-align:right;padding-right:16px;">
             <a href="/trade/{{ trade.id }}" class="trade-view-link">Open Trade ↗</a>
           </th>
@@ -249,6 +249,9 @@
             <td class="{{ 'fill-buy' if f.side == 'Buy' else 'fill-sell' }}">{{ f.side }}</td>
             <td>{{ f.qty }}</td>
             <td>{{ '%.2f'|format(f.price) }}</td>
+            <td style="font-size:10px;letter-spacing:0.5px;{% if f.exit_type == 'tp_hit' %}color:var(--green);{% elif f.exit_type == 'stop_hit' %}color:var(--red);{% elif f.exit_type == 'manual_exit' %}color:var(--warn);{% else %}color:var(--muted);{% endif %}">
+              {% if f.exit_type == 'tp_hit' %}TP Hit{% elif f.exit_type == 'stop_hit' %}Stop Hit{% elif f.exit_type == 'manual_exit' %}Manual{% elif f.exit_type %}{{ f.exit_type }}{% else %}—{% endif %}
+            </td>
             <td></td>
           </tr>
           {% endfor %}

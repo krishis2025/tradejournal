@@ -157,7 +157,7 @@
   <table class="data-table">
     <thead>
       <tr>
-        <th>Time</th><th>Side</th><th>Qty</th><th>Price</th>
+        <th>Time</th><th>Side</th><th>Qty</th><th>Price</th><th>Type</th>
       </tr>
     </thead>
     <tbody>
@@ -167,11 +167,69 @@
         <td class="{{ 'pnl-pos' if f.side == 'Buy' else 'pnl-neg' }}">{{ f.side }}</td>
         <td>{{ f.qty }}</td>
         <td>{{ '%.2f'|format(f.price) }}</td>
+        <td style="font-size:10px;letter-spacing:0.5px;{% if f.exit_type == 'tp_hit' %}color:var(--green);{% elif f.exit_type == 'stop_hit' %}color:var(--red);{% elif f.exit_type == 'manual_exit' %}color:var(--warn);{% else %}color:var(--muted);{% endif %}">
+          {% if f.exit_type == 'tp_hit' %}TP Hit{% elif f.exit_type == 'stop_hit' %}Stop Hit{% elif f.exit_type == 'manual_exit' %}Manual{% elif f.exit_type %}{{ f.exit_type }}{% else %}—{% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
+
+<!-- Execution Detail (from Live Trade) -->
+{% if exec_detail %}
+<div class="fills-card" style="margin-bottom:24px;">
+  <div style="padding:16px 16px 0;">
+    <div class="section-title">Execution Detail</div>
+  </div>
+  <div style="padding:0 16px 16px;">
+    <!-- Position Map -->
+    <table class="data-table" style="margin-bottom:12px;">
+      <thead>
+        <tr><th>Portion</th><th>Stop</th><th>Target</th><th>Qty</th></tr>
+      </thead>
+      <tbody>
+        {% for lv in exec_detail.levels if lv.level_type == 'stop' %}
+        {% set tp = None %}
+        {% for t in exec_detail.levels if t.level_type == 'tp' and t.portion == lv.portion %}
+          {% set tp = t %}
+        {% endfor %}
+        <tr>
+          <td>P{{ lv.portion }}</td>
+          <td style="color:var(--red);">{{ '%.2f'|format(lv.price) }}</td>
+          <td style="color:var(--green);">{% for t in exec_detail.levels if t.level_type == 'tp' and t.portion == lv.portion %}{{ '%.2f'|format(t.price) }}{% endfor %}</td>
+          <td>{{ lv.qty }}×</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- Execution Log -->
+    <div class="section-title" style="margin-top:12px;">Execution Log</div>
+    <table class="data-table">
+      <thead>
+        <tr><th>Type</th><th>Portion</th><th>Qty</th><th>Price</th><th>Time</th><th>P&L</th></tr>
+      </thead>
+      <tbody>
+        {% for e in exec_detail.executions %}
+        <tr>
+          <td style="font-size:10px;letter-spacing:0.5px;{% if e.exec_type == 'tp_hit' %}color:var(--green);{% elif e.exec_type == 'stop_hit' %}color:var(--red);{% elif e.exec_type == 'manual_exit' %}color:var(--warn);{% else %}color:var(--muted);{% endif %}">
+            {% if e.exec_type == 'tp_hit' %}TP Hit{% elif e.exec_type == 'stop_hit' %}Stop Hit{% elif e.exec_type == 'manual_exit' %}Manual{% else %}{{ e.exec_type }}{% endif %}
+          </td>
+          <td>P{{ e.portion }}</td>
+          <td>{{ e.qty }}×</td>
+          <td>{{ '%.2f'|format(e.price) }}</td>
+          <td>{{ e.exec_time }}</td>
+          <td class="{{ 'pnl-pos' if e.pnl >= 0 else 'pnl-neg' }}">
+            {{ '+' if e.pnl >= 0 else '' }}${{ '%.2f'|format(e.pnl) }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
 
 <!-- Tags -->
 <div class="section-title">Trade Tags</div>
