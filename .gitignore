@@ -49,3 +49,6 @@ ehthumbs.db
 *.bak
 *.tmp
 .env
+
+#__Claude_________________________________________
+.claude/

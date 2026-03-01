@@ -668,6 +668,9 @@ def get_analytics(portfolio_id=None, date_from=None, date_to=None):
         # Calendar data — daily P&L keyed by date (reuse daily query)
         calendar = [dict(r) for r in daily]
 
+        # Tag correlation analysis — find co-occurring tag combos across groups
+        tag_correlations = _compute_tag_correlations(conn, p_filter_tag, date_params, overall)
+
         return {
             "tag_stats":    [dict(r) for r in tag_stats],
             "time_stats":   [dict(r) for r in time_stats],
@@ -679,7 +682,48 @@ def get_analytics(portfolio_id=None, date_from=None, date_to=None):
             "drawdown":     drawdown,
             "duration_stats": duration_stats,
             "calendar":     calendar,
+            "tag_correlations": tag_correlations,
         }
+
+
+def _compute_tag_correlations(conn, p_filter_tag, date_params, overall):
+    """Find co-occurring tag combinations across different groups and their P&L impact."""
+    overall_wr = 0
+    if overall and overall.get("total_trades") and overall.get("wins"):
+        overall_wr = round(overall["wins"] / overall["total_trades"] * 100, 1)
+
+    try:
+        rows = conn.execute(f"""
+            SELECT t1.group_id AS group_a, t1.tag AS tag_a,
+                   t2.group_id AS group_b, t2.tag AS tag_b,
+                   COUNT(DISTINCT t1.trade_id) AS trades,
+                   SUM(CASE WHEN tr.pnl > 0 THEN 1 ELSE 0 END) AS wins,
+                   ROUND(AVG(tr.pnl), 2) AS avg_pnl,
+                   ROUND(SUM(tr.pnl), 2) AS total_pnl,
+                   ROUND(100.0 * SUM(CASE WHEN tr.pnl > 0 THEN 1 ELSE 0 END) / COUNT(DISTINCT t1.trade_id), 1) AS win_rate
+            FROM trade_tags t1
+            JOIN trade_tags t2 ON t1.trade_id = t2.trade_id
+                              AND (t1.group_id < t2.group_id
+                                   OR (t1.group_id = t2.group_id AND t1.tag < t2.tag))
+            JOIN trades tr ON tr.id = t1.trade_id
+            JOIN trading_days d ON d.id = tr.day_id
+            WHERE 1=1 {p_filter_tag}
+            GROUP BY t1.group_id, t1.tag, t2.group_id, t2.tag
+            HAVING COUNT(DISTINCT t1.trade_id) >= 3
+            ORDER BY win_rate DESC
+        """, date_params).fetchall()
+
+        correlations = []
+        for r in rows:
+            rd = dict(r)
+            rd["lift"] = round(rd["win_rate"] - overall_wr, 1)
+            correlations.append(rd)
+
+        # Sort by absolute lift (biggest impact first), take top 15
+        correlations.sort(key=lambda x: abs(x["lift"]), reverse=True)
+        return correlations[:15]
+    except Exception:
+        return []
 
 
 def _compute_drawdown(equity_curve):
