@@ -99,7 +99,28 @@ def trade_view(trade_id):
 @app.route("/analytics")
 def analytics():
     portfolio_id = request.args.get("portfolio") or None
-    data         = db.get_analytics(portfolio_id)
+    date_from    = request.args.get("date_from") or None
+    date_to      = request.args.get("date_to") or None
+    date_preset  = request.args.get("preset") or "all"
+
+    # Resolve presets to actual dates
+    if date_preset != "all" and date_preset != "custom":
+        from datetime import date, timedelta
+        today = date.today()
+        if date_preset == "week":
+            date_from = (today - timedelta(days=today.weekday())).isoformat()
+            date_to = today.isoformat()
+        elif date_preset == "month":
+            date_from = today.replace(day=1).isoformat()
+            date_to = today.isoformat()
+        elif date_preset == "30d":
+            date_from = (today - timedelta(days=30)).isoformat()
+            date_to = today.isoformat()
+        elif date_preset == "90d":
+            date_from = (today - timedelta(days=90)).isoformat()
+            date_to = today.isoformat()
+
+    data         = db.get_analytics(portfolio_id, date_from=date_from, date_to=date_to)
     portfolios   = db.get_all_portfolios()
     return render_template(
         "analytics.html",
@@ -107,6 +128,9 @@ def analytics():
         data_json=json.dumps(data),
         portfolios=portfolios,
         portfolio_id=portfolio_id,
+        date_from=date_from or "",
+        date_to=date_to or "",
+        date_preset=date_preset,
     )
 
 

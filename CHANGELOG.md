@@ -2,6 +2,32 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [1.2.0] — 2026-02-28
+
+### Analytics — Enhanced Dashboard
+- **Date range filtering**: All Time, This Week, This Month, Last 30 Days, Last 90 Days presets + custom date picker
+- All charts, KPIs, and tables respect the selected date range
+
+### New KPIs
+- Average Win / Average Loss with win-loss ratio
+- Expectancy: (win_rate × avg_win) - (loss_rate × avg_loss)
+- Profit Factor: gross profit / gross loss
+- Average Trade Duration (entry to exit, in minutes)
+- Trading Days count
+
+### New Charts
+- **Equity Curve**: cumulative P&L line chart across all trades with fill and per-trade tooltips
+- **Drawdown Chart**: red filled area showing drawdown from equity peak, max drawdown in subtitle
+- **Calendar Heatmap**: monthly grid with day cells colored by P&L intensity (green/red), hover tooltips
+- **Trade Duration vs P&L**: scatter plot with wins (green), losses (red), breakeven (grey)
+
+### Analytics Layout
+- Organized into labeled sections: KPIs → Equity & Risk → Calendar → Time & Duration → Tag Analytics
+- Best/Worst trade shown as compact inline cards
+- Section dividers with headers for visual hierarchy
+
+---
+
 ## [1.1.0] — 2026-02-28
 
 ### Live Trade — Multiple Simultaneous Trades
