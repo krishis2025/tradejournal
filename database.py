@@ -57,8 +57,7 @@ def init_db():
                 entry_time  TEXT    NOT NULL,
                 exit_time   TEXT    NOT NULL,
                 is_open     INTEGER NOT NULL DEFAULT 0,
-                notes       TEXT    NOT NULL DEFAULT '',
-                execution_json TEXT              -- JSON: levels, executions from live trade (NULL for imports)
+                notes       TEXT    NOT NULL DEFAULT ''
             );
 
             CREATE TABLE IF NOT EXISTS fills (
@@ -67,8 +66,7 @@ def init_db():
                 fill_time TEXT    NOT NULL,
                 side      TEXT    NOT NULL,
                 qty       INTEGER NOT NULL,
-                price     REAL    NOT NULL,
-                exit_type TEXT                    -- tp_hit, stop_hit, manual_exit, or NULL (imports)
+                price     REAL    NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS trade_tags (
@@ -164,14 +162,20 @@ def init_db():
             conn.execute(
                 "ALTER TABLE trading_days ADD COLUMN portfolio_id INTEGER REFERENCES portfolios(id) ON DELETE SET NULL"
             )
-        # Migration: add exit_type to fills
-        fill_cols = [r[1] for r in conn.execute("PRAGMA table_info(fills)").fetchall()]
-        if "exit_type" not in fill_cols:
-            conn.execute("ALTER TABLE fills ADD COLUMN exit_type TEXT")
-        # Migration: add execution_json to trades
+
+        # Migration: add notes_monitoring and notes_exit to trades table
         trade_cols = [r[1] for r in conn.execute("PRAGMA table_info(trades)").fetchall()]
-        if "execution_json" not in trade_cols:
-            conn.execute("ALTER TABLE trades ADD COLUMN execution_json TEXT")
+        if "notes_monitoring" not in trade_cols:
+            conn.execute("ALTER TABLE trades ADD COLUMN notes_monitoring TEXT NOT NULL DEFAULT ''")
+        if "notes_exit" not in trade_cols:
+            conn.execute("ALTER TABLE trades ADD COLUMN notes_exit TEXT NOT NULL DEFAULT ''")
+
+        # Migration: add notes_monitoring and notes_exit to live_trades table
+        lt_cols = [r[1] for r in conn.execute("PRAGMA table_info(live_trades)").fetchall()]
+        if "notes_monitoring" not in lt_cols:
+            conn.execute("ALTER TABLE live_trades ADD COLUMN notes_monitoring TEXT NOT NULL DEFAULT ''")
+        if "notes_exit" not in lt_cols:
+            conn.execute("ALTER TABLE live_trades ADD COLUMN notes_exit TEXT NOT NULL DEFAULT ''")
 
 
 # ── Portfolios ────────────────────────────────────────────────────────────────
@@ -373,27 +377,36 @@ def get_trade_by_id(trade_id):
         return td
 
 
-def insert_trade(day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open=False, execution_json=None):
+def insert_trade(day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open=False):
     with get_conn() as conn:
         cur = conn.execute("""
             INSERT INTO trades
-                (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open, execution_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, 1 if is_open else 0, execution_json))
+                (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, 1 if is_open else 0))
         return cur.lastrowid
 
 
-def insert_fill(trade_id, fill_time, side, qty, price, exit_type=None):
+def insert_fill(trade_id, fill_time, side, qty, price):
     with get_conn() as conn:
         conn.execute(
-            "INSERT INTO fills (trade_id, fill_time, side, qty, price, exit_type) VALUES (?, ?, ?, ?, ?, ?)",
-            (trade_id, fill_time, side, qty, price, exit_type)
+            "INSERT INTO fills (trade_id, fill_time, side, qty, price) VALUES (?, ?, ?, ?, ?)",
+            (trade_id, fill_time, side, qty, price)
         )
 
 
-def update_trade_notes(trade_id, notes):
+def update_trade_notes(trade_id, notes, notes_monitoring=None, notes_exit=None):
     with get_conn() as conn:
-        conn.execute("UPDATE trades SET notes = ? WHERE id = ?", (notes, trade_id))
+        sets = ["notes = ?"]
+        vals = [notes]
+        if notes_monitoring is not None:
+            sets.append("notes_monitoring = ?")
+            vals.append(notes_monitoring)
+        if notes_exit is not None:
+            sets.append("notes_exit = ?")
+            vals.append(notes_exit)
+        vals.append(trade_id)
+        conn.execute(f"UPDATE trades SET {', '.join(sets)} WHERE id = ?", vals)
 
 
 def set_trade_tags(trade_id, group_id, tags):
@@ -519,11 +532,99 @@ def _compute_streaks(trades):
     }
 
 
+def _compute_drawdown(equity_curve):
+    """Compute drawdown series from equity curve data."""
+    if not equity_curve:
+        return {"series": [], "max_drawdown": 0, "max_drawdown_pct": 0}
+    peak = 0
+    max_dd = 0
+    series = []
+    for pt in equity_curve:
+        cum = pt["cumulative"]
+        if cum > peak:
+            peak = cum
+        dd = cum - peak  # negative when in drawdown
+        if dd < max_dd:
+            max_dd = dd
+        series.append({"date": pt["date"], "trade_num": pt["trade_num"], "drawdown": round(dd, 2)})
+    return {"series": series, "max_drawdown": round(max_dd, 2), "max_drawdown_pct": 0}
+
+
+def _compute_duration_stats(conn, p_filter_day, date_params=None):
+    """Compute trade duration stats (entry_time to exit_time in minutes)."""
+    rows = conn.execute(f"""
+        SELECT t.entry_time, t.exit_time, t.pnl, d.date
+        FROM trades t
+        JOIN trading_days d ON d.id = t.day_id
+        {p_filter_day}
+        ORDER BY d.date, t.entry_time
+    """, date_params or []).fetchall()
+
+    durations = []
+    for r in rows:
+        try:
+            entry = r["entry_time"]
+            exit_ = r["exit_time"]
+            if not entry or not exit_:
+                continue
+            # Parse HH:MM:SS or HH:MM
+            ep = entry.split(":")
+            xp = exit_.split(":")
+            e_min = int(ep[0]) * 60 + int(ep[1])
+            x_min = int(xp[0]) * 60 + int(xp[1])
+            dur = max(x_min - e_min, 0)
+            durations.append({"duration_min": dur, "pnl": r["pnl"], "date": r["date"]})
+        except (ValueError, IndexError):
+            continue
+
+    avg_dur = round(sum(d["duration_min"] for d in durations) / len(durations), 1) if durations else 0
+    return {"trades": durations, "avg_duration": avg_dur}
+
+
+def _compute_tag_correlations(conn, p_filter_tag, date_params, overall):
+    """Find co-occurring tag combinations across different groups and their P&L impact."""
+    overall_wr = 0
+    if overall and overall.get("total_trades") and overall.get("wins"):
+        overall_wr = round(overall["wins"] / overall["total_trades"] * 100, 1)
+
+    try:
+        rows = conn.execute(f"""
+            SELECT t1.group_id AS group_a, t1.tag AS tag_a,
+                   t2.group_id AS group_b, t2.tag AS tag_b,
+                   COUNT(DISTINCT t1.trade_id) AS trades,
+                   SUM(CASE WHEN tr.pnl > 0 THEN 1 ELSE 0 END) AS wins,
+                   ROUND(AVG(tr.pnl), 2) AS avg_pnl,
+                   ROUND(SUM(tr.pnl), 2) AS total_pnl,
+                   ROUND(100.0 * SUM(CASE WHEN tr.pnl > 0 THEN 1 ELSE 0 END) / COUNT(DISTINCT t1.trade_id), 1) AS win_rate
+            FROM trade_tags t1
+            JOIN trade_tags t2 ON t1.trade_id = t2.trade_id
+                              AND (t1.group_id < t2.group_id
+                                   OR (t1.group_id = t2.group_id AND t1.tag < t2.tag))
+            JOIN trades tr ON tr.id = t1.trade_id
+            JOIN trading_days d ON d.id = tr.day_id
+            WHERE 1=1 {p_filter_tag}
+            GROUP BY t1.group_id, t1.tag, t2.group_id, t2.tag
+            HAVING COUNT(DISTINCT t1.trade_id) >= 3
+            ORDER BY win_rate DESC
+        """, date_params).fetchall()
+
+        correlations = []
+        for r in rows:
+            rd = dict(r)
+            rd["lift"] = round(rd["win_rate"] - overall_wr, 1)
+            correlations.append(rd)
+        correlations.sort(key=lambda x: abs(x["lift"]), reverse=True)
+        return correlations[:15]
+    except Exception:
+        return []
+
+
 def get_analytics(portfolio_id=None, date_from=None, date_to=None):
     with get_conn() as conn:
         # Build filter clauses
-        conditions_tag = []   # for queries that already have WHERE (tag joins)
-        conditions_day = []   # for queries where trading_days is the base
+        conditions_tag = []  # for queries that already have WHERE (uses AND)
+        conditions_day = []  # for queries that need WHERE
+        date_params = []
 
         if portfolio_id:
             pid = int(portfolio_id)
@@ -532,14 +633,11 @@ def get_analytics(portfolio_id=None, date_from=None, date_to=None):
         if date_from:
             conditions_tag.append("d.date >= ?")
             conditions_day.append("d.date >= ?")
+            date_params.append(date_from)
         if date_to:
             conditions_tag.append("d.date <= ?")
             conditions_day.append("d.date <= ?")
-
-        # Parameter lists (date_from/date_to only — portfolio_id is inlined)
-        date_params = []
-        if date_from: date_params.append(date_from)
-        if date_to:   date_params.append(date_to)
+            date_params.append(date_to)
 
         p_filter_tag = (" AND " + " AND ".join(conditions_tag)) if conditions_tag else ""
         p_filter_day = ("WHERE " + " AND ".join(conditions_day)) if conditions_day else ""
@@ -581,6 +679,7 @@ def get_analytics(portfolio_id=None, date_from=None, date_to=None):
             GROUP BY d.id ORDER BY d.date
         """, date_params).fetchall()
 
+        # Enhanced overall with avg_win, avg_loss, expectancy, profit_factor
         overall_row = conn.execute(f"""
             SELECT COUNT(*) as total_trades,
                    ROUND(SUM(t.pnl), 2) as total_pnl,
@@ -591,34 +690,27 @@ def get_analytics(portfolio_id=None, date_from=None, date_to=None):
                    ROUND(AVG(CASE WHEN t.pnl > 0 THEN t.pnl END), 2) as avg_win,
                    ROUND(AVG(CASE WHEN t.pnl < 0 THEN t.pnl END), 2) as avg_loss,
                    ROUND(SUM(CASE WHEN t.pnl > 0 THEN t.pnl ELSE 0 END), 2) as gross_profit,
-                   ROUND(SUM(CASE WHEN t.pnl < 0 THEN ABS(t.pnl) ELSE 0 END), 2) as gross_loss
+                   ROUND(SUM(CASE WHEN t.pnl < 0 THEN ABS(t.pnl) ELSE 0 END), 2) as gross_loss,
+                   COUNT(DISTINCT d.id) as total_days
             FROM trades t
             JOIN trading_days d ON d.id = t.day_id
             {p_filter_day}
         """, date_params).fetchone()
 
         overall = dict(overall_row) if overall_row else {}
-
         # Compute derived KPIs
-        if overall.get("total_trades"):
-            total = overall["total_trades"]
-            wins = overall["wins"] or 0
-            avg_win = overall["avg_win"] or 0
-            avg_loss = abs(overall["avg_loss"] or 0)
-            win_rate = wins / total
-            loss_rate = 1 - win_rate
-
-            overall["win_loss_ratio"] = round(avg_win / avg_loss, 2) if avg_loss else 0
-            overall["expectancy"] = round((win_rate * avg_win) - (loss_rate * avg_loss), 2)
-            overall["profit_factor"] = round(overall["gross_profit"] / overall["gross_loss"], 2) if overall["gross_loss"] else 0
-
-            # Count distinct trading days
-            day_count = conn.execute(f"""
-                SELECT COUNT(DISTINCT d.id)
-                FROM trading_days d JOIN trades t ON t.day_id = d.id
-                {p_filter_day}
-            """, date_params).fetchone()[0]
-            overall["total_days"] = day_count
+        if overall.get("total_trades") and overall["total_trades"] > 0:
+            tt = overall["total_trades"]
+            wins = overall.get("wins", 0)
+            wr = wins / tt
+            lr = 1 - wr
+            avg_w = overall.get("avg_win") or 0
+            avg_l = abs(overall.get("avg_loss") or 0)
+            overall["win_loss_ratio"] = round(avg_w / avg_l, 2) if avg_l else 0
+            overall["expectancy"] = round(wr * avg_w - lr * avg_l, 2)
+            gp = overall.get("gross_profit") or 0
+            gl = overall.get("gross_loss") or 0
+            overall["profit_factor"] = round(gp / gl, 2) if gl else 0
 
         dow_stats = conn.execute(f"""
             SELECT CAST(STRFTIME('%w', d.date) AS INTEGER) AS dow,
@@ -632,173 +724,64 @@ def get_analytics(portfolio_id=None, date_from=None, date_to=None):
             GROUP BY dow ORDER BY dow
         """, date_params).fetchall()
 
-        # All trades ordered by date+time — used for streaks, equity curve, duration
+        # Streak + equity curve: fetch all trades ordered
         all_trades = conn.execute(f"""
-            SELECT t.id, t.pnl, t.entry_time, t.exit_time, t.direction, t.qty,
-                   t.avg_entry, t.avg_exit, t.execution_json,
-                   d.date
+            SELECT t.pnl, d.date, t.entry_time, t.exit_time
             FROM trades t
             JOIN trading_days d ON d.id = t.day_id
             {p_filter_day}
             ORDER BY d.date, t.entry_time
         """, date_params).fetchall()
-        all_trades_list = [dict(r) for r in all_trades]
 
-        # Streaks
-        streak_data = _compute_streaks(all_trades_list)
+        streak_data = _compute_streaks([dict(r) for r in all_trades])
 
-        # Equity curve: cumulative P&L per trade
+        # Equity curve
         equity_curve = []
         cumulative = 0
-        for t in all_trades_list:
-            cumulative = round(cumulative + t["pnl"], 2)
+        for i, r in enumerate(all_trades):
+            cumulative += r["pnl"]
             equity_curve.append({
-                "date": t["date"],
-                "time": t["entry_time"],
-                "pnl": t["pnl"],
-                "cumulative": cumulative,
+                "date": r["date"],
+                "trade_num": i + 1,
+                "pnl": r["pnl"],
+                "cumulative": round(cumulative, 2),
             })
 
-        # Drawdown analysis from equity curve
+        # Drawdown
         drawdown = _compute_drawdown(equity_curve)
 
-        # Trade duration stats (entry_time → exit_time in minutes)
-        duration_stats = _compute_duration_stats(all_trades_list)
+        # Duration stats
+        duration_stats = _compute_duration_stats(conn, p_filter_day, date_params)
 
-        # Calendar data — daily P&L keyed by date (reuse daily query)
-        calendar = [dict(r) for r in daily]
+        # Calendar data — daily P&L aggregated by date
+        calendar = conn.execute(f"""
+            SELECT d.date,
+                   COUNT(t.id) AS trades,
+                   ROUND(SUM(t.pnl), 2) AS pnl,
+                   SUM(CASE WHEN t.pnl > 0 THEN 1 ELSE 0 END) AS wins,
+                   SUM(CASE WHEN t.pnl < 0 THEN 1 ELSE 0 END) AS losses
+            FROM trading_days d
+            JOIN trades t ON t.day_id = d.id
+            {p_filter_day}
+            GROUP BY d.date ORDER BY d.date
+        """, date_params).fetchall()
 
-        # Tag correlation analysis — find co-occurring tag combos across groups
+        # Tag correlations
         tag_correlations = _compute_tag_correlations(conn, p_filter_tag, date_params, overall)
 
         return {
-            "tag_stats":    [dict(r) for r in tag_stats],
-            "time_stats":   [dict(r) for r in time_stats],
-            "daily":        [dict(r) for r in daily],
-            "overall":      overall,
-            "dow_stats":    [dict(r) for r in dow_stats],
-            "streaks":      streak_data,
-            "equity_curve": equity_curve,
-            "drawdown":     drawdown,
-            "duration_stats": duration_stats,
-            "calendar":     calendar,
+            "tag_stats":        [dict(r) for r in tag_stats],
+            "time_stats":       [dict(r) for r in time_stats],
+            "daily":            [dict(r) for r in daily],
+            "overall":          overall,
+            "dow_stats":        [dict(r) for r in dow_stats],
+            "streaks":          streak_data,
+            "equity_curve":     equity_curve,
+            "drawdown":         drawdown,
+            "duration_stats":   duration_stats,
+            "calendar":         [dict(r) for r in calendar],
             "tag_correlations": tag_correlations,
         }
-
-
-def _compute_tag_correlations(conn, p_filter_tag, date_params, overall):
-    """Find co-occurring tag combinations across different groups and their P&L impact."""
-    overall_wr = 0
-    if overall and overall.get("total_trades") and overall.get("wins"):
-        overall_wr = round(overall["wins"] / overall["total_trades"] * 100, 1)
-
-    try:
-        rows = conn.execute(f"""
-            SELECT t1.group_id AS group_a, t1.tag AS tag_a,
-                   t2.group_id AS group_b, t2.tag AS tag_b,
-                   COUNT(DISTINCT t1.trade_id) AS trades,
-                   SUM(CASE WHEN tr.pnl > 0 THEN 1 ELSE 0 END) AS wins,
-                   ROUND(AVG(tr.pnl), 2) AS avg_pnl,
-                   ROUND(SUM(tr.pnl), 2) AS total_pnl,
-                   ROUND(100.0 * SUM(CASE WHEN tr.pnl > 0 THEN 1 ELSE 0 END) / COUNT(DISTINCT t1.trade_id), 1) AS win_rate
-            FROM trade_tags t1
-            JOIN trade_tags t2 ON t1.trade_id = t2.trade_id
-                              AND (t1.group_id < t2.group_id
-                                   OR (t1.group_id = t2.group_id AND t1.tag < t2.tag))
-            JOIN trades tr ON tr.id = t1.trade_id
-            JOIN trading_days d ON d.id = tr.day_id
-            WHERE 1=1 {p_filter_tag}
-            GROUP BY t1.group_id, t1.tag, t2.group_id, t2.tag
-            HAVING COUNT(DISTINCT t1.trade_id) >= 3
-            ORDER BY win_rate DESC
-        """, date_params).fetchall()
-
-        correlations = []
-        for r in rows:
-            rd = dict(r)
-            rd["lift"] = round(rd["win_rate"] - overall_wr, 1)
-            correlations.append(rd)
-
-        # Sort by absolute lift (biggest impact first), take top 15
-        correlations.sort(key=lambda x: abs(x["lift"]), reverse=True)
-        return correlations[:15]
-    except Exception:
-        return []
-
-
-def _compute_drawdown(equity_curve):
-    """Compute drawdown series and max drawdown from equity curve."""
-    if not equity_curve:
-        return {"max_dd": 0, "max_dd_pct": 0, "series": [], "max_dd_start": None, "max_dd_end": None}
-
-    peak = 0
-    max_dd = 0
-    max_dd_pct = 0
-    dd_series = []
-    max_dd_start_idx = 0
-    max_dd_end_idx = 0
-    peak_idx = 0
-
-    for i, point in enumerate(equity_curve):
-        cum = point["cumulative"]
-        if cum > peak:
-            peak = cum
-            peak_idx = i
-        dd = peak - cum  # drawdown in dollars (always >= 0)
-        dd_pct = (dd / peak * 100) if peak > 0 else 0
-        dd_series.append({
-            "date": point["date"],
-            "time": point["time"],
-            "drawdown": round(dd, 2),
-            "drawdown_pct": round(dd_pct, 1),
-        })
-        if dd > max_dd:
-            max_dd = round(dd, 2)
-            max_dd_pct = round(dd_pct, 1)
-            max_dd_start_idx = peak_idx
-            max_dd_end_idx = i
-
-    return {
-        "max_dd": max_dd,
-        "max_dd_pct": max_dd_pct,
-        "series": dd_series,
-        "max_dd_start": equity_curve[max_dd_start_idx]["date"] if equity_curve else None,
-        "max_dd_end": equity_curve[max_dd_end_idx]["date"] if equity_curve else None,
-    }
-
-
-def _compute_duration_stats(trades):
-    """Compute trade duration in minutes from entry_time to exit_time."""
-    durations = []
-    for t in trades:
-        try:
-            entry = t["entry_time"].strip()
-            exit_ = t["exit_time"].strip()
-            # Handle HH:MM or HH:MM:SS
-            efmt = "%H:%M:%S" if len(entry) > 5 else "%H:%M"
-            xfmt = "%H:%M:%S" if len(exit_) > 5 else "%H:%M"
-            from datetime import datetime as _dt
-            e = _dt.strptime(entry, efmt)
-            x = _dt.strptime(exit_, xfmt)
-            mins = (x - e).total_seconds() / 60
-            if mins < 0:
-                mins += 24 * 60  # overnight
-            durations.append({
-                "duration_mins": round(mins, 1),
-                "pnl": t["pnl"],
-                "direction": t["direction"],
-                "date": t["date"],
-            })
-        except (ValueError, AttributeError):
-            continue
-
-    # Average duration
-    avg_dur = round(sum(d["duration_mins"] for d in durations) / len(durations), 1) if durations else 0
-
-    return {
-        "trades": durations,
-        "avg_duration": avg_dur,
-    }
 
 
 # ── App Configuration ────────────────────────────────────────────────────────
@@ -824,15 +807,16 @@ def get_all_config():
 # ── Live Trades ──────────────────────────────────────────────────────────────
 
 def create_live_trade(portfolio_id, direction, instrument, entry_price, entry_time,
-                      total_qty, mode, notes="", tags_json="{}"):
+                      total_qty, mode, notes="", tags_json="{}",
+                      notes_monitoring="", notes_exit=""):
     with get_conn() as conn:
         cur = conn.execute("""
             INSERT INTO live_trades
                 (portfolio_id, direction, instrument, entry_price, entry_time,
-                 total_qty, mode, notes, tags_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 total_qty, mode, notes, tags_json, notes_monitoring, notes_exit)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (portfolio_id, direction, instrument, entry_price, entry_time,
-              total_qty, mode, notes, tags_json))
+              total_qty, mode, notes, tags_json, notes_monitoring, notes_exit))
         return cur.lastrowid
 
 
