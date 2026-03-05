@@ -53,7 +53,12 @@
 .cmd-field input:focus { border-bottom-color:var(--accent); }
 .cmd-field input.w-price { width:90px; }
 .cmd-field input.w-qty   { width:50px; }
-.cmd-field input.w-time  { width:70px; }
+.cmd-field input.w-time  { width:110px; }
+.cmd-time-refresh {
+  background:none; border:none; cursor:pointer; color:var(--muted2);
+  font-size:14px; padding:0 2px 0 4px; transition:all 0.15s; line-height:1;
+}
+.cmd-time-refresh:hover { color:var(--accent); transform:rotate(90deg); }
 
 .cmd-mode { gap:0; padding:0; }
 .cmd-mode-btn {
@@ -532,9 +537,10 @@
     <label>×</label>
     <input type="number" min="1" id="cmd-qty" class="w-qty" placeholder="6" autocomplete="off">
   </div>
-  <div class="cmd-field">
+  <div class="cmd-field" style="display:flex;align-items:center;">
     <label>⏱</label>
     <input type="time" id="cmd-time" class="w-time">
+    <button class="cmd-time-refresh" onclick="refreshTime()" title="Set to current time">↻</button>
   </div>
   <div class="cmd-mode">
     <button class="cmd-mode-btn active" id="cmd-full" onclick="setMode('full')">FULL</button>
@@ -679,12 +685,19 @@ let activeTrade = null;  // Full trade object when one is selected
 let activeTags = {};
 let allTrades = [];      // All open trades loaded from server
 
+// ── Time Helpers ─────────────────────────────────────────────────────────────
+function getCurrentTimeStr() {
+  const now = new Date();
+  return String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+}
+function refreshTime() {
+  document.getElementById('cmd-time').value = getCurrentTimeStr();
+}
+
 // ── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   // Set default time to now
-  const now = new Date();
-  document.getElementById('cmd-time').value =
-    String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  document.getElementById('cmd-time').value = getCurrentTimeStr();
 
   // Focus price field
   document.getElementById('cmd-price').focus();
