@@ -173,6 +173,20 @@ def init_db():
         if "execution_json" not in trade_cols:
             conn.execute("ALTER TABLE trades ADD COLUMN execution_json TEXT")
 
+        # Migration: add notes_monitoring and notes_exit to trades table
+        trade_cols = [r[1] for r in conn.execute("PRAGMA table_info(trades)").fetchall()]
+        if "notes_monitoring" not in trade_cols:
+            conn.execute("ALTER TABLE trades ADD COLUMN notes_monitoring TEXT NOT NULL DEFAULT ''")
+        if "notes_exit" not in trade_cols:
+            conn.execute("ALTER TABLE trades ADD COLUMN notes_exit TEXT NOT NULL DEFAULT ''")
+
+        # Migration: add notes_monitoring and notes_exit to live_trades table
+        lt_cols = [r[1] for r in conn.execute("PRAGMA table_info(live_trades)").fetchall()]
+        if "notes_monitoring" not in lt_cols:
+            conn.execute("ALTER TABLE live_trades ADD COLUMN notes_monitoring TEXT NOT NULL DEFAULT ''")
+        if "notes_exit" not in lt_cols:
+            conn.execute("ALTER TABLE live_trades ADD COLUMN notes_exit TEXT NOT NULL DEFAULT ''")
+
 
 # ── Portfolios ────────────────────────────────────────────────────────────────
 
@@ -239,7 +253,7 @@ def get_all_days(date_from=None, date_to=None, portfolio_id=None):
                    p.name  as portfolio_name,
                    p.color as portfolio_color,
                    COUNT(t.id)  as trade_count,
-                   ROUND(SUM(t.pnl), 2) as total_pnl,
+                   ROUND(COALESCE(SUM(t.pnl), 0), 2) as total_pnl,
                    SUM(CASE WHEN t.pnl > 0 THEN 1 ELSE 0 END) as wins
             FROM trading_days d
             LEFT JOIN portfolios p ON p.id = d.portfolio_id
@@ -391,9 +405,18 @@ def insert_fill(trade_id, fill_time, side, qty, price, exit_type=None):
         )
 
 
-def update_trade_notes(trade_id, notes):
+def update_trade_notes(trade_id, notes, notes_monitoring=None, notes_exit=None):
     with get_conn() as conn:
-        conn.execute("UPDATE trades SET notes = ? WHERE id = ?", (notes, trade_id))
+        sets = ["notes = ?"]
+        vals = [notes]
+        if notes_monitoring is not None:
+            sets.append("notes_monitoring = ?")
+            vals.append(notes_monitoring)
+        if notes_exit is not None:
+            sets.append("notes_exit = ?")
+            vals.append(notes_exit)
+        vals.append(trade_id)
+        conn.execute(f"UPDATE trades SET {', '.join(sets)} WHERE id = ?", vals)
 
 
 def set_trade_tags(trade_id, group_id, tags):
@@ -583,7 +606,7 @@ def get_analytics(portfolio_id=None, date_from=None, date_to=None):
 
         overall_row = conn.execute(f"""
             SELECT COUNT(*) as total_trades,
-                   ROUND(SUM(t.pnl), 2) as total_pnl,
+                   ROUND(COALESCE(SUM(t.pnl), 0), 2) as total_pnl,
                    ROUND(AVG(t.pnl), 2) as avg_pnl,
                    SUM(CASE WHEN t.pnl > 0 THEN 1 ELSE 0 END) as wins,
                    ROUND(MAX(t.pnl), 2) as best_trade,
@@ -824,15 +847,16 @@ def get_all_config():
 # ── Live Trades ──────────────────────────────────────────────────────────────
 
 def create_live_trade(portfolio_id, direction, instrument, entry_price, entry_time,
-                      total_qty, mode, notes="", tags_json="{}"):
+                      total_qty, mode, notes="", tags_json="{}",
+                      notes_monitoring="", notes_exit=""):
     with get_conn() as conn:
         cur = conn.execute("""
             INSERT INTO live_trades
                 (portfolio_id, direction, instrument, entry_price, entry_time,
-                 total_qty, mode, notes, tags_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 total_qty, mode, notes, tags_json, notes_monitoring, notes_exit)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (portfolio_id, direction, instrument, entry_price, entry_time,
-              total_qty, mode, notes, tags_json))
+              total_qty, mode, notes, tags_json, notes_monitoring, notes_exit))
         return cur.lastrowid
 
 

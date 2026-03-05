@@ -625,9 +625,14 @@ def close_live_trade_to_journal(live_trade_id):
     except (json.JSONDecodeError, AttributeError):
         pass
 
-    # Save notes
-    if lt.get("notes"):
-        db.update_trade_notes(trade_id, lt["notes"])
+    # Save notes (all 3 fields)
+    if lt.get("notes") or lt.get("notes_monitoring") or lt.get("notes_exit"):
+        db.update_trade_notes(
+            trade_id,
+            lt.get("notes", ""),
+            lt.get("notes_monitoring", ""),
+            lt.get("notes_exit", ""),
+        )
 
     # Generate fills from entry + executions
     # The entry is one fill (Buy for Long, Sell for Short) — no exit_type
