@@ -87,18 +87,12 @@
   color: var(--text);
   font-family: var(--font-mono);
   font-size: 13px; padding: 14px 16px;
-  resize: vertical; min-height: 100px;
+  resize: vertical; min-height: 120px;
   outline: none; transition: border-color 0.2s;
   line-height: 1.8; border-radius: 2px;
 }
 .notes-area:focus { border-color: var(--accent); }
 .notes-area::placeholder { color: var(--border2); }
-
-.notes-label {
-  font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
-  color: var(--muted2); margin-bottom: 6px; margin-top: 14px;
-}
-.notes-label:first-child { margin-top: 0; }
 
 .nav-trades {
   display: flex; align-items: center; gap: 8px;
@@ -308,22 +302,9 @@
 
 <!-- Notes -->
 <div class="section-title">Notes</div>
-
-<div class="notes-label">Entry or Rationale</div>
-<textarea class="notes-area" id="notes-entry" rows="5"
-  placeholder="Trade rationale, setup context, why you entered..."
-  oninput="scheduleNoteSave()">{{ trade.notes }}</textarea>
-
-<div class="notes-label">Monitoring Continuation</div>
-<textarea class="notes-area" id="notes-monitoring" rows="5"
-  placeholder="Ongoing observations, price action during trade, adjustments..."
-  oninput="scheduleNoteSave()">{{ trade.notes_monitoring or '' }}</textarea>
-
-<div class="notes-label">Exit Notes</div>
-<textarea class="notes-area" id="notes-exit" rows="5"
-  placeholder="Exit reasoning, lessons learned, what would you do differently..."
-  oninput="scheduleNoteSave()">{{ trade.notes_exit or '' }}</textarea>
-
+<textarea class="notes-area"
+  placeholder="Trade rationale, observations, market context, lessons learned..."
+  oninput="scheduleNoteSave(this.value)">{{ trade.notes }}</textarea>
 <div style="margin-top:6px; font-size:10px; color:var(--muted); letter-spacing:1px;" id="notes-status"></div>
 
 {% endblock %}
@@ -372,21 +353,17 @@
   }
 
   let noteTimer;
-  function scheduleNoteSave() {
+  function scheduleNoteSave(value) {
     document.getElementById('notes-status').textContent = 'Unsaved...';
     clearTimeout(noteTimer);
-    noteTimer = setTimeout(() => saveNotes(), 800);
+    noteTimer = setTimeout(() => saveNotes(value), 800);
   }
 
-  async function saveNotes() {
+  async function saveNotes(notes) {
     await fetch(`/api/trade/${TRADE_ID}/notes`, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        notes: document.getElementById('notes-entry').value,
-        notes_monitoring: document.getElementById('notes-monitoring').value,
-        notes_exit: document.getElementById('notes-exit').value,
-      })
+      body: JSON.stringify({ notes })
     });
     document.getElementById('notes-status').textContent = 'Saved ✓';
     setTimeout(() => document.getElementById('notes-status').textContent = '', 2000);

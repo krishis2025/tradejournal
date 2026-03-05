@@ -2,41 +2,55 @@
 
 All notable changes to Trade Journal are documented here.
 
-## [1.3.0] — 2026-03-04
+## [1.2.0] — 2026-02-28
 
-### Analytics — Sidebar Redesign
-
-#### Layout
-- **Sidebar navigation**: Left sidebar (180px) with 5 sections — KPIs, Equity, Calendar, Time, Tags
-- Each section renders independently (no long vertical scroll)
-- **Lazy chart initialization**: Charts only render when their section is first visited (reduces initial load from 9 Chart.js instances to 1)
-- Section state persisted in URL hash (`#kpis`, `#equity`, etc.) — survives page reloads
-
-#### Date Range Filtering
-- Global filter bar: All Time, This Week, This Month, Last 30 Days, Last 90 Days presets + custom date picker
+### Analytics — Enhanced Dashboard
+- **Date range filtering**: All Time, This Week, This Month, Last 30 Days, Last 90 Days presets + custom date picker
 - All charts, KPIs, and tables respect the selected date range
 
-#### New KPIs
+### New KPIs
 - Average Win / Average Loss with win-loss ratio
-- Expectancy: (win_rate x avg_win) - (loss_rate x avg_loss)
+- Expectancy: (win_rate × avg_win) - (loss_rate × avg_loss)
 - Profit Factor: gross profit / gross loss
 - Average Trade Duration (entry to exit, in minutes)
 - Trading Days count
 
-#### New Charts
-- **Equity Curve**: cumulative P&L line chart with fill and per-trade tooltips
+### New Charts
+- **Equity Curve**: cumulative P&L line chart across all trades with fill and per-trade tooltips
 - **Drawdown Chart**: red filled area showing drawdown from equity peak, max drawdown in subtitle
-- **Calendar Heatmap**: monthly grid with day cells showing day number, P&L (color-coded), and trade count; click to navigate to day view
+- **Calendar Heatmap**: monthly grid with day cells colored by P&L intensity (green/red), hover tooltips
 - **Trade Duration vs P&L**: scatter plot with wins (green), losses (red), breakeven (grey)
 
-#### Tag Correlation Analysis (New)
-- Replaces "Avg P&L — With Tags" chart
-- Finds co-occurring tag combinations across different groups
-- Ranked insight cards showing lift vs overall win rate, avg P&L, trade count, win rate bar
-- Minimum 3 trades per combination, top 15 results by absolute lift
+### Analytics Layout
+- Organized into labeled sections: KPIs → Equity & Risk → Calendar → Time & Duration → Tag Analytics
+- Best/Worst trade shown as compact inline cards
+- Section dividers with headers for visual hierarchy
 
-#### Pre-Trade Mindset
-- Moved from Tag Analytics section to KPIs section (more prominent)
+---
+
+## [1.1.0] — 2026-02-28
+
+### Live Trade — Multiple Simultaneous Trades
+- Open and manage multiple live trades at the same time
+- Color-coded trade cards (6 distinct colors) with numbered banners (T1, T2, T3…)
+- Tabbed right panel — each open trade gets its own tab with color dot indicator
+- Active trade banner showing trade number, direction, instrument, and entry details
+- Active card glow effect on left panel; inactive cards dimmed for focus
+- Flash animation on trade switch for clear visual feedback
+- New trade opens without interrupting current active trade (toast notification instead)
+
+### Trade Detail — Execution Replay
+- Pushed live trades now store full execution detail (levels + executions) as JSON
+- Trade detail page shows execution breakdown with entry/exit types (TP hit, stop hit, manual exit)
+- Fills table now includes `exit_type` column for granular exit tracking
+
+### Database
+- New `execution_json` column on `trades` table for live trade execution history
+- New `exit_type` column on `fills` table (tp_hit, stop_hit, manual_exit, or NULL for imports)
+- Auto-migration for both new columns on existing databases
+
+### Settings
+- Updated settings page layout and tag configuration improvements
 
 ---
 
