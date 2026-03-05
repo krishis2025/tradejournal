@@ -302,7 +302,9 @@ def api_save_tags(trade_id):
 def api_save_notes(trade_id):
     body  = request.get_json(silent=True) or {}
     notes = body.get("notes", "")
-    db.update_trade_notes(trade_id, notes)
+    notes_monitoring = body.get("notes_monitoring")
+    notes_exit = body.get("notes_exit")
+    db.update_trade_notes(trade_id, notes, notes_monitoring, notes_exit)
     return jsonify({"ok": True})
 
 
@@ -539,6 +541,8 @@ def api_create_live_trade():
             mode=body["mode"],
             notes=body.get("notes", ""),
             tags_json=json.dumps(body.get("tags", {})),
+            notes_monitoring=body.get("notes_monitoring", ""),
+            notes_exit=body.get("notes_exit", ""),
         )
         # Compute and save default levels
         levels = logic.compute_live_trade_plan(
@@ -554,7 +558,7 @@ def api_create_live_trade():
 @app.route("/api/live/<int:live_id>", methods=["PUT"])
 def api_update_live_trade(live_id):
     body = request.get_json(silent=True) or {}
-    allowed = {"notes", "tags_json", "status"}
+    allowed = {"notes", "notes_monitoring", "notes_exit", "tags_json", "status"}
     updates = {k: v for k, v in body.items() if k in allowed}
     if "tags" in body:
         updates["tags_json"] = json.dumps(body["tags"])
@@ -653,8 +657,9 @@ if __name__ == "__main__":
     db.init_db()
     os.makedirs(IMAGES_DIR, exist_ok=True)
     print("\n" + "=" * 45)
+    port = int(os.environ.get("PORT", 5000))
     print("  Trade Journal is running!")
     print("  Open this in your browser:")
-    print("  --> http://127.0.0.1:5000")
+    print(f"  --> http://127.0.0.1:{port}")
     print("=" * 45 + "\n")
-    app.run(debug=False, host="127.0.0.1", port=5000, use_reloader=False)
+    app.run(debug=False, host="127.0.0.1", port=port, use_reloader=False)

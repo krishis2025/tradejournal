@@ -191,12 +191,17 @@
 /* ── Notes + Tags (inline, compact) ── */
 .tc-meta { margin-top:12px; display:flex; gap:10px; align-items:flex-start; }
 .tc-notes-input {
-  flex:1; background:var(--bg); border:1px solid var(--border);
+  width:100%; background:var(--bg); border:1px solid var(--border);
   color:var(--text); font-family:var(--font-mono); font-size:11px;
-  padding:6px 10px; outline:none; resize:none; min-height:32px; max-height:80px;
+  padding:6px 10px; outline:none; resize:vertical; min-height:90px;
   transition:border-color 0.15s; line-height:1.5;
 }
 .tc-notes-input:focus { border-color:var(--accent); }
+.tc-notes-label {
+  font-size:8px; letter-spacing:2px; text-transform:uppercase;
+  color:var(--muted); margin-bottom:4px; margin-top:10px;
+}
+.tc-notes-label:first-child { margin-top:0; }
 
 .tc-actions { margin-top:12px; display:flex; gap:8px; justify-content:flex-end; align-items:center; }
 
@@ -509,7 +514,12 @@
           <div class="rp-title" style="margin:0;">Trade Notes</div>
           <button class="tp-tag-btn" style="font-size:9px;padding:3px 8px;" onclick="openTagsPanel()">+ Tags ▸</button>
         </div>
-        <textarea class="tc-notes-input" id="rp-notes" placeholder="Rationale, observations..." style="width:100%;margin-top:8px;"></textarea>
+        <div class="tc-notes-label" style="margin-top:8px;">Entry or Rationale</div>
+        <textarea class="tc-notes-input" id="rp-notes" rows="5" placeholder="Why did you enter? Setup, context, rationale..."></textarea>
+        <div class="tc-notes-label">Monitoring Continuation</div>
+        <textarea class="tc-notes-input" id="rp-notes-monitoring" rows="5" placeholder="What are you watching? Price action, levels, signals..."></textarea>
+        <div class="tc-notes-label">Exit Notes</div>
+        <textarea class="tc-notes-input" id="rp-notes-exit" rows="5" placeholder="Why did you exit? Outcome, lessons, what would you do differently..."></textarea>
         <div class="push-row">
           <button class="btn btn-ghost" style="padding:6px 14px;font-size:9px;flex:1;" onclick="cancelActiveTrade()">Cancel</button>
           <button class="btn btn-primary" style="padding:6px 18px;font-size:10px;flex:2;" onclick="pushActiveTrade()">Save & Push →</button>
@@ -802,8 +812,10 @@ function selectTrade(id) {
   document.getElementById('rp-controls').style.flexDirection = 'column';
   document.getElementById('rp-controls').style.flex = '1';
 
-  // Notes
+  // Notes (3 fields)
   document.getElementById('rp-notes').value = t.notes || '';
+  document.getElementById('rp-notes-monitoring').value = t.notes_monitoring || '';
+  document.getElementById('rp-notes-exit').value = t.notes_exit || '';
 
   // Build Quick Exit buttons
   buildQuickExitButtons(t);
@@ -1159,18 +1171,33 @@ function toggleTag(gid, tag, multi, btn) {
   });
 }
 
-// ── Notes auto-save ──────────────────────────────────────────────────────────
+// ── Notes auto-save (all 3 fields) ──────────────────────────────────────────
 let noteTimer = null;
-document.getElementById('rp-notes')?.addEventListener('input', function() {
+function scheduleNotesAutoSave() {
   if (!activeTrade) return;
-  activeTrade.notes = this.value;
   clearTimeout(noteTimer);
   noteTimer = setTimeout(() => {
     fetch(`/api/live/${activeTrade.id}`, {
       method:'PUT', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({notes: this.value})
+      body: JSON.stringify({
+        notes: document.getElementById('rp-notes').value,
+        notes_monitoring: document.getElementById('rp-notes-monitoring').value,
+        notes_exit: document.getElementById('rp-notes-exit').value,
+      })
     });
   }, 600);
+}
+document.getElementById('rp-notes')?.addEventListener('input', function() {
+  if (activeTrade) activeTrade.notes = this.value;
+  scheduleNotesAutoSave();
+});
+document.getElementById('rp-notes-monitoring')?.addEventListener('input', function() {
+  if (activeTrade) activeTrade.notes_monitoring = this.value;
+  scheduleNotesAutoSave();
+});
+document.getElementById('rp-notes-exit')?.addEventListener('input', function() {
+  if (activeTrade) activeTrade.notes_exit = this.value;
+  scheduleNotesAutoSave();
 });
 
 // ── Day P&L ──────────────────────────────────────────────────────────────────
