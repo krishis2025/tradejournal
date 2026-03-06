@@ -38,9 +38,54 @@ bash start_mac.sh
 
 ### Windows
 
-Double-click `start_windows.bat`
+Double-click `start_windows.bat` — it handles everything (venv, dependencies, launch).
 
 The app opens automatically at **http://localhost:5000**
+
+> **First time?** Make sure Python 3.9+ is installed from [python.org](https://python.org) and you check **"Add Python to PATH"** during the installer.
+
+#### Manual setup (if the .bat doesn't work)
+
+```cmd
+cd tradejournal
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+python server.py
+```
+
+Then open **http://localhost:5000** in your browser.
+
+---
+
+## Pulling Latest Changes (Windows)
+
+If you already have the repo cloned on your Windows machine, open **Command Prompt** or **PowerShell** and run:
+
+```cmd
+cd C:\path\to\tradejournal
+git pull
+```
+
+That's it — `git pull` downloads all the latest code changes from the remote.
+
+If you had the app running, stop it first (Ctrl+C), pull, then restart:
+
+```cmd
+:: Stop the app with Ctrl+C, then:
+git pull
+start_windows.bat
+```
+
+> **If git pull shows merge conflicts**, run:
+> ```cmd
+> git stash
+> git pull
+> git stash pop
+> ```
+> This saves your local changes, pulls the latest, then re-applies your changes.
+
+> **Don't have Git on Windows?** Download from [git-scm.com](https://git-scm.com/download/win). During install, keep the defaults. After install, open a new Command Prompt and `git` should work.
 
 ---
 
