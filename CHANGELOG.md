@@ -2,6 +2,30 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [1.3.0] — 2026-03-06
+
+### Trade Notes — 3 Separate Fields
+- **Entry or Rationale**: renamed from the single "Trade Notes" field — capture why you entered
+- **Monitoring Continuation**: new field — track ongoing observations during the trade
+- **Exit Notes**: new field — document exit reasoning and lessons learned
+- All 3 fields are expandable (resize vertical), at least 5 rows each
+- Auto-save with debounce (600ms live, 800ms journal)
+- All 3 fields persist through "Save & Push to Journal" and display in trade detail view
+
+### Live Trade — Time Input Improvements
+- Widened time input box (70px → 110px) so full time is visible
+- Added ↻ refresh button next to time field — one click sets current system time
+- `PORT` environment variable support (`PORT=5050 python server.py`)
+
+### Bug Fixes
+- Fixed NULL total_pnl crash on dashboard when trading days have no trades (COALESCE fix)
+
+### Database
+- New `notes_monitoring` and `notes_exit` columns on `trades` and `live_trades` tables
+- Auto-migration for existing databases
+
+---
+
 ## [1.2.0] — 2026-02-28
 
 ### Analytics — Enhanced Dashboard
