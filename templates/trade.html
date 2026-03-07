@@ -34,80 +34,84 @@
 }
 .section-title::after { content:''; flex:1; height:1px; background:var(--border); }
 
-.tag-section { margin-bottom: 24px; }
-
-.tag-group-inline {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 2px;
-  padding: 16px;
-  margin-bottom: 12px;
-}
-
-.tg-label {
-  font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--muted); margin-bottom: 10px;
-  display: flex; align-items: center; gap: 8px;
-}
-.tg-label::after { content:''; flex:1; height:1px; background:var(--border); }
-
-.tags-row { display: flex; flex-wrap: wrap; gap: 6px; }
-
-.tag-btn {
-  background: var(--surface2);
-  border: 1px solid var(--border2);
-  color: var(--muted2);
-  padding: 5px 12px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  cursor: pointer;
-  transition: all 0.12s;
-  letter-spacing: 0.5px;
-  clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
-}
-.tag-btn:hover { background:var(--surface3); color:var(--text); border-color:var(--muted); }
-
-.tag-btn.active-with    { background:rgba(79,255,176,0.12);  border-color:var(--green);  color:var(--green); }
-.tag-btn.active-against { background:rgba(255,77,109,0.12); border-color:var(--red);    color:var(--red); }
-.tag-btn.active-vol     { background:rgba(0,207,255,0.12);  border-color:var(--accent2);color:var(--accent2); }
-.tag-btn.active-exit      { background:rgba(255,179,71,0.12); border-color:var(--warn);   color:var(--warn); }
-.tag-btn.active-setup     { background:rgba(180,127,255,0.12);border-color:var(--purple); color:var(--purple); }
-.tag-btn.active-pre       { background:rgba(138,150,170,0.15);border-color:var(--muted2); color:var(--text); }
-.tag-btn.active-pre-good  { background:rgba(79,255,176,0.12); border-color:var(--green);  color:var(--green); }
-.tag-btn.active-pre-bad   { background:rgba(255,77,109,0.12); border-color:var(--red);    color:var(--red); }
-.tag-btn.active-exit-good { background:rgba(79,255,176,0.12); border-color:var(--green);  color:var(--green); }
-.tag-btn.active-exit-bad  { background:rgba(255,77,109,0.12); border-color:var(--red);    color:var(--red); }
-.tag-btn.active-vol-avg   { background:rgba(0,207,255,0.12);  border-color:var(--accent2);color:var(--accent2); }
-.tag-btn.active-vol-high  { background:rgba(79,255,176,0.12); border-color:var(--green);  color:var(--green); }
-.tag-btn.active-vol-low   { background:rgba(255,77,109,0.12); border-color:var(--red);    color:var(--red); }
-
-.notes-area {
-  width: 100%; background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: 13px; padding: 14px 16px;
-  resize: vertical; min-height: 100px;
-  outline: none; transition: border-color 0.2s;
-  line-height: 1.8; border-radius: 2px;
-}
-.notes-area:focus { border-color: var(--accent); }
-.notes-area::placeholder { color: var(--border2); }
-
-.notes-label {
-  font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
-  color: var(--muted2); margin-bottom: 6px; margin-top: 14px;
-}
-.notes-label:first-child { margin-top: 0; }
-
 .nav-trades {
   display: flex; align-items: center; gap: 8px;
   font-size: 11px; color: var(--muted);
 }
+
+/* Scorecard */
+.scorecard-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+.scorecard-grid .stat-block {
+  background: var(--surface);
+  padding: 16px 14px;
+  text-align: center;
+}
+.metric-sub {
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+/* Unified table enhancements */
+.row-entry td { color: var(--accent2) !important; }
+.row-total td {
+  border-top: 1px solid var(--border2);
+  font-weight: bold;
+  color: var(--text);
+}
+.type-tp     { color: var(--green); }
+.type-stop   { color: var(--red); }
+.type-manual { color: var(--warn); }
+.type-entry  { color: var(--accent2); }
+
+/* No exec_detail: hide exec-only columns */
+.no-exec .exec-only { display: none; }
+
+/* Risk progression */
+.status-badge {
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 2px;
+  font-weight: bold;
+}
+.status-risk    { background: rgba(255,77,109,0.15); color: var(--red); }
+.status-reduced { background: rgba(255,179,71,0.15); color: var(--warn); }
+.status-free    { background: rgba(79,255,176,0.15); color: var(--green); }
+.status-closed  { background: rgba(138,150,170,0.1); color: var(--muted2); }
+
+/* Chart */
+.price-chart-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 16px;
+  margin-bottom: 24px;
+  height: 340px;
+}
+.price-chart-wrap canvas { width: 100% !important; height: 100% !important; }
+
+@media (max-width: 900px) {
+  .scorecard-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 550px) {
+  .scorecard-grid { grid-template-columns: repeat(2, 1fr); }
+}
 {% endblock %}
 
 {% block nav_actions %}
-<a href="/day/{{ trade.date }}" class="btn btn-ghost">← Day View</a>
+<a href="/day/{{ trade.date }}" class="btn btn-ghost">&larr; Day View</a>
 <a href="/" class="btn btn-ghost">Dashboard</a>
 {% endblock %}
 
@@ -115,15 +119,16 @@
 
 <div class="breadcrumb">
   <a href="/">Journal</a>
-  <span class="sep">›</span>
+  <span class="sep">&rsaquo;</span>
   <a href="/day/{{ trade.date }}">{{ trade.date }}</a>
-  <span class="sep">›</span>
+  <span class="sep">&rsaquo;</span>
   <span>Trade #{{ trade.trade_num }}</span>
 </div>
 
 {% set dir_cls = 'long' if trade.direction == 'Long' else 'short' %}
 {% set pnl_cls = 'pnl-pos' if trade.pnl >= 0 else 'pnl-neg' %}
 
+<!-- 1. Hero -->
 <div class="trade-hero">
   <div>
     <div style="display:flex; align-items:baseline; gap:20px; margin-bottom:8px;">
@@ -133,7 +138,7 @@
       </span>
     </div>
     <div style="color:var(--muted2); font-size:12px; letter-spacing:1px;">
-      {{ trade.date }} · {{ trade.entry_time }} → {{ trade.exit_time }} · {{ trade.qty }} MES
+      {{ trade.date }} &middot; {{ trade.entry_time }} &rarr; {{ trade.exit_time }} &middot; {{ trade.qty }} MES
     </div>
   </div>
 
@@ -155,89 +160,526 @@
   </div>
 </div>
 
-<!-- Fills -->
-<div class="fills-card">
-  <div style="padding:16px 16px 0;">
-    <div class="section-title">Fills ({{ trade.fills|length }})</div>
-  </div>
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th>Time</th><th>Side</th><th>Qty</th><th>Price</th><th>Type</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for f in trade.fills %}
-      <tr>
-        <td>{{ f.fill_time }}</td>
-        <td class="{{ 'pnl-pos' if f.side == 'Buy' else 'pnl-neg' }}">{{ f.side }}</td>
-        <td>{{ f.qty }}</td>
-        <td>{{ '%.2f'|format(f.price) }}</td>
-        <td style="font-size:10px;letter-spacing:0.5px;{% if f.exit_type == 'tp_hit' %}color:var(--green);{% elif f.exit_type == 'stop_hit' %}color:var(--red);{% elif f.exit_type == 'manual_exit' %}color:var(--warn);{% else %}color:var(--muted);{% endif %}">
-          {% if f.exit_type == 'tp_hit' %}TP Hit{% elif f.exit_type == 'stop_hit' %}Stop Hit{% elif f.exit_type == 'manual_exit' %}Manual{% elif f.exit_type %}{{ f.exit_type }}{% else %}—{% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-
-<!-- Execution Detail (from Live Trade) -->
+<!-- 2. Execution Scorecard (exec_detail only) -->
 {% if exec_detail %}
-<div class="fills-card" style="margin-bottom:24px;">
-  <div style="padding:16px 16px 0;">
-    <div class="section-title">Execution Detail</div>
+<div class="section-title">Execution Scorecard</div>
+<div class="scorecard-grid" id="scorecard">
+  <div class="stat-block">
+    <div class="stat-label">Initial Risk</div>
+    <div class="stat-value pnl-neg" id="sc-risk" style="font-size:20px;">—</div>
   </div>
-  <div style="padding:0 16px 16px;">
-    <!-- Position Map -->
-    <table class="data-table" style="margin-bottom:12px;">
-      <thead>
-        <tr><th>Portion</th><th>Stop</th><th>Target</th><th>Qty</th></tr>
-      </thead>
-      <tbody>
-        {% for lv in exec_detail.levels if lv.level_type == 'stop' %}
-        {% set tp = None %}
-        {% for t in exec_detail.levels if t.level_type == 'tp' and t.portion == lv.portion %}
-          {% set tp = t %}
-        {% endfor %}
-        <tr>
-          <td>P{{ lv.portion }}</td>
-          <td style="color:var(--red);">{{ '%.2f'|format(lv.price) }}</td>
-          <td style="color:var(--green);">{% for t in exec_detail.levels if t.level_type == 'tp' and t.portion == lv.portion %}{{ '%.2f'|format(t.price) }}{% endfor %}</td>
-          <td>{{ lv.qty }}×</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-
-    <!-- Execution Log -->
-    <div class="section-title" style="margin-top:12px;">Execution Log</div>
-    <table class="data-table">
-      <thead>
-        <tr><th>Type</th><th>Portion</th><th>Qty</th><th>Price</th><th>Time</th><th>P&L</th></tr>
-      </thead>
-      <tbody>
-        {% for e in exec_detail.executions %}
-        <tr>
-          <td style="font-size:10px;letter-spacing:0.5px;{% if e.exec_type == 'tp_hit' %}color:var(--green);{% elif e.exec_type == 'stop_hit' %}color:var(--red);{% elif e.exec_type == 'manual_exit' %}color:var(--warn);{% else %}color:var(--muted);{% endif %}">
-            {% if e.exec_type == 'tp_hit' %}TP Hit{% elif e.exec_type == 'stop_hit' %}Stop Hit{% elif e.exec_type == 'manual_exit' %}Manual{% else %}{{ e.exec_type }}{% endif %}
-          </td>
-          <td>P{{ e.portion }}</td>
-          <td>{{ e.qty }}×</td>
-          <td>{{ '%.2f'|format(e.price) }}</td>
-          <td>{{ e.exec_time }}</td>
-          <td class="{{ 'pnl-pos' if e.pnl >= 0 else 'pnl-neg' }}">
-            {{ '+' if e.pnl >= 0 else '' }}${{ '%.2f'|format(e.pnl) }}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="stat-block">
+    <div class="stat-label">R-Multiple</div>
+    <div class="stat-value" id="sc-rmult" style="font-size:20px;">—</div>
+  </div>
+  <div class="stat-block">
+    <div class="stat-label">Planned R:R</div>
+    <div class="stat-value" id="sc-rr" style="font-size:20px;">—</div>
+    <div class="metric-sub" id="sc-rr-sub"></div>
+  </div>
+  <div class="stat-block">
+    <div class="stat-label">Efficiency</div>
+    <div class="stat-value" id="sc-eff" style="font-size:20px;">—</div>
+    <div class="metric-sub" id="sc-eff-sub"></div>
+  </div>
+  <div class="stat-block">
+    <div class="stat-label">Hold Time</div>
+    <div class="stat-value" id="sc-hold" style="font-size:20px;">—</div>
+  </div>
+  <div class="stat-block">
+    <div class="stat-label">Avg Slippage</div>
+    <div class="stat-value" id="sc-slip" style="font-size:20px;">—</div>
+    <div class="metric-sub" id="sc-slip-sub"></div>
   </div>
 </div>
 {% endif %}
 
+<!-- 3. Unified Execution Table -->
+<div class="fills-card {{ '' if exec_detail else 'no-exec' }}">
+  <div style="padding:16px 16px 0;">
+    <div class="section-title">Execution Table</div>
+  </div>
+  <table class="data-table" id="exec-table">
+    <thead>
+      <tr>
+        <th class="exec-only">Portion</th>
+        <th>Side</th>
+        <th>Qty</th>
+        <th>Price</th>
+        <th>Time</th>
+        <th class="exec-only">Stop</th>
+        <th class="exec-only">Target</th>
+        <th>Type</th>
+        <th class="exec-only">Duration</th>
+        <th>P&L</th>
+      </tr>
+    </thead>
+    <tbody id="exec-tbody"></tbody>
+  </table>
+</div>
+
+<!-- 4. Risk Progression (exec_detail only) -->
+{% if exec_detail %}
+<div class="fills-card">
+  <div style="padding:16px 16px 0;">
+    <div class="section-title">Risk Progression</div>
+  </div>
+  <table class="data-table" id="risk-table">
+    <thead>
+      <tr>
+        <th>State</th>
+        <th>Open Qty</th>
+        <th>Worst Case</th>
+        <th>Locked P&L</th>
+        <th>Net Exposure</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="risk-tbody"></tbody>
+  </table>
+</div>
+{% endif %}
+
+<!-- 5. Timeline Chart (exec_detail only) -->
+{% if exec_detail %}
+<div class="section-title">Price Timeline</div>
+<div class="price-chart-wrap">
+  <canvas id="timeline-chart"></canvas>
+</div>
+{% endif %}
 
 {% endblock %}
 
+{% block scripts %}
+{% if exec_detail %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3"></script>
+{% endif %}
+<script>
+(function(){
+  const EXEC_DATA = {{ exec_detail_json|safe }};
+  const TRADE = {
+    direction: "{{ trade.direction }}",
+    qty: {{ trade.qty }},
+    avg_entry: {{ trade.avg_entry }},
+    avg_exit: {{ trade.avg_exit }},
+    pnl: {{ trade.pnl }},
+    entry_time: "{{ trade.entry_time }}",
+    exit_time: "{{ trade.exit_time }}",
+    date: "{{ trade.date }}",
+    fills: {{ trade.fills|tojson }}
+  };
+
+  // Determine point value
+  function getPointValue() {
+    if (EXEC_DATA && EXEC_DATA.instrument) {
+      const inst = EXEC_DATA.instrument.toUpperCase();
+      if (inst === 'ES') return 50;
+    }
+    return 5; // MES default
+  }
+  const PT_VAL = getPointValue();
+
+  function parseTime(str) {
+    if (!str) return null;
+    const parts = str.split(':');
+    const d = new Date(TRADE.date + 'T00:00:00');
+    d.setHours(parseInt(parts[0]), parseInt(parts[1]), parts[2] ? parseInt(parts[2]) : 0);
+    return d;
+  }
+
+  function formatDuration(mins) {
+    if (mins < 1) return '<1m';
+    if (mins < 60) return Math.round(mins) + 'm';
+    const h = Math.floor(mins / 60);
+    const m = Math.round(mins % 60);
+    return m > 0 ? h + 'h ' + m + 'm' : h + 'h';
+  }
+
+  function fmtPrice(p) { return p.toFixed(2); }
+  function fmtDollar(v) {
+    const sign = v >= 0 ? '+' : '';
+    return sign + '$' + v.toFixed(2);
+  }
+
+  // ── Build Scorecard ──
+  function buildScorecard() {
+    if (!EXEC_DATA) return;
+    const levels = EXEC_DATA.levels || [];
+    const execs = EXEC_DATA.executions || [];
+    const entry = EXEC_DATA.entry_price;
+    const dir = TRADE.direction === 'Long' ? 1 : -1;
+
+    // Initial risk: sum of abs(entry - stop) * qty * ptVal per portion
+    let initialRisk = 0;
+    const stops = levels.filter(l => l.level_type === 'stop');
+    stops.forEach(s => {
+      initialRisk += Math.abs(entry - s.price) * s.qty * PT_VAL;
+    });
+
+    // Max reward: sum of abs(tp - entry) * qty * ptVal per portion
+    let maxReward = 0;
+    const tps = levels.filter(l => l.level_type === 'tp');
+    tps.forEach(t => {
+      maxReward += Math.abs(t.price - entry) * t.qty * PT_VAL;
+    });
+
+    const rMult = initialRisk > 0 ? TRADE.pnl / initialRisk : 0;
+    const plannedRR = initialRisk > 0 ? maxReward / initialRisk : 0;
+    const efficiency = maxReward > 0 ? (TRADE.pnl / maxReward) * 100 : 0;
+
+    // Hold time
+    const t0 = parseTime(TRADE.entry_time);
+    const t1 = parseTime(TRADE.exit_time);
+    let holdMins = 0;
+    if (t0 && t1) holdMins = (t1 - t0) / 60000;
+
+    // Avg slippage: mean of (planned_price - actual_price) * dir per exit
+    let slippageSum = 0;
+    let slippageCount = 0;
+    execs.forEach(e => {
+      const tp = tps.find(t => t.portion === e.portion);
+      if (tp) {
+        slippageSum += (tp.price - e.price) * dir;
+        slippageCount++;
+      }
+    });
+    const avgSlippage = slippageCount > 0 ? slippageSum / slippageCount : 0;
+
+    // Render
+    document.getElementById('sc-risk').textContent = '$' + initialRisk.toFixed(2);
+    const rmEl = document.getElementById('sc-rmult');
+    rmEl.textContent = (rMult >= 0 ? '+' : '') + rMult.toFixed(2) + 'R';
+    rmEl.className = 'stat-value ' + (rMult >= 0 ? 'pnl-pos' : 'pnl-neg');
+    rmEl.style.fontSize = '20px';
+
+    document.getElementById('sc-rr').textContent = '1 : ' + plannedRR.toFixed(1);
+    document.getElementById('sc-rr-sub').textContent = '$' + initialRisk.toFixed(0) + ' risk → $' + maxReward.toFixed(0) + ' reward';
+
+    const effEl = document.getElementById('sc-eff');
+    effEl.textContent = efficiency.toFixed(0) + '%';
+    effEl.className = 'stat-value ' + (efficiency >= 80 ? 'pnl-pos' : efficiency >= 50 ? '' : 'pnl-neg');
+    effEl.style.fontSize = '20px';
+    document.getElementById('sc-eff-sub').textContent = fmtDollar(TRADE.pnl) + ' of ' + fmtDollar(maxReward) + ' max';
+
+    document.getElementById('sc-hold').textContent = formatDuration(holdMins);
+
+    const slipEl = document.getElementById('sc-slip');
+    slipEl.textContent = (avgSlippage >= 0 ? '+' : '') + avgSlippage.toFixed(2) + ' pts';
+    slipEl.className = 'stat-value ' + (avgSlippage >= 0 ? 'pnl-pos' : 'pnl-neg');
+    slipEl.style.fontSize = '20px';
+    document.getElementById('sc-slip-sub').textContent = avgSlippage >= 0 ? 'better than planned' : 'worse than planned';
+  }
+
+  // ── Build Unified Table ──
+  function buildUnifiedTable() {
+    const tbody = document.getElementById('exec-tbody');
+    const entryTime = parseTime(TRADE.entry_time);
+
+    if (EXEC_DATA) {
+      const levels = EXEC_DATA.levels || [];
+      const execs = EXEC_DATA.executions || [];
+      const entry = EXEC_DATA.entry_price;
+      const dir = TRADE.direction === 'Long' ? 1 : -1;
+      const entrySide = TRADE.direction === 'Long' ? 'Buy' : 'Sell';
+      const exitSide = TRADE.direction === 'Long' ? 'Sell' : 'Buy';
+
+      // Entry row
+      let html = '<tr class="row-entry">';
+      html += '<td>ENTRY</td>';
+      html += '<td>' + entrySide + '</td>';
+      html += '<td>' + TRADE.qty + '</td>';
+      html += '<td>' + fmtPrice(entry) + '</td>';
+      html += '<td>' + TRADE.entry_time + '</td>';
+      html += '<td>&mdash;</td><td>&mdash;</td>';
+      html += '<td class="type-entry">Entry</td>';
+      html += '<td>&mdash;</td><td>&mdash;</td></tr>';
+
+      // Exit rows
+      let totalPnl = 0;
+      let totalQty = 0;
+      execs.forEach(e => {
+        const stop = levels.find(l => l.level_type === 'stop' && l.portion === e.portion);
+        const tp = levels.find(l => l.level_type === 'tp' && l.portion === e.portion);
+        const execTime = parseTime(e.exec_time);
+        const durMins = (entryTime && execTime) ? (execTime - entryTime) / 60000 : 0;
+        const typeClass = e.exec_type === 'tp_hit' ? 'type-tp' :
+                          e.exec_type === 'stop_hit' ? 'type-stop' : 'type-manual';
+        const typeLabel = e.exec_type === 'tp_hit' ? 'TP Hit' :
+                          e.exec_type === 'stop_hit' ? 'Stop Hit' : 'Manual';
+        totalPnl += e.pnl;
+        totalQty += e.qty;
+
+        html += '<tr>';
+        html += '<td>P' + e.portion + '</td>';
+        html += '<td>' + exitSide + '</td>';
+        html += '<td>' + e.qty + '</td>';
+        html += '<td>' + fmtPrice(e.price) + '</td>';
+        html += '<td>' + e.exec_time + '</td>';
+        html += '<td style="color:var(--red);">' + (stop ? fmtPrice(stop.price) : '&mdash;') + '</td>';
+        html += '<td style="color:var(--green);">' + (tp ? fmtPrice(tp.price) : '&mdash;') + '</td>';
+        html += '<td class="' + typeClass + '">' + typeLabel + '</td>';
+        html += '<td>' + formatDuration(durMins) + '</td>';
+        html += '<td class="' + (e.pnl >= 0 ? 'pnl-pos' : 'pnl-neg') + '">' + fmtDollar(e.pnl) + '</td>';
+        html += '</tr>';
+      });
+
+      // Total row
+      const totalDur = (entryTime && parseTime(TRADE.exit_time)) ?
+        (parseTime(TRADE.exit_time) - entryTime) / 60000 : 0;
+      html += '<tr class="row-total">';
+      html += '<td></td><td></td>';
+      html += '<td>' + totalQty + '</td>';
+      html += '<td></td><td></td>';
+      html += '<td></td><td></td>';
+      html += '<td>Total</td>';
+      html += '<td>' + formatDuration(totalDur) + '</td>';
+      html += '<td class="' + (totalPnl >= 0 ? 'pnl-pos' : 'pnl-neg') + '">' + fmtDollar(totalPnl) + '</td>';
+      html += '</tr>';
+
+      tbody.innerHTML = html;
+    } else {
+      // CSV import fallback: simple fills table
+      let html = '';
+      TRADE.fills.forEach(f => {
+        const typeStyle = f.exit_type === 'tp_hit' ? 'type-tp' :
+                          f.exit_type === 'stop_hit' ? 'type-stop' :
+                          f.exit_type === 'manual_exit' ? 'type-manual' : '';
+        const typeLabel = f.exit_type === 'tp_hit' ? 'TP Hit' :
+                          f.exit_type === 'stop_hit' ? 'Stop Hit' :
+                          f.exit_type === 'manual_exit' ? 'Manual' :
+                          f.exit_type || '&mdash;';
+        html += '<tr>';
+        html += '<td>' + (f.side === 'Buy' ? '<span class="pnl-pos">Buy</span>' : '<span class="pnl-neg">Sell</span>') + '</td>';
+        html += '<td>' + f.qty + '</td>';
+        html += '<td>' + fmtPrice(f.price) + '</td>';
+        html += '<td>' + f.fill_time + '</td>';
+        html += '<td class="' + typeStyle + '">' + typeLabel + '</td>';
+        html += '<td></td>';
+        html += '</tr>';
+      });
+      tbody.innerHTML = html;
+    }
+  }
+
+  // ── Build Risk Progression ──
+  function buildRiskProgression() {
+    if (!EXEC_DATA) return;
+    const tbody = document.getElementById('risk-tbody');
+    const levels = EXEC_DATA.levels || [];
+    const execs = EXEC_DATA.executions || [];
+    const entry = EXEC_DATA.entry_price;
+    const dir = TRADE.direction === 'Long' ? 1 : -1;
+
+    // Build portion info
+    const stops = levels.filter(l => l.level_type === 'stop');
+    const totalQty = TRADE.qty;
+
+    let html = '';
+    let lockedPnl = 0;
+    let remainingQty = totalQty;
+
+    // At Entry row
+    let worstCase = 0;
+    stops.forEach(s => {
+      worstCase += (s.price - entry) * dir * s.qty * PT_VAL;
+    });
+    let net = worstCase + lockedPnl;
+
+    html += '<tr>';
+    html += '<td>At Entry</td>';
+    html += '<td>' + remainingQty + '</td>';
+    html += '<td class="pnl-neg">' + fmtDollar(worstCase) + '</td>';
+    html += '<td>$0.00</td>';
+    html += '<td class="' + (net >= 0 ? 'pnl-pos' : 'pnl-neg') + '">' + fmtDollar(net) + '</td>';
+    html += '<td><span class="status-badge status-risk">AT RISK</span></td>';
+    html += '</tr>';
+
+    // After each execution
+    execs.forEach((e, i) => {
+      lockedPnl += e.pnl;
+      remainingQty -= e.qty;
+
+      // Recalculate worst case for remaining portions
+      worstCase = 0;
+      const exitedPortions = execs.slice(0, i + 1).map(x => x.portion);
+      stops.forEach(s => {
+        if (!exitedPortions.includes(s.portion)) {
+          worstCase += (s.price - entry) * dir * s.qty * PT_VAL;
+        }
+      });
+      net = worstCase + lockedPnl;
+
+      const typeLabel = e.exec_type === 'tp_hit' ? 'TP' :
+                        e.exec_type === 'stop_hit' ? 'Stop' : 'Manual';
+      const stateLabel = 'After P' + e.portion + ' ' + typeLabel;
+
+      let statusClass, statusText;
+      if (remainingQty === 0) {
+        statusClass = 'status-closed';
+        statusText = 'CLOSED';
+      } else if (lockedPnl > 0 && lockedPnl >= Math.abs(worstCase)) {
+        statusClass = 'status-free';
+        statusText = 'FREE TRADE';
+      } else {
+        statusClass = 'status-reduced';
+        statusText = 'REDUCED';
+      }
+
+      html += '<tr>';
+      html += '<td>' + stateLabel + '</td>';
+      html += '<td>' + remainingQty + '</td>';
+      html += '<td class="' + (worstCase >= 0 ? '' : 'pnl-neg') + '">' + (remainingQty === 0 ? '$0.00' : fmtDollar(worstCase)) + '</td>';
+      html += '<td class="' + (lockedPnl >= 0 ? 'pnl-pos' : 'pnl-neg') + '">' + fmtDollar(lockedPnl) + '</td>';
+      html += '<td class="' + (net >= 0 ? 'pnl-pos' : 'pnl-neg') + '">' + fmtDollar(net) + '</td>';
+      html += '<td><span class="status-badge ' + statusClass + '">' + statusText + '</span></td>';
+      html += '</tr>';
+    });
+
+    tbody.innerHTML = html;
+  }
+
+  // ── Build Timeline Chart ──
+  function buildTimelineChart() {
+    if (!EXEC_DATA) return;
+    const canvas = document.getElementById('timeline-chart');
+    if (!canvas) return;
+
+    const levels = EXEC_DATA.levels || [];
+    const execs = EXEC_DATA.executions || [];
+    const entry = EXEC_DATA.entry_price;
+
+    // Data points
+    const entryPoint = {
+      x: parseTime(TRADE.entry_time),
+      y: entry
+    };
+
+    const exitPoints = execs.map(e => ({
+      x: parseTime(e.exec_time),
+      y: e.price,
+      type: e.exec_type,
+      portion: e.portion
+    }));
+
+    // Reference lines data
+    const refLines = [];
+    refLines.push({ price: entry, color: '#00cfff', label: 'Entry ' + fmtPrice(entry) });
+
+    const stopPrices = [...new Set(levels.filter(l => l.level_type === 'stop').map(l => l.price))];
+    stopPrices.forEach(p => {
+      refLines.push({ price: p, color: '#ff4d6d', label: 'Stop ' + fmtPrice(p) });
+    });
+
+    const tpLevels = levels.filter(l => l.level_type === 'tp');
+    tpLevels.forEach(t => {
+      refLines.push({ price: t.price, color: '#4fffb0', label: 'TP' + t.portion + ' ' + fmtPrice(t.price) });
+    });
+
+    // Color exit points
+    const exitColors = exitPoints.map(p =>
+      p.type === 'tp_hit' ? '#4fffb0' :
+      p.type === 'stop_hit' ? '#ff4d6d' : '#ffb347'
+    );
+
+    // Custom plugin for horizontal reference lines
+    const refLinePlugin = {
+      id: 'refLines',
+      afterDraw(chart) {
+        const { ctx, chartArea, scales } = chart;
+        const yScale = scales.y;
+        ctx.save();
+        refLines.forEach(line => {
+          const y = yScale.getPixelForValue(line.price);
+          if (y < chartArea.top || y > chartArea.bottom) return;
+          ctx.beginPath();
+          ctx.setLineDash([6, 4]);
+          ctx.strokeStyle = line.color;
+          ctx.lineWidth = 1;
+          ctx.globalAlpha = 0.6;
+          ctx.moveTo(chartArea.left, y);
+          ctx.lineTo(chartArea.right, y);
+          ctx.stroke();
+          // Label
+          ctx.setLineDash([]);
+          ctx.globalAlpha = 0.8;
+          ctx.fillStyle = line.color;
+          ctx.font = '10px monospace';
+          ctx.textAlign = 'right';
+          ctx.fillText(line.label, chartArea.right - 4, y - 4);
+        });
+        ctx.restore();
+      }
+    };
+
+    new Chart(canvas, {
+      type: 'scatter',
+      data: {
+        datasets: [
+          {
+            label: 'Entry',
+            data: [entryPoint],
+            backgroundColor: '#00cfff',
+            borderColor: '#00cfff',
+            pointStyle: 'triangle',
+            pointRadius: 10,
+            pointHoverRadius: 12
+          },
+          {
+            label: 'Exits',
+            data: exitPoints,
+            backgroundColor: exitColors,
+            borderColor: exitColors,
+            pointStyle: 'rectRot',
+            pointRadius: 8,
+            pointHoverRadius: 10
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                const p = ctx.raw;
+                if (ctx.datasetIndex === 0) return 'Entry: ' + fmtPrice(p.y);
+                return 'P' + p.portion + ': ' + fmtPrice(p.y) + ' (' + (p.type === 'tp_hit' ? 'TP' : p.type === 'stop_hit' ? 'Stop' : 'Manual') + ')';
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            type: 'time',
+            time: { unit: 'minute', displayFormats: { minute: 'HH:mm' } },
+            grid: { color: 'rgba(34,38,49,0.8)' },
+            ticks: { color: '#5a6477', font: { family: 'monospace', size: 10 } },
+            border: { color: '#222631' }
+          },
+          y: {
+            position: 'right',
+            grid: { color: 'rgba(34,38,49,0.5)' },
+            ticks: {
+              color: '#5a6477',
+              font: { family: 'monospace', size: 10 },
+              callback: function(v) { return v.toFixed(2); }
+            },
+            border: { color: '#222631' }
+          }
+        }
+      },
+      plugins: [refLinePlugin]
+    });
+  }
+
+  // ── Init ──
+  buildScorecard();
+  buildUnifiedTable();
+  buildRiskProgression();
+  buildTimelineChart();
+})();
+</script>
 {% endblock %}

@@ -91,8 +91,7 @@ def trade_view(trade_id):
         "trade.html",
         trade=trade,
         exec_detail=exec_detail,
-        tag_groups=logic.get_tag_groups(),
-        tags_json=json.dumps(logic.get_tag_groups())
+        exec_detail_json=json.dumps(exec_detail) if exec_detail else 'null'
     )
 
 
