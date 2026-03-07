@@ -83,6 +83,74 @@
 .cmd-go-btn:hover { background:#6fffbe; }
 .cmd-go-btn:disabled { opacity:0.3; cursor:not-allowed; }
 
+/* ── Paper Light theme: stronger command bar selections ── */
+[data-theme="paper"] .cmd-dir-btn.sel-long {
+  background:rgba(13,124,62,0.18); color:var(--green); font-weight:600;
+  box-shadow:inset 0 -2px 0 var(--green);
+}
+[data-theme="paper"] .cmd-dir-btn.sel-short {
+  background:rgba(204,34,68,0.15); color:var(--red); font-weight:600;
+  box-shadow:inset 0 -2px 0 var(--red);
+}
+[data-theme="paper"] .cmd-inst-btn.active {
+  background:rgba(26,107,80,0.15); color:var(--accent2); font-weight:600;
+  box-shadow:inset 0 -2px 0 var(--accent2);
+}
+[data-theme="paper"] .cmd-mode-btn.active {
+  background:rgba(184,122,0,0.15); color:var(--warn); font-weight:600;
+  box-shadow:inset 0 -2px 0 var(--warn);
+}
+
+/* ── Risk Readout & Calculator ── */
+.cmd-risk {
+  padding:0 14px; cursor:pointer; flex-shrink:0; margin-left:auto;
+  font-family:var(--font-mono); color:var(--muted);
+  transition:color 0.15s; user-select:none;
+  display:flex; flex-direction:column; align-items:flex-end; justify-content:center;
+  line-height:1.3;
+}
+.cmd-risk:hover { color:var(--text); }
+.cmd-risk-dollar { font-size:12px; font-weight:500; }
+.cmd-risk-pts { font-size:9px; letter-spacing:0.5px; opacity:0.7; }
+.risk-calc-overlay {
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:900;
+}
+.risk-calc-overlay.open { display:block; }
+.risk-calc-popup {
+  display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+  background:var(--surface); border:1px solid var(--border2); z-index:901;
+  padding:20px 24px; min-width:380px; max-width:460px;
+  font-family:var(--font-mono); font-size:12px;
+}
+.risk-calc-popup.open { display:block; }
+.rc-title { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:14px; }
+.rc-row { display:flex; align-items:center; justify-content:space-between; padding:5px 0; }
+.rc-row label { color:var(--muted); font-size:10px; letter-spacing:1px; text-transform:uppercase; }
+.rc-row input {
+  background:transparent; border:none; border-bottom:1px solid var(--border2);
+  color:var(--text); font-family:var(--font-mono); font-size:13px;
+  padding:2px 0; width:80px; text-align:right; outline:none;
+}
+.rc-row input:focus { border-bottom-color:var(--accent); }
+.rc-row .rc-val { color:var(--text); font-size:13px; }
+.rc-divider { border:none; border-top:1px solid var(--border); margin:10px 0; }
+.rc-output { padding:4px 0; display:flex; justify-content:space-between; align-items:center; }
+.rc-output label { color:var(--muted); font-size:10px; letter-spacing:1px; text-transform:uppercase; }
+.rc-output .rc-val { font-size:14px; font-weight:500; }
+.rc-output .rc-val.risk { color:var(--red); }
+.rc-output .rc-val.reward { color:var(--green); }
+.rc-portion-table { width:100%; border-collapse:collapse; margin:8px 0; font-size:11px; }
+.rc-portion-table th { color:var(--muted); font-size:9px; letter-spacing:1px; text-transform:uppercase; text-align:right; padding:4px 6px; border-bottom:1px solid var(--border); }
+.rc-portion-table th:first-child { text-align:left; }
+.rc-portion-table td { padding:4px 6px; text-align:right; color:var(--text); }
+.rc-portion-table td:first-child { text-align:left; color:var(--muted2); }
+.rc-portion-table tr:last-child td { border-top:1px solid var(--border); font-weight:500; }
+.rc-solve { margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
+.rc-solve-row { display:flex; align-items:center; gap:8px; }
+.rc-solve-row label { color:var(--muted); font-size:10px; letter-spacing:1px; text-transform:uppercase; white-space:nowrap; }
+.rc-solve-row input { width:80px; }
+.rc-solve-row .rc-val { font-size:13px; color:var(--accent2); min-width:60px; text-align:right; }
+
 /* ── Main Split: Position Map (left) + Controls (right) ── */
 .ticket-body {
   display:grid; grid-template-columns:1fr 340px;
@@ -549,6 +617,10 @@
   <div class="cmd-go">
     <button class="cmd-go-btn" id="cmd-enter" onclick="openTrade()">ENTER ↵</button>
   </div>
+  <div class="cmd-risk" id="cmd-risk" onclick="openRiskCalc()" title="Click for risk calculator">
+    <span class="cmd-risk-dollar" id="risk-label">Risk: —</span>
+    <span class="cmd-risk-pts" id="risk-pts-label"></span>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
@@ -669,6 +741,58 @@
   {% endfor %}
 </div>
 
+<!-- Risk Calculator popup -->
+<div class="risk-calc-overlay" id="rc-overlay" onclick="closeRiskCalc()"></div>
+<div class="risk-calc-popup" id="rc-popup">
+  <div class="rc-title">Risk Calculator</div>
+  <div class="rc-row">
+    <label>Instrument</label>
+    <span class="rc-val" id="rc-inst">MES</span>
+  </div>
+  <div class="rc-row">
+    <label>Qty</label>
+    <input type="number" min="1" id="rc-qty" oninput="updateRiskCalc()">
+  </div>
+  <div class="rc-row">
+    <label>Stop (pts)</label>
+    <input type="number" step="0.25" id="rc-stop" oninput="updateRiskCalc()">
+  </div>
+  <div class="rc-row">
+    <label>Direction</label>
+    <span class="rc-val" id="rc-dir">Long</span>
+  </div>
+  <div class="rc-row">
+    <label>Mode</label>
+    <span class="rc-val" id="rc-mode">Full</span>
+  </div>
+  <hr class="rc-divider">
+  <div class="rc-output">
+    <label>Risk $</label>
+    <span class="rc-val risk" id="rc-risk">—</span>
+  </div>
+  <div class="rc-output">
+    <label>Risk / contract</label>
+    <span class="rc-val risk" id="rc-risk-per">—</span>
+  </div>
+  <div class="rc-output">
+    <label>R:R</label>
+    <span class="rc-val" id="rc-rr">—</span>
+  </div>
+  <div class="rc-output">
+    <label>Reward $</label>
+    <span class="rc-val reward" id="rc-reward">—</span>
+  </div>
+  <div id="rc-portions-wrap"></div>
+  <div class="rc-solve">
+    <div class="rc-solve-row">
+      <label>Max risk $</label>
+      <input type="number" id="rc-max-risk" oninput="solveForQty()" placeholder="150">
+      <label>→ Qty</label>
+      <span class="rc-val" id="rc-solved-qty">—</span>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -723,6 +847,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if (e.key === 'Enter') openTrade();
     });
   });
+
+  // Update risk readout when qty changes
+  document.getElementById('cmd-qty').addEventListener('input', updateRiskReadout);
+  updateRiskReadout();
+
+  // Close risk calc on Escape
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeRiskCalc();
+  });
 });
 
 // ── Command Bar Toggles ──────────────────────────────────────────────────────
@@ -735,11 +868,13 @@ function setInst(i) {
   formInst = i;
   document.getElementById('cmd-mes').className = 'cmd-inst-btn' + (i === 'MES' ? ' active' : '');
   document.getElementById('cmd-es').className = 'cmd-inst-btn' + (i === 'ES' ? ' active' : '');
+  updateRiskReadout();
 }
 function setMode(m) {
   formMode = m;
   document.getElementById('cmd-full').className = 'cmd-mode-btn' + (m === 'full' ? ' active' : '');
   document.getElementById('cmd-partials').className = 'cmd-mode-btn' + (m === 'partials' ? ' active' : '');
+  updateRiskReadout();
 }
 
 // ── Open Trade ───────────────────────────────────────────────────────────────
@@ -1430,6 +1565,101 @@ function toggleCustomRange() {
     fields.classList.add('visible');
     btn.classList.add('active');
     document.getElementById('df-from').focus();
+  }
+}
+
+// ── Risk Calculator ──────────────────────────────────────────────────────────
+function getRiskParams() {
+  const dpp = INST_CONFIG[formInst]?.dollars_per_point || 5;
+  const stopPts = formMode === 'partials'
+    ? parseFloat(TRADE_DEFAULTS.partial_stop_points) || 0
+    : parseFloat(TRADE_DEFAULTS.full_stop_points) || 0;
+  return { dpp, stopPts };
+}
+
+function updateRiskReadout() {
+  const qty = parseInt(document.getElementById('cmd-qty').value) || 0;
+  const { dpp, stopPts } = getRiskParams();
+  const risk = qty * stopPts * dpp;
+  document.getElementById('risk-label').textContent = qty > 0 ? `Risk: $${risk.toFixed(0)}` : 'Risk: —';
+  document.getElementById('risk-pts-label').textContent = qty > 0 ? `${stopPts} pt stop` : '';
+}
+
+function openRiskCalc() {
+  const qty = parseInt(document.getElementById('cmd-qty').value) || 1;
+  const { dpp, stopPts } = getRiskParams();
+  document.getElementById('rc-inst').textContent = formInst;
+  document.getElementById('rc-dir').textContent = formDir;
+  document.getElementById('rc-mode').textContent = formMode === 'full' ? 'Full' : '3-Way';
+  document.getElementById('rc-qty').value = qty;
+  document.getElementById('rc-stop').value = stopPts;
+  document.getElementById('rc-overlay').classList.add('open');
+  document.getElementById('rc-popup').classList.add('open');
+  updateRiskCalc();
+}
+
+function closeRiskCalc() {
+  document.getElementById('rc-overlay').classList.remove('open');
+  document.getElementById('rc-popup').classList.remove('open');
+}
+
+function updateRiskCalc() {
+  const qty = parseInt(document.getElementById('rc-qty').value) || 0;
+  const stopPts = parseFloat(document.getElementById('rc-stop').value) || 0;
+  const dpp = INST_CONFIG[formInst]?.dollars_per_point || 5;
+
+  const risk = qty * stopPts * dpp;
+  const riskPer = stopPts * dpp;
+  document.getElementById('rc-risk').textContent = `$${risk.toFixed(2)}`;
+  document.getElementById('rc-risk-per').textContent = `$${riskPer.toFixed(2)}`;
+
+  // Get TP distances based on mode
+  const portionsWrap = document.getElementById('rc-portions-wrap');
+  if (formMode === 'partials') {
+    const tps = [
+      parseFloat(TRADE_DEFAULTS.partial_tp1_points) || 0,
+      parseFloat(TRADE_DEFAULTS.partial_tp2_points) || 0,
+      parseFloat(TRADE_DEFAULTS.partial_tp3_points) || 0
+    ];
+    const bq = Math.floor(qty/3), rem = qty%3;
+    const qtys = [bq,bq,bq]; for(let i=0;i<rem;i++) qtys[i]++;
+    let totalReward = 0;
+    let rows = '';
+    for (let i=0; i<3; i++) {
+      const pRisk = qtys[i] * stopPts * dpp;
+      const pReward = qtys[i] * tps[i] * dpp;
+      totalReward += pReward;
+      rows += `<tr><td>P${i+1}</td><td>${qtys[i]}</td><td>${stopPts}</td><td>${tps[i]}</td><td>$${pRisk.toFixed(0)}</td><td>$${pReward.toFixed(0)}</td></tr>`;
+    }
+    rows += `<tr><td>Total</td><td>${qty}</td><td></td><td></td><td>$${risk.toFixed(0)}</td><td>$${totalReward.toFixed(0)}</td></tr>`;
+    portionsWrap.innerHTML = `<table class="rc-portion-table"><thead><tr><th>Portion</th><th>Qty</th><th>Stop</th><th>TP</th><th>Risk</th><th>Reward</th></tr></thead><tbody>${rows}</tbody></table>`;
+
+    // Weighted average TP for R:R
+    const avgTp = qty > 0 ? (qtys[0]*tps[0]+qtys[1]*tps[1]+qtys[2]*tps[2])/qty : 0;
+    const rr = stopPts > 0 ? (avgTp/stopPts) : 0;
+    document.getElementById('rc-rr').textContent = `1 : ${rr.toFixed(1)}`;
+    document.getElementById('rc-reward').textContent = `$${totalReward.toFixed(2)}`;
+  } else {
+    portionsWrap.innerHTML = '';
+    const tpPts = parseFloat(TRADE_DEFAULTS.full_tp_points) || 0;
+    const reward = qty * tpPts * dpp;
+    const rr = stopPts > 0 ? (tpPts/stopPts) : 0;
+    document.getElementById('rc-rr').textContent = `1 : ${rr.toFixed(1)}`;
+    document.getElementById('rc-reward').textContent = `$${reward.toFixed(2)}`;
+  }
+
+  solveForQty();
+}
+
+function solveForQty() {
+  const maxRisk = parseFloat(document.getElementById('rc-max-risk').value) || 0;
+  const stopPts = parseFloat(document.getElementById('rc-stop').value) || 0;
+  const dpp = INST_CONFIG[formInst]?.dollars_per_point || 5;
+  const riskPerContract = stopPts * dpp;
+  if (riskPerContract > 0 && maxRisk > 0) {
+    document.getElementById('rc-solved-qty').textContent = Math.floor(maxRisk / riskPerContract);
+  } else {
+    document.getElementById('rc-solved-qty').textContent = '—';
   }
 }
 

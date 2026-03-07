@@ -91,6 +91,7 @@
         const t = TJ_THEMES[saved];
         const root = document.documentElement;
         for (const [k,v] of Object.entries(t.vars)) root.style.setProperty(k, v);
+        root.setAttribute('data-theme', saved);
       }
     })();
     </script>
@@ -480,6 +481,7 @@
     if (!t) return;
     const root = document.documentElement;
     for (const [k,v] of Object.entries(t.vars)) root.style.setProperty(k, v);
+    root.setAttribute('data-theme', themeId);
     localStorage.setItem('tj_theme', themeId);
     // Persist to server
     fetch('/api/settings/theme', {
