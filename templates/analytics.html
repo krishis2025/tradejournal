@@ -644,17 +644,17 @@ initFunctions.kpis = function() {
         'Revenge Mindset':'#ff6b35','Boredom':'#c3a6ff','Distracted':'#ff8c94',
       };
       const FALLBACK = ['#8a96aa','#5a6477','#4a5568'];
-      const NEGATIVE = new Set(['Quick Profit Attitude','Revenge Mindset','Boredom','Distracted','Not sure about context']);
+      const PATIENT = new Set(['Trade came to me','Intuition / Mkt Feel']);
       const totalTagged = preTags.reduce((s,t) => s+t.total, 0);
-      const patientCount = preTags.filter(t => !NEGATIVE.has(t.tag)).reduce((s,t) => s+t.total, 0);
+      const patientCount = preTags.filter(t => PATIENT.has(t.tag)).reduce((s,t) => s+t.total, 0);
       const patientPct = totalTagged ? Math.round(patientCount/totalTagged*100) : 0;
-      const sorted = [...preTags.filter(t=>!NEGATIVE.has(t.tag)), ...preTags.filter(t=>NEGATIVE.has(t.tag))];
+      const sorted = [...preTags.filter(t=>PATIENT.has(t.tag)), ...preTags.filter(t=>!PATIENT.has(t.tag))];
       const colors = sorted.map((t,i) => TAG_COLORS[t.tag] || FALLBACK[i%3]);
 
       new Chart(canvas, {
         type:'doughnut',
-        data:{labels:sorted.map(t=>t.tag),datasets:[{data:sorted.map(t=>t.total),backgroundColor:colors.map(c=>c+'cc'),borderColor:colors,borderWidth:sorted.map(t=>NEGATIVE.has(t.tag)?1:2),hoverOffset:8}]},
-        options:{responsive:true,maintainAspectRatio:true,cutout:'68%',plugins:{legend:{display:false},tooltip:{...tooltipStyle,callbacks:{title:ctx=>ctx[0].label,label:ctx=>{const pct=totalTagged?Math.round(ctx.parsed/totalTagged*100):0;return`  ${NEGATIVE.has(ctx.label)?'\u26A0':'\u2713'} ${ctx.parsed} trades (${pct}%)`;}}}}}
+        data:{labels:sorted.map(t=>t.tag),datasets:[{data:sorted.map(t=>t.total),backgroundColor:colors.map(c=>c+'cc'),borderColor:colors,borderWidth:sorted.map(t=>PATIENT.has(t.tag)?2:1),hoverOffset:8}]},
+        options:{responsive:true,maintainAspectRatio:true,cutout:'68%',plugins:{legend:{display:false},tooltip:{...tooltipStyle,callbacks:{title:ctx=>ctx[0].label,label:ctx=>{const pct=totalTagged?Math.round(ctx.parsed/totalTagged*100):0;return`  ${PATIENT.has(ctx.label)?'\u2713':'\u26A0'} ${ctx.parsed} trades (${pct}%)`;}}}}}
       });
 
       document.getElementById('patience-pct').textContent = patientPct+'%';
@@ -664,7 +664,7 @@ initFunctions.kpis = function() {
       leg.innerHTML = '';
       const mkH = txt => {const h=document.createElement('div');h.style.cssText='font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin:6px 0 4px;padding-bottom:4px;border-bottom:1px solid var(--border);';h.textContent=txt;leg.appendChild(h);};
       mkH('Patient');
-      const patientLen = preTags.filter(x=>!NEGATIVE.has(x.tag)).length;
+      const patientLen = preTags.filter(x=>PATIENT.has(x.tag)).length;
       sorted.forEach((t,i) => {
         if(i===patientLen)mkH('Needs attention');
         const pct=totalTagged?Math.round(t.total/totalTagged*100):0;

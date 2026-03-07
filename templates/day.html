@@ -239,7 +239,7 @@
         <thead><tr>
           <th>Time</th><th>Side</th><th>Qty</th><th>Price</th><th>Type</th>
           <th style="text-align:right;padding-right:16px;">
-            <a href="/trade/{{ trade.id }}" class="trade-view-link">Open Trade ↗</a>
+            <a href="/trade/{{ trade.id }}" class="trade-view-link">Trade Execution ↗</a>
           </th>
         </tr></thead>
         <tbody>
@@ -318,8 +318,15 @@
       <div class="tg-label" style="padding-top:16px;margin-bottom:8px;">
         <span class="tg-dot" style="background:var(--muted);"></span>Notes
       </div>
-      <textarea class="notes-area" placeholder="Rationale, observations, lessons..."
-        oninput="scheduleNoteSave({{ trade.id }}, this.value)">{{ trade.notes }}</textarea>
+      <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted2);margin-bottom:4px;">Entry or Rationale</div>
+      <textarea class="notes-area" id="notes-entry-{{ trade.id }}" placeholder="Trade rationale, setup context, why you entered..."
+        oninput="scheduleNoteSave({{ trade.id }})">{{ trade.notes }}</textarea>
+      <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted2);margin-bottom:4px;margin-top:12px;">Monitoring Continuation</div>
+      <textarea class="notes-area" id="notes-monitoring-{{ trade.id }}" placeholder="Ongoing observations, price action during trade, adjustments..."
+        oninput="scheduleNoteSave({{ trade.id }})">{{ trade.notes_monitoring or '' }}</textarea>
+      <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted2);margin-bottom:4px;margin-top:12px;">Exit Notes</div>
+      <textarea class="notes-area" id="notes-exit-{{ trade.id }}" placeholder="Exit reasoning, lessons learned, what would you do differently..."
+        oninput="scheduleNoteSave({{ trade.id }})">{{ trade.notes_exit or '' }}</textarea>
     </div>
 
     <!-- Images -->
@@ -524,12 +531,19 @@ async function toggleTag(tradeId, groupId, tag, multi) {
 
 // ── Notes ────────────────────────────────────────────────────────────────────
 const noteTimers = {};
-function scheduleNoteSave(tradeId, value) {
+function scheduleNoteSave(tradeId) {
   clearTimeout(noteTimers[tradeId]);
   noteTimers[tradeId] = setTimeout(() => {
+    const entry      = document.getElementById(`notes-entry-${tradeId}`);
+    const monitoring = document.getElementById(`notes-monitoring-${tradeId}`);
+    const exit       = document.getElementById(`notes-exit-${tradeId}`);
     fetch(`/api/trade/${tradeId}/notes`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({notes: value})
+      body: JSON.stringify({
+        notes:            entry      ? entry.value      : '',
+        notes_monitoring: monitoring ? monitoring.value : '',
+        notes_exit:       exit       ? exit.value       : '',
+      })
     }).then(() => showToast('Saved'));
   }, 800);
 }

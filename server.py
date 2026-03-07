@@ -665,7 +665,7 @@ def api_live_recalc(live_id):
 if __name__ == "__main__":
     db.init_db()
     os.makedirs(IMAGES_DIR, exist_ok=True)
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 5050))
     print("\n" + "=" * 45)
     print("  Trade Journal is running!")
     print("  Open this in your browser:")

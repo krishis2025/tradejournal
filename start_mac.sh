@@ -36,12 +36,12 @@ echo ""
 echo "  ✓ Server starting..."
 echo "  ✓ Open your browser and go to:"
 echo ""
-echo "      http://127.0.0.1:5000"
+echo "      http://127.0.0.1:5050"
 echo ""
 echo "  Press Ctrl+C to stop."
 echo ""
 
 # Open browser after 2s
-(sleep 2 && open http://127.0.0.1:5000 2>/dev/null || true) &
+(sleep 2 && open http://127.0.0.1:5050 2>/dev/null || true) &
 
 python3 server.py
