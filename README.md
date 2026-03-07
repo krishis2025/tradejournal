@@ -215,6 +215,41 @@ All tags are fully customizable in Settings (add, remove, reorder, rename).
 
 ---
 
+## Development Branches
+
+This project uses git branches to develop major features without affecting your working journal.
+
+| Branch | Purpose |
+|--------|---------|
+| `main` | Stable, daily-use version. Always safe to run. |
+| `multi-account` | Multi-account trading support (in development) |
+
+### Switching branches
+
+**Before switching**, stop the app (Ctrl+C) and make sure you have no unsaved work:
+
+```bash
+# Check current branch and any uncommitted changes
+git status
+
+# Switch to the stable version
+git checkout main
+
+# Switch to the feature branch
+git checkout multi-account
+```
+
+Then restart the app as usual (`bash start_mac.sh` or `start_windows.bat`).
+
+### Important notes
+
+- **Your database is safe.** `data/journal.db` is git-ignored, so switching branches never touches your trade data.
+- **Always stop the app before switching.** The server holds a connection to the DB file.
+- **If a branch adds new DB columns**, the app auto-migrates on startup. Going back to `main` won't break — old code simply ignores new columns.
+- **To see which branch you're on:** `git branch` (the active one has a `*` next to it).
+
+---
+
 ## Data and Backup
 
 All data is stored locally in `data/journal.db` (SQLite).
