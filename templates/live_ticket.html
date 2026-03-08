@@ -557,6 +557,55 @@
   flex:1; color:var(--border2); font-size:11px; letter-spacing:1px;
   text-transform:uppercase;
 }
+
+/* ── Shadow Preview Bar ── */
+.shadow-preview {
+  display:flex; align-items:center; gap:12px; padding:6px 14px;
+  background:var(--surface); border:1px solid var(--border);
+  margin-bottom:12px; font-size:11px; flex-wrap:wrap;
+  border-left:3px solid var(--accent2);
+}
+.shadow-preview-label {
+  font-size:9px; letter-spacing:1.5px; text-transform:uppercase;
+  color:var(--muted); white-space:nowrap;
+}
+.shadow-item {
+  display:inline-flex; align-items:center; gap:4px; padding:2px 8px;
+  background:var(--surface2); border:1px solid var(--border2);
+  font-size:10px; white-space:nowrap;
+}
+.shadow-item-name { font-weight:500; }
+.shadow-item-detail { color:var(--muted2); }
+.shadow-item-risk { font-size:9px; }
+
+/* ── Account Mirror ── */
+.acct-mirror { margin-top:8px; border-top:1px solid var(--border); }
+.acct-mirror-toggle {
+  display:flex; align-items:center; gap:6px; padding:6px 0;
+  cursor:pointer; font-size:9px; letter-spacing:1.5px; text-transform:uppercase;
+  color:var(--muted); transition:color 0.12s; user-select:none;
+}
+.acct-mirror-toggle:hover { color:var(--text); }
+.acct-mirror-toggle .arrow { transition:transform 0.2s; display:inline-block; font-size:8px; }
+.acct-mirror-toggle .arrow.open { transform:rotate(90deg); }
+.acct-mirror-body { display:none; padding-bottom:4px; }
+.acct-mirror-body.open { display:block; }
+.acct-mirror-row {
+  display:grid; grid-template-columns:120px 1fr 80px 80px;
+  align-items:center; padding:4px 0; font-size:10px;
+  border-bottom:1px solid rgba(34,38,49,0.3);
+}
+.acct-mirror-row:last-child { border-bottom:none; }
+.acct-mirror-name { font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.acct-mirror-execs { display:flex; gap:4px; flex-wrap:wrap; }
+.acct-mirror-exec {
+  display:inline-flex; align-items:center; gap:2px; padding:1px 5px;
+  font-size:9px; border-radius:1px; letter-spacing:0.3px;
+}
+.acct-mirror-exec.tp { background:rgba(79,255,176,0.08); color:var(--green); }
+.acct-mirror-exec.stop { background:rgba(255,77,109,0.08); color:var(--red); }
+.acct-mirror-risk { text-align:right; font-family:var(--font-mono); }
+.acct-mirror-upside { text-align:right; font-family:var(--font-mono); }
 {% endblock %}
 
 {% block nav_actions %}
@@ -621,6 +670,12 @@
     <span class="cmd-risk-dollar" id="risk-label">Risk: —</span>
     <span class="cmd-risk-pts" id="risk-pts-label"></span>
   </div>
+</div>
+
+<!-- Shadow Preview Bar -->
+<div class="shadow-preview" id="shadow-preview" style="display:none;">
+  <span class="shadow-preview-label">Shadow Preview:</span>
+  <span id="shadow-preview-items"></span>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
@@ -800,6 +855,7 @@
 const TAG_GROUPS = {{ tags_json|safe }};
 const INST_CONFIG = {{ instrument_config_json|safe }};
 const TRADE_DEFAULTS = {{ trade_defaults_json|safe }};
+const ACCOUNT_PROFILES = {{ account_profiles_json|safe }};
 
 // ── State ────────────────────────────────────────────────────────────────────
 let formDir  = 'Long';
@@ -848,9 +904,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Update risk readout when qty changes
-  document.getElementById('cmd-qty').addEventListener('input', updateRiskReadout);
+  // Update risk readout and shadow preview when qty changes
+  document.getElementById('cmd-qty').addEventListener('input', () => { updateRiskReadout(); updateShadowPreview(); });
   updateRiskReadout();
+  updateShadowPreview();
 
   // Close risk calc on Escape
   document.addEventListener('keydown', e => {
@@ -869,12 +926,14 @@ function setInst(i) {
   document.getElementById('cmd-mes').className = 'cmd-inst-btn' + (i === 'MES' ? ' active' : '');
   document.getElementById('cmd-es').className = 'cmd-inst-btn' + (i === 'ES' ? ' active' : '');
   updateRiskReadout();
+  updateShadowPreview();
 }
 function setMode(m) {
   formMode = m;
   document.getElementById('cmd-full').className = 'cmd-mode-btn' + (m === 'full' ? ' active' : '');
   document.getElementById('cmd-partials').className = 'cmd-mode-btn' + (m === 'partials' ? ' active' : '');
   updateRiskReadout();
+  updateShadowPreview();
 }
 
 // ── Open Trade ───────────────────────────────────────────────────────────────
@@ -884,13 +943,13 @@ async function openTrade() {
   const time  = document.getElementById('cmd-time').value;
   if (!price || !qty || !time) { showToast('Fill price, qty & time', true); return; }
 
-  const pid = document.getElementById('global-portfolio-select')?.value || null;
+  const pid = document.getElementById('global-account-select')?.value || null;
   const res = await fetch('/api/live', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
       direction: formDir, instrument: formInst, entry_price: price,
       entry_time: time, total_qty: qty, mode: formMode,
-      notes: '', tags: {}, portfolio_id: pid ? parseInt(pid) : null
+      notes: '', tags: {}, account_id: pid ? parseInt(pid) : null
     })
   });
   const data = await res.json();
@@ -1076,6 +1135,12 @@ function renderTradeCard(t) {
     } else {
       document.getElementById('trades-list').insertAdjacentHTML('beforeend', html);
     }
+  }
+
+  // Account Mirror — project trade onto secondary accounts
+  const mirrorData = computeAccountMirror(t);
+  if (mirrorData.length > 0) {
+    renderAccountMirror(t.id, mirrorData);
   }
 }
 
@@ -1661,6 +1726,189 @@ function solveForQty() {
   } else {
     document.getElementById('rc-solved-qty').textContent = '—';
   }
+}
+
+// ── Account Mirror ───────────────────────────────────────────────────────────
+function computeAccountMirror(trade) {
+  if (!ACCOUNT_PROFILES || ACCOUNT_PROFILES.length < 2) return [];
+  const primary = ACCOUNT_PROFILES.find(p => p.is_primary);
+  if (!primary) return [];
+
+  const primaryQty = primary.default_qty || trade.total_qty;
+  const levels = trade.levels || [];
+  const executions = trade.executions || [];
+  const entry = trade.entry_price;
+  const isLong = trade.direction === 'Long';
+  const numPortions = trade.mode === 'partials' ? 3 : 1;
+
+  return ACCOUNT_PROFILES.filter(p => !p.is_primary).map(acct => {
+    const acctDpp = INST_CONFIG[acct.default_instrument]?.dollars_per_point || 5;
+    const qtyRatio = acct.default_qty / primaryQty;
+
+    // Project levels
+    const stops = levels.filter(l => l.level_type === 'stop').sort((a,b) => a.portion - b.portion);
+    const tps = levels.filter(l => l.level_type === 'tp').sort((a,b) => a.portion - b.portion);
+
+    // Track exited qty per portion from executions
+    const portionExited = {};
+    executions.forEach(e => { portionExited[e.portion] = (portionExited[e.portion] || 0) + e.qty; });
+
+    // Project executions
+    let projRealized = 0;
+    const projExecs = executions.map(e => {
+      const projQty = Math.max(1, Math.round(e.qty * qtyRatio));
+      const pointMove = isLong ? (e.price - entry) : (entry - e.price);
+      const projPnl = pointMove * projQty * acctDpp;
+      projRealized += projPnl;
+      return {
+        exec_type: e.exec_type,
+        portion: e.portion,
+        qty: projQty,
+        price: e.price,
+        pnl: projPnl,
+      };
+    });
+
+    // Project remaining risk & upside
+    let totalStopPnl = 0;
+    let totalTpPnl = 0;
+    const projTotalQty = Math.max(1, Math.round(trade.total_qty * qtyRatio));
+    let projExitedQty = projExecs.reduce((s, e) => s + e.qty, 0);
+    let projRemaining = projTotalQty - projExitedQty;
+
+    for (let p = 1; p <= numPortions; p++) {
+      const stop = stops.find(s => s.portion === p);
+      const tp = tps.find(t2 => t2.portion === p);
+      if (!stop) continue;
+      const origQty = Math.max(1, Math.round(stop.qty * qtyRatio));
+      const exited = Math.round((portionExited[p] || 0) * qtyRatio);
+      const rem = Math.max(0, origQty - exited);
+      if (rem <= 0) continue;
+
+      if (isLong) {
+        totalStopPnl += (stop.price - entry) * rem * acctDpp;
+        if (tp) totalTpPnl += (tp.price - entry) * rem * acctDpp;
+      } else {
+        totalStopPnl += (entry - stop.price) * rem * acctDpp;
+        if (tp) totalTpPnl += (entry - tp.price) * rem * acctDpp;
+      }
+    }
+
+    const worstCase = totalStopPnl + projRealized;
+
+    return {
+      name: acct.name,
+      color: acct.color,
+      instrument: acct.default_instrument,
+      projectedQty: projTotalQty,
+      executions: projExecs,
+      realized: Math.round(projRealized * 100) / 100,
+      risk: worstCase < 0 ? Math.round(Math.abs(worstCase) * 100) / 100 : 0,
+      netExposure: Math.round(worstCase * 100) / 100,
+      upside: Math.round(Math.max(0, totalTpPnl) * 100) / 100,
+      remaining: Math.max(0, projRemaining),
+    };
+  });
+}
+
+function renderAccountMirror(tradeId, mirrorData) {
+  const existingMirror = document.getElementById('acct-mirror-' + tradeId);
+  if (existingMirror) existingMirror.remove();
+
+  if (!mirrorData || mirrorData.length === 0) return;
+
+  let rowsHtml = '';
+  mirrorData.forEach(m => {
+    // Build execution badges
+    let execBadges = '';
+    const seenPortions = {};
+    m.executions.forEach(e => {
+      const key = e.exec_type + '-' + e.portion;
+      if (seenPortions[key]) return;
+      seenPortions[key] = true;
+      const label = e.exec_type === 'tp_hit' ? 'TP' + e.portion :
+                    e.exec_type === 'stop_hit' ? 'STP' + e.portion : 'EXIT';
+      const cls = e.exec_type === 'stop_hit' ? 'stop' : 'tp';
+      const sign = e.pnl >= 0 ? '+' : '';
+      execBadges += `<span class="acct-mirror-exec ${cls}">${label} ${sign}$${Math.abs(e.pnl).toFixed(0)}</span>`;
+    });
+
+    const riskColor = m.netExposure < 0 ? 'var(--red)' : 'var(--green)';
+    const riskStr = m.netExposure < 0 ? '-$' + m.risk.toFixed(0) : '+$' + m.netExposure.toFixed(0);
+
+    rowsHtml += `
+      <div class="acct-mirror-row">
+        <div class="acct-mirror-name" style="color:${m.color};">${m.name} (${m.projectedQty}× ${m.instrument})</div>
+        <div class="acct-mirror-execs">${execBadges || '<span style="color:var(--border2);font-size:9px;">—</span>'}</div>
+        <div class="acct-mirror-risk" style="color:${riskColor};">${riskStr}</div>
+        <div class="acct-mirror-upside pnl-pos">+$${m.upside.toFixed(0)}</div>
+      </div>`;
+  });
+
+  const mirrorHtml = `
+    <div class="acct-mirror" id="acct-mirror-${tradeId}">
+      <div class="acct-mirror-toggle" onclick="toggleMirror(${tradeId}, event)">
+        <span class="arrow" id="mirror-arrow-${tradeId}">&#9654;</span> Account Mirror
+      </div>
+      <div class="acct-mirror-body" id="mirror-body-${tradeId}">
+        <div style="display:grid;grid-template-columns:120px 1fr 80px 80px;padding:2px 0;font-size:8px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);">
+          <div>Account</div><div>Executions</div><div style="text-align:right;">Risk</div><div style="text-align:right;">Upside</div>
+        </div>
+        ${rowsHtml}
+      </div>
+    </div>`;
+
+  // Insert into the trade card's tc-body, after exec-log or stats
+  const tcBody = document.querySelector(`#tc-${tradeId} .tc-body`);
+  if (tcBody) tcBody.insertAdjacentHTML('beforeend', mirrorHtml);
+}
+
+function toggleMirror(tradeId, event) {
+  event.stopPropagation();
+  const body = document.getElementById('mirror-body-' + tradeId);
+  const arrow = document.getElementById('mirror-arrow-' + tradeId);
+  if (body && arrow) {
+    body.classList.toggle('open');
+    arrow.classList.toggle('open');
+  }
+}
+
+// ── Shadow Preview ───────────────────────────────────────────────────────────
+function updateShadowPreview() {
+  const bar = document.getElementById('shadow-preview');
+  const items = document.getElementById('shadow-preview-items');
+  if (!ACCOUNT_PROFILES || ACCOUNT_PROFILES.length < 2) { bar.style.display = 'none'; return; }
+
+  const primary = ACCOUNT_PROFILES.find(p => p.is_primary);
+  if (!primary) { bar.style.display = 'none'; return; }
+
+  // Check if primary account is selected in nav
+  const navSel = document.getElementById('global-account-select');
+  const selectedPort = navSel ? navSel.value : '';
+  if (selectedPort && parseInt(selectedPort) !== primary.id) { bar.style.display = 'none'; return; }
+
+  const qty = parseInt(document.getElementById('cmd-qty').value) || 0;
+  if (qty <= 0) { bar.style.display = 'none'; return; }
+
+  const { dpp, stopPts } = getRiskParams();
+  const primaryQty = primary.default_qty || qty;
+
+  let html = '';
+  ACCOUNT_PROFILES.filter(p => !p.is_primary).forEach(p => {
+    const shadowDpp = INST_CONFIG[p.default_instrument]?.dollars_per_point || 5;
+    const qtyRatio = p.default_qty / primaryQty;
+    const projQty = Math.max(1, Math.round(qty * qtyRatio));
+    const projRisk = projQty * stopPts * shadowDpp;
+
+    html += `<span class="shadow-item">` +
+      `<span class="shadow-item-name" style="color:${p.color};">${p.name}</span> ` +
+      `<span class="shadow-item-detail">→ ${projQty}× ${p.default_instrument}</span> ` +
+      `<span class="shadow-item-risk">(${projRisk > 0 ? '$'+projRisk.toFixed(0)+' risk' : '—'})</span>` +
+      `</span>`;
+  });
+
+  items.innerHTML = html;
+  bar.style.display = 'flex';
 }
 
 function applyCustomRange() {

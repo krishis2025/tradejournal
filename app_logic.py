@@ -235,16 +235,16 @@ def _compute_stats(fills: list, trade_num: int) -> dict:
 
 # ── Persistence ───────────────────────────────────────────────────────────────
 
-def save_day_trades(date: str, trades: list, portfolio_id=None) -> int:
+def save_day_trades(date: str, trades: list, account_id=None) -> int:
     """
     Persist a full day of trades. Deletes and re-imports if day already exists
-    for the same portfolio.
+    for the same account.
     """
-    existing = db.get_day_by_date_portfolio(date, portfolio_id)
+    existing = db.get_day_by_date_account(date, account_id)
     if existing:
         db.delete_day(existing["id"])
 
-    day_id = db.upsert_day(date, portfolio_id)
+    day_id = db.upsert_day(date, account_id)
 
     for t in trades:
         trade_id = db.insert_trade(
@@ -259,14 +259,14 @@ def save_day_trades(date: str, trades: list, portfolio_id=None) -> int:
     return day_id
 
 
-def import_file(filename: str, file_bytes: bytes, portfolio_id=None) -> dict:
+def import_file(filename: str, file_bytes: bytes, account_id=None) -> dict:
     """Full pipeline: parse → reconstruct → save. Returns summary dict."""
     fills     = parse_uploaded_file(filename, file_bytes)
     day_trades = reconstruct_trades(fills)
 
     saved = []
     for d in day_trades:
-        day_id = save_day_trades(d["date"], d["trades"], portfolio_id)
+        day_id = save_day_trades(d["date"], d["trades"], account_id)
         saved.append({
             "date":        d["date"],
             "day_id":      day_id,
@@ -552,6 +552,79 @@ def recalculate_live_trade(live_trade):
     }
 
 
+def generate_shadow_trades(source_trade_id):
+    """
+    Generate shadow trades for all non-primary accounts based on a source trade.
+    Source trade must belong to the primary account.
+    """
+    trade = db.get_trade_by_id(source_trade_id)
+    if not trade:
+        return
+
+    primary = db.get_primary_account()
+    if not primary:
+        return
+
+    # Verify source trade belongs to primary account
+    if trade.get("account_id") != primary["id"]:
+        return
+
+    primary_qty = primary.get("default_qty") or trade["qty"]
+    primary_instrument = primary.get("default_instrument") or "MES"
+    inst_config = get_instrument_config()
+    primary_dpp = inst_config.get(primary_instrument, inst_config["MES"])["dollars_per_point"]
+
+    # Get price move in points
+    if trade["direction"] == "Long":
+        point_move = trade["avg_exit"] - trade["avg_entry"]
+    else:
+        point_move = trade["avg_entry"] - trade["avg_exit"]
+
+    # Get all non-primary accounts with default_qty configured
+    with db.get_conn() as conn:
+        accounts = conn.execute(
+            "SELECT * FROM accounts WHERE is_primary = 0 AND default_qty IS NOT NULL"
+        ).fetchall()
+
+    for p in accounts:
+        p = dict(p)
+        shadow_instrument = p.get("default_instrument") or "MES"
+        shadow_dpp = inst_config.get(shadow_instrument, inst_config["MES"])["dollars_per_point"]
+        shadow_default_qty = p["default_qty"]
+
+        # Scale qty based on ratio of default qtys
+        qty_ratio = shadow_default_qty / primary_qty if primary_qty else 1
+        projected_qty = max(1, round(trade["qty"] * qty_ratio))
+
+        # P&L = point_move × projected_qty × shadow_dpp
+        projected_pnl = point_move * projected_qty * shadow_dpp
+
+        db.upsert_shadow_trade(
+            source_trade_id, p["id"],
+            projected_qty, shadow_instrument, projected_pnl
+        )
+
+
+def regenerate_all_shadows():
+    """Regenerate shadow trades for all existing trades in the primary account."""
+    primary = db.get_primary_account()
+    if not primary:
+        return 0
+
+    with db.get_conn() as conn:
+        trades = conn.execute("""
+            SELECT t.id FROM trades t
+            JOIN trading_days d ON d.id = t.day_id
+            WHERE d.account_id = ?
+        """, (primary["id"],)).fetchall()
+
+    count = 0
+    for t in trades:
+        generate_shadow_trades(t["id"])
+        count += 1
+    return count
+
+
 def close_live_trade_to_journal(live_trade_id):
     """
     Explicitly save a live trade to the journal.
@@ -568,14 +641,14 @@ def close_live_trade_to_journal(live_trade_id):
     calc = recalculate_live_trade(lt)
 
     today = dt_date.today().isoformat()
-    portfolio_id = lt.get("portfolio_id")
+    account_id = lt.get("account_id")
 
     # Find or create trading day
-    existing_day = db.get_day_by_date_portfolio(today, portfolio_id)
+    existing_day = db.get_day_by_date_account(today, account_id)
     if existing_day:
         day_id = existing_day["id"]
     else:
-        day_id = db.upsert_day(today, portfolio_id)
+        day_id = db.upsert_day(today, account_id)
 
     # Determine next trade_num for this day
     with db.get_conn() as conn:
@@ -651,5 +724,8 @@ def close_live_trade_to_journal(live_trade_id):
                          closed_at=dt_date.today().isoformat(),
                          realized_pnl=realized_pnl,
                          journal_trade_id=trade_id)
+
+    # Generate shadow trades for non-primary accounts
+    generate_shadow_trades(trade_id)
 
     return trade_id

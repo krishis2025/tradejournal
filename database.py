@@ -25,11 +25,120 @@ def get_conn():
         conn.close()
 
 
+def _migrate_portfolio_to_account(conn):
+    """Rename portfolios table → accounts, portfolio_id columns → account_id."""
+    tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
+    if "portfolios" not in tables or "accounts" in tables:
+        return  # Already migrated or fresh DB
+
+    # 1. Create accounts table and copy data
+    conn.execute("""
+        CREATE TABLE accounts (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            name                TEXT    NOT NULL UNIQUE,
+            description         TEXT    NOT NULL DEFAULT '',
+            color               TEXT    NOT NULL DEFAULT '#4fffb0',
+            created_at          TEXT    NOT NULL DEFAULT (datetime('now')),
+            account_size        REAL,
+            default_qty         INTEGER,
+            default_instrument  TEXT,
+            is_primary          INTEGER NOT NULL DEFAULT 0,
+            risk_per_trade_pct  REAL
+        )
+    """)
+    # Get columns that exist in portfolios to handle partial migrations
+    port_cols = [r[1] for r in conn.execute("PRAGMA table_info(portfolios)").fetchall()]
+    select_cols = ["id", "name", "description", "color", "created_at"]
+    for c in ["account_size", "default_qty", "default_instrument", "is_primary", "risk_per_trade_pct"]:
+        if c in port_cols:
+            select_cols.append(c)
+    insert_cols = select_cols[:]
+    conn.execute(f"INSERT INTO accounts ({','.join(insert_cols)}) SELECT {','.join(select_cols)} FROM portfolios")
+
+    # 2. Migrate trading_days: portfolio_id → account_id
+    conn.execute("""
+        CREATE TABLE trading_days_new (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            date        TEXT    NOT NULL,
+            account_id  INTEGER REFERENCES accounts(id) ON DELETE SET NULL,
+            imported_at TEXT    NOT NULL DEFAULT (datetime('now')),
+            UNIQUE(date, account_id)
+        )
+    """)
+    conn.execute("INSERT INTO trading_days_new (id, date, account_id, imported_at) SELECT id, date, portfolio_id, imported_at FROM trading_days")
+    conn.execute("DROP TABLE trading_days")
+    conn.execute("ALTER TABLE trading_days_new RENAME TO trading_days")
+
+    # 3. Migrate live_trades: portfolio_id → account_id
+    lt_cols = [r[1] for r in conn.execute("PRAGMA table_info(live_trades)").fetchall()]
+    if "portfolio_id" in lt_cols:
+        # Build column list dynamically
+        new_cols = [c if c != "portfolio_id" else "account_id" for c in lt_cols]
+        old_cols_str = ",".join(lt_cols)
+        new_cols_str = ",".join(new_cols)
+        conn.execute(f"""
+            CREATE TABLE live_trades_new (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id    INTEGER REFERENCES accounts(id) ON DELETE SET NULL,
+                status        TEXT    NOT NULL DEFAULT 'open',
+                direction     TEXT    NOT NULL,
+                instrument    TEXT    NOT NULL DEFAULT 'MES',
+                entry_price   REAL    NOT NULL,
+                entry_time    TEXT    NOT NULL,
+                total_qty     INTEGER NOT NULL,
+                mode          TEXT    NOT NULL DEFAULT 'full',
+                notes         TEXT    NOT NULL DEFAULT '',
+                tags_json     TEXT    NOT NULL DEFAULT '{{}}',
+                created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+                closed_at     TEXT,
+                realized_pnl  REAL    NOT NULL DEFAULT 0,
+                journal_trade_id INTEGER,
+                notes_monitoring TEXT NOT NULL DEFAULT '',
+                notes_exit    TEXT    NOT NULL DEFAULT ''
+            )
+        """)
+        conn.execute(f"INSERT INTO live_trades_new ({new_cols_str}) SELECT {old_cols_str} FROM live_trades")
+        conn.execute("DROP TABLE live_trades")
+        conn.execute("ALTER TABLE live_trades_new RENAME TO live_trades")
+
+    # 4. Migrate shadow_trades: portfolio_id → account_id
+    if "shadow_trades" in tables:
+        st_cols = [r[1] for r in conn.execute("PRAGMA table_info(shadow_trades)").fetchall()]
+        if "portfolio_id" in st_cols:
+            conn.execute("""
+                CREATE TABLE shadow_trades_new (
+                    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                    source_trade_id     INTEGER NOT NULL REFERENCES trades(id) ON DELETE CASCADE,
+                    account_id          INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                    projected_qty       INTEGER NOT NULL,
+                    projected_instrument TEXT NOT NULL DEFAULT 'MES',
+                    projected_pnl       REAL NOT NULL,
+                    UNIQUE(source_trade_id, account_id)
+                )
+            """)
+            conn.execute("INSERT INTO shadow_trades_new (id, source_trade_id, account_id, projected_qty, projected_instrument, projected_pnl) SELECT id, source_trade_id, portfolio_id, projected_qty, projected_instrument, projected_pnl FROM shadow_trades")
+            conn.execute("DROP TABLE shadow_trades")
+            conn.execute("ALTER TABLE shadow_trades_new RENAME TO shadow_trades")
+
+    # 5. Drop old portfolios table
+    conn.execute("DROP TABLE portfolios")
+
+    # 6. Recreate indexes
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_days_account ON trading_days(account_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_shadow_source ON shadow_trades(source_trade_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_shadow_account ON shadow_trades(account_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_live_levels ON live_trade_levels(live_trade_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_live_execs ON live_trade_executions(live_trade_id)")
+
+
 def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     with get_conn() as conn:
+        # Run migration from portfolio → account if needed
+        _migrate_portfolio_to_account(conn)
+
         conn.executescript("""
-            CREATE TABLE IF NOT EXISTS portfolios (
+            CREATE TABLE IF NOT EXISTS accounts (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
                 name        TEXT    NOT NULL UNIQUE,
                 description TEXT    NOT NULL DEFAULT '',
@@ -40,9 +149,9 @@ def init_db():
             CREATE TABLE IF NOT EXISTS trading_days (
                 id           INTEGER PRIMARY KEY AUTOINCREMENT,
                 date         TEXT    NOT NULL,
-                portfolio_id INTEGER REFERENCES portfolios(id) ON DELETE SET NULL,
+                account_id   INTEGER REFERENCES accounts(id) ON DELETE SET NULL,
                 imported_at  TEXT    NOT NULL DEFAULT (datetime('now')),
-                UNIQUE(date, portfolio_id)
+                UNIQUE(date, account_id)
             );
 
             CREATE TABLE IF NOT EXISTS trades (
@@ -84,7 +193,7 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_tags_trade     ON trade_tags(trade_id);
             CREATE INDEX IF NOT EXISTS idx_tags_group     ON trade_tags(group_id);
             CREATE INDEX IF NOT EXISTS idx_days_date      ON trading_days(date);
-            CREATE INDEX IF NOT EXISTS idx_days_portfolio ON trading_days(portfolio_id);
+            CREATE INDEX IF NOT EXISTS idx_days_account ON trading_days(account_id);
 
             CREATE TABLE IF NOT EXISTS tag_config (
                 id        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -114,7 +223,7 @@ def init_db():
             -- Live trade entries (used during trading hours)
             CREATE TABLE IF NOT EXISTS live_trades (
                 id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                portfolio_id  INTEGER REFERENCES portfolios(id) ON DELETE SET NULL,
+                account_id    INTEGER REFERENCES accounts(id) ON DELETE SET NULL,
                 status        TEXT    NOT NULL DEFAULT 'open',  -- open, closed, cancelled
                 direction     TEXT    NOT NULL,                 -- Long, Short
                 instrument    TEXT    NOT NULL DEFAULT 'MES',   -- MES, ES
@@ -160,9 +269,9 @@ def init_db():
         """)
         # Safe migration for existing databases
         cols = [r[1] for r in conn.execute("PRAGMA table_info(trading_days)").fetchall()]
-        if "portfolio_id" not in cols:
+        if "account_id" not in cols:
             conn.execute(
-                "ALTER TABLE trading_days ADD COLUMN portfolio_id INTEGER REFERENCES portfolios(id) ON DELETE SET NULL"
+                "ALTER TABLE trading_days ADD COLUMN account_id INTEGER REFERENCES accounts(id) ON DELETE SET NULL"
             )
         # Migration: add exit_type to fills
         fill_cols = [r[1] for r in conn.execute("PRAGMA table_info(fills)").fetchall()]
@@ -181,82 +290,128 @@ def init_db():
             conn.execute("ALTER TABLE trades ADD COLUMN notes_exit TEXT NOT NULL DEFAULT ''")
 
         # Migration: add notes_monitoring and notes_exit to live_trades table
-        lt_cols = [r[1] for r in conn.execute("PRAGMA table_info(live_trades)").fetchall()]
-        if "notes_monitoring" not in lt_cols:
+        lt_cols2 = [r[1] for r in conn.execute("PRAGMA table_info(live_trades)").fetchall()]
+        if "notes_monitoring" not in lt_cols2:
             conn.execute("ALTER TABLE live_trades ADD COLUMN notes_monitoring TEXT NOT NULL DEFAULT ''")
-        if "notes_exit" not in lt_cols:
+        if "notes_exit" not in lt_cols2:
             conn.execute("ALTER TABLE live_trades ADD COLUMN notes_exit TEXT NOT NULL DEFAULT ''")
 
+        # Migration: add account profile columns to accounts
+        acct_cols = [r[1] for r in conn.execute("PRAGMA table_info(accounts)").fetchall()]
+        if "account_size" not in acct_cols:
+            conn.execute("ALTER TABLE accounts ADD COLUMN account_size REAL")
+        if "default_qty" not in acct_cols:
+            conn.execute("ALTER TABLE accounts ADD COLUMN default_qty INTEGER")
+        if "default_instrument" not in acct_cols:
+            conn.execute("ALTER TABLE accounts ADD COLUMN default_instrument TEXT")
+        if "is_primary" not in acct_cols:
+            conn.execute("ALTER TABLE accounts ADD COLUMN is_primary INTEGER NOT NULL DEFAULT 0")
+        if "risk_per_trade_pct" not in acct_cols:
+            conn.execute("ALTER TABLE accounts ADD COLUMN risk_per_trade_pct REAL")
 
-# ── Portfolios ────────────────────────────────────────────────────────────────
+        # Migration: create shadow_trades table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS shadow_trades (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_trade_id     INTEGER NOT NULL REFERENCES trades(id) ON DELETE CASCADE,
+                account_id          INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                projected_qty       INTEGER NOT NULL,
+                projected_instrument TEXT NOT NULL DEFAULT 'MES',
+                projected_pnl       REAL NOT NULL,
+                UNIQUE(source_trade_id, account_id)
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_shadow_source ON shadow_trades(source_trade_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_shadow_account ON shadow_trades(account_id)")
 
-def get_all_portfolios():
+
+# ── Accounts ─────────────────────────────────────────────────────────────────
+
+def get_all_accounts():
     with get_conn() as conn:
         rows = conn.execute("""
-            SELECT p.id, p.name, p.description, p.color, p.created_at,
+            SELECT a.id, a.name, a.description, a.color, a.created_at,
+                   a.account_size, a.default_qty, a.default_instrument,
+                   a.is_primary, a.risk_per_trade_pct,
                    COUNT(DISTINCT d.id)  as day_count,
                    COUNT(t.id)           as trade_count,
                    ROUND(SUM(t.pnl), 2)  as total_pnl
-            FROM portfolios p
-            LEFT JOIN trading_days d ON d.portfolio_id = p.id
+            FROM accounts a
+            LEFT JOIN trading_days d ON d.account_id = a.id
             LEFT JOIN trades t       ON t.day_id = d.id
-            GROUP BY p.id
-            ORDER BY p.name
+            GROUP BY a.id
+            ORDER BY a.is_primary DESC, a.name
         """).fetchall()
         return [dict(r) for r in rows]
 
 
-def get_portfolio_by_id(portfolio_id):
+def get_account_by_id(account_id):
     with get_conn() as conn:
-        row = conn.execute("SELECT * FROM portfolios WHERE id = ?", (portfolio_id,)).fetchone()
+        row = conn.execute("SELECT * FROM accounts WHERE id = ?", (account_id,)).fetchone()
         return dict(row) if row else None
 
 
-def create_portfolio(name, description="", color="#4fffb0"):
+def create_account(name, description="", color="#4fffb0",
+                   account_size=None, default_qty=None, default_instrument=None,
+                   is_primary=0, risk_per_trade_pct=None):
     with get_conn() as conn:
+        if is_primary:
+            conn.execute("UPDATE accounts SET is_primary = 0 WHERE is_primary = 1")
         cur = conn.execute(
-            "INSERT INTO portfolios (name, description, color) VALUES (?, ?, ?)",
-            (name.strip(), description.strip(), color)
+            """INSERT INTO accounts
+               (name, description, color, account_size, default_qty, default_instrument, is_primary, risk_per_trade_pct)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (name.strip(), description.strip(), color,
+             account_size, default_qty, default_instrument, is_primary, risk_per_trade_pct)
         )
         return cur.lastrowid
 
 
-def update_portfolio(portfolio_id, name, description, color):
+def update_account(account_id, name, description, color,
+                   account_size=None, default_qty=None, default_instrument=None,
+                   is_primary=0, risk_per_trade_pct=None):
     with get_conn() as conn:
+        if is_primary:
+            conn.execute("UPDATE accounts SET is_primary = 0 WHERE is_primary = 1")
         conn.execute(
-            "UPDATE portfolios SET name=?, description=?, color=? WHERE id=?",
-            (name.strip(), description.strip(), color, portfolio_id)
+            """UPDATE accounts SET name=?, description=?, color=?,
+               account_size=?, default_qty=?, default_instrument=?,
+               is_primary=?, risk_per_trade_pct=?
+               WHERE id=?""",
+            (name.strip(), description.strip(), color,
+             account_size, default_qty, default_instrument, is_primary, risk_per_trade_pct,
+             account_id)
         )
 
 
-def delete_portfolio(portfolio_id):
-    """Deletes portfolio; trading_days.portfolio_id becomes NULL (days kept)."""
+def delete_account(account_id):
+    """Deletes account; trading_days.account_id becomes NULL (days kept)."""
     with get_conn() as conn:
-        conn.execute("DELETE FROM portfolios WHERE id = ?", (portfolio_id,))
+        conn.execute("DELETE FROM accounts WHERE id = ?", (account_id,))
 
 
 # ── Trading Days ──────────────────────────────────────────────────────────────
 
-def get_all_days(date_from=None, date_to=None, portfolio_id=None):
+def get_all_days(date_from=None, date_to=None, account_id=None):
     with get_conn() as conn:
         wheres, params = [], []
         if date_from:
             wheres.append("d.date >= ?"); params.append(date_from)
         if date_to:
             wheres.append("d.date <= ?"); params.append(date_to)
-        if portfolio_id:
-            wheres.append("d.portfolio_id = ?"); params.append(int(portfolio_id))
+        if account_id:
+            wheres.append("d.account_id = ?"); params.append(int(account_id))
         where_sql = ("WHERE " + " AND ".join(wheres)) if wheres else ""
 
         rows = conn.execute(f"""
-            SELECT d.id, d.date, d.imported_at, d.portfolio_id,
-                   p.name  as portfolio_name,
-                   p.color as portfolio_color,
+            SELECT d.id, d.date, d.imported_at, d.account_id,
+                   a.name  as account_name,
+                   a.color as account_color,
                    COUNT(t.id)  as trade_count,
                    ROUND(COALESCE(SUM(t.pnl), 0), 2) as total_pnl,
                    SUM(CASE WHEN t.pnl > 0 THEN 1 ELSE 0 END) as wins
             FROM trading_days d
-            LEFT JOIN portfolios p ON p.id = d.portfolio_id
+            LEFT JOIN accounts a ON a.id = d.account_id
             LEFT JOIN trades t     ON t.day_id = d.id
             {where_sql}
             GROUP BY d.id
@@ -268,9 +423,9 @@ def get_all_days(date_from=None, date_to=None, portfolio_id=None):
 def get_day_by_id(day_id):
     with get_conn() as conn:
         row = conn.execute("""
-            SELECT d.*, p.name as portfolio_name, p.color as portfolio_color
+            SELECT d.*, a.name as account_name, a.color as account_color
             FROM trading_days d
-            LEFT JOIN portfolios p ON p.id = d.portfolio_id
+            LEFT JOIN accounts a ON a.id = d.account_id
             WHERE d.id = ?
         """, (day_id,)).fetchone()
         return dict(row) if row else None
@@ -280,48 +435,48 @@ def get_day_by_date(date_str):
     """Backwards-compat: first matching day for a date."""
     with get_conn() as conn:
         row = conn.execute("""
-            SELECT d.*, p.name as portfolio_name, p.color as portfolio_color
+            SELECT d.*, a.name as account_name, a.color as account_color
             FROM trading_days d
-            LEFT JOIN portfolios p ON p.id = d.portfolio_id
+            LEFT JOIN accounts a ON a.id = d.account_id
             WHERE d.date = ?
             ORDER BY d.id LIMIT 1
         """, (date_str,)).fetchone()
         return dict(row) if row else None
 
 
-def get_day_by_date_portfolio(date_str, portfolio_id):
+def get_day_by_date_account(date_str, account_id):
     with get_conn() as conn:
-        if portfolio_id:
+        if account_id:
             row = conn.execute(
-                "SELECT * FROM trading_days WHERE date = ? AND portfolio_id = ?",
-                (date_str, int(portfolio_id))
+                "SELECT * FROM trading_days WHERE date = ? AND account_id = ?",
+                (date_str, int(account_id))
             ).fetchone()
         else:
             row = conn.execute(
-                "SELECT * FROM trading_days WHERE date = ? AND portfolio_id IS NULL",
+                "SELECT * FROM trading_days WHERE date = ? AND account_id IS NULL",
                 (date_str,)
             ).fetchone()
         return dict(row) if row else None
 
 
-def upsert_day(date_str, portfolio_id=None):
+def upsert_day(date_str, account_id=None):
     with get_conn() as conn:
-        if portfolio_id:
+        if account_id:
             conn.execute(
-                "INSERT OR IGNORE INTO trading_days (date, portfolio_id) VALUES (?, ?)",
-                (date_str, int(portfolio_id))
+                "INSERT OR IGNORE INTO trading_days (date, account_id) VALUES (?, ?)",
+                (date_str, int(account_id))
             )
             row = conn.execute(
-                "SELECT id FROM trading_days WHERE date = ? AND portfolio_id = ?",
-                (date_str, int(portfolio_id))
+                "SELECT id FROM trading_days WHERE date = ? AND account_id = ?",
+                (date_str, int(account_id))
             ).fetchone()
         else:
             conn.execute(
-                "INSERT OR IGNORE INTO trading_days (date, portfolio_id) VALUES (?, NULL)",
+                "INSERT OR IGNORE INTO trading_days (date, account_id) VALUES (?, NULL)",
                 (date_str,)
             )
             row = conn.execute(
-                "SELECT id FROM trading_days WHERE date = ? AND portfolio_id IS NULL",
+                "SELECT id FROM trading_days WHERE date = ? AND account_id IS NULL",
                 (date_str,)
             ).fetchone()
         return row["id"]
@@ -372,17 +527,17 @@ def get_trade_by_id(trade_id):
         ).fetchall():
             td["tags"].setdefault(tag_row["group_id"], []).append(tag_row["tag"])
         day = conn.execute("""
-            SELECT d.date, d.portfolio_id,
-                   p.name as portfolio_name, p.color as portfolio_color
+            SELECT d.date, d.account_id,
+                   a.name as account_name, a.color as account_color
             FROM trading_days d
-            LEFT JOIN portfolios p ON p.id = d.portfolio_id
+            LEFT JOIN accounts a ON a.id = d.account_id
             WHERE d.id = ?
         """, (td["day_id"],)).fetchone()
         if day:
             td["date"]            = day["date"]
-            td["portfolio_id"]    = day["portfolio_id"]
-            td["portfolio_name"]  = day["portfolio_name"]
-            td["portfolio_color"] = day["portfolio_color"]
+            td["account_id"]      = day["account_id"]
+            td["account_name"]  = day["account_name"]
+            td["account_color"] = day["account_color"]
         td["images"] = get_trade_images(trade_id)
         return td
 
@@ -542,16 +697,16 @@ def _compute_streaks(trades):
     }
 
 
-def get_analytics(portfolio_id=None, date_from=None, date_to=None):
+def get_analytics(account_id=None, date_from=None, date_to=None):
     with get_conn() as conn:
         # Build filter clauses
         conditions_tag = []   # for queries that already have WHERE (tag joins)
         conditions_day = []   # for queries where trading_days is the base
 
-        if portfolio_id:
-            pid = int(portfolio_id)
-            conditions_tag.append(f"d.portfolio_id = {pid}")
-            conditions_day.append(f"d.portfolio_id = {pid}")
+        if account_id:
+            aid = int(account_id)
+            conditions_tag.append(f"d.account_id = {aid}")
+            conditions_day.append(f"d.account_id = {aid}")
         if date_from:
             conditions_tag.append("d.date >= ?")
             conditions_day.append("d.date >= ?")
@@ -559,7 +714,7 @@ def get_analytics(portfolio_id=None, date_from=None, date_to=None):
             conditions_tag.append("d.date <= ?")
             conditions_day.append("d.date <= ?")
 
-        # Parameter lists (date_from/date_to only — portfolio_id is inlined)
+        # Parameter lists (date_from/date_to only — account_id is inlined)
         date_params = []
         if date_from: date_params.append(date_from)
         if date_to:   date_params.append(date_to)
@@ -846,16 +1001,16 @@ def get_all_config():
 
 # ── Live Trades ──────────────────────────────────────────────────────────────
 
-def create_live_trade(portfolio_id, direction, instrument, entry_price, entry_time,
+def create_live_trade(account_id, direction, instrument, entry_price, entry_time,
                       total_qty, mode, notes="", tags_json="{}",
                       notes_monitoring="", notes_exit=""):
     with get_conn() as conn:
         cur = conn.execute("""
             INSERT INTO live_trades
-                (portfolio_id, direction, instrument, entry_price, entry_time,
+                (account_id, direction, instrument, entry_price, entry_time,
                  total_qty, mode, notes, tags_json, notes_monitoring, notes_exit)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (portfolio_id, direction, instrument, entry_price, entry_time,
+        """, (account_id, direction, instrument, entry_price, entry_time,
               total_qty, mode, notes, tags_json, notes_monitoring, notes_exit))
         return cur.lastrowid
 
@@ -863,9 +1018,9 @@ def create_live_trade(portfolio_id, direction, instrument, entry_price, entry_ti
 def get_live_trade(live_trade_id):
     with get_conn() as conn:
         row = conn.execute("""
-            SELECT lt.*, p.name as portfolio_name, p.color as portfolio_color
+            SELECT lt.*, a.name as account_name, a.color as account_color
             FROM live_trades lt
-            LEFT JOIN portfolios p ON p.id = lt.portfolio_id
+            LEFT JOIN accounts a ON a.id = lt.account_id
             WHERE lt.id = ?
         """, (live_trade_id,)).fetchone()
         if not row:
@@ -901,9 +1056,9 @@ def get_all_live_trades(status=None, date_from=None, date_to=None):
             params.append(date_to)
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
         rows = conn.execute(f"""
-            SELECT lt.*, p.name as portfolio_name, p.color as portfolio_color
+            SELECT lt.*, a.name as account_name, a.color as account_color
             FROM live_trades lt
-            LEFT JOIN portfolios p ON p.id = lt.portfolio_id
+            LEFT JOIN accounts a ON a.id = lt.account_id
             {where}
             ORDER BY lt.created_at DESC
         """, params).fetchall()
@@ -954,3 +1109,174 @@ def add_live_trade_execution(live_trade_id, exec_type, portion, qty, price, exec
 def delete_live_trade_execution(exec_id):
     with get_conn() as conn:
         conn.execute("DELETE FROM live_trade_executions WHERE id = ?", (exec_id,))
+
+
+# ── Shadow Trades ────────────────────────────────────────────────────────────
+
+def upsert_shadow_trade(source_trade_id, account_id, projected_qty, projected_instrument, projected_pnl):
+    with get_conn() as conn:
+        conn.execute("""
+            INSERT INTO shadow_trades (source_trade_id, account_id, projected_qty, projected_instrument, projected_pnl)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(source_trade_id, account_id) DO UPDATE SET
+                projected_qty = excluded.projected_qty,
+                projected_instrument = excluded.projected_instrument,
+                projected_pnl = excluded.projected_pnl
+        """, (source_trade_id, account_id, projected_qty, projected_instrument, round(projected_pnl, 2)))
+
+
+def get_shadows_for_trade(source_trade_id):
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT s.*, a.name as account_name, a.color as account_color,
+                   a.account_size
+            FROM shadow_trades s
+            JOIN accounts a ON a.id = s.account_id
+            WHERE s.source_trade_id = ?
+        """, (source_trade_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_shadows_for_account(account_id):
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT s.*, t.direction, t.avg_entry, t.avg_exit, t.entry_time, t.exit_time,
+                   t.notes, t.notes_monitoring, t.notes_exit,
+                   d.date, d.account_id as source_account_id
+            FROM shadow_trades s
+            JOIN trades t ON t.id = s.source_trade_id
+            JOIN trading_days d ON d.id = t.day_id
+            WHERE s.account_id = ?
+            ORDER BY d.date, t.entry_time
+        """, (account_id,)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def delete_shadows_for_trade(source_trade_id):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM shadow_trades WHERE source_trade_id = ?", (source_trade_id,))
+
+
+def get_primary_account():
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM accounts WHERE is_primary = 1").fetchone()
+        return dict(row) if row else None
+
+
+def get_all_account_summaries():
+    """Get summary stats for each account including shadow trade data."""
+    with get_conn() as conn:
+        accounts = conn.execute("SELECT * FROM accounts ORDER BY is_primary DESC, name").fetchall()
+        summaries = []
+        for p in accounts:
+            p = dict(p)
+            pid = p["id"]
+
+            if p["is_primary"]:
+                # Real trades
+                stats = conn.execute("""
+                    SELECT COUNT(t.id) as trade_count,
+                           ROUND(COALESCE(SUM(t.pnl), 0), 2) as total_pnl,
+                           SUM(CASE WHEN t.pnl > 0 THEN 1 ELSE 0 END) as wins
+                    FROM trades t
+                    JOIN trading_days d ON d.id = t.day_id
+                    WHERE d.account_id = ?
+                """, (pid,)).fetchone()
+            else:
+                # Shadow trades
+                stats = conn.execute("""
+                    SELECT COUNT(s.id) as trade_count,
+                           ROUND(COALESCE(SUM(s.projected_pnl), 0), 2) as total_pnl,
+                           SUM(CASE WHEN s.projected_pnl > 0 THEN 1 ELSE 0 END) as wins
+                    FROM shadow_trades s
+                    WHERE s.account_id = ?
+                """, (pid,)).fetchone()
+
+            stats = dict(stats) if stats else {"trade_count": 0, "total_pnl": 0, "wins": 0}
+            p["trade_count"] = stats["trade_count"] or 0
+            p["total_pnl"] = stats["total_pnl"] or 0
+            p["wins"] = stats["wins"] or 0
+            p["win_rate"] = round(p["wins"] / p["trade_count"] * 100, 1) if p["trade_count"] else 0
+
+            # Equity for the account
+            account_size = p.get("account_size") or 0
+            p["equity"] = round(account_size + p["total_pnl"], 2)
+            p["equity_pct"] = round(p["total_pnl"] / account_size * 100, 1) if account_size else 0
+
+            summaries.append(p)
+        return summaries
+
+
+def get_shadow_equity_curve(account_id):
+    """Get equity curve for a shadow account based on shadow trades."""
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT d.date, t.entry_time as time, s.projected_pnl as pnl
+            FROM shadow_trades s
+            JOIN trades t ON t.id = s.source_trade_id
+            JOIN trading_days d ON d.id = t.day_id
+            WHERE s.account_id = ?
+            ORDER BY d.date, t.entry_time
+        """, (account_id,)).fetchall()
+
+        curve = []
+        cumulative = 0
+        for r in rows:
+            cumulative = round(cumulative + r["pnl"], 2)
+            curve.append({
+                "date": r["date"],
+                "time": r["time"],
+                "pnl": round(r["pnl"], 2),
+                "cumulative": cumulative,
+            })
+        return curve
+
+
+def get_cross_account_trades(limit=50):
+    """Get recent trades with P&L across all accounts (primary + shadows)."""
+    with get_conn() as conn:
+        # Get primary account trades
+        primary = get_primary_account()
+        if not primary:
+            return []
+
+        trades = conn.execute("""
+            SELECT t.id, t.direction, t.avg_entry, t.avg_exit, t.entry_time, t.exit_time,
+                   t.pnl, t.qty, d.date
+            FROM trades t
+            JOIN trading_days d ON d.id = t.day_id
+            WHERE d.account_id = ?
+            ORDER BY d.date DESC, t.entry_time DESC
+            LIMIT ?
+        """, (primary["id"], limit)).fetchall()
+
+        # Get all accounts
+        all_accts = conn.execute("SELECT id, name, color, is_primary, default_qty, default_instrument FROM accounts ORDER BY is_primary DESC, name").fetchall()
+
+        result = []
+        for t in trades:
+            t = dict(t)
+            # Get shadow P&Ls for this trade
+            shadows = conn.execute("""
+                SELECT s.account_id, s.projected_qty, s.projected_instrument, s.projected_pnl
+                FROM shadow_trades s WHERE s.source_trade_id = ?
+            """, (t["id"],)).fetchall()
+            shadow_map = {s["account_id"]: dict(s) for s in shadows}
+
+            t["accounts"] = []
+            for a in all_accts:
+                a = dict(a)
+                if a["is_primary"]:
+                    t["accounts"].append({
+                        "account_id": a["id"], "name": a["name"], "color": a["color"],
+                        "qty": t["qty"], "instrument": "MES", "pnl": t["pnl"],
+                    })
+                elif a["id"] in shadow_map:
+                    s = shadow_map[a["id"]]
+                    t["accounts"].append({
+                        "account_id": a["id"], "name": a["name"], "color": a["color"],
+                        "qty": s["projected_qty"], "instrument": s["projected_instrument"],
+                        "pnl": s["projected_pnl"],
+                    })
+            result.append(t)
+        return result

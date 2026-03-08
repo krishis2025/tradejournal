@@ -147,16 +147,16 @@
   <a href="/">Journal</a>
   <span class="sep">›</span>
   <span>{{ day.date }}</span>
-  {% if day.portfolio_name %}
+  {% if day.account_name %}
   <span class="sep">·</span>
-  <span style="color:{{ day.portfolio_color }};">{{ day.portfolio_name }}</span>
+  <span style="color:{{ day.account_color }};">{{ day.account_name }}</span>
   {% endif %}
 </div>
 
 <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:28px;">
   <div>
     <div class="page-title">{{ day.date }}</div>
-    <div class="page-sub">{{ trades|length }} trades · MES{% if day.portfolio_name %} · {{ day.portfolio_name }}{% endif %}</div>
+    <div class="page-sub">{{ trades|length }} trades · MES{% if day.account_name %} · {{ day.account_name }}{% endif %}</div>
   </div>
   {% set total_pnl = trades|sum(attribute='pnl') %}
   {% set wins = trades|selectattr('pnl','gt',0)|list|length %}

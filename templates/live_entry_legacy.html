@@ -346,9 +346,9 @@ async function createTrade() {
   const qty = parseInt(document.getElementById('f-qty').value), mode = document.getElementById('f-mode').value;
   const notes = document.getElementById('trade-notes').value;
   if (!ep || !et || !qty) { showToast('Fill in entry price, time and qty', true); return; }
-  const pid = document.getElementById('global-portfolio-select')?.value || null;
+  const pid = document.getElementById('global-account-select')?.value || null;
   const res = await fetch('/api/live', {method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({direction:d, instrument:inst, entry_price:ep, entry_time:et, total_qty:qty, mode, notes, tags:localTags, portfolio_id: pid ? parseInt(pid) : null})});
+    body: JSON.stringify({direction:d, instrument:inst, entry_price:ep, entry_time:et, total_qty:qty, mode, notes, tags:localTags, account_id: pid ? parseInt(pid) : null})});
   const data = await res.json();
   if (data.ok) window.location.href = '/live/' + data.id;
   else showToast(data.error || 'Failed', true);

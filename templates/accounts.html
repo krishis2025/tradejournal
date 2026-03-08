@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Portfolios — Trade Journal{% endblock %}
+{% block title %}Accounts — Trade Journal{% endblock %}
 
 {% block extra_styles %}
 .port-grid {
@@ -93,15 +93,15 @@
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;">
   <div>
-    <div class="page-title">Portfolios</div>
-    <div class="page-sub">Manage trading accounts and portfolios</div>
+    <div class="page-title">Accounts</div>
+    <div class="page-sub">Manage trading accounts and accounts</div>
   </div>
-  <button class="btn btn-primary" onclick="showForm()">+ New Portfolio</button>
+  <button class="btn btn-primary" onclick="showForm()">+ New Account</button>
 </div>
 
 <!-- Create / Edit Form -->
 <div class="form-panel" id="port-form-panel">
-  <h2 style="margin-bottom:20px;" id="form-title">New Portfolio</h2>
+  <h2 style="margin-bottom:20px;" id="form-title">New Account</h2>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
     <div>
       <div class="form-row">
@@ -111,6 +111,36 @@
       <div class="form-row">
         <label class="form-label">Description</label>
         <input class="form-input" id="f-desc" placeholder="e.g. Apex 105540000001423">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-row">
+          <label class="form-label">Account Size ($)</label>
+          <input class="form-input" id="f-account-size" type="number" step="0.01" placeholder="e.g. 2500">
+        </div>
+        <div class="form-row">
+          <label class="form-label">Default Qty</label>
+          <input class="form-input" id="f-default-qty" type="number" placeholder="e.g. 6">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-row">
+          <label class="form-label">Instrument</label>
+          <select class="form-input" id="f-instrument">
+            <option value="">— None —</option>
+            <option value="MES">MES</option>
+            <option value="ES">ES</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Risk per Trade (%)</label>
+          <input class="form-input" id="f-risk-pct" type="number" step="0.1" placeholder="e.g. 2.0">
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label" style="display:flex;align-items:center;gap:8px;">
+          <input type="checkbox" id="f-primary" style="accent-color:var(--accent);">
+          Primary Account (live journaling happens here)
+        </label>
       </div>
     </div>
     <div>
@@ -122,20 +152,25 @@
     </div>
   </div>
   <div style="display:flex;gap:8px;margin-top:8px;">
-    <button class="btn btn-primary" onclick="submitForm()">Save Portfolio</button>
+    <button class="btn btn-primary" onclick="submitForm()">Save Account</button>
     <button class="btn btn-ghost" onclick="hideForm()">Cancel</button>
   </div>
 </div>
 
-{% if portfolios %}
+{% if accounts %}
 <div class="port-grid">
-  {% for p in portfolios %}
+  {% for p in accounts %}
   {% set pnl = p.total_pnl or 0 %}
   <div class="port-card" id="port-card-{{ p.id }}">
     <div class="port-card-accent" style="background:{{ p.color }};"></div>
     <div class="port-card-body">
-      <div class="port-name" style="color:{{ p.color }};">{{ p.name }}</div>
-      <div class="port-desc">{{ p.description or '—' }}</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <div class="port-name" style="color:{{ p.color }};margin-bottom:0;">{{ p.name }}</div>
+        {% if p.is_primary %}
+        <span style="font-size:9px;letter-spacing:1.5px;padding:2px 8px;background:rgba(79,255,176,0.15);color:var(--green);border:1px solid rgba(79,255,176,0.3);">PRIMARY</span>
+        {% endif %}
+      </div>
+      <div class="port-desc">{{ p.description or '—' }}{% if p.account_size %} · Buffer: ${{ '{:,.0f}'.format(p.account_size) }}{% endif %}{% if p.default_qty %} · {{ p.default_qty }}× {{ p.default_instrument or 'MES' }}{% endif %}</div>
       <div class="port-stats">
         <div class="port-stat">
           <div class="port-stat-label">Days</div>
@@ -148,14 +183,14 @@
         <div class="port-stat">
           <div class="port-stat-label">Net P&L</div>
           <div class="port-stat-val {{ 'pnl-pos' if pnl >= 0 else 'pnl-neg' }}">
-            {{ '+' if pnl >= 0 else '' }}${{ '%.0f'|format(pnl) }}
+            {{ '+' if pnl >= 0 else '' }}${{ '%.0f'|format(pnl) }}{% if p.account_size %} <span style="font-size:11px;color:var(--muted2);">({{ '%.1f'|format(pnl / p.account_size * 100) }}%)</span>{% endif %}
           </div>
         </div>
       </div>
       <div class="port-actions">
-        <a href="/?portfolio={{ p.id }}" class="btn btn-ghost" style="padding:5px 12px;font-size:10px;">View Days →</a>
+        <a href="/?account={{ p.id }}" class="btn btn-ghost" style="padding:5px 12px;font-size:10px;">View Days →</a>
         <button class="btn btn-ghost" style="padding:5px 12px;font-size:10px;"
-          onclick="editPortfolio({{ p.id }}, '{{ p.name|e }}', '{{ p.description|e }}', '{{ p.color }}')">Edit</button>
+          onclick="editAccount({{ p.id }}, '{{ p.name|e }}', '{{ p.description|e }}', '{{ p.color }}', {{ p.account_size or 'null' }}, {{ p.default_qty or 'null' }}, '{{ p.default_instrument or '' }}', {{ p.is_primary or 0 }}, {{ p.risk_per_trade_pct or 'null' }})">Edit</button>
         <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px;color:var(--muted);"
           onclick="confirmDeletePort({{ p.id }}, '{{ p.name|e }}')">🗑</button>
       </div>
@@ -167,21 +202,21 @@
 {% else %}
 <div class="empty-state">
   <div class="empty-icon">📁</div>
-  <p style="margin-bottom:16px;">No portfolios yet. Create one to organize trades by account.</p>
-  <button class="btn btn-primary" onclick="showForm()">+ Create First Portfolio</button>
+  <p style="margin-bottom:16px;">No accounts yet. Create one to organize trades by account.</p>
+  <button class="btn btn-primary" onclick="showForm()">+ Create First Account</button>
 </div>
 {% endif %}
 
 <!-- Delete Confirm Modal -->
 <div class="modal-overlay" id="del-modal">
   <div class="modal">
-    <h3>Delete Portfolio?</h3>
+    <h3>Delete Account?</h3>
     <p id="del-modal-text"></p>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
       <button class="btn" id="del-confirm-btn"
         style="background:var(--red);color:#fff;clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);">
-        Delete Portfolio
+        Delete Account
       </button>
     </div>
   </div>
@@ -222,10 +257,15 @@
   // ── Form show/hide ─────────────────────────────────────────────────────
   function showForm(name='', desc='', color='#4fffb0') {
     editingId = null;
-    document.getElementById('form-title').textContent = 'New Portfolio';
+    document.getElementById('form-title').textContent = 'New Account';
     document.getElementById('f-name').value  = name;
     document.getElementById('f-desc').value  = desc;
     document.getElementById('f-color').value = color;
+    document.getElementById('f-account-size').value = '';
+    document.getElementById('f-default-qty').value = '';
+    document.getElementById('f-instrument').value = '';
+    document.getElementById('f-primary').checked = false;
+    document.getElementById('f-risk-pct').value = '';
     buildSwatches(color);
     document.getElementById('port-form-panel').classList.add('show');
     document.getElementById('f-name').focus();
@@ -237,12 +277,17 @@
     editingId = null;
   }
 
-  function editPortfolio(id, name, desc, color) {
+  function editAccount(id, name, desc, color, accountSize, defaultQty, instrument, isPrimary, riskPct) {
     editingId = id;
     document.getElementById('form-title').textContent = `Edit — ${name}`;
     document.getElementById('f-name').value  = name;
     document.getElementById('f-desc').value  = desc;
     document.getElementById('f-color').value = color;
+    document.getElementById('f-account-size').value = accountSize || '';
+    document.getElementById('f-default-qty').value = defaultQty || '';
+    document.getElementById('f-instrument').value = instrument || '';
+    document.getElementById('f-primary').checked = !!isPrimary;
+    document.getElementById('f-risk-pct').value = riskPct || '';
     buildSwatches(color);
     document.getElementById('port-form-panel').classList.add('show');
     document.getElementById('port-form-panel').scrollIntoView({behavior:'smooth', block:'start'});
@@ -253,20 +298,32 @@
     const name  = document.getElementById('f-name').value.trim();
     const desc  = document.getElementById('f-desc').value.trim();
     const color = document.getElementById('f-color').value;
+    const accountSize = document.getElementById('f-account-size').value;
+    const defaultQty  = document.getElementById('f-default-qty').value;
+    const instrument  = document.getElementById('f-instrument').value;
+    const isPrimary   = document.getElementById('f-primary').checked;
+    const riskPct     = document.getElementById('f-risk-pct').value;
 
-    if (!name) { showToast('Portfolio name is required', true); return; }
+    if (!name) { showToast('Account name is required', true); return; }
 
-    const url    = editingId ? `/api/portfolio/${editingId}` : '/api/portfolio';
+    const url    = editingId ? `/api/account/${editingId}` : '/api/account';
     const method = editingId ? 'PUT' : 'POST';
 
     try {
       const res  = await fetch(url, {
         method, headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({name, description: desc, color})
+        body: JSON.stringify({
+          name, description: desc, color,
+          account_size: accountSize || null,
+          default_qty: defaultQty || null,
+          default_instrument: instrument || null,
+          is_primary: isPrimary,
+          risk_per_trade_pct: riskPct || null,
+        })
       });
       const data = await res.json();
       if (!res.ok) { showToast(data.error || 'Save failed', true); return; }
-      showToast(editingId ? 'Portfolio updated' : 'Portfolio created');
+      showToast(editingId ? 'Account updated' : 'Account created');
       setTimeout(() => location.reload(), 600);
     } catch(e) { showToast('Network error', true); }
   }
@@ -277,7 +334,7 @@
   function confirmDeletePort(id, name) {
     pendingDelId = id;
     document.getElementById('del-modal-text').textContent =
-      `Delete portfolio "${name}"? Your trading days and trades will be kept, but they will no longer be associated with this portfolio.`;
+      `Delete account "${name}"? Your trading days and trades will be kept, but they will no longer be associated with this account.`;
     document.getElementById('del-confirm-btn').onclick = executeDeletePort;
     document.getElementById('del-modal').classList.add('show');
   }
@@ -291,11 +348,11 @@
     if (!pendingDelId) return;
     closeModal();
     try {
-      const res = await fetch(`/api/portfolio/${pendingDelId}`, {method:'DELETE'});
+      const res = await fetch(`/api/account/${pendingDelId}`, {method:'DELETE'});
       if (res.ok) {
         const card = document.getElementById('port-card-' + pendingDelId);
         if (card) { card.style.opacity='0'; card.style.transition='opacity 0.3s'; setTimeout(()=>card.remove(),300); }
-        showToast('Portfolio deleted');
+        showToast('Account deleted');
       } else { showToast('Delete failed', true); }
     } catch(e) { showToast('Network error', true); }
   }

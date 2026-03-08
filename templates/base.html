@@ -440,16 +440,17 @@
   <div class="nav-links">
     <a href="/"            class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">Journal</a>
     <a href="/live"        class="nav-link {% if request.endpoint in ('live_trade_page','live_trade_list_legacy','live_trade_new_legacy','live_trade_view_legacy') %}active{% endif %}">Live Trade</a>
-    <a href="/portfolios"  class="nav-link {% if request.endpoint == 'portfolios_view' %}active{% endif %}">Portfolios</a>
+    <a href="/accounts"    class="nav-link {% if request.endpoint == 'accounts_view_manage' %}active{% endif %}">Accounts</a>
+    <a href="/simulation"  class="nav-link {% if request.endpoint == 'simulation_view' %}active{% endif %}">Simulation</a>
     <a href="/analytics"   class="nav-link {% if request.endpoint == 'analytics' %}active{% endif %}">Analytics</a>
     <a href="/settings"    class="nav-link {% if request.endpoint == 'settings_view' %}active{% endif %}">Settings</a>
   </div>
   <div class="nav-right">
     <div style="display:flex;align-items:center;gap:8px;">
-      <span style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);white-space:nowrap;">Portfolio</span>
+      <span style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);white-space:nowrap;">Account</span>
       <div class="nav-port-wrap">
         <span class="nav-port-dot" id="nav-port-dot"></span>
-        <select id="global-portfolio-select" class="nav-port-select" onchange="setGlobalPortfolio(this.value)">
+        <select id="global-account-select" class="nav-port-select" onchange="setGlobalAccount(this.value)">
           <option value="">— None —</option>
         </select>
         <span class="nav-port-arrow">▾</span>
@@ -494,33 +495,48 @@
     return localStorage.getItem('tj_theme') || 'mint';
   }
 
-  // ── Global Portfolio Selector ─────────────────────────────────────────
-  // Portfolio is driven by ?portfolio= URL param (server-side filter).
+  // ── Global Account Selector ──────────────────────────────────────────
+  // Account is driven by ?account= URL param (server-side filter).
   // localStorage just remembers the last choice for convenience.
-  const STORAGE_KEY = 'tj_active_portfolio';
+  const STORAGE_KEY = 'tj_active_account';
 
-  function getActivePortfolio() {
+  // If localStorage has an account but URL doesn't, redirect to include it.
+  // This ensures server-side filtering works when navigating via nav links.
+  (function() {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('account')) {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        params.set('account', saved);
+        window.location.replace(window.location.pathname + '?' + params.toString() + window.location.hash);
+        return; // stop execution, page will reload
+      }
+    }
+  })();
+
+  function getActiveAccount() {
     // URL param is truth; fall back to localStorage
     const params = new URLSearchParams(window.location.search);
-    return params.get('portfolio') || localStorage.getItem(STORAGE_KEY) || '';
+    return params.get('account') || localStorage.getItem(STORAGE_KEY) || '';
   }
 
-  function setGlobalPortfolio(id) {
+  function setGlobalAccount(id) {
     localStorage.setItem(STORAGE_KEY, id);
-    // Rebuild current URL with new portfolio param, keep other params
+    updateNavLinks(id);
+    // Rebuild current URL with new account param, keep other params
     const params = new URLSearchParams(window.location.search);
     if (id) {
-      params.set('portfolio', id);
+      params.set('account', id);
     } else {
-      params.delete('portfolio');
+      params.delete('account');
     }
     // Navigate — server will filter accordingly
     window.location.href = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
   }
 
-  function applyPortfolioUI(id) {
+  function applyAccountUI(id) {
     const dot = document.getElementById('nav-port-dot');
-    const sel = document.getElementById('global-portfolio-select');
+    const sel = document.getElementById('global-account-select');
     if (!dot || !sel) return;
     const opt = sel.querySelector(`option[value="${id}"]`);
     const color = opt ? opt.dataset.color : '';
@@ -529,14 +545,14 @@
     sel.style.borderColor = color ? color + '80' : '';
   }
 
-  async function loadPortfoliosIntoNav() {
+  async function loadAccountsIntoNav() {
     try {
-      const res  = await fetch('/api/portfolios');
+      const res  = await fetch('/api/accounts');
       const list = await res.json();
-      const sel  = document.getElementById('global-portfolio-select');
+      const sel  = document.getElementById('global-account-select');
       if (!sel) return;
 
-      sel.innerHTML = '<option value="">— All Portfolios —</option>';
+      sel.innerHTML = '<option value="">— All Accounts —</option>';
       list.forEach(p => {
         const o = document.createElement('option');
         o.value = p.id;
@@ -546,7 +562,7 @@
       });
 
       // Sync to current URL param (or localStorage fallback)
-      const active = getActivePortfolio();
+      const active = getActiveAccount();
       if (active && sel.querySelector(`option[value="${active}"]`)) {
         sel.value = active;
       } else {
@@ -554,12 +570,25 @@
         localStorage.removeItem(STORAGE_KEY);
       }
 
-      applyPortfolioUI(sel.value);
+      applyAccountUI(sel.value);
+      updateNavLinks(sel.value);
 
     } catch(e) { /* server may not be ready */ }
   }
 
-  document.addEventListener('DOMContentLoaded', loadPortfoliosIntoNav);
+  function updateNavLinks(accountId) {
+    document.querySelectorAll('.nav-link').forEach(a => {
+      const url = new URL(a.href, window.location.origin);
+      if (accountId) {
+        url.searchParams.set('account', accountId);
+      } else {
+        url.searchParams.delete('account');
+      }
+      a.href = url.pathname + (url.searchParams.toString() ? '?' + url.searchParams.toString() : '');
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', loadAccountsIntoNav);
 </script>
 
 {% block scripts %}{% endblock %}

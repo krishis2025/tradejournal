@@ -36,17 +36,17 @@ def index():
     date_to   = request.args.get("to",     default_to)
     preset    = request.args.get("preset", "30d")
 
-    # Portfolio comes from query string (set by nav JS via page reload)
-    portfolio_id = request.args.get("portfolio") or None
+    # Account comes from query string (set by nav JS via page reload)
+    account_id = request.args.get("account") or None
 
-    days = db.get_all_days(date_from, date_to, portfolio_id)
+    days = db.get_all_days(date_from, date_to, account_id)
 
     return render_template(
         "index.html",
         days=days,
         date_from=date_from,
         date_to=date_to,
-        portfolio_id=portfolio_id,
+        account_id=account_id,
         preset=preset,
         today=today.isoformat(),
     )
@@ -97,7 +97,7 @@ def trade_view(trade_id):
 
 @app.route("/analytics")
 def analytics():
-    portfolio_id = request.args.get("portfolio") or None
+    account_id = request.args.get("account") or None
     date_from    = request.args.get("date_from") or None
     date_to      = request.args.get("date_to") or None
     date_preset  = request.args.get("preset") or "all"
@@ -119,23 +119,29 @@ def analytics():
             date_from = (today - timedelta(days=90)).isoformat()
             date_to = today.isoformat()
 
-    data         = db.get_analytics(portfolio_id, date_from=date_from, date_to=date_to)
-    portfolios   = db.get_all_portfolios()
+    data         = db.get_analytics(account_id=account_id, date_from=date_from, date_to=date_to)
+    accounts     = db.get_all_accounts()
     return render_template(
         "analytics.html",
         data=data,
         data_json=json.dumps(data),
-        portfolios=portfolios,
-        portfolio_id=portfolio_id,
+        accounts=accounts,
+        account_id=account_id,
         date_from=date_from or "",
         date_to=date_to or "",
         date_preset=date_preset,
     )
 
 
-@app.route("/portfolios")
-def portfolios_view():
-    return render_template("portfolios.html", portfolios=db.get_all_portfolios())
+@app.route("/accounts")
+def accounts_view_manage():
+    return render_template("accounts.html", accounts=db.get_all_accounts())
+
+
+@app.route("/simulation")
+def simulation_view():
+    summaries = db.get_all_account_summaries()
+    return render_template("simulation.html", summaries=summaries)
 
 
 @app.route("/settings")
@@ -193,6 +199,18 @@ def live_trade_page():
         t["executions"] = full.get("executions", [])
         t["calc"] = logic.recalculate_live_trade(full)
 
+    # Get all account profiles for shadow preview
+    all_accounts = db.get_all_accounts()
+    account_profiles = []
+    for a in all_accounts:
+        if a.get("default_qty") and a.get("account_size"):
+            account_profiles.append({
+                "id": a["id"], "name": a["name"], "color": a["color"],
+                "account_size": a["account_size"], "default_qty": a["default_qty"],
+                "default_instrument": a.get("default_instrument") or "MES",
+                "is_primary": a.get("is_primary", 0),
+            })
+
     return render_template(
         "live_ticket.html",
         open_trades=open_trades,
@@ -202,6 +220,7 @@ def live_trade_page():
         trade_defaults=logic.get_trade_defaults(),
         trade_defaults_json=json.dumps(logic.get_trade_defaults()),
         instrument_config_json=json.dumps(logic.get_instrument_config()),
+        account_profiles_json=json.dumps(account_profiles),
         active_range=range_key,
         date_from=date_from,
         date_to=date_to,
@@ -223,7 +242,7 @@ def live_trade_list_legacy():
 
 @app.route("/live-legacy/new")
 def live_trade_new_legacy():
-    portfolio_id = request.args.get("portfolio") or None
+    account_id = request.args.get("account") or None
     return render_template(
         "live_entry_legacy.html",
         trade=None,
@@ -231,7 +250,7 @@ def live_trade_new_legacy():
         tags_json=json.dumps(logic.get_tag_groups()),
         trade_defaults=logic.get_trade_defaults(),
         instrument_config_json=json.dumps(logic.get_instrument_config()),
-        portfolio_id=portfolio_id,
+        account_id=account_id,
     )
 
 
@@ -250,7 +269,7 @@ def live_trade_view_legacy(live_trade_id):
         tags_json=json.dumps(logic.get_tag_groups()),
         trade_defaults=logic.get_trade_defaults(),
         instrument_config_json=json.dumps(logic.get_instrument_config()),
-        portfolio_id=trade.get("portfolio_id"),
+        account_id=trade.get("account_id") or None,
     )
 
 
@@ -270,11 +289,11 @@ def api_import():
     f = request.files["file"]
     if not f.filename:
         return jsonify({"error": "Empty filename"}), 400
-    portfolio_id = request.form.get("portfolio_id") or None
-    if portfolio_id:
-        portfolio_id = int(portfolio_id)
+    account_id = request.form.get("account_id") or None
+    if account_id:
+        account_id = int(account_id)
     try:
-        result = logic.import_file(f.filename, f.read(), portfolio_id)
+        result = logic.import_file(f.filename, f.read(), account_id)
         return jsonify(result)
     except ValueError as e:
         return jsonify({"error": str(e)}), 422
@@ -360,40 +379,60 @@ def api_delete_image(image_id):
     return jsonify({"ok": True})
 
 
-# ── API: Portfolios ───────────────────────────────────────────────────────────
+# ── API: Accounts ────────────────────────────────────────────────────────────
 
-@app.route("/api/portfolio", methods=["POST"])
-def api_create_portfolio():
+@app.route("/api/account", methods=["POST"])
+def api_create_account():
     body = request.get_json(silent=True) or {}
     name = (body.get("name") or "").strip()
     if not name:
-        return jsonify({"error": "Portfolio name is required"}), 400
+        return jsonify({"error": "Account name is required"}), 400
     try:
-        pid = db.create_portfolio(name, body.get("description", ""), body.get("color", "#4fffb0"))
-        return jsonify({"ok": True, "id": pid})
+        aid = db.create_account(
+            name, body.get("description", ""), body.get("color", "#4fffb0"),
+            account_size=float(body["account_size"]) if body.get("account_size") else None,
+            default_qty=int(body["default_qty"]) if body.get("default_qty") else None,
+            default_instrument=body.get("default_instrument") or None,
+            is_primary=1 if body.get("is_primary") else 0,
+            risk_per_trade_pct=float(body["risk_per_trade_pct"]) if body.get("risk_per_trade_pct") else None,
+        )
+        return jsonify({"ok": True, "id": aid})
     except Exception as e:
         return jsonify({"error": str(e)}), 422
 
 
-@app.route("/api/portfolio/<int:portfolio_id>", methods=["PUT"])
-def api_update_portfolio(portfolio_id):
+@app.route("/api/account/<int:account_id>", methods=["PUT"])
+def api_update_account(account_id):
     body = request.get_json(silent=True) or {}
     name = (body.get("name") or "").strip()
     if not name:
-        return jsonify({"error": "Portfolio name is required"}), 400
-    db.update_portfolio(portfolio_id, name, body.get("description", ""), body.get("color", "#4fffb0"))
+        return jsonify({"error": "Account name is required"}), 400
+    db.update_account(
+        account_id, name, body.get("description", ""), body.get("color", "#4fffb0"),
+        account_size=float(body["account_size"]) if body.get("account_size") else None,
+        default_qty=int(body["default_qty"]) if body.get("default_qty") else None,
+        default_instrument=body.get("default_instrument") or None,
+        is_primary=1 if body.get("is_primary") else 0,
+        risk_per_trade_pct=float(body["risk_per_trade_pct"]) if body.get("risk_per_trade_pct") else None,
+    )
     return jsonify({"ok": True})
 
 
-@app.route("/api/portfolio/<int:portfolio_id>", methods=["DELETE"])
-def api_delete_portfolio(portfolio_id):
-    db.delete_portfolio(portfolio_id)
+@app.route("/api/account/<int:account_id>", methods=["DELETE"])
+def api_delete_account(account_id):
+    db.delete_account(account_id)
     return jsonify({"ok": True})
 
 
-@app.route("/api/portfolios")
-def api_portfolios():
-    return jsonify(db.get_all_portfolios())
+@app.route("/api/accounts")
+def api_accounts():
+    return jsonify(db.get_all_accounts())
+
+
+@app.route("/api/shadow/regenerate", methods=["POST"])
+def api_regenerate_shadows():
+    count = logic.regenerate_all_shadows()
+    return jsonify({"ok": True, "trades_processed": count})
 
 
 @app.route("/api/settings/theme", methods=["POST"])
@@ -414,8 +453,8 @@ def api_get_theme():
 
 @app.route("/api/analytics")
 def api_analytics():
-    portfolio_id = request.args.get("portfolio") or None
-    return jsonify(db.get_analytics(portfolio_id))
+    account_id = request.args.get("account") or None
+    return jsonify(db.get_analytics(account_id=account_id))
 
 
 # ── API: DB Admin ─────────────────────────────────────────────────────────────
@@ -540,7 +579,7 @@ def api_create_live_trade():
             return jsonify({"error": f"{key} is required"}), 400
     try:
         live_id = db.create_live_trade(
-            portfolio_id=body.get("portfolio_id"),
+            account_id=body.get("account_id") or None,
             direction=body["direction"],
             instrument=body["instrument"],
             entry_price=float(body["entry_price"]),

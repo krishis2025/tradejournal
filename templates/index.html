@@ -79,7 +79,7 @@
   <div>
     <div class="page-title">Trade Journal</div>
     <div class="page-sub">ES Futures · Discretionary · Market Profile
-      {% if portfolio_id %}<span id="port-label-header" style="margin-left:8px;"></span>{% endif %}
+      {% if account_id %}<span id="port-label-header" style="margin-left:8px;"></span>{% endif %}
     </div>
   </div>
   {% if days %}
@@ -110,18 +110,18 @@
     <div class="import-icon">📂</div>
     <div class="import-text">
       <div class="import-title">Drop CSV or Excel fills file here, or click to browse</div>
-      <div class="import-sub">Tradovate / TradeStation format · Imports into selected portfolio</div>
+      <div class="import-sub">Tradovate / TradeStation format · Imports into selected account</div>
     </div>
     <div onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
       <span style="font-size:10px;color:var(--muted);letter-spacing:1px;">Imports to:</span>
-      <span id="import-portfolio-badge" style="font-size:11px;color:var(--accent);font-family:var(--font-mono);">— None —</span>
+      <span id="import-account-badge" style="font-size:11px;color:var(--accent);font-family:var(--font-mono);">— None —</span>
     </div>
   </div>
 </div>
 
 <!-- Date Filter Bar -->
 <form id="filter-form" method="get" action="/">
-  <input type="hidden" name="portfolio" id="f-portfolio" value="{{ portfolio_id or '' }}">
+  <input type="hidden" name="account" id="f-account" value="{{ account_id or '' }}">
   <input type="hidden" name="preset"    id="f-preset"    value="{{ preset }}">
   <div class="filter-bar">
     <span class="filter-label">Period</span>
@@ -222,27 +222,27 @@
 <script>
   const TODAY = '{{ today }}';
 
-  // Keep the f-portfolio hidden input in sync with nav selector
+  // Keep the f-account hidden input in sync with nav selector
   document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
-      const active = getActivePortfolio();
-      document.getElementById('f-portfolio').value = active;
+      const active = getActiveAccount();
+      document.getElementById('f-account').value = active;
       updateImportBadge(active);
     }, 150);
   });
 
-  // Also update when portfolio changes via nav
-  const _base = window.setGlobalPortfolio;
-  window.setGlobalPortfolio = function(id) {
+  // Also update when account changes via nav
+  const _base = window.setGlobalAccount;
+  window.setGlobalAccount = function(id) {
     if (_base) _base(id);
-    document.getElementById('f-portfolio').value = id;
+    document.getElementById('f-account').value = id;
     updateImportBadge(id);
   };
 
   function updateImportBadge(id) {
-    const badge = document.getElementById('import-portfolio-badge');
+    const badge = document.getElementById('import-account-badge');
     if (!badge) return;
-    const sel = document.getElementById('global-portfolio-select');
+    const sel = document.getElementById('global-account-select');
     const opt = sel ? sel.querySelector(`option[value="${id}"]`) : null;
     if (opt && id) {
       badge.textContent = opt.textContent;
@@ -281,10 +281,10 @@
     const zone = document.getElementById('drop-zone');
     zone.classList.add('importing');
     zone.querySelector('.import-title').textContent = `Importing ${file.name}...`;
-    const portfolioId = getActivePortfolio();
+    const accountId = getActiveAccount();
     const form = new FormData();
     form.append('file', file);
-    if (portfolioId) form.append('portfolio_id', portfolioId);
+    if (accountId) form.append('account_id', accountId);
     try {
       const res  = await fetch('/api/import', { method:'POST', body:form });
       const data = await res.json();
