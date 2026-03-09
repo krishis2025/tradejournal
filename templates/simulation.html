@@ -4,9 +4,9 @@
 {% block extra_styles %}
 .accounts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
-  margin-bottom: 32px;
+  margin-top: 20px;
 }
 
 .acct-card {
@@ -27,24 +27,158 @@
   margin-bottom: 2px;
 }
 
-.acct-meta {
-  font-size: 10px; color: var(--muted); margin-bottom: 12px;
-  display: flex; gap: 8px; align-items: center;
-}
-
-.acct-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.acct-stat-label { font-size: 8px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
-.acct-stat-val { font-family: var(--font-display); font-size: 18px; letter-spacing: 1px; line-height: 1.2; }
-.acct-stat-val.sm { font-size: 14px; }
-
-.primary-badge {
-  font-size: 8px; letter-spacing: 1.5px; padding: 1px 6px;
-  background: rgba(79,255,176,0.15); color: var(--green);
-  border: 1px solid rgba(79,255,176,0.3);
+.acct-size-line {
+  font-size: 12px; color: var(--muted); margin-bottom: 14px;
+  font-family: var(--font-display); letter-spacing: 0.5px;
 }
 
 .empty-acct {
   text-align: center; padding: 60px 32px; color: var(--muted);
+}
+
+/* Sizing Cheat Sheet */
+.sizing-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 24px 28px;
+  margin-bottom: 32px;
+}
+.sizing-title {
+  font-family: var(--font-display);
+  font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 20px;
+}
+.sizing-controls {
+  display: flex; flex-wrap: wrap; gap: 48px; align-items: flex-start; margin-bottom: 20px;
+}
+.sizing-control-group label {
+  display: block; font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 6px;
+}
+.sizing-toggle { display: flex; gap: 0; }
+.sizing-toggle button {
+  font-family: var(--font-display); font-size: 12px; letter-spacing: 1.5px;
+  padding: 6px 16px; border: 1px solid var(--border); background: transparent;
+  color: var(--muted); cursor: pointer; transition: all 0.15s;
+}
+.sizing-toggle button:first-child { border-radius: 2px 0 0 2px; }
+.sizing-toggle button:last-child { border-radius: 0 2px 2px 0; border-left: none; }
+.sizing-toggle button.active {
+  background: var(--accent); color: var(--bg); border-color: var(--accent);
+}
+.sizing-toggle button.active + button { border-left-color: var(--accent); }
+.sizing-slider-wrap {
+  display: flex; align-items: center; gap: 10px;
+}
+.sizing-slider-wrap input[type=range] {
+  -webkit-appearance: none; width: 140px; height: 3px;
+  background: var(--border); border-radius: 2px; outline: none;
+}
+.sizing-slider-wrap input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent); cursor: pointer;
+}
+.sizing-slider-val {
+  font-family: var(--font-display); font-size: 14px; letter-spacing: 1px;
+  min-width: 28px; text-align: right;
+}
+.sizing-slider-sub {
+  font-size: 10px; color: var(--muted2); margin-top: 2px;
+}
+.sizing-input {
+  background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  font-family: var(--font-display); font-size: 14px; letter-spacing: 1px;
+  padding: 5px 8px; width: 52px; border-radius: 2px; outline: none;
+  text-align: center;
+}
+.sizing-input:focus { border-color: var(--accent); }
+
+.sizing-editable {
+  cursor: pointer; border-bottom: 1px dashed var(--border2);
+  display: inline-block; padding: 0 2px;
+}
+.sizing-editable:hover { border-bottom-color: var(--accent); }
+.sizing-edit-input {
+  background: var(--bg); border: 1px solid var(--accent); color: var(--text);
+  font-family: var(--font-display); font-size: 12px; letter-spacing: 0.5px;
+  padding: 2px 6px; width: 80px; border-radius: 2px; outline: none;
+}
+
+/* ── Tier color tokens (dark themes default) ── */
+:root {
+  --tier-cons-bg:  rgba(86, 211, 100, 0.12);
+  --tier-cons-text: #56d364;
+  --tier-med-bg:   rgba(227, 179, 65, 0.12);
+  --tier-med-text:  #e3b341;
+  --tier-agg-bg:   rgba(248, 81, 73, 0.12);
+  --tier-agg-text:  #f85149;
+}
+/* Paper Light overrides */
+[data-theme="paper"] {
+  --tier-cons-bg:  rgba(22, 135, 67, 0.09);
+  --tier-cons-text: #156b3a;
+  --tier-med-bg:   rgba(158, 106, 0, 0.09);
+  --tier-med-text:  #7a5200;
+  --tier-agg-bg:   rgba(186, 36, 52, 0.09);
+  --tier-agg-text:  #a1202f;
+}
+/* Soft Dark overrides */
+[data-theme="softdark"] {
+  --tier-cons-bg:  rgba(166, 227, 161, 0.12);
+  --tier-cons-text: #a6e3a1;
+  --tier-med-bg:   rgba(249, 226, 175, 0.14);
+  --tier-med-text:  #f9e2af;
+  --tier-agg-bg:   rgba(243, 139, 168, 0.12);
+  --tier-agg-text:  #f38ba8;
+}
+
+/* Streak summary */
+.streak-summary {
+  display: flex; flex-wrap: wrap; gap: 20px; align-items: center;
+  font-size: 11px; letter-spacing: 0.5px; color: var(--muted);
+  margin-bottom: 4px; padding: 10px 0;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-display);
+}
+.streak-summary span { font-weight: 600; }
+.streak-summary .s-con { color: var(--tier-cons-text); }
+.streak-summary .s-med { color: var(--tier-med-text); }
+.streak-summary .s-agg { color: var(--tier-agg-text); }
+
+/* Tier rows in tiles */
+.sizing-tier-row {
+  display: grid;
+  grid-template-columns: 110px 48px 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.sizing-tier-row:last-child { border-bottom: none; }
+
+.tier-label {
+  font-family: var(--font-display);
+  font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 4px 10px; border-radius: 4px;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+}
+.tier-label.conservative { background: var(--tier-cons-bg); color: var(--tier-cons-text); }
+.tier-label.medium       { background: var(--tier-med-bg);  color: var(--tier-med-text); }
+.tier-label.aggressive   { background: var(--tier-agg-bg);  color: var(--tier-agg-text); }
+
+.tier-qty {
+  font-family: var(--font-display);
+  font-size: 16px; font-weight: 700; letter-spacing: 1px;
+  color: var(--text);
+  text-align: right;
+}
+
+.tier-risk {
+  font-size: 11px; color: var(--muted2); letter-spacing: 0.3px;
 }
 {% endblock %}
 
@@ -63,48 +197,38 @@
 
 {% if summaries %}
 
-<!-- Account Cards -->
-<div class="accounts-grid">
-  {% for s in summaries %}
-  <div class="acct-card">
-    <div class="acct-card-accent" style="background:{{ s.color }};"></div>
-    <div class="acct-card-body">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <div class="acct-name" style="color:{{ s.color }};">{{ s.name }}</div>
-        {% if s.is_primary %}<span class="primary-badge">PRIMARY</span>{% endif %}
+<!-- Sizing Cheat Sheet -->
+<div class="sizing-section">
+  <div class="sizing-title">Sizing Cheat Sheet</div>
+
+  <div class="sizing-controls">
+    <div class="sizing-control-group">
+      <label>Instrument</label>
+      <div class="sizing-toggle" id="inst-toggle">
+        <button class="active" data-inst="MES">MES</button>
+        <button data-inst="ES">ES</button>
       </div>
-      <div class="acct-meta">
-        {% if s.account_size %}Buffer: ${{ '{:,.0f}'.format(s.account_size) }}{% endif %}
-        {% if s.default_qty %} &middot; {{ s.default_qty }}&times; {{ s.default_instrument or 'MES' }}{% endif %}
+    </div>
+    <div class="sizing-control-group">
+      <label>Win Rate</label>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <input type="number" class="sizing-input" id="winrate-input" min="1" max="99" value="50">
+        <span style="font-size:14px;color:var(--muted);">%</span>
       </div>
-      <div class="acct-stats">
-        <div>
-          <div class="acct-stat-label">Equity</div>
-          <div class="acct-stat-val {{ 'pnl-pos' if s.equity_pct >= 0 else 'pnl-neg' }}">
-            {% if s.account_size %}${{ '{:,.0f}'.format(s.equity) }}{% else %}—{% endif %}
-          </div>
-          {% if s.account_size %}
-          <div style="font-size:10px;color:var(--muted2);">{{ '+' if s.equity_pct >= 0 else '' }}{{ '%.1f'|format(s.equity_pct) }}%</div>
-          {% endif %}
-        </div>
-        <div>
-          <div class="acct-stat-label">Net P&L</div>
-          <div class="acct-stat-val {{ 'pnl-pos' if s.total_pnl >= 0 else 'pnl-neg' }}">
-            {{ '+' if s.total_pnl >= 0 else '' }}${{ '{:,.0f}'.format(s.total_pnl) }}
-          </div>
-        </div>
-        <div>
-          <div class="acct-stat-label">Win Rate</div>
-          <div class="acct-stat-val sm">{{ '%.0f'|format(s.win_rate) }}%</div>
-        </div>
-        <div>
-          <div class="acct-stat-label">Trades</div>
-          <div class="acct-stat-val sm">{{ s.trade_count }}</div>
-        </div>
+    </div>
+    <div class="sizing-control-group">
+      <label>Stop Loss (pts)</label>
+      <div class="sizing-slider-wrap">
+        <input type="range" id="stop-slider" min="5" max="50" step="5" value="20">
+        <span class="sizing-slider-val" id="stop-val">20</span>
+        <span style="font-size:10px;color:var(--muted2);" id="stop-cost"></span>
       </div>
     </div>
   </div>
-  {% endfor %}
+
+  <div class="streak-summary" id="streak-summary"></div>
+
+  <div class="accounts-grid" id="sizing-tiles"></div>
 </div>
 
 {% else %}
@@ -121,6 +245,147 @@
 
 {% block scripts %}
 <script>
+const INST_DPP = {MES: 5, ES: 50};
+const HORIZON = 200;
+const TIERS = [
+  {key: 'conservative', label: 'Conservative', confidence: 0.99, color: '#4fffb0'},
+  {key: 'medium',       label: 'Medium',       confidence: 0.95, color: '#ffd600'},
+  {key: 'aggressive',   label: 'Aggressive',   confidence: 0.80, color: '#ff5252'}
+];
+
+{% if summaries %}
+const summariesData = {{ summaries|tojson }};
+const acctSizes = {};
+summariesData.forEach(s => { acctSizes[s.id] = s.account_size || 0; });
+
+function expectedMaxStreak(winRatePct, horizon, confidence) {
+  if (winRatePct <= 0) return horizon;
+  if (winRatePct >= 100) return 1;
+  const lossRate = 1 - (winRatePct / 100);
+  return Math.ceil(Math.log((1 - confidence) / horizon) / Math.log(lossRate));
+}
+
+function getInstrument() {
+  return document.querySelector('#inst-toggle button.active').dataset.inst;
+}
+
+function autoWinRate() {
+  let totalWins = 0, totalTrades = 0;
+  summariesData.forEach(s => {
+    if (s.trade_count >= 60) {
+      totalWins += (s.win_rate / 100) * s.trade_count;
+      totalTrades += s.trade_count;
+    }
+  });
+  return totalTrades > 0 ? Math.round((totalWins / totalTrades) * 100) : 50;
+}
+
+function recalcSizing() {
+  const inst = getInstrument();
+  const dpp = INST_DPP[inst];
+  const winRate = parseInt(document.getElementById('winrate-input').value) || 50;
+  const stop = parseInt(document.getElementById('stop-slider').value);
+
+  document.getElementById('stop-val').textContent = stop;
+  document.getElementById('stop-cost').textContent = '$' + (stop * dpp).toLocaleString() + '/ct';
+
+  // Compute streaks per tier
+  const streaks = TIERS.map(t => ({
+    ...t,
+    streak: expectedMaxStreak(winRate, HORIZON, t.confidence)
+  }));
+
+  // Streak summary
+  const sumEl = document.getElementById('streak-summary');
+  sumEl.innerHTML = streaks.map(s =>
+    `<span class="s-${s.key.substring(0,3)}">${s.label}:</span> ${s.streak} losses`
+  ).join('<span style="color:var(--border2);">|</span>');
+
+  // Build tiles
+  const tilesEl = document.getElementById('sizing-tiles');
+  tilesEl.innerHTML = '';
+  summariesData.forEach(s => {
+    const size = acctSizes[s.id];
+    const card = document.createElement('div');
+    card.className = 'acct-card';
+
+    let tierHTML = '';
+    streaks.forEach(t => {
+      if (size <= 0) {
+        tierHTML += `
+          <div class="sizing-tier-row">
+            <div class="tier-label ${t.key}">${t.label}</div>
+            <div class="tier-qty">&mdash;</div>
+            <div class="tier-risk"></div>
+          </div>`;
+      } else {
+        const qty = Math.floor(size / t.streak / (stop * dpp));
+        const risk = qty * stop * dpp;
+        tierHTML += `
+          <div class="sizing-tier-row">
+            <div class="tier-label ${t.key}">${t.label}</div>
+            <div class="tier-qty">${qty}&times;</div>
+            <div class="tier-risk">$${risk.toLocaleString()} risk at ${stop}pt stop</div>
+          </div>`;
+      }
+    });
+
+    card.innerHTML = `
+      <div class="acct-card-accent" style="background:${s.color};"></div>
+      <div class="acct-card-body">
+        <div class="acct-name" style="color:${s.color};">${s.name}</div>
+        <div class="acct-size-line">Account Size: <span class="sizing-editable" data-id="${s.id}">${size > 0 ? '$' + size.toLocaleString() : '$0'}</span></div>
+        ${tierHTML}
+      </div>`;
+    tilesEl.appendChild(card);
+  });
+}
+
+// Instrument toggle
+document.querySelectorAll('#inst-toggle button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#inst-toggle button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    recalcSizing();
+  });
+});
+
+// Win rate input
+document.getElementById('winrate-input').addEventListener('input', recalcSizing);
+
+// Stop slider
+document.getElementById('stop-slider').addEventListener('input', recalcSizing);
+
+// Inline editing for account size
+document.getElementById('sizing-tiles').addEventListener('click', e => {
+  const span = e.target.closest('.sizing-editable');
+  if (!span || span.querySelector('input')) return;
+  const id = parseInt(span.dataset.id);
+  const curVal = acctSizes[id];
+
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.className = 'sizing-edit-input';
+  input.value = curVal;
+  span.textContent = '';
+  span.appendChild(input);
+  input.focus();
+  input.select();
+
+  function commit() {
+    const v = parseFloat(input.value) || 0;
+    acctSizes[id] = Math.max(0, v);
+    recalcSizing();
+  }
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); });
+});
+
+// Init win rate and render
+document.getElementById('winrate-input').value = autoWinRate();
+recalcSizing();
+{% endif %}
+
 async function regenerateShadows() {
   const btn = document.getElementById('regen-btn');
   btn.disabled = true; btn.textContent = 'Regenerating...';
