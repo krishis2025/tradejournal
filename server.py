@@ -420,8 +420,11 @@ def api_update_account(account_id):
 
 @app.route("/api/account/<int:account_id>", methods=["DELETE"])
 def api_delete_account(account_id):
-    db.delete_account(account_id)
-    return jsonify({"ok": True})
+    try:
+        db.delete_account(account_id)
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/accounts")

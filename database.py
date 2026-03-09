@@ -385,8 +385,11 @@ def update_account(account_id, name, description, color,
 
 
 def delete_account(account_id):
-    """Deletes account; trading_days.account_id becomes NULL (days kept)."""
+    """Deletes account and all associated data (days, trades, fills, tags, live trades, shadow trades)."""
     with get_conn() as conn:
+        conn.execute("DELETE FROM shadow_trades WHERE account_id = ?", (account_id,))
+        conn.execute("DELETE FROM live_trades WHERE account_id = ?", (account_id,))
+        conn.execute("DELETE FROM trading_days WHERE account_id = ?", (account_id,))
         conn.execute("DELETE FROM accounts WHERE id = ?", (account_id,))
 
 

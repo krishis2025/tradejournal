@@ -2,6 +2,7 @@
 {% block title %}Simulation — Trade Journal{% endblock %}
 
 {% block extra_styles %}
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap');
 .accounts-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -136,39 +137,48 @@
 /* Streak summary */
 .streak-summary {
   display: flex; flex-wrap: wrap; gap: 20px; align-items: center;
-  font-size: 11px; letter-spacing: 0.5px; color: var(--muted);
+  font-size: 12px; letter-spacing: 0.2px; color: var(--muted);
   margin-bottom: 4px; padding: 10px 0;
   border-top: 1px solid var(--border);
-  font-family: var(--font-display);
+  font-family: 'IBM Plex Sans', sans-serif;
 }
 .streak-summary span { font-weight: 600; }
 .streak-summary .s-con { color: var(--tier-cons-text); }
 .streak-summary .s-med { color: var(--tier-med-text); }
 .streak-summary .s-agg { color: var(--tier-agg-text); }
+.streak-item { display: flex; align-items: center; gap: 6px; }
 
 /* Tier rows in tiles */
 .sizing-tier-row {
   display: grid;
-  grid-template-columns: 110px 48px 1fr;
+  grid-template-columns: 120px 44px 1fr;
   align-items: center;
-  gap: 12px;
-  padding: 7px 0;
+  gap: 10px;
+  padding: 8px 0;
   border-bottom: 1px solid var(--border);
   font-size: 12px;
 }
 .sizing-tier-row:last-child { border-bottom: none; }
 
 .tier-label {
-  font-family: var(--font-display);
-  font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
-  padding: 4px 10px; border-radius: 4px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 11px; letter-spacing: 0.3px;
   font-weight: 600;
-  text-align: center;
   white-space: nowrap;
+  display: flex; align-items: center; gap: 6px;
 }
-.tier-label.conservative { background: var(--tier-cons-bg); color: var(--tier-cons-text); }
-.tier-label.medium       { background: var(--tier-med-bg);  color: var(--tier-med-text); }
-.tier-label.aggressive   { background: var(--tier-agg-bg);  color: var(--tier-agg-text); }
+.tier-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.tier-dot.conservative { background: #4fffb0; }
+.tier-dot.medium       { background: #ffd600; }
+.tier-dot.aggressive   { background: #ff5252; }
+[data-theme="paper"] .tier-dot.conservative { background: #2da44e; }
+[data-theme="paper"] .tier-dot.medium       { background: #bf8700; }
+[data-theme="paper"] .tier-dot.aggressive   { background: #cf222e; }
+.tier-label.conservative { color: var(--tier-cons-text); }
+.tier-label.medium       { color: var(--tier-med-text); }
+.tier-label.aggressive   { color: var(--tier-agg-text); }
 
 .tier-qty {
   font-family: var(--font-display);
@@ -178,7 +188,8 @@
 }
 
 .tier-risk {
-  font-size: 11px; color: var(--muted2); letter-spacing: 0.3px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 11px; color: var(--muted2); letter-spacing: 0.2px;
 }
 {% endblock %}
 
@@ -248,9 +259,9 @@
 const INST_DPP = {MES: 5, ES: 50};
 const HORIZON = 200;
 const TIERS = [
-  {key: 'conservative', label: 'Conservative', confidence: 0.99, color: '#4fffb0'},
-  {key: 'medium',       label: 'Medium',       confidence: 0.95, color: '#ffd600'},
-  {key: 'aggressive',   label: 'Aggressive',   confidence: 0.80, color: '#ff5252'}
+  {key: 'conservative', label: 'Conservative', confidence: 0.99},
+  {key: 'medium',       label: 'Standard',     confidence: 0.95},
+  {key: 'aggressive',   label: 'Aggressive',   confidence: 0.80}
 ];
 
 {% if summaries %}
@@ -298,7 +309,7 @@ function recalcSizing() {
   // Streak summary
   const sumEl = document.getElementById('streak-summary');
   sumEl.innerHTML = streaks.map(s =>
-    `<span class="s-${s.key.substring(0,3)}">${s.label}:</span> ${s.streak} losses`
+    `<span class="streak-item"><span class="tier-dot ${s.key}"></span><span class="s-${s.key.substring(0,3)}">${s.label}:</span> ${s.streak} losses</span>`
   ).join('<span style="color:var(--border2);">|</span>');
 
   // Build tiles
@@ -314,7 +325,7 @@ function recalcSizing() {
       if (size <= 0) {
         tierHTML += `
           <div class="sizing-tier-row">
-            <div class="tier-label ${t.key}">${t.label}</div>
+            <div class="tier-label ${t.key}"><span class="tier-dot ${t.key}"></span>${t.label}</div>
             <div class="tier-qty">&mdash;</div>
             <div class="tier-risk"></div>
           </div>`;
@@ -323,9 +334,9 @@ function recalcSizing() {
         const risk = qty * stop * dpp;
         tierHTML += `
           <div class="sizing-tier-row">
-            <div class="tier-label ${t.key}">${t.label}</div>
+            <div class="tier-label ${t.key}"><span class="tier-dot ${t.key}"></span>${t.label}</div>
             <div class="tier-qty">${qty}&times;</div>
-            <div class="tier-risk">$${risk.toLocaleString()} risk at ${stop}pt stop</div>
+            <div class="tier-risk">${stop}pts stp &mdash; $${risk.toLocaleString()}</div>
           </div>`;
       }
     });

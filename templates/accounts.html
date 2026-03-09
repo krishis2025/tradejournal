@@ -334,7 +334,7 @@
   function confirmDeletePort(id, name) {
     pendingDelId = id;
     document.getElementById('del-modal-text').textContent =
-      `Delete account "${name}"? Your trading days and trades will be kept, but they will no longer be associated with this account.`;
+      `Delete account "${name}"? All trading days, trades, and fills associated with this account will be permanently deleted.`;
     document.getElementById('del-confirm-btn').onclick = executeDeletePort;
     document.getElementById('del-modal').classList.add('show');
   }
