@@ -2,6 +2,71 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [1.4.2] — 2026-03-08
+
+### Sizing Cheat Sheet — Visual Polish
+- Replaced colored background pill labels with **colored dot + text** for tier indicators (green/yellow/red)
+- Dots are theme-adaptive: bright on dark themes, muted on Paper Light
+- Consistent dot + label pattern used both in the streak summary bar and inside account tiles
+- Renamed "Medium" tier to **Standard**
+- Risk text format changed to `20pts stp — $100` for clarity
+- Added **IBM Plex Sans** font for tier labels, streak summary, and risk text
+- Removed emoji icons from tier labels
+
+### Account Deletion — Cascade Delete
+- Deleting an account now **permanently removes all associated data**: trading days, trades, fills, tags, live trades, and shadow trades
+- Previously, deleting an account orphaned its data (set account_id to NULL)
+- Updated delete confirmation message to warn about permanent data loss
+- Added error handling to the delete account API endpoint
+
+---
+
+## [1.4.1] — 2026-03-08
+
+### Sizing Cheat Sheet v2
+- Redesigned sizing section with **tile-based layout** — one card per account
+- Three statistical risk tiers: Conservative (99%), Standard (95%), Aggressive (80%)
+- **Expected max losing streak** formula based on win rate, horizon (200 trades), and confidence level
+- Per-account qty calculation: `floor(account_size / streak / cost_per_contract)`
+- Interactive controls: instrument toggle (MES/ES), win rate input, stop loss slider (5–50 pts)
+- **Inline account size editing** — click the dollar amount on any tile to override
+- **Auto win rate** — pulls blended win rate from accounts with 60+ trades
+- Streak summary bar showing expected max consecutive losses per tier
+- Theme-adaptive color system with CSS custom properties for all 3 themes
+
+---
+
+## [1.4.0] — 2026-03-07
+
+### Multi-Account Evolution
+- Renamed Portfolio → Account throughout the application
+- Account Mirror feature for shadow trade projections
+- Simplified Simulation page layout
+
+---
+
+## [1.3.3] — 2026-03-07
+
+### Trade Execution View
+- Enhanced with scorecard and risk progression
+
+---
+
+## [1.3.2] — 2026-03-07
+
+### Pre-Trade Risk Calculator
+- Command bar UX improvements
+
+---
+
+## [1.3.1] — 2026-03-07
+
+### Day View
+- Moved notes to day view
+- Removed tags/notes from trade execution view
+
+---
+
 ## [1.3.0] — 2026-03-06
 
 ### Trade Notes — 3 Separate Fields
