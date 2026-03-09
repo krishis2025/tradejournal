@@ -856,6 +856,7 @@ const TAG_GROUPS = {{ tags_json|safe }};
 const INST_CONFIG = {{ instrument_config_json|safe }};
 const TRADE_DEFAULTS = {{ trade_defaults_json|safe }};
 const ACCOUNT_PROFILES = {{ account_profiles_json|safe }};
+const ALL_ACCOUNTS = {{ all_accounts_json|safe }};
 
 // ── State ────────────────────────────────────────────────────────────────────
 let formDir  = 'Long';
@@ -909,6 +910,13 @@ document.addEventListener('DOMContentLoaded', () => {
   updateRiskReadout();
   updateShadowPreview();
 
+  // Auto-fill defaults from selected account profile
+  applyAccountDefaults();
+  const navAcctSel = document.getElementById('global-account-select');
+  if (navAcctSel) {
+    navAcctSel.addEventListener('change', () => applyAccountDefaults());
+  }
+
   // Close risk calc on Escape
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeRiskCalc();
@@ -934,6 +942,23 @@ function setMode(m) {
   document.getElementById('cmd-partials').className = 'cmd-mode-btn' + (m === 'partials' ? ' active' : '');
   updateRiskReadout();
   updateShadowPreview();
+}
+
+// ── Auto-fill from Account Profile ──────────────────────────────────────────
+function applyAccountDefaults() {
+  const acctId = parseInt(document.getElementById('global-account-select')?.value);
+  const acct = ALL_ACCOUNTS.find(a => a.id === acctId);
+  if (!acct) return;
+  // Only auto-fill qty when the field is empty (don't overwrite user input)
+  const qtyField = document.getElementById('cmd-qty');
+  if (!qtyField.value && acct.default_qty) {
+    qtyField.value = acct.default_qty;
+    updateRiskReadout();
+    updateShadowPreview();
+  }
+  if (acct.default_instrument) {
+    setInst(acct.default_instrument);
+  }
 }
 
 // ── Open Trade ───────────────────────────────────────────────────────────────

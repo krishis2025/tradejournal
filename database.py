@@ -324,6 +324,18 @@ def init_db():
         conn.execute("CREATE INDEX IF NOT EXISTS idx_shadow_source ON shadow_trades(source_trade_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_shadow_account ON shadow_trades(account_id)")
 
+        # Migration: create account_config table for future per-account settings
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS account_config (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id  INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                key         TEXT    NOT NULL,
+                value       TEXT    NOT NULL DEFAULT '',
+                UNIQUE(account_id, key)
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_acct_config ON account_config(account_id)")
+
 
 # ── Accounts ─────────────────────────────────────────────────────────────────
 
@@ -1000,6 +1012,37 @@ def get_all_config():
     with get_conn() as conn:
         rows = conn.execute("SELECT key, value FROM app_config").fetchall()
         return {r["key"]: r["value"] for r in rows}
+
+
+# ── Account Config (per-account key-value settings) ─────────────────────────
+
+def get_account_config(account_id):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT key, value FROM account_config WHERE account_id = ?",
+            (account_id,)
+        ).fetchall()
+        return {r["key"]: r["value"] for r in rows}
+
+def set_account_config(account_id, key, value):
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO account_config (account_id, key, value) VALUES (?, ?, ?)",
+            (account_id, key, str(value))
+        )
+
+def clear_account_config(account_id, prefix=None):
+    with get_conn() as conn:
+        if prefix:
+            conn.execute(
+                "DELETE FROM account_config WHERE account_id = ? AND key LIKE ?",
+                (account_id, prefix + "%")
+            )
+        else:
+            conn.execute(
+                "DELETE FROM account_config WHERE account_id = ?",
+                (account_id,)
+            )
 
 
 # ── Live Trades ──────────────────────────────────────────────────────────────

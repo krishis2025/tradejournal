@@ -150,6 +150,7 @@ def settings_view():
     defaults   = logic.TAG_GROUPS
     trade_defaults = logic.get_trade_defaults()
     instrument_config = logic.get_instrument_config()
+    accounts = db.get_all_accounts()
     return render_template(
         "settings.html",
         tag_groups=tag_groups,
@@ -158,6 +159,8 @@ def settings_view():
         tag_groups_json=json.dumps(tag_groups),
         trade_defaults=trade_defaults,
         instrument_config=instrument_config,
+        accounts=accounts,
+        accounts_json=json.dumps(accounts),
     )
 
 
@@ -211,6 +214,14 @@ def live_trade_page():
                 "is_primary": a.get("is_primary", 0),
             })
 
+    # Lightweight account list for auto-fill defaults (all accounts, not just those with account_size)
+    all_accounts_lite = [
+        {"id": a["id"], "name": a["name"],
+         "default_qty": a.get("default_qty"),
+         "default_instrument": a.get("default_instrument")}
+        for a in all_accounts
+    ]
+
     return render_template(
         "live_ticket.html",
         open_trades=open_trades,
@@ -221,6 +232,7 @@ def live_trade_page():
         trade_defaults_json=json.dumps(logic.get_trade_defaults()),
         instrument_config_json=json.dumps(logic.get_instrument_config()),
         account_profiles_json=json.dumps(account_profiles),
+        all_accounts_json=json.dumps(all_accounts_lite),
         active_range=range_key,
         date_from=date_from,
         date_to=date_to,
