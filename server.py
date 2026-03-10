@@ -202,26 +202,6 @@ def live_trade_page():
         t["executions"] = full.get("executions", [])
         t["calc"] = logic.recalculate_live_trade(full)
 
-    # Get all account profiles for shadow preview
-    all_accounts = db.get_all_accounts()
-    account_profiles = []
-    for a in all_accounts:
-        if a.get("default_qty") and a.get("account_size"):
-            account_profiles.append({
-                "id": a["id"], "name": a["name"], "color": a["color"],
-                "account_size": a["account_size"], "default_qty": a["default_qty"],
-                "default_instrument": a.get("default_instrument") or "MES",
-                "is_primary": a.get("is_primary", 0),
-            })
-
-    # Lightweight account list for auto-fill defaults (all accounts, not just those with account_size)
-    all_accounts_lite = [
-        {"id": a["id"], "name": a["name"],
-         "default_qty": a.get("default_qty"),
-         "default_instrument": a.get("default_instrument")}
-        for a in all_accounts
-    ]
-
     return render_template(
         "live_ticket.html",
         open_trades=open_trades,
@@ -231,8 +211,6 @@ def live_trade_page():
         trade_defaults=logic.get_trade_defaults(),
         trade_defaults_json=json.dumps(logic.get_trade_defaults()),
         instrument_config_json=json.dumps(logic.get_instrument_config()),
-        account_profiles_json=json.dumps(account_profiles),
-        all_accounts_json=json.dumps(all_accounts_lite),
         active_range=range_key,
         date_from=date_from,
         date_to=date_to,

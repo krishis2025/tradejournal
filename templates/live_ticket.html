@@ -153,12 +153,11 @@
 
 /* ── Main Split: Position Map (left) + Controls (right) ── */
 .ticket-body {
-  display:grid; grid-template-columns:1fr 340px;
+  display:grid; grid-template-columns:1fr minmax(380px, 420px);
   gap:1px; background:var(--border); border:1px solid var(--border);
   min-height: calc(100vh - 200px);
 }
 .ticket-left  { background:var(--surface); overflow-y:auto; }
-/* .ticket-right styled in RIGHT PANEL section below */
 
 /* ── Empty state ── */
 .empty-state {
@@ -172,13 +171,24 @@
   font-family:var(--font-mono); font-size:10px; border-radius:2px; color:var(--muted2);
 }
 
-/* ── Open Trade Card ── */
+/* ── Global Summary Strip ── */
+.global-summary {
+  padding:10px 18px; border-bottom:1px solid var(--border);
+  display:grid; grid-template-columns:1fr 1fr; gap:4px 16px;
+  font-family:var(--font-mono); font-size:11px;
+  background:var(--surface2);
+}
+.gs-item { display:flex; align-items:center; gap:6px; }
+.gs-label { color:var(--muted); font-size:9px; letter-spacing:1.5px; text-transform:uppercase; }
+.gs-val { color:var(--text); font-weight:500; }
+
+/* ── Open Trade Card (compact, select-only) ── */
 .trade-card {
   border-bottom:1px solid var(--border); padding:0;
   animation: fadeIn 0.3s ease both;
+  cursor:pointer; transition:opacity 0.25s, box-shadow 0.25s;
 }
-.trade-card.collapsed { cursor:pointer; }
-.trade-card.collapsed:hover { background:var(--surface2); }
+.trade-card:hover { background:var(--surface2); }
 
 /* Trade card banner colors */
 .tc-banner {
@@ -207,10 +217,9 @@
 
 .tc-header {
   display:flex; align-items:center; gap:12px;
-  padding:12px 18px; cursor:pointer;
+  padding:10px 18px;
   transition:background 0.1s;
 }
-.tc-header:hover { background:rgba(255,255,255,0.015); }
 
 .tc-dir-badge {
   font-family:var(--font-mono); font-size:10px; letter-spacing:1.5px;
@@ -232,86 +241,44 @@
   padding:2px 8px; border-radius:1px;
 }
 .tc-status-open   { color:var(--warn); background:rgba(255,179,71,0.1); }
+.tc-status-partial { color:var(--accent2); background:rgba(0,207,255,0.1); }
+.tc-status-protected { color:var(--green); background:rgba(79,255,176,0.08); }
 .tc-status-closed { color:var(--green); background:rgba(79,255,176,0.08); }
 
-/* ── Position Map (expanded card body) ── */
-.tc-body { padding:0 18px 18px; display:none; }
-.trade-card.expanded .tc-body { display:block; }
+/* Compact card body with stats row + progress bar */
+.tc-compact-body {
+  padding:4px 18px 10px;
+}
+.tc-compact-stats {
+  display:flex; align-items:center; gap:12px;
+  font-family:var(--font-mono); font-size:11px; color:var(--muted2);
+  margin-bottom:6px;
+}
+.tc-compact-stats span { white-space:nowrap; }
 
-.portion-row {
-  display:grid; grid-template-columns:42px 1fr 90px 80px;
-  align-items:center; gap:0; padding:8px 0;
-  border-bottom:1px solid rgba(34,38,49,0.5);
+/* Progress bar */
+.tc-progress {
+  height:6px; background:var(--surface2); border:1px solid var(--border);
+  display:flex; overflow:hidden;
 }
-.portion-row:last-of-type { border-bottom:none; }
+.tc-prog-seg { height:100%; transition:width 0.3s; }
+.tc-prog-green { background:var(--green); }
+.tc-prog-red { background:var(--red); }
+.tc-prog-gray { background:var(--border2); }
 
-.pr-label { font-size:10px; color:var(--muted); letter-spacing:1px; }
-.pr-levels {
-  display:flex; align-items:center; gap:6px; font-size:12px;
+/* Active card glow, inactive cards dim */
+.trade-card.tc-dimmed { opacity:0.45; }
+.trade-card.tc-active-glow {
+  opacity:1;
+  box-shadow:0 0 0 2px var(--accent), 0 0 16px rgba(79,255,176,0.15);
 }
-.pr-stop-val, .pr-tp-val {
-  font-family:var(--font-mono); padding:2px 6px;
-  border:1px solid transparent; cursor:text; transition:all 0.12s; border-radius:1px;
-}
-.pr-stop-val { color:var(--red); }
-.pr-tp-val   { color:var(--green); }
-.pr-stop-val:hover, .pr-tp-val:hover { border-color:var(--border2); background:var(--bg); }
-.pr-arrow { color:var(--border2); font-size:10px; }
-
-.pr-risk {
-  font-family:var(--font-mono); font-size:11px; text-align:right;
-}
-
-.pr-status {
-  font-size:9px; letter-spacing:1.5px; text-transform:uppercase; text-align:right;
-}
-.pr-status-open    { color:var(--muted2); }
-.pr-status-struck  { color:var(--green); }
-
-/* Inline edit for stop/tp prices */
-.pr-edit-input {
-  width:80px; background:var(--bg); border:1px solid var(--accent);
-  color:var(--text); font-family:var(--font-mono); font-size:12px;
-  padding:2px 6px; outline:none; border-radius:1px;
-}
-
-/* ── Stats strip below position map ── */
-.tc-stats {
-  display:grid; grid-template-columns:repeat(4,1fr);
-  gap:1px; background:var(--border); margin-top:12px;
-}
-.tc-stat {
-  background:var(--surface2); padding:10px 12px;
-}
-.tc-stat-label { font-size:8px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:3px; }
-.tc-stat-value { font-family:var(--font-display); font-size:20px; letter-spacing:1px; line-height:1; }
-
-/* ── Notes + Tags (inline, compact) ── */
-.tc-meta { margin-top:12px; display:flex; gap:10px; align-items:flex-start; }
-.tc-notes-input {
-  width:100%; background:var(--bg); border:1px solid var(--border);
-  color:var(--text); font-family:var(--font-mono); font-size:11px;
-  padding:6px 10px; outline:none; resize:vertical; min-height:90px;
-  transition:border-color 0.15s; line-height:1.5;
-}
-.tc-notes-input:focus { border-color:var(--accent); }
-.tc-notes-label {
-  font-size:8px; letter-spacing:2px; text-transform:uppercase;
-  color:var(--muted); margin-bottom:4px; margin-top:10px;
-}
-.tc-notes-label:first-child { margin-top:0; }
-
-.tc-actions { margin-top:12px; display:flex; gap:8px; justify-content:flex-end; align-items:center; }
-
-/* ── Execution log under card ── */
-.tc-exec-log { margin-top:8px; }
-.exec-entry {
-  display:grid; grid-template-columns:80px 40px 40px 70px 50px 70px 30px;
-  gap:4px; padding:4px 0; font-size:10px; color:var(--muted2);
-  border-bottom:1px solid rgba(34,38,49,0.3);
-  align-items:center;
-}
-.exec-entry:last-child { border-bottom:none; }
+/* Per-color glow */
+.trade-card.tc-active-glow.tc-color-0 { box-shadow:0 0 0 2px var(--green), 0 0 16px rgba(79,255,176,0.2); }
+.trade-card.tc-active-glow.tc-color-1 { box-shadow:0 0 0 2px #00cfff, 0 0 16px rgba(0,207,255,0.2); }
+.trade-card.tc-active-glow.tc-color-2 { box-shadow:0 0 0 2px #ffb347, 0 0 16px rgba(255,179,71,0.2); }
+.trade-card.tc-active-glow.tc-color-3 { box-shadow:0 0 0 2px #b47fff, 0 0 16px rgba(180,127,255,0.2); }
+.trade-card.tc-active-glow.tc-color-4 { box-shadow:0 0 0 2px #ff6b6b, 0 0 16px rgba(255,107,107,0.2); }
+.trade-card.tc-active-glow.tc-color-5 { box-shadow:0 0 0 2px #58a6ff, 0 0 16px rgba(88,166,255,0.2); }
 
 /* ── RIGHT PANEL ── */
 .rp-section {
@@ -320,23 +287,6 @@
 .rp-title {
   font-size:9px; letter-spacing:2.5px; text-transform:uppercase;
   color:var(--muted); margin-bottom:12px;
-}
-
-/* Tab bar */
-.rp-tabs {
-  display:flex; border-bottom:1px solid var(--border); background:var(--surface2);
-  overflow-x:auto; flex-shrink:0;
-}
-.rp-tab {
-  padding:10px 16px; font-family:var(--font-mono); font-size:10px; letter-spacing:1px;
-  color:var(--muted2); cursor:pointer; transition:all 0.12s; border:none; background:transparent;
-  border-bottom:2px solid transparent; white-space:nowrap;
-  display:flex; align-items:center; gap:6px; text-transform:uppercase;
-}
-.rp-tab:hover { color:var(--text); background:var(--surface3); }
-.rp-tab.active { color:var(--accent); border-bottom-color:var(--accent); background:var(--surface); }
-.rp-tab-dot {
-  width:6px; height:6px; border-radius:50%; flex-shrink:0;
 }
 
 /* Active trade banner — large, impossible to miss */
@@ -350,7 +300,7 @@
   line-height:1;
 }
 .rp-active-info {
-  display:flex; flex-direction:column; gap:2px;
+  display:flex; flex-direction:column; gap:2px; flex:1;
 }
 .rp-active-dir-badge {
   font-family:var(--font-mono); font-size:11px; letter-spacing:1.5px;
@@ -362,6 +312,13 @@
 .rp-active-dir-badge.short { background:rgba(255,77,109,0.15); color:var(--red); }
 .rp-active-detail {
   font-family:var(--font-mono); font-size:12px; color:var(--text); letter-spacing:0.5px;
+}
+.rp-active-status {
+  font-size:9px; letter-spacing:2px; text-transform:uppercase; margin-top:2px;
+}
+.rp-status-dot {
+  display:inline-block; width:6px; height:6px; border-radius:50%;
+  margin-right:4px; vertical-align:middle;
 }
 
 /* Right panel color theming — border + tint per trade */
@@ -399,20 +356,16 @@
 }
 .rp-flash { animation: rpFlash 0.4s ease-out; }
 
-/* Left panel: active card glow, inactive cards dim */
-.trade-card { transition:opacity 0.25s, outline 0.25s, box-shadow 0.25s; }
-.trade-card.tc-dimmed { opacity:0.45; }
-.trade-card.tc-active-glow {
-  opacity:1;
-  box-shadow:0 0 0 2px var(--accent), 0 0 16px rgba(79,255,176,0.15);
+/* ── Health Strip ── */
+.health-strip {
+  display:grid; grid-template-columns:repeat(4,1fr);
+  gap:1px; background:var(--border);
 }
-/* Per-color glow */
-.trade-card.tc-active-glow.tc-color-0 { box-shadow:0 0 0 2px var(--green), 0 0 16px rgba(79,255,176,0.2); }
-.trade-card.tc-active-glow.tc-color-1 { box-shadow:0 0 0 2px #00cfff, 0 0 16px rgba(0,207,255,0.2); }
-.trade-card.tc-active-glow.tc-color-2 { box-shadow:0 0 0 2px #ffb347, 0 0 16px rgba(255,179,71,0.2); }
-.trade-card.tc-active-glow.tc-color-3 { box-shadow:0 0 0 2px #b47fff, 0 0 16px rgba(180,127,255,0.2); }
-.trade-card.tc-active-glow.tc-color-4 { box-shadow:0 0 0 2px #ff6b6b, 0 0 16px rgba(255,107,107,0.2); }
-.trade-card.tc-active-glow.tc-color-5 { box-shadow:0 0 0 2px #58a6ff, 0 0 16px rgba(88,166,255,0.2); }
+.hs-card {
+  background:var(--surface2); padding:10px 12px; text-align:center;
+}
+.hs-label { font-size:8px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:3px; }
+.hs-value { font-family:var(--font-display); font-size:18px; letter-spacing:1px; line-height:1; }
 
 /* Quick Exit Buttons */
 .qe-grid {
@@ -427,7 +380,8 @@
 .qe-btn:hover { border-color:var(--muted); background:var(--surface3); }
 .qe-btn:active { transform:scale(0.97); }
 .qe-btn-label { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted2); }
-.qe-btn-price { font-family:var(--font-mono); font-size:13px; color:var(--text); }
+.qe-btn-price { font-family:var(--font-mono); font-size:13px; color:var(--text); cursor:text; }
+.qe-btn-price:hover { text-decoration:underline; text-decoration-style:dashed; }
 .qe-btn-pnl   { font-size:10px; }
 
 .qe-btn.qe-tp  { border-left:2px solid var(--green); }
@@ -442,9 +396,16 @@
 }
 .qe-section-label:first-child { border-top:none; padding-top:0; }
 
+/* Inline edit for QE prices */
+.qe-price-input {
+  width:80px; background:var(--bg); border:1px solid var(--accent);
+  color:var(--text); font-family:var(--font-mono); font-size:12px;
+  padding:2px 6px; outline:none; border-radius:1px; text-align:center;
+}
+
 /* Manual exit row */
 .qe-manual {
-  display:grid; grid-template-columns:1fr 1fr auto; gap:6px; margin-top:6px;
+  display:grid; grid-template-columns:1fr 1fr auto auto; gap:6px; margin-top:6px;
 }
 .qe-manual input {
   background:var(--bg); border:1px solid var(--border2); color:var(--text);
@@ -457,6 +418,17 @@
   cursor:pointer; transition:all 0.12s; text-transform:uppercase;
 }
 .qe-manual-btn:hover { color:var(--text); border-color:var(--muted); }
+
+/* Flatten / Move Stops buttons */
+.qe-action-row {
+  display:flex; gap:6px; margin-top:6px;
+}
+.qe-action-btn {
+  flex:1; padding:8px 10px; border:1px solid var(--border2); background:var(--surface2);
+  color:var(--muted2); font-family:var(--font-mono); font-size:10px; letter-spacing:1px;
+  cursor:pointer; transition:all 0.12s; text-transform:uppercase; text-align:center;
+}
+.qe-action-btn:hover { color:var(--text); border-color:var(--muted); background:var(--surface3); }
 
 /* Tags slide-out panel */
 .tags-panel {
@@ -558,54 +530,27 @@
   text-transform:uppercase;
 }
 
-/* ── Shadow Preview Bar ── */
-.shadow-preview {
-  display:flex; align-items:center; gap:12px; padding:6px 14px;
-  background:var(--surface); border:1px solid var(--border);
-  margin-bottom:12px; font-size:11px; flex-wrap:wrap;
-  border-left:3px solid var(--accent2);
+/* ── Note Accordions ── */
+.note-acc {
+  border-top:1px solid var(--border); overflow:hidden;
 }
-.shadow-preview-label {
-  font-size:9px; letter-spacing:1.5px; text-transform:uppercase;
-  color:var(--muted); white-space:nowrap;
+.note-acc-header {
+  display:flex; align-items:center; gap:6px; padding:8px 0;
+  cursor:pointer; font-size:10px; letter-spacing:1.5px; text-transform:uppercase;
+  color:var(--muted); user-select:none; transition:color 0.12s;
 }
-.shadow-item {
-  display:inline-flex; align-items:center; gap:4px; padding:2px 8px;
-  background:var(--surface2); border:1px solid var(--border2);
-  font-size:10px; white-space:nowrap;
+.note-acc-header:hover { color:var(--text); }
+.note-acc-header .arrow { transition:transform 0.2s; display:inline-block; font-size:8px; }
+.note-acc.open .note-acc-header .arrow { transform:rotate(90deg); }
+.note-acc-body { display:none; padding-bottom:8px; }
+.note-acc.open .note-acc-body { display:block; }
+.tc-notes-input {
+  width:100%; background:var(--bg); border:1px solid var(--border);
+  color:var(--text); font-family:var(--font-mono); font-size:11px;
+  padding:6px 10px; outline:none; resize:vertical; min-height:60px;
+  transition:border-color 0.15s; line-height:1.5;
 }
-.shadow-item-name { font-weight:500; }
-.shadow-item-detail { color:var(--muted2); }
-.shadow-item-risk { font-size:9px; }
-
-/* ── Account Mirror ── */
-.acct-mirror { margin-top:8px; border-top:1px solid var(--border); }
-.acct-mirror-toggle {
-  display:flex; align-items:center; gap:6px; padding:6px 0;
-  cursor:pointer; font-size:9px; letter-spacing:1.5px; text-transform:uppercase;
-  color:var(--muted); transition:color 0.12s; user-select:none;
-}
-.acct-mirror-toggle:hover { color:var(--text); }
-.acct-mirror-toggle .arrow { transition:transform 0.2s; display:inline-block; font-size:8px; }
-.acct-mirror-toggle .arrow.open { transform:rotate(90deg); }
-.acct-mirror-body { display:none; padding-bottom:4px; }
-.acct-mirror-body.open { display:block; }
-.acct-mirror-row {
-  display:grid; grid-template-columns:120px 1fr 80px 80px;
-  align-items:center; padding:4px 0; font-size:10px;
-  border-bottom:1px solid rgba(34,38,49,0.3);
-}
-.acct-mirror-row:last-child { border-bottom:none; }
-.acct-mirror-name { font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.acct-mirror-execs { display:flex; gap:4px; flex-wrap:wrap; }
-.acct-mirror-exec {
-  display:inline-flex; align-items:center; gap:2px; padding:1px 5px;
-  font-size:9px; border-radius:1px; letter-spacing:0.3px;
-}
-.acct-mirror-exec.tp { background:rgba(79,255,176,0.08); color:var(--green); }
-.acct-mirror-exec.stop { background:rgba(255,77,109,0.08); color:var(--red); }
-.acct-mirror-risk { text-align:right; font-family:var(--font-mono); }
-.acct-mirror-upside { text-align:right; font-family:var(--font-mono); }
+.tc-notes-input:focus { border-color:var(--accent); }
 {% endblock %}
 
 {% block nav_actions %}
@@ -672,12 +617,6 @@
   </div>
 </div>
 
-<!-- Shadow Preview Bar -->
-<div class="shadow-preview" id="shadow-preview" style="display:none;">
-  <span class="shadow-preview-label">Shadow Preview:</span>
-  <span id="shadow-preview-items"></span>
-</div>
-
 <!-- ═══════════════════════════════════════════════════════════
      MAIN BODY — Left: Trades | Right: Controls
      ═══════════════════════════════════════════════════════════ -->
@@ -696,6 +635,16 @@
         {% endif %}
       </div>
       <div style="font-size:10px;color:var(--muted2);" id="trade-count-label"></div>
+    </div>
+
+    <!-- Global Summary Strip -->
+    <div class="global-summary" id="global-summary">
+      <div class="gs-item"><span class="gs-label">Open</span> <span class="gs-val" id="gs-open">0</span></div>
+      <div class="gs-item"><span class="gs-label">Closed</span> <span class="gs-val" id="gs-closed">0</span></div>
+      <div class="gs-item"><span class="gs-label">Risk</span> <span class="gs-val" id="gs-risk">$0</span></div>
+      <div class="gs-item"><span class="gs-label">Realized</span> <span class="gs-val" id="gs-realized">$0</span></div>
+      <div class="gs-item"><span class="gs-label">Net</span> <span class="gs-val" id="gs-net">—</span></div>
+      <div class="gs-item"><span class="gs-label">Potential</span> <span class="gs-val" id="gs-potential">$0</span></div>
     </div>
 
     {% for t in open_trades %}
@@ -722,14 +671,24 @@
     </div>
   </div>
 
-  <!-- RIGHT PANEL — Tabbed Quick actions & controls -->
+  <!-- RIGHT PANEL — Quick actions & controls -->
   <div class="ticket-right" id="right-panel">
-    <div class="rp-tabs" id="rp-tabs"></div>
     <div class="rp-active-banner" id="rp-active-banner" style="display:none;"></div>
     <div class="rp-empty" id="rp-empty">Select or open a trade</div>
 
     <!-- Populated by JS when a trade is active -->
     <div id="rp-controls" style="display:none;">
+      <!-- Health Strip (Section B) -->
+      <div class="rp-section" style="padding:0;">
+        <div class="health-strip" id="health-strip">
+          <div class="hs-card"><div class="hs-label">Remaining</div><div class="hs-value" id="hs-remaining">—</div></div>
+          <div class="hs-card"><div class="hs-label">Net Risk</div><div class="hs-value" id="hs-risk">—</div></div>
+          <div class="hs-card"><div class="hs-label">Realized</div><div class="hs-value" id="hs-realized">—</div></div>
+          <div class="hs-card"><div class="hs-label">Potential</div><div class="hs-value" id="hs-potential">—</div></div>
+        </div>
+      </div>
+
+      <!-- Quick Exit (Section C+D) -->
       <div class="rp-section">
         <div class="rp-title">Quick Exit</div>
         <div id="qe-buttons"></div>
@@ -737,20 +696,43 @@
           <input type="number" step="0.25" id="man-price" placeholder="Price">
           <input type="number" min="1" id="man-qty" placeholder="Qty">
           <button class="qe-manual-btn" onclick="manualExit()">Exit</button>
+          <button class="qe-manual-btn" onclick="flattenRemaining()" title="Exit all remaining at entered price">Flatten</button>
+        </div>
+        <div class="qe-action-row">
+          <button class="qe-action-btn" onclick="moveStopsToBE()">Move Stops to BE</button>
         </div>
       </div>
 
+      <!-- Notes & Tags (Section E) -->
       <div class="rp-section" style="flex:1;">
         <div style="display:flex;align-items:center;justify-content:space-between;">
-          <div class="rp-title" style="margin:0;">Trade Notes</div>
-          <button class="tp-tag-btn" style="font-size:9px;padding:3px 8px;" onclick="openTagsPanel()">+ Tags ▸</button>
+          <div class="rp-title" style="margin:0;">Notes & Tags</div>
+          <button class="tp-tag-btn" style="font-size:9px;padding:3px 8px;" onclick="openTagsPanel()">Tags ▸</button>
         </div>
-        <div class="tc-notes-label" style="margin-top:8px;">Entry or Rationale</div>
-        <textarea class="tc-notes-input" id="rp-notes" rows="5" placeholder="Why did you enter? Setup, context, rationale..."></textarea>
-        <div class="tc-notes-label">Monitoring Continuation</div>
-        <textarea class="tc-notes-input" id="rp-notes-monitoring" rows="5" placeholder="What are you watching? Price action, levels, signals..."></textarea>
-        <div class="tc-notes-label">Exit Notes</div>
-        <textarea class="tc-notes-input" id="rp-notes-exit" rows="5" placeholder="Why did you exit? Outcome, lessons, what would you do differently..."></textarea>
+        <div class="note-acc open" id="note-acc-entry">
+          <div class="note-acc-header" onclick="toggleNoteAcc('entry')">
+            <span class="arrow">&#9654;</span> Entry Notes
+          </div>
+          <div class="note-acc-body">
+            <textarea class="tc-notes-input" id="rp-notes" rows="3" placeholder="Why did you enter? Setup, context, rationale..."></textarea>
+          </div>
+        </div>
+        <div class="note-acc" id="note-acc-monitoring">
+          <div class="note-acc-header" onclick="toggleNoteAcc('monitoring')">
+            <span class="arrow">&#9654;</span> Management Notes
+          </div>
+          <div class="note-acc-body">
+            <textarea class="tc-notes-input" id="rp-notes-monitoring" rows="3" placeholder="What are you watching? Price action, levels, signals..."></textarea>
+          </div>
+        </div>
+        <div class="note-acc" id="note-acc-exit">
+          <div class="note-acc-header" onclick="toggleNoteAcc('exit')">
+            <span class="arrow">&#9654;</span> Exit Notes
+          </div>
+          <div class="note-acc-body">
+            <textarea class="tc-notes-input" id="rp-notes-exit" rows="3" placeholder="Why did you exit? Outcome, lessons..."></textarea>
+          </div>
+        </div>
         <div class="push-row">
           <button class="btn btn-ghost" style="padding:6px 14px;font-size:9px;flex:1;" onclick="cancelActiveTrade()">Cancel</button>
           <button class="btn btn-primary" style="padding:6px 18px;font-size:10px;flex:2;" onclick="pushActiveTrade()">Save & Push →</button>
@@ -855,16 +837,14 @@
 const TAG_GROUPS = {{ tags_json|safe }};
 const INST_CONFIG = {{ instrument_config_json|safe }};
 const TRADE_DEFAULTS = {{ trade_defaults_json|safe }};
-const ACCOUNT_PROFILES = {{ account_profiles_json|safe }};
-const ALL_ACCOUNTS = {{ all_accounts_json|safe }};
 
 // ── State ────────────────────────────────────────────────────────────────────
 let formDir  = 'Long';
 let formInst = 'MES';
 let formMode = 'full';
-let activeTrade = null;  // Full trade object when one is selected
+let activeTrade = null;
 let activeTags = {};
-let allTrades = [];      // All open trades loaded from server
+let allTrades = [];
 
 // ── Time Helpers ─────────────────────────────────────────────────────────────
 function getCurrentTimeStr() {
@@ -877,13 +857,9 @@ function refreshTime() {
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  // Set default time to now
   document.getElementById('cmd-time').value = getCurrentTimeStr();
-
-  // Focus price field
   document.getElementById('cmd-price').focus();
 
-  // Load server-rendered open trades
   const serverTrades = {{ open_trades|tojson }};
   serverTrades.forEach(t => {
     try { t.tags = typeof t.tags_json === 'string' ? JSON.parse(t.tags_json) : (t.tags_json || {}); } catch(e) { t.tags = {}; }
@@ -891,33 +867,21 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTradeCard(t);
   });
 
-  // Auto-select first open trade
   if (allTrades.length > 0) {
     selectTrade(allTrades[0].id);
   }
 
   updateDayPnl();
 
-  // Keyboard shortcut: Enter in price/qty fields opens trade
   ['cmd-price','cmd-qty'].forEach(id => {
     document.getElementById(id).addEventListener('keydown', e => {
       if (e.key === 'Enter') openTrade();
     });
   });
 
-  // Update risk readout and shadow preview when qty changes
-  document.getElementById('cmd-qty').addEventListener('input', () => { updateRiskReadout(); updateShadowPreview(); });
+  document.getElementById('cmd-qty').addEventListener('input', () => { updateRiskReadout(); });
   updateRiskReadout();
-  updateShadowPreview();
 
-  // Auto-fill defaults from selected account profile
-  applyAccountDefaults();
-  const navAcctSel = document.getElementById('global-account-select');
-  if (navAcctSel) {
-    navAcctSel.addEventListener('change', () => applyAccountDefaults());
-  }
-
-  // Close risk calc on Escape
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeRiskCalc();
   });
@@ -934,31 +898,12 @@ function setInst(i) {
   document.getElementById('cmd-mes').className = 'cmd-inst-btn' + (i === 'MES' ? ' active' : '');
   document.getElementById('cmd-es').className = 'cmd-inst-btn' + (i === 'ES' ? ' active' : '');
   updateRiskReadout();
-  updateShadowPreview();
 }
 function setMode(m) {
   formMode = m;
   document.getElementById('cmd-full').className = 'cmd-mode-btn' + (m === 'full' ? ' active' : '');
   document.getElementById('cmd-partials').className = 'cmd-mode-btn' + (m === 'partials' ? ' active' : '');
   updateRiskReadout();
-  updateShadowPreview();
-}
-
-// ── Auto-fill from Account Profile ──────────────────────────────────────────
-function applyAccountDefaults() {
-  const acctId = parseInt(document.getElementById('global-account-select')?.value);
-  const acct = ALL_ACCOUNTS.find(a => a.id === acctId);
-  if (!acct) return;
-  // Only auto-fill qty when the field is empty (don't overwrite user input)
-  const qtyField = document.getElementById('cmd-qty');
-  if (!qtyField.value && acct.default_qty) {
-    qtyField.value = acct.default_qty;
-    updateRiskReadout();
-    updateShadowPreview();
-  }
-  if (acct.default_instrument) {
-    setInst(acct.default_instrument);
-  }
 }
 
 // ── Open Trade ───────────────────────────────────────────────────────────────
@@ -980,7 +925,6 @@ async function openTrade() {
   const data = await res.json();
   if (!data.ok) { showToast(data.error || 'Failed', true); return; }
 
-  // Fetch full trade with levels
   const r2 = await fetch(`/api/live/${data.id}/recalc`);
   const calc = await r2.json();
 
@@ -991,14 +935,6 @@ async function openTrade() {
     levels: [], executions: [], calc: calc
   };
 
-  // Fetch levels
-  const r3 = await fetch(`/api/live/${data.id}/recalc`);
-  // We need the full trade object — reload from server
-  const fullRes = await fetch(`/live?_data=${data.id}`, {headers:{'Accept':'application/json'}});
-  // Actually let's just use what we have and fetch levels from recalc
-  trade.calc = calc;
-
-  // Derive levels from defaults for rendering
   const isLong = formDir === 'Long';
   const dpp = INST_CONFIG[formInst]?.dollars_per_point || 5;
   if (formMode === 'partials') {
@@ -1023,121 +959,111 @@ async function openTrade() {
   document.getElementById('empty-state').style.display = 'none';
   renderTradeCard(trade);
 
-  // If no trade was active, select the new one. Otherwise keep current and just rebuild tabs.
   if (!activeTrade) {
     selectTrade(trade.id);
   } else {
-    buildTabBar();
-    showToast(`${formDir} ${qty}× ${formInst} @ ${price} — click T${allTrades.length} tab to manage`);
+    showToast(`${formDir} ${qty}× ${formInst} @ ${price} — click T${allTrades.length} to manage`);
   }
 
-  // Clear form
   document.getElementById('cmd-price').value = '';
   document.getElementById('cmd-qty').value = '';
   const now2 = new Date();
   document.getElementById('cmd-time').value = String(now2.getHours()).padStart(2,'0')+':'+String(now2.getMinutes()).padStart(2,'0');
 
+  updateDayPnl();
   showToast(`${formDir} ${qty}× ${formInst} @ ${price}`);
 }
 
-// ── Render Trade Card ────────────────────────────────────────────────────────
+// ── Derive Trade Status ──────────────────────────────────────────────────────
+function deriveTradeStatus(t) {
+  if (t._pushed) return 'closed';
+  const execs = t.executions || [];
+  const remaining = t.calc?.remaining_qty ?? t.total_qty;
+  if (remaining <= 0) return 'closed';
+  if (execs.length === 0) return 'open';
+  const netExp = t.calc?.net_stop_exposure;
+  if (netExp != null && netExp >= 0) return 'protected';
+  return 'partial';
+}
+
+// ── Render Trade Card (compact, select-only) ─────────────────────────────────
+let nextTradeNum = 1;  // stable trade numbering
+
 function renderTradeCard(t) {
   const existing = document.getElementById('tc-'+t.id);
   if (existing) existing.remove();
 
+  // Assign stable trade number on first render
+  if (!t._tradeNum) { t._tradeNum = nextTradeNum++; }
+
   const isLong = t.direction === 'Long';
-  const dpp = INST_CONFIG[t.instrument]?.dollars_per_point || 5;
   const calc = t.calc || {};
-  const levels = t.levels || [];
   const executions = t.executions || [];
-  const entry = t.entry_price;
-
-  // Portions
-  const stops = levels.filter(l=>l.level_type==='stop').sort((a,b)=>a.portion-b.portion);
-  const tps   = levels.filter(l=>l.level_type==='tp').sort((a,b)=>a.portion-b.portion);
-
-  // Which portions are exited
-  const portionExited = {};
-  executions.forEach(e => { portionExited[e.portion] = (portionExited[e.portion]||0) + e.qty; });
-
-  let portionsHtml = '';
-  const numPortions = t.mode === 'partials' ? 3 : 1;
-
-  for (let p = 1; p <= numPortions; p++) {
-    const stop = stops.find(s=>s.portion===p);
-    const tp = tps.find(t2=>t2.portion===p);
-    if (!stop) continue;
-    const origQty = stop.qty;
-    const exited = portionExited[p] || 0;
-    const rem = origQty - exited;
-    const isStruck = rem <= 0;
-
-    const stopPnl = isLong ? (stop.price - entry)*origQty*dpp : (entry - stop.price)*origQty*dpp;
-    const riskStr = stopPnl < 0 ? `<span class="pnl-neg">-$${Math.abs(stopPnl).toFixed(0)}</span>` : `<span class="pnl-pos">+$${stopPnl.toFixed(0)}</span>`;
-
-    portionsHtml += `
-    <div class="portion-row">
-      <div class="pr-label">P${p} ${origQty}×</div>
-      <div class="pr-levels">
-        <span class="pr-stop-val" data-trade="${t.id}" data-portion="${p}" data-type="stop" onclick="editPrice(this)">${stop.price}</span>
-        <span class="pr-arrow">→</span>
-        <span class="pr-tp-val" data-trade="${t.id}" data-portion="${p}" data-type="tp" onclick="editPrice(this)">${tp ? tp.price : '—'}</span>
-      </div>
-      <div class="pr-risk">${riskStr}</div>
-      <div class="pr-status ${isStruck ? 'pr-status-struck' : 'pr-status-open'}">${isStruck ? '✓ STRUCK' : 'OPEN'}</div>
-    </div>`;
-  }
-
-  // Exec log entries
-  let execHtml = '';
-  executions.forEach(e => {
-    const cls = e.pnl > 0 ? 'pnl-pos' : e.pnl < 0 ? 'pnl-neg' : 'pnl-zero';
-    execHtml += `<div class="exec-entry" id="exec-${e.id}">
-      <span style="text-transform:capitalize;">${e.exec_type.replace('_',' ')}</span>
-      <span>P${e.portion}</span><span>${e.qty}×</span>
-      <span>${e.price}</span><span>${e.exec_time}</span>
-      <span class="${cls}">$${e.pnl.toFixed(2)}</span>
-      <span style="cursor:pointer;color:var(--muted);" onclick="deleteExec(${t.id},${e.id})">✕</span>
-    </div>`;
-  });
 
   const realized = calc.realized_pnl || 0;
   const netExp = calc.net_stop_exposure;
   const reward = calc.potential_reward || 0;
   const remaining = calc.remaining_qty ?? t.total_qty;
 
-  // Trade index for color and label
-  const tradeIdx = allTrades.indexOf(t);
-  const tradeNum = tradeIdx >= 0 ? tradeIdx + 1 : allTrades.length;
+  const tradeNum = t._tradeNum;
   const colorIdx = (tradeNum - 1) % 6;
 
+  const status = deriveTradeStatus(t);
+  const statusLabel = t._pushed ? 'PUSHED ✓' : status.toUpperCase();
+  const statusClass = 'tc-status-' + status;
+  const isPushed = !!t._pushed;
+
+  // Progress bar segments
+  const totalQty = t.total_qty;
+  let tpQty = 0, stopQty = 0, manualWinQty = 0, manualLossQty = 0;
+  executions.forEach(e => {
+    if (e.exec_type === 'tp_hit') tpQty += e.qty;
+    else if (e.exec_type === 'stop_hit') stopQty += e.qty;
+    else if (e.exec_type === 'manual_exit') {
+      if (e.pnl >= 0) manualWinQty += e.qty;
+      else manualLossQty += e.qty;
+    }
+  });
+  const greenPct = ((tpQty + manualWinQty) / totalQty * 100).toFixed(1);
+  const redPct = ((stopQty + manualLossQty) / totalQty * 100).toFixed(1);
+  const grayPct = (remaining / totalQty * 100).toFixed(1);
+
+  const riskStr = netExp != null
+    ? (netExp < 0 ? '<span class="pnl-neg">-$' + Math.abs(netExp).toFixed(0) + '</span>' : '<span class="pnl-pos">+$' + netExp.toFixed(0) + '</span>')
+    : '—';
+  const realStr = realized >= 0 ? '<span class="pnl-pos">+$' + realized.toFixed(0) + '</span>' : '<span class="pnl-neg">-$' + Math.abs(realized).toFixed(0) + '</span>';
+
+  const cardClick = isPushed ? '' : `onclick="selectTrade(${t.id})"`;
+  const dimStyle = isPushed ? 'opacity:0.55;cursor:default;' : '';
+
   const html = `
-  <div class="trade-card expanded tc-color-${colorIdx}" id="tc-${t.id}" data-trade-id="${t.id}" onclick="if(event.target.closest('.portion-row,.tc-stats,.tc-exec-log,.pr-edit-input'))return; selectTrade(${t.id});">
+  <div class="trade-card tc-color-${colorIdx}" id="tc-${t.id}" data-trade-id="${t.id}" ${cardClick} style="${dimStyle}">
     <div class="tc-banner">
-      <span class="tc-banner-label">Trade ${tradeNum}</span>
+      <span class="tc-banner-label">T${tradeNum}</span>
       <span class="tc-banner-sub">${t.direction} · ${t.instrument} · ${t.entry_time}</span>
     </div>
     <div class="tc-header">
       <span class="tc-dir-badge ${isLong ? 'tc-dir-long' : 'tc-dir-short'}">${t.direction}</span>
-      <span class="tc-title">${t.total_qty}× ${t.instrument} @ ${t.entry_price} <span>${t.entry_time}</span></span>
-      <span class="tc-pnl ${realized >= 0 ? 'pnl-pos' : 'pnl-neg'}" id="tc-pnl-${t.id}">${realized >= 0 ? '+' : ''}$${realized.toFixed(2)}</span>
-      <span class="tc-status tc-status-open">open</span>
+      <span class="tc-title">${t.instrument} @ ${t.entry_price} <span>${t.entry_time}</span></span>
+      <span class="tc-pnl ${realized >= 0 ? 'pnl-pos' : 'pnl-neg'}" style="font-size:16px;">${realized >= 0 ? '+' : ''}$${realized.toFixed(2)}</span>
+      <span class="tc-status ${statusClass}">${statusLabel}</span>
     </div>
-    <div class="tc-body">
-      ${portionsHtml}
-      <div class="tc-stats">
-        <div class="tc-stat"><div class="tc-stat-label">Remaining</div><div class="tc-stat-value" id="tc-rem-${t.id}">${remaining}</div></div>
-        <div class="tc-stat"><div class="tc-stat-label">Realized</div><div class="tc-stat-value ${realized>0?'pnl-pos':realized<0?'pnl-neg':'pnl-zero'}" id="tc-real-${t.id}">${realized>=0?'+':''}$${realized.toFixed(2)}</div></div>
-        <div class="tc-stat"><div class="tc-stat-label">Net Risk</div><div class="tc-stat-value" id="tc-risk-${t.id}" style="color:${netExp!=null&&netExp<0?'var(--red)':'var(--green)'};">${netExp!=null?(netExp<0?'-$'+Math.abs(netExp).toFixed(2):'+$'+netExp.toFixed(2)):'—'}</div></div>
-        <div class="tc-stat"><div class="tc-stat-label">Upside</div><div class="tc-stat-value pnl-pos" id="tc-up-${t.id}">+$${reward.toFixed(2)}</div></div>
+    <div class="tc-compact-body">
+      <div class="tc-compact-stats">
+        <span>Rem: ${remaining}/${totalQty}</span>
+        <span>Real: ${realStr}</span>
+        <span>Risk: ${riskStr}</span>
       </div>
-      ${execHtml ? '<div class="tc-exec-log">'+execHtml+'</div>' : ''}
+      <div class="tc-progress">
+        <div class="tc-prog-seg tc-prog-green" style="width:${greenPct}%"></div>
+        <div class="tc-prog-seg tc-prog-red" style="width:${redPct}%"></div>
+        <div class="tc-prog-seg tc-prog-gray" style="width:${grayPct}%"></div>
+      </div>
     </div>
   </div>`;
 
   const emptyEl = document.getElementById('empty-state');
 
-  // Insert card in correct position (ascending by allTrades order)
   const myIdx = allTrades.indexOf(t);
   const allCards = document.querySelectorAll('.trade-card[data-trade-id]');
   let inserted = false;
@@ -1151,7 +1077,6 @@ function renderTradeCard(t) {
     }
   }
   if (!inserted) {
-    // Insert before pushed trays and empty state
     const pushedTrays = document.querySelectorAll('.pushed-tray');
     if (pushedTrays.length > 0) {
       pushedTrays[0].insertAdjacentHTML('beforebegin', html);
@@ -1160,12 +1085,6 @@ function renderTradeCard(t) {
     } else {
       document.getElementById('trades-list').insertAdjacentHTML('beforeend', html);
     }
-  }
-
-  // Account Mirror — project trade onto secondary accounts
-  const mirrorData = computeAccountMirror(t);
-  if (mirrorData.length > 0) {
-    renderAccountMirror(t.id, mirrorData);
   }
 }
 
@@ -1179,17 +1098,19 @@ function selectTrade(id) {
   activeTrade = t;
   try { activeTags = typeof t.tags === 'object' ? {...t.tags} : JSON.parse(t.tags_json||'{}'); } catch(e) { activeTags = {}; }
 
-  const tradeIdx = allTrades.indexOf(t);
-  const tradeNum = tradeIdx + 1;
-  const colorIdx = tradeIdx % 6;
+  const tradeNum = t._tradeNum || (allTrades.indexOf(t) + 1);
+  const colorIdx = (tradeNum - 1) % 6;
   const isSwitching = lastActiveId !== null && lastActiveId !== id;
 
-  // ── Left panel: glow active card, dim all others ──
+  // ── Left panel: glow active card, dim others (skip pushed) ──
+  const activeTrades = allTrades.filter(tr => !tr._pushed);
   document.querySelectorAll('.trade-card').forEach(c => {
-    c.style.outline = '';
     c.classList.remove('tc-active-glow', 'tc-dimmed');
-    if (allTrades.length > 1) {
-      if (parseInt(c.dataset.tradeId) === id) {
+    const cid = parseInt(c.dataset.tradeId);
+    const cTrade = allTrades.find(tr => tr.id === cid);
+    if (cTrade && cTrade._pushed) return; // pushed cards keep their own opacity
+    if (activeTrades.length > 1 || allTrades.some(tr => tr._pushed)) {
+      if (cid === id) {
         c.classList.add('tc-active-glow');
       } else {
         c.classList.add('tc-dimmed');
@@ -1201,10 +1122,9 @@ function selectTrade(id) {
   const rp = document.getElementById('right-panel');
   rp.className = 'ticket-right rp-color-' + colorIdx;
 
-  // Flash animation on switch
   if (isSwitching) {
     rp.classList.remove('rp-flash');
-    void rp.offsetWidth; // force reflow
+    void rp.offsetWidth;
     rp.classList.add('rp-flash');
   }
 
@@ -1214,10 +1134,9 @@ function selectTrade(id) {
   document.getElementById('rp-controls').style.flexDirection = 'column';
   document.getElementById('rp-controls').style.flex = '1';
 
-  // Build tab bar
-  buildTabBar();
-
-  // ── Active trade banner — large and unmistakable ──
+  // ── Trade header (Section A) ──
+  const status = deriveTradeStatus(t);
+  const statusColors = { open: 'var(--warn)', partial: 'var(--accent2)', protected: 'var(--green)' };
   const bannerEl = document.getElementById('rp-active-banner');
   const dirClass = t.direction === 'Long' ? 'long' : 'short';
   bannerEl.style.display = 'flex';
@@ -1226,39 +1145,49 @@ function selectTrade(id) {
     <div class="rp-active-info">
       <span class="rp-active-dir-badge ${dirClass}">${t.direction}</span>
       <span class="rp-active-detail">${t.total_qty}× ${t.instrument} @ ${t.entry_price} · ${t.entry_time}</span>
+      <span class="rp-active-status" style="color:${statusColors[status]};">
+        <span class="rp-status-dot" style="background:${statusColors[status]};"></span>${status.toUpperCase()}
+      </span>
     </div>`;
 
-  // Notes (3 fields)
+  // ── Health Strip (Section B) ──
+  const calc = t.calc || {};
+  const remaining = calc.remaining_qty ?? t.total_qty;
+  const netExp = calc.net_stop_exposure;
+  const realized = calc.realized_pnl || 0;
+  const potential = calc.potential_reward || 0;
+
+  document.getElementById('hs-remaining').textContent = remaining;
+  const hsRisk = document.getElementById('hs-risk');
+  if (netExp != null) {
+    hsRisk.textContent = netExp < 0 ? '-$' + Math.abs(netExp).toFixed(0) : '+$' + netExp.toFixed(0);
+    hsRisk.style.color = netExp < 0 ? 'var(--red)' : 'var(--green)';
+  } else { hsRisk.textContent = '—'; hsRisk.style.color = ''; }
+
+  const hsReal = document.getElementById('hs-realized');
+  hsReal.textContent = (realized >= 0 ? '+' : '') + '$' + realized.toFixed(0);
+  hsReal.className = 'hs-value ' + (realized > 0 ? 'pnl-pos' : realized < 0 ? 'pnl-neg' : 'pnl-zero');
+
+  const hsPot = document.getElementById('hs-potential');
+  hsPot.textContent = '+$' + potential.toFixed(0);
+  hsPot.className = 'hs-value pnl-pos';
+
+  // Notes
   document.getElementById('rp-notes').value = t.notes || '';
   document.getElementById('rp-notes-monitoring').value = t.notes_monitoring || '';
   document.getElementById('rp-notes-exit').value = t.notes_exit || '';
 
-  // Build Quick Exit buttons (TP + Stop + Manual)
+  // Build Quick Exit buttons
   buildQuickExitButtons(t);
   syncTagButtons();
 
-  // Toast on switch
   if (isSwitching) {
     showToast(`Switched to Trade ${tradeNum}`);
   }
   lastActiveId = id;
 }
 
-function buildTabBar() {
-  const TAB_COLORS = ['var(--green)', '#00cfff', '#ffb347', '#b47fff', '#ff6b6b', '#58a6ff'];
-  const container = document.getElementById('rp-tabs');
-  let html = '';
-  allTrades.forEach((t, i) => {
-    const isActive = activeTrade && activeTrade.id === t.id;
-    const color = TAB_COLORS[i % 6];
-    const label = `T${i+1}`;
-    html += `<button class="rp-tab ${isActive?'active':''}" onclick="selectTrade(${t.id})" style="${isActive?'border-bottom-color:'+color+';color:'+color+';':''}">
-      <span class="rp-tab-dot" style="background:${color};"></span>${label}</button>`;
-  });
-  container.innerHTML = html;
-  container.style.display = allTrades.length > 0 ? 'flex' : 'none';
-}
-
+// ── Build Quick Exit Buttons with Editable Prices ────────────────────────────
 function buildQuickExitButtons(t) {
   const container = document.getElementById('qe-buttons');
   const levels = t.levels || [];
@@ -1276,7 +1205,6 @@ function buildQuickExitButtons(t) {
   let html = '<div class="qe-grid">';
 
   if (t.mode === 'partials') {
-    // ── TP Section ──
     html += '<div class="qe-section-label">Take Profit</div>';
     tps.forEach(tp => {
       const stop = stops.find(s=>s.portion===tp.portion);
@@ -1289,11 +1217,11 @@ function buildQuickExitButtons(t) {
       }
       const pnl = isLong ? (tp.price-entry)*rem*dpp : (entry-tp.price)*rem*dpp;
       html += `<div class="qe-btn qe-tp" onclick="quickExit(${t.id},'tp_hit',${tp.portion},${rem},${tp.price})">
-        <div class="qe-btn-label">TP${tp.portion}</div><div class="qe-btn-price">${tp.price}</div>
+        <div class="qe-btn-label">TP${tp.portion}</div>
+        <div class="qe-btn-price" onclick="editQePrice(event,this,${t.id},${tp.portion},'tp')">${tp.price}</div>
         <div class="qe-btn-pnl pnl-pos">+$${pnl.toFixed(0)} · ${rem}×</div></div>`;
     });
 
-    // ── Stop Section ──
     html += '<div class="qe-section-label">Stop Hit</div>';
     stops.forEach(s => {
       const exited = portionExited[s.portion] || 0;
@@ -1306,18 +1234,19 @@ function buildQuickExitButtons(t) {
       const pnlCls = pnl >= 0 ? 'pnl-pos' : 'pnl-neg';
       const pnlStr = pnl >= 0 ? `+$${pnl.toFixed(0)}` : `-$${Math.abs(pnl).toFixed(0)}`;
       html += `<div class="qe-btn qe-stop" onclick="quickExit(${t.id},'stop_hit',${s.portion},${rem},${s.price})">
-        <div class="qe-btn-label">S${s.portion}</div><div class="qe-btn-price">${s.price}</div>
+        <div class="qe-btn-label">S${s.portion}</div>
+        <div class="qe-btn-price" onclick="editQePrice(event,this,${t.id},${s.portion},'stop')">${s.price}</div>
         <div class="qe-btn-pnl ${pnlCls}">${pnlStr} · ${rem}×</div></div>`;
     });
 
   } else {
-    // Full mode: single TP + single Stop
     const tp = tps[0]; const stop = stops[0];
     const rem = (t.calc?.remaining_qty) ?? t.total_qty;
     if (tp && rem > 0) {
       const pnl = isLong ? (tp.price-entry)*rem*dpp : (entry-tp.price)*rem*dpp;
       html += `<div class="qe-btn qe-tp qe-full-row" onclick="quickExit(${t.id},'tp_hit',1,${rem},${tp.price})">
-        <div class="qe-btn-label">TARGET</div><div class="qe-btn-price">${tp.price}</div>
+        <div class="qe-btn-label">TARGET</div>
+        <div class="qe-btn-price" onclick="editQePrice(event,this,${t.id},1,'tp')">${tp.price}</div>
         <div class="qe-btn-pnl pnl-pos">+$${pnl.toFixed(0)} · ${rem}×</div></div>`;
     }
     if (stop && rem > 0) {
@@ -1325,7 +1254,8 @@ function buildQuickExitButtons(t) {
       const pnlCls = pnl >= 0 ? 'pnl-pos' : 'pnl-neg';
       const pnlStr = pnl >= 0 ? `+$${pnl.toFixed(0)}` : `-$${Math.abs(pnl).toFixed(0)}`;
       html += `<div class="qe-btn qe-stop qe-full-row" onclick="quickExit(${t.id},'stop_hit',1,${rem},${stop.price})">
-        <div class="qe-btn-label">STOP</div><div class="qe-btn-price">${stop.price}</div>
+        <div class="qe-btn-label">STOP</div>
+        <div class="qe-btn-price" onclick="editQePrice(event,this,${t.id},1,'stop')">${stop.price}</div>
         <div class="qe-btn-pnl ${pnlCls}">${pnlStr} · ${rem}×</div></div>`;
     }
   }
@@ -1334,74 +1264,16 @@ function buildQuickExitButtons(t) {
   container.innerHTML = html;
 }
 
-// ── Quick Exit (ONE CLICK!) ──────────────────────────────────────────────────
-async function quickExit(tradeId, type, portion, qty, price) {
-  const now = new Date();
-  const time = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
-
-  const res = await fetch(`/api/live/${tradeId}/execute`, {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({exec_type:type, portion, qty, price, exec_time:time})
-  });
-  const data = await res.json();
-  if (!data.ok) { showToast(data.error||'Failed',true); return; }
-
-  // Update local state
-  const t = allTrades.find(tr=>tr.id===tradeId);
-  if (t) {
-    t.executions = t.executions || [];
-    t.executions.push({id:data.exec_id, exec_type:type, portion, qty, price, exec_time:time, pnl:data.pnl});
-    t.calc = data.calc;
-    renderTradeCard(t);
-    if (activeTrade && activeTrade.id === tradeId) selectTrade(tradeId);
-  }
-  updateDayPnl();
-  showToast(`${type.replace('_',' ')} · $${data.pnl.toFixed(2)}`);
-}
-
-async function manualExit() {
-  if (!activeTrade) return;
-  const price = parseFloat(document.getElementById('man-price').value);
-  let qtyToExit = parseInt(document.getElementById('man-qty').value);
-  if (!price || !qtyToExit) { showToast('Enter price and qty', true); return; }
-
-  // Calculate remaining qty per portion
-  const execs = activeTrade.executions || [];
-  const portionExited = {};
-  execs.forEach(e => { portionExited[e.portion] = (portionExited[e.portion]||0) + e.qty; });
-  const stops = (activeTrade.levels||[]).filter(l=>l.level_type==='stop').sort((a,b)=>a.portion-b.portion);
-
-  // Build list of open portions with remaining qty
-  const openPortions = [];
-  for (const s of stops) {
-    const rem = s.qty - (portionExited[s.portion]||0);
-    if (rem > 0) openPortions.push({portion: s.portion, remaining: rem});
-  }
-
-  // Distribute exit qty across open portions sequentially
-  for (const op of openPortions) {
-    if (qtyToExit <= 0) break;
-    const exitFromThis = Math.min(qtyToExit, op.remaining);
-    await quickExit(activeTrade.id, 'manual_exit', op.portion, exitFromThis, price);
-    qtyToExit -= exitFromThis;
-  }
-
-  document.getElementById('man-price').value = '';
-  document.getElementById('man-qty').value = '';
-}
-
-// ── Inline Price Edit (click on stop/tp value in position map) ───────────────
-function editPrice(el) {
-  if (el.querySelector('input')) return; // already editing
-  const tradeId = parseInt(el.dataset.trade);
-  const portion = parseInt(el.dataset.portion);
-  const type = el.dataset.type;
+// ── Inline Price Edit in QE Buttons ──────────────────────────────────────────
+function editQePrice(event, el, tradeId, portion, type) {
+  event.stopPropagation();
+  if (el.querySelector('input')) return;
   const currentVal = el.textContent.trim();
   if (currentVal === '—') return;
 
   const input = document.createElement('input');
   input.type = 'number'; input.step = '0.25'; input.value = currentVal;
-  input.className = 'pr-edit-input';
+  input.className = 'qe-price-input';
   el.textContent = '';
   el.appendChild(input);
   input.focus(); input.select();
@@ -1421,13 +1293,6 @@ function editPrice(el) {
       const l = {...lv};
       if (l.level_type === type && l.portion === portion) {
         l.price = newPrice;
-        if (type === 'stop') {
-          const pnl = isLong ? (newPrice-entry)*l.qty*dpp : (entry-newPrice)*l.qty*dpp;
-          l.risk_dollars = Math.max(-pnl,0); l.reward_dollars = 0;
-        } else {
-          const pnl = isLong ? (newPrice-entry)*l.qty*dpp : (entry-newPrice)*l.qty*dpp;
-          l.risk_dollars = 0; l.reward_dollars = Math.max(pnl,0);
-        }
       }
       return l;
     });
@@ -1446,6 +1311,95 @@ function editPrice(el) {
 
   input.addEventListener('blur', commit);
   input.addEventListener('keydown', e => { if(e.key==='Enter') input.blur(); if(e.key==='Escape'){el.textContent=currentVal;} });
+}
+
+// ── Quick Exit (ONE CLICK!) ──────────────────────────────────────────────────
+async function quickExit(tradeId, type, portion, qty, price) {
+  const now = new Date();
+  const time = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+
+  const res = await fetch(`/api/live/${tradeId}/execute`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({exec_type:type, portion, qty, price, exec_time:time})
+  });
+  const data = await res.json();
+  if (!data.ok) { showToast(data.error||'Failed',true); return; }
+
+  const t = allTrades.find(tr=>tr.id===tradeId);
+  if (t) {
+    t.executions = t.executions || [];
+    t.executions.push({id:data.exec_id, exec_type:type, portion, qty, price, exec_time:time, pnl:data.pnl});
+    t.calc = data.calc;
+    renderTradeCard(t);
+    if (activeTrade && activeTrade.id === tradeId) selectTrade(tradeId);
+  }
+  updateDayPnl();
+  showToast(`${type.replace('_',' ')} · $${data.pnl.toFixed(2)}`);
+}
+
+async function manualExit() {
+  if (!activeTrade) return;
+  const price = parseFloat(document.getElementById('man-price').value);
+  let qtyToExit = parseInt(document.getElementById('man-qty').value);
+  if (!price || !qtyToExit) { showToast('Enter price and qty', true); return; }
+
+  const execs = activeTrade.executions || [];
+  const portionExited = {};
+  execs.forEach(e => { portionExited[e.portion] = (portionExited[e.portion]||0) + e.qty; });
+  const stops = (activeTrade.levels||[]).filter(l=>l.level_type==='stop').sort((a,b)=>a.portion-b.portion);
+
+  const openPortions = [];
+  for (const s of stops) {
+    const rem = s.qty - (portionExited[s.portion]||0);
+    if (rem > 0) openPortions.push({portion: s.portion, remaining: rem});
+  }
+
+  for (const op of openPortions) {
+    if (qtyToExit <= 0) break;
+    const exitFromThis = Math.min(qtyToExit, op.remaining);
+    await quickExit(activeTrade.id, 'manual_exit', op.portion, exitFromThis, price);
+    qtyToExit -= exitFromThis;
+  }
+
+  document.getElementById('man-price').value = '';
+  document.getElementById('man-qty').value = '';
+}
+
+// ── Flatten Remaining ────────────────────────────────────────────────────────
+function flattenRemaining() {
+  if (!activeTrade) return;
+  const price = parseFloat(document.getElementById('man-price').value);
+  if (!price) { showToast('Enter a price first', true); return; }
+  const rem = activeTrade.calc?.remaining_qty ?? activeTrade.total_qty;
+  if (rem <= 0) { showToast('No remaining qty', true); return; }
+  document.getElementById('man-qty').value = rem;
+  manualExit();
+}
+
+// ── Move Stops to BE ─────────────────────────────────────────────────────────
+async function moveStopsToBE() {
+  if (!activeTrade) return;
+  const t = activeTrade;
+  const entry = t.entry_price;
+  const newLevels = (t.levels||[]).map(lv => {
+    const l = {...lv};
+    if (l.level_type === 'stop') l.price = entry;
+    return l;
+  });
+
+  const res = await fetch(`/api/live/${t.id}/levels`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({levels:newLevels})
+  });
+  const data = await res.json();
+  if (data.ok) {
+    t.levels = newLevels; t.calc = data.calc;
+    renderTradeCard(t);
+    selectTrade(t.id);
+    showToast('Stops moved to breakeven');
+  } else {
+    showToast(data.error || 'Failed', true);
+  }
 }
 
 // ── Delete Execution ─────────────────────────────────────────────────────────
@@ -1472,33 +1426,26 @@ async function pushActiveTrade() {
   const data = await res.json();
   if (!data.ok) { showToast(data.error||'Failed',true); return; }
 
-  // Collapse into pushed tray
-  const card = document.getElementById('tc-'+activeTrade.id);
-  if (card) {
-    const t = activeTrade;
-    const realized = t.calc?.realized_pnl || 0;
-    card.outerHTML = `<div class="pushed-tray">
-      <span class="tc-dir-badge ${t.direction==='Long'?'tc-dir-long':'tc-dir-short'}">${t.direction[0]}</span>
-      <span style="font-size:12px;">${t.total_qty}× ${t.instrument} @ ${t.entry_price}</span>
-      <span class="tc-pnl ${realized>=0?'pnl-pos':'pnl-neg'}" style="font-size:16px;">${realized>=0?'+':''}$${realized.toFixed(2)}</span>
-      <span class="tc-status tc-status-closed">pushed ✓</span>
-    </div>`;
-  }
+  // Mark trade as pushed and re-render card in place
+  activeTrade._pushed = true;
+  renderTradeCard(activeTrade);
 
   const pushedId = activeTrade.id;
-  allTrades = allTrades.filter(tr=>tr.id!==pushedId);
   activeTrade = null;
 
-  // Select next open trade tab or show empty
-  if (allTrades.length > 0) { selectTrade(allTrades[0].id); }
+  // Select next non-pushed trade, or show empty
+  const nextTrade = allTrades.find(tr => !tr._pushed);
+  if (nextTrade) { selectTrade(nextTrade.id); }
   else {
     document.getElementById('rp-empty').style.display = 'flex';
     document.getElementById('rp-controls').style.display = 'none';
-    document.getElementById('rp-tabs').innerHTML = '';
-    document.getElementById('rp-tabs').style.display = 'none';
     document.getElementById('rp-active-banner').style.display = 'none';
     document.getElementById('right-panel').className = 'ticket-right';
     lastActiveId = null;
+    // Remove glow/dim from all cards
+    document.querySelectorAll('.trade-card').forEach(c => {
+      c.classList.remove('tc-active-glow', 'tc-dimmed');
+    });
   }
   updateDayPnl();
   showToast('Pushed to journal ✓');
@@ -1520,12 +1467,11 @@ async function cancelActiveTrade() {
   else {
     document.getElementById('rp-empty').style.display = 'flex';
     document.getElementById('rp-controls').style.display = 'none';
-    document.getElementById('rp-tabs').innerHTML = '';
-    document.getElementById('rp-tabs').style.display = 'none';
     document.getElementById('rp-active-banner').style.display = 'none';
     document.getElementById('right-panel').className = 'ticket-right';
     lastActiveId = null;
   }
+  updateDayPnl();
   showToast('Trade cancelled');
 }
 
@@ -1594,38 +1540,110 @@ document.getElementById('rp-notes-exit')?.addEventListener('input', function() {
   scheduleNotesAutoSave();
 });
 
-// ── Day P&L ──────────────────────────────────────────────────────────────────
+// ── Note Accordions ──────────────────────────────────────────────────────────
+function toggleNoteAcc(key) {
+  const el = document.getElementById('note-acc-' + key);
+  if (el) el.classList.toggle('open');
+}
+
+// ── Day P&L + Global Summary ─────────────────────────────────────────────────
 function updateDayPnl() {
   let total = 0;
+  // Sum from allTrades (includes both active and session-pushed trades)
   allTrades.forEach(t => { total += t.calc?.realized_pnl || 0; });
-  // Also count pushed trades from server render
-  let pushedCount = 0;
+  // Also count server-rendered pushed trays from prior sessions
+  let serverPushedCount = 0;
   document.querySelectorAll('.pushed-tray .tc-pnl').forEach(el => {
     const val = parseFloat(el.textContent.replace(/[^-\d.]/g,''));
     if (!isNaN(val)) total += val;
-    pushedCount++;
+    serverPushedCount++;
   });
   const el = document.getElementById('day-pnl');
   el.textContent = (total>=0?'+':'') + '$' + total.toFixed(2);
   el.className = 'day-footer-val ' + (total>0?'pnl-pos':total<0?'pnl-neg':'pnl-zero');
 
-  // Update trade count
-  const totalTrades = allTrades.length + pushedCount;
+  const totalTrades = allTrades.length + serverPushedCount;
   const countEl = document.getElementById('trade-count-label');
   if (countEl) countEl.textContent = totalTrades + ' trade' + (totalTrades !== 1 ? 's' : '');
+
+  updateGlobalSummary();
 }
+
+// ── Global Summary Strip (always visible) ────────────────────────────────────
+function updateGlobalSummary() {
+  const gsEl = document.getElementById('global-summary');
+  gsEl.style.display = 'grid';
+
+  let openCount = 0, closedCount = 0, totalRisk = 0, totalRealized = 0, totalPotential = 0;
+  const netExposure = {};
+
+  allTrades.forEach(t => {
+    const calc = t.calc || {};
+    const rem = calc.remaining_qty ?? t.total_qty;
+    const isPushed = !!t._pushed;
+
+    if (isPushed) {
+      closedCount++;
+    } else if (rem > 0) {
+      openCount++;
+    } else {
+      closedCount++;
+    }
+
+    totalRisk += isPushed ? 0 : (calc.net_stop_exposure || 0);
+    totalRealized += calc.realized_pnl || 0;
+    totalPotential += isPushed ? 0 : (calc.potential_reward || 0);
+
+    // Net exposure per instrument per direction (only non-pushed with remaining qty)
+    if (!isPushed && rem > 0) {
+      const key = t.instrument;
+      const sign = t.direction === 'Long' ? 1 : -1;
+      netExposure[key] = (netExposure[key] || 0) + sign * rem;
+    }
+  });
+
+  // Also count server-rendered pushed trays (from prior sessions)
+  document.querySelectorAll('.pushed-tray').forEach(el => {
+    closedCount++;
+    const pnlEl = el.querySelector('.tc-pnl');
+    if (pnlEl) {
+      const val = parseFloat(pnlEl.textContent.replace(/[^-\d.]/g,''));
+      if (!isNaN(val)) totalRealized += val;
+    }
+  });
+
+  document.getElementById('gs-open').textContent = openCount;
+  document.getElementById('gs-closed').textContent = closedCount;
+
+  const gsRisk = document.getElementById('gs-risk');
+  gsRisk.textContent = totalRisk < 0 ? '-$' + Math.abs(totalRisk).toFixed(0) : '+$' + totalRisk.toFixed(0);
+  gsRisk.style.color = totalRisk < 0 ? 'var(--red)' : 'var(--green)';
+
+  const gsReal = document.getElementById('gs-realized');
+  gsReal.textContent = (totalRealized >= 0 ? '+' : '') + '$' + totalRealized.toFixed(0);
+  gsReal.style.color = totalRealized > 0 ? 'var(--green)' : totalRealized < 0 ? 'var(--red)' : '';
+
+  // Net exposure string
+  const parts = [];
+  for (const [inst, qty] of Object.entries(netExposure)) {
+    if (qty !== 0) parts.push((qty > 0 ? '+' : '') + qty + ' ' + inst);
+  }
+  document.getElementById('gs-net').textContent = parts.length > 0 ? parts.join(' · ') : '—';
+
+  const gsPot = document.getElementById('gs-potential');
+  gsPot.textContent = '+$' + totalPotential.toFixed(0);
+  gsPot.style.color = 'var(--green)';
+}
+
 // ── Keyboard Shortcuts ───────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
-  // Don't trigger when typing in inputs
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
-  // Alt+1..9 → switch to trade tab N
   if (e.altKey && e.key >= '1' && e.key <= '9') {
     e.preventDefault();
     const idx = parseInt(e.key) - 1;
     if (idx < allTrades.length) selectTrade(allTrades[idx].id);
   }
-  // Alt+T → cycle to next trade
   if (e.altKey && e.key.toLowerCase() === 't') {
     e.preventDefault();
     if (allTrades.length < 2) return;
@@ -1703,7 +1721,6 @@ function updateRiskCalc() {
   document.getElementById('rc-risk').textContent = `$${risk.toFixed(2)}`;
   document.getElementById('rc-risk-per').textContent = `$${riskPer.toFixed(2)}`;
 
-  // Get TP distances based on mode
   const portionsWrap = document.getElementById('rc-portions-wrap');
   if (formMode === 'partials') {
     const tps = [
@@ -1724,7 +1741,6 @@ function updateRiskCalc() {
     rows += `<tr><td>Total</td><td>${qty}</td><td></td><td></td><td>$${risk.toFixed(0)}</td><td>$${totalReward.toFixed(0)}</td></tr>`;
     portionsWrap.innerHTML = `<table class="rc-portion-table"><thead><tr><th>Portion</th><th>Qty</th><th>Stop</th><th>TP</th><th>Risk</th><th>Reward</th></tr></thead><tbody>${rows}</tbody></table>`;
 
-    // Weighted average TP for R:R
     const avgTp = qty > 0 ? (qtys[0]*tps[0]+qtys[1]*tps[1]+qtys[2]*tps[2])/qty : 0;
     const rr = stopPts > 0 ? (avgTp/stopPts) : 0;
     document.getElementById('rc-rr').textContent = `1 : ${rr.toFixed(1)}`;
@@ -1751,189 +1767,6 @@ function solveForQty() {
   } else {
     document.getElementById('rc-solved-qty').textContent = '—';
   }
-}
-
-// ── Account Mirror ───────────────────────────────────────────────────────────
-function computeAccountMirror(trade) {
-  if (!ACCOUNT_PROFILES || ACCOUNT_PROFILES.length < 2) return [];
-  const primary = ACCOUNT_PROFILES.find(p => p.is_primary);
-  if (!primary) return [];
-
-  const primaryQty = primary.default_qty || trade.total_qty;
-  const levels = trade.levels || [];
-  const executions = trade.executions || [];
-  const entry = trade.entry_price;
-  const isLong = trade.direction === 'Long';
-  const numPortions = trade.mode === 'partials' ? 3 : 1;
-
-  return ACCOUNT_PROFILES.filter(p => !p.is_primary).map(acct => {
-    const acctDpp = INST_CONFIG[acct.default_instrument]?.dollars_per_point || 5;
-    const qtyRatio = acct.default_qty / primaryQty;
-
-    // Project levels
-    const stops = levels.filter(l => l.level_type === 'stop').sort((a,b) => a.portion - b.portion);
-    const tps = levels.filter(l => l.level_type === 'tp').sort((a,b) => a.portion - b.portion);
-
-    // Track exited qty per portion from executions
-    const portionExited = {};
-    executions.forEach(e => { portionExited[e.portion] = (portionExited[e.portion] || 0) + e.qty; });
-
-    // Project executions
-    let projRealized = 0;
-    const projExecs = executions.map(e => {
-      const projQty = Math.max(1, Math.round(e.qty * qtyRatio));
-      const pointMove = isLong ? (e.price - entry) : (entry - e.price);
-      const projPnl = pointMove * projQty * acctDpp;
-      projRealized += projPnl;
-      return {
-        exec_type: e.exec_type,
-        portion: e.portion,
-        qty: projQty,
-        price: e.price,
-        pnl: projPnl,
-      };
-    });
-
-    // Project remaining risk & upside
-    let totalStopPnl = 0;
-    let totalTpPnl = 0;
-    const projTotalQty = Math.max(1, Math.round(trade.total_qty * qtyRatio));
-    let projExitedQty = projExecs.reduce((s, e) => s + e.qty, 0);
-    let projRemaining = projTotalQty - projExitedQty;
-
-    for (let p = 1; p <= numPortions; p++) {
-      const stop = stops.find(s => s.portion === p);
-      const tp = tps.find(t2 => t2.portion === p);
-      if (!stop) continue;
-      const origQty = Math.max(1, Math.round(stop.qty * qtyRatio));
-      const exited = Math.round((portionExited[p] || 0) * qtyRatio);
-      const rem = Math.max(0, origQty - exited);
-      if (rem <= 0) continue;
-
-      if (isLong) {
-        totalStopPnl += (stop.price - entry) * rem * acctDpp;
-        if (tp) totalTpPnl += (tp.price - entry) * rem * acctDpp;
-      } else {
-        totalStopPnl += (entry - stop.price) * rem * acctDpp;
-        if (tp) totalTpPnl += (entry - tp.price) * rem * acctDpp;
-      }
-    }
-
-    const worstCase = totalStopPnl + projRealized;
-
-    return {
-      name: acct.name,
-      color: acct.color,
-      instrument: acct.default_instrument,
-      projectedQty: projTotalQty,
-      executions: projExecs,
-      realized: Math.round(projRealized * 100) / 100,
-      risk: worstCase < 0 ? Math.round(Math.abs(worstCase) * 100) / 100 : 0,
-      netExposure: Math.round(worstCase * 100) / 100,
-      upside: Math.round(Math.max(0, totalTpPnl) * 100) / 100,
-      remaining: Math.max(0, projRemaining),
-    };
-  });
-}
-
-function renderAccountMirror(tradeId, mirrorData) {
-  const existingMirror = document.getElementById('acct-mirror-' + tradeId);
-  if (existingMirror) existingMirror.remove();
-
-  if (!mirrorData || mirrorData.length === 0) return;
-
-  let rowsHtml = '';
-  mirrorData.forEach(m => {
-    // Build execution badges
-    let execBadges = '';
-    const seenPortions = {};
-    m.executions.forEach(e => {
-      const key = e.exec_type + '-' + e.portion;
-      if (seenPortions[key]) return;
-      seenPortions[key] = true;
-      const label = e.exec_type === 'tp_hit' ? 'TP' + e.portion :
-                    e.exec_type === 'stop_hit' ? 'STP' + e.portion : 'EXIT';
-      const cls = e.exec_type === 'stop_hit' ? 'stop' : 'tp';
-      const sign = e.pnl >= 0 ? '+' : '';
-      execBadges += `<span class="acct-mirror-exec ${cls}">${label} ${sign}$${Math.abs(e.pnl).toFixed(0)}</span>`;
-    });
-
-    const riskColor = m.netExposure < 0 ? 'var(--red)' : 'var(--green)';
-    const riskStr = m.netExposure < 0 ? '-$' + m.risk.toFixed(0) : '+$' + m.netExposure.toFixed(0);
-
-    rowsHtml += `
-      <div class="acct-mirror-row">
-        <div class="acct-mirror-name" style="color:${m.color};">${m.name} (${m.projectedQty}× ${m.instrument})</div>
-        <div class="acct-mirror-execs">${execBadges || '<span style="color:var(--border2);font-size:9px;">—</span>'}</div>
-        <div class="acct-mirror-risk" style="color:${riskColor};">${riskStr}</div>
-        <div class="acct-mirror-upside pnl-pos">+$${m.upside.toFixed(0)}</div>
-      </div>`;
-  });
-
-  const mirrorHtml = `
-    <div class="acct-mirror" id="acct-mirror-${tradeId}">
-      <div class="acct-mirror-toggle" onclick="toggleMirror(${tradeId}, event)">
-        <span class="arrow" id="mirror-arrow-${tradeId}">&#9654;</span> Account Mirror
-      </div>
-      <div class="acct-mirror-body" id="mirror-body-${tradeId}">
-        <div style="display:grid;grid-template-columns:120px 1fr 80px 80px;padding:2px 0;font-size:8px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);">
-          <div>Account</div><div>Executions</div><div style="text-align:right;">Risk</div><div style="text-align:right;">Upside</div>
-        </div>
-        ${rowsHtml}
-      </div>
-    </div>`;
-
-  // Insert into the trade card's tc-body, after exec-log or stats
-  const tcBody = document.querySelector(`#tc-${tradeId} .tc-body`);
-  if (tcBody) tcBody.insertAdjacentHTML('beforeend', mirrorHtml);
-}
-
-function toggleMirror(tradeId, event) {
-  event.stopPropagation();
-  const body = document.getElementById('mirror-body-' + tradeId);
-  const arrow = document.getElementById('mirror-arrow-' + tradeId);
-  if (body && arrow) {
-    body.classList.toggle('open');
-    arrow.classList.toggle('open');
-  }
-}
-
-// ── Shadow Preview ───────────────────────────────────────────────────────────
-function updateShadowPreview() {
-  const bar = document.getElementById('shadow-preview');
-  const items = document.getElementById('shadow-preview-items');
-  if (!ACCOUNT_PROFILES || ACCOUNT_PROFILES.length < 2) { bar.style.display = 'none'; return; }
-
-  const primary = ACCOUNT_PROFILES.find(p => p.is_primary);
-  if (!primary) { bar.style.display = 'none'; return; }
-
-  // Check if primary account is selected in nav
-  const navSel = document.getElementById('global-account-select');
-  const selectedPort = navSel ? navSel.value : '';
-  if (selectedPort && parseInt(selectedPort) !== primary.id) { bar.style.display = 'none'; return; }
-
-  const qty = parseInt(document.getElementById('cmd-qty').value) || 0;
-  if (qty <= 0) { bar.style.display = 'none'; return; }
-
-  const { dpp, stopPts } = getRiskParams();
-  const primaryQty = primary.default_qty || qty;
-
-  let html = '';
-  ACCOUNT_PROFILES.filter(p => !p.is_primary).forEach(p => {
-    const shadowDpp = INST_CONFIG[p.default_instrument]?.dollars_per_point || 5;
-    const qtyRatio = p.default_qty / primaryQty;
-    const projQty = Math.max(1, Math.round(qty * qtyRatio));
-    const projRisk = projQty * stopPts * shadowDpp;
-
-    html += `<span class="shadow-item">` +
-      `<span class="shadow-item-name" style="color:${p.color};">${p.name}</span> ` +
-      `<span class="shadow-item-detail">→ ${projQty}× ${p.default_instrument}</span> ` +
-      `<span class="shadow-item-risk">(${projRisk > 0 ? '$'+projRisk.toFixed(0)+' risk' : '—'})</span>` +
-      `</span>`;
-  });
-
-  items.innerHTML = html;
-  bar.style.display = 'flex';
 }
 
 function applyCustomRange() {
