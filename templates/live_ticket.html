@@ -380,8 +380,7 @@
 .qe-btn:hover { border-color:var(--muted); background:var(--surface3); }
 .qe-btn:active { transform:scale(0.97); }
 .qe-btn-label { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted2); }
-.qe-btn-price { font-family:var(--font-mono); font-size:13px; color:var(--text); cursor:text; }
-.qe-btn-price:hover { text-decoration:underline; text-decoration-style:dashed; }
+.qe-btn-price { font-family:var(--font-mono); font-size:13px; color:var(--text); }
 .qe-btn-pnl   { font-size:10px; }
 
 .qe-btn.qe-tp  { border-left:2px solid var(--green); }
@@ -396,11 +395,45 @@
 }
 .qe-section-label:first-child { border-top:none; padding-top:0; }
 
-/* Inline edit for QE prices */
-.qe-price-input {
-  width:80px; background:var(--bg); border:1px solid var(--accent);
-  color:var(--text); font-family:var(--font-mono); font-size:12px;
-  padding:2px 6px; outline:none; border-radius:1px; text-align:center;
+/* ── Portion Accordion inside Trade Cards ── */
+.portion-acc { border-top:1px solid var(--border); overflow:hidden; }
+.portion-acc-header {
+  display:flex; align-items:center; gap:6px; padding:6px 18px;
+  cursor:pointer; font-size:10px; letter-spacing:1.5px; text-transform:uppercase;
+  color:var(--muted); user-select:none; transition:color 0.12s;
+}
+.portion-acc-header:hover { color:var(--text); }
+.portion-acc-header .arrow { transition:transform 0.2s; display:inline-block; font-size:8px; }
+.portion-acc.open .portion-acc-header .arrow { transform:rotate(90deg); }
+.portion-acc-body { display:none; padding:0 18px 10px; }
+.portion-acc.open .portion-acc-body { display:block; }
+.portion-row {
+  display:flex; align-items:baseline; gap:10px; padding:8px 0;
+  border-bottom:1px solid var(--border);
+  font-family:var(--font-mono); font-size:11px;
+}
+.portion-row:last-child { border-bottom:none; }
+.portion-row .pr-label { color:var(--muted2); min-width:48px; white-space:nowrap; }
+.portion-row .pr-stop { color:var(--red); }
+.portion-row .pr-arrow { color:var(--muted); }
+.portion-row .pr-tp { color:var(--green); }
+.portion-row .pr-right { margin-left:auto; display:flex; align-items:baseline; gap:6px; }
+.portion-row .pr-risk { color:var(--text); }
+.portion-row .editable { cursor:text; }
+.portion-row .editable:hover { text-decoration:underline; text-decoration-style:dashed; }
+.portion-row.closed-row { opacity:0.45; }
+.portion-row.closed-row .pr-label { text-decoration:line-through; }
+.portion-row .pr-exit { color:var(--muted2); }
+.portion-row .pr-pnl { font-weight:500; }
+.portion-row .undo-btn {
+  background:none; border:none; cursor:pointer; color:var(--warn); font-size:12px;
+  padding:0 2px; transition:color 0.12s; line-height:1;
+}
+.portion-row .undo-btn:hover { color:var(--red); }
+.portion-price-input {
+  width:56px; background:var(--bg); border:1px solid var(--accent);
+  color:inherit; font-family:var(--font-mono); font-size:11px;
+  padding:1px 4px; outline:none; border-radius:1px; text-align:left;
 }
 
 /* Manual exit row */
@@ -987,7 +1020,10 @@ async function openTrade() {
   }
 
   document.getElementById('cmd-price').value = '';
-  document.getElementById('cmd-qty').value = '';
+  // Reset qty to account default instead of clearing
+  const acctSel = document.getElementById('global-account-select');
+  const acctOpt = acctSel && acctSel.value ? acctSel.options[acctSel.selectedIndex] : null;
+  document.getElementById('cmd-qty').value = (acctOpt && acctOpt.dataset.defaultQty) || '';
   const now2 = new Date();
   document.getElementById('cmd-time').value = String(now2.getHours()).padStart(2,'0')+':'+String(now2.getMinutes()).padStart(2,'0');
 
@@ -1081,6 +1117,7 @@ function renderTradeCard(t) {
         <div class="tc-prog-seg tc-prog-gray" style="width:${grayPct}%"></div>
       </div>
     </div>
+    ${buildPortionTable(t)}
   </div>`;
 
   const emptyEl = document.getElementById('empty-state');
@@ -1106,6 +1143,12 @@ function renderTradeCard(t) {
     } else {
       document.getElementById('trades-list').insertAdjacentHTML('beforeend', html);
     }
+  }
+
+  // Restore portion accordion state
+  if (openPortionAccs.has(t.id)) {
+    const acc = document.querySelector(`#tc-${t.id} .portion-acc`);
+    if (acc) acc.classList.add('open');
   }
 }
 
@@ -1239,7 +1282,7 @@ function buildQuickExitButtons(t) {
       const pnl = isLong ? (tp.price-entry)*rem*dpp : (entry-tp.price)*rem*dpp;
       html += `<div class="qe-btn qe-tp" onclick="quickExit(${t.id},'tp_hit',${tp.portion},${rem},${tp.price})">
         <div class="qe-btn-label">TP${tp.portion}</div>
-        <div class="qe-btn-price" onclick="editQePrice(event,this,${t.id},${tp.portion},'tp')">${tp.price}</div>
+        <div class="qe-btn-price" >${tp.price}</div>
         <div class="qe-btn-pnl pnl-pos">+$${pnl.toFixed(0)} · ${rem}×</div></div>`;
     });
 
@@ -1256,7 +1299,7 @@ function buildQuickExitButtons(t) {
       const pnlStr = pnl >= 0 ? `+$${pnl.toFixed(0)}` : `-$${Math.abs(pnl).toFixed(0)}`;
       html += `<div class="qe-btn qe-stop" onclick="quickExit(${t.id},'stop_hit',${s.portion},${rem},${s.price})">
         <div class="qe-btn-label">S${s.portion}</div>
-        <div class="qe-btn-price" onclick="editQePrice(event,this,${t.id},${s.portion},'stop')">${s.price}</div>
+        <div class="qe-btn-price" >${s.price}</div>
         <div class="qe-btn-pnl ${pnlCls}">${pnlStr} · ${rem}×</div></div>`;
     });
 
@@ -1267,7 +1310,7 @@ function buildQuickExitButtons(t) {
       const pnl = isLong ? (tp.price-entry)*rem*dpp : (entry-tp.price)*rem*dpp;
       html += `<div class="qe-btn qe-tp qe-full-row" onclick="quickExit(${t.id},'tp_hit',1,${rem},${tp.price})">
         <div class="qe-btn-label">TARGET</div>
-        <div class="qe-btn-price" onclick="editQePrice(event,this,${t.id},1,'tp')">${tp.price}</div>
+        <div class="qe-btn-price" >${tp.price}</div>
         <div class="qe-btn-pnl pnl-pos">+$${pnl.toFixed(0)} · ${rem}×</div></div>`;
     }
     if (stop && rem > 0) {
@@ -1276,7 +1319,7 @@ function buildQuickExitButtons(t) {
       const pnlStr = pnl >= 0 ? `+$${pnl.toFixed(0)}` : `-$${Math.abs(pnl).toFixed(0)}`;
       html += `<div class="qe-btn qe-stop qe-full-row" onclick="quickExit(${t.id},'stop_hit',1,${rem},${stop.price})">
         <div class="qe-btn-label">STOP</div>
-        <div class="qe-btn-price" onclick="editQePrice(event,this,${t.id},1,'stop')">${stop.price}</div>
+        <div class="qe-btn-price" >${stop.price}</div>
         <div class="qe-btn-pnl ${pnlCls}">${pnlStr} · ${rem}×</div></div>`;
     }
   }
@@ -1285,8 +1328,97 @@ function buildQuickExitButtons(t) {
   container.innerHTML = html;
 }
 
-// ── Inline Price Edit in QE Buttons ──────────────────────────────────────────
-function editQePrice(event, el, tradeId, portion, type) {
+// ── Portion Accordion State ───────────────────────────────────────────────────
+const openPortionAccs = new Set();
+
+function togglePortionAcc(event, tradeId) {
+  event.stopPropagation();
+  const el = document.querySelector(`#tc-${tradeId} .portion-acc`);
+  if (!el) return;
+  el.classList.toggle('open');
+  if (el.classList.contains('open')) openPortionAccs.add(tradeId);
+  else openPortionAccs.delete(tradeId);
+}
+
+// ── Build Portion Table ──────────────────────────────────────────────────────
+function buildPortionTable(t) {
+  const levels = t.levels || [];
+  const executions = t.executions || [];
+  const isLong = t.direction === 'Long';
+  const dpp = INST_CONFIG[t.instrument]?.dollars_per_point || 5;
+  const entry = t.entry_price;
+  const isPushed = !!t._pushed;
+
+  const stops = levels.filter(l=>l.level_type==='stop').sort((a,b)=>a.portion-b.portion);
+  const tps = levels.filter(l=>l.level_type==='tp').sort((a,b)=>a.portion-b.portion);
+  if (stops.length === 0 && tps.length === 0) return '';
+
+  // Gather all portion numbers
+  const portions = [...new Set([...stops.map(s=>s.portion), ...tps.map(t=>t.portion)])].sort((a,b)=>a-b);
+
+  // Map executions by portion
+  const portionExecs = {};
+  executions.forEach(e => {
+    if (!portionExecs[e.portion]) portionExecs[e.portion] = [];
+    portionExecs[e.portion].push(e);
+  });
+
+  let rows = '';
+  portions.forEach(p => {
+    const stop = stops.find(s=>s.portion===p);
+    const tp = tps.find(t=>t.portion===p);
+    const qty = stop ? stop.qty : (tp ? tp.qty : 0);
+    const execs = portionExecs[p] || [];
+    const exitedQty = execs.reduce((s,e)=>s+e.qty, 0);
+    const isClosed = exitedQty >= qty;
+
+    if (isClosed && execs.length > 0) {
+      // Closed row
+      const lastExec = execs[execs.length-1];
+      const typeLabel = lastExec.exec_type === 'tp_hit' ? 'TP' : lastExec.exec_type === 'stop_hit' ? 'Stop' : 'Manual';
+      const pnl = execs.reduce((s,e)=>s+(e.pnl||0), 0);
+      const pnlCls = pnl >= 0 ? 'pnl-pos' : 'pnl-neg';
+      const pnlStr = pnl >= 0 ? `+$${pnl.toFixed(0)}` : `-$${Math.abs(pnl).toFixed(0)}`;
+      const undoHtml = isPushed ? '' : `<button class="undo-btn" onclick="event.stopPropagation();deleteExec(${t.id},${lastExec.id})" title="Undo">↩</button>`;
+      rows += `<div class="portion-row closed-row">
+        <span class="pr-label">P${p} ${qty}×</span>
+        <span class="pr-exit">${typeLabel} @ ${lastExec.price} · ${lastExec.exec_time||''}</span>
+        <span class="pr-right"><span class="pr-pnl ${pnlCls}">${pnlStr}</span>${undoHtml}</span>
+      </div>`;
+    } else {
+      // Open row — editable stop/TP
+      const stopPrice = stop ? stop.price : '—';
+      const tpPrice = tp ? tp.price : '—';
+      const risk = stop ? (isLong ? (stop.price-entry)*qty*dpp : (entry-stop.price)*qty*dpp) : 0;
+      const riskStr = risk < 0 ? `-$${Math.abs(risk).toFixed(0)}` : `+$${risk.toFixed(0)}`;
+
+      const stopSpan = (stop && !isPushed)
+        ? `<span class="pr-stop editable" onclick="editPortionPrice(event,this,${t.id},${p},'stop')">${stopPrice}</span>`
+        : `<span class="pr-stop">${stopPrice}</span>`;
+      const tpSpan = (tp && !isPushed)
+        ? `<span class="pr-tp editable" onclick="editPortionPrice(event,this,${t.id},${p},'tp')">${tpPrice}</span>`
+        : `<span class="pr-tp">${tpPrice}</span>`;
+
+      rows += `<div class="portion-row">
+        <span class="pr-label">P${p} ${qty}×</span>
+        ${stopSpan}
+        <span class="pr-arrow">→</span>
+        ${tpSpan}
+        <span class="pr-right"><span class="pr-risk">${riskStr}</span></span>
+      </div>`;
+    }
+  });
+
+  return `<div class="portion-acc">
+    <div class="portion-acc-header" onclick="togglePortionAcc(event,${t.id})">
+      <span class="arrow">▸</span> Portions
+    </div>
+    <div class="portion-acc-body">${rows}</div>
+  </div>`;
+}
+
+// ── Inline Price Edit in Portion Table ───────────────────────────────────────
+function editPortionPrice(event, el, tradeId, portion, type) {
   event.stopPropagation();
   if (el.querySelector('input')) return;
   const currentVal = el.textContent.trim();
@@ -1294,7 +1426,7 @@ function editQePrice(event, el, tradeId, portion, type) {
 
   const input = document.createElement('input');
   input.type = 'number'; input.step = '0.25'; input.value = currentVal;
-  input.className = 'qe-price-input';
+  input.className = 'portion-price-input';
   el.textContent = '';
   el.appendChild(input);
   input.focus(); input.select();
@@ -1307,14 +1439,9 @@ function editQePrice(event, el, tradeId, portion, type) {
     const t = allTrades.find(tr=>tr.id===tradeId);
     if (!t) return;
 
-    const isLong = t.direction === 'Long';
-    const dpp = INST_CONFIG[t.instrument]?.dollars_per_point || 5;
-    const entry = t.entry_price;
     const newLevels = (t.levels||[]).map(lv => {
       const l = {...lv};
-      if (l.level_type === type && l.portion === portion) {
-        l.price = newPrice;
-      }
+      if (l.level_type === type && l.portion === portion) l.price = newPrice;
       return l;
     });
 
