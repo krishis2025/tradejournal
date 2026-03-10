@@ -499,6 +499,16 @@ def upsert_day(date_str, account_id=None):
 
 def delete_day(day_id):
     with get_conn() as conn:
+        # Clear journal_trade_id references in live_trades before cascade deletes trades
+        trade_ids = [r[0] for r in conn.execute(
+            "SELECT id FROM trades WHERE day_id = ?", (day_id,)
+        ).fetchall()]
+        if trade_ids:
+            placeholders = ",".join("?" * len(trade_ids))
+            conn.execute(
+                f"UPDATE live_trades SET journal_trade_id = NULL WHERE journal_trade_id IN ({placeholders})",
+                trade_ids,
+            )
         conn.execute("DELETE FROM trading_days WHERE id = ?", (day_id,))
 
 

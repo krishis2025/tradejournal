@@ -321,14 +321,21 @@
   }
   async function executeDelete() {
     if (!pendingDeleteId) return;
-    closeModal();
     const id = pendingDeleteId;
-    const res = await fetch(`/api/day/${id}`, { method:'DELETE' });
-    if (res.ok) {
-      const row = document.getElementById('row-' + id);
-      if (row) { row.style.opacity='0'; row.style.transition='opacity 0.3s'; setTimeout(()=>row.remove(),300); }
-      showToast('Day deleted');
-    } else { showToast('Delete failed', true); }
+    closeModal();
+    try {
+      const res = await fetch(`/api/day/${id}`, { method:'DELETE' });
+      const data = await res.json().catch(() => null);
+      if (res.ok) {
+        const row = document.getElementById('row-' + id);
+        if (row) { row.style.opacity='0'; row.style.transition='opacity 0.3s'; setTimeout(()=>row.remove(),300); }
+        showToast('Day deleted');
+      } else {
+        showToast('Delete failed: ' + (data?.error || res.statusText), true);
+      }
+    } catch (err) {
+      showToast('Delete failed: ' + err.message, true);
+    }
   }
   document.getElementById('del-modal').addEventListener('click', e => { if (e.target===document.getElementById('del-modal')) closeModal(); });
 </script>

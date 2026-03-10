@@ -298,8 +298,11 @@ def api_delete_day(day_id):
     day = db.get_day_by_id(day_id)
     if not day:
         return jsonify({"error": "Day not found"}), 404
-    db.delete_day(day_id)
-    return jsonify({"ok": True, "deleted": day_id})
+    try:
+        db.delete_day(day_id)
+        return jsonify({"ok": True, "deleted": day_id})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ── API: Trades ───────────────────────────────────────────────────────────────

@@ -654,7 +654,7 @@
     {% for t in closed_trades %}
     <div class="pushed-tray">
       <span class="tc-dir-badge {{ 'tc-dir-long' if t.direction == 'Long' else 'tc-dir-short' }}">{{ t.direction[:1] }}</span>
-      <span style="font-size:12px;">{{ t.total_qty }}× {{ t.instrument }} @ {{ t.entry_price }}</span>
+      <span style="font-size:12px;">{{ t.total_qty }}× {{ t.instrument }} @ {{ t.entry_price }} {{ t.entry_time }}</span>
       <span class="tc-pnl {{ 'pnl-pos' if t.realized_pnl >= 0 else 'pnl-neg' }}" style="font-size:16px;">
         ${{ '%.2f'|format(t.realized_pnl) }}
       </span>
