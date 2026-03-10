@@ -882,10 +882,31 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('cmd-qty').addEventListener('input', () => { updateRiskReadout(); });
   updateRiskReadout();
 
+  // Auto-fill defaults from selected account (after accounts loaded from base.html)
+  document.addEventListener('accounts-loaded', () => applyAccountDefaults(), {once: true});
+  const navAcctSel = document.getElementById('global-account-select');
+  if (navAcctSel) navAcctSel.addEventListener('change', () => applyAccountDefaults());
+
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeRiskCalc();
   });
 });
+
+// ── Auto-fill from Account Defaults ──────────────────────────────────────────
+function applyAccountDefaults() {
+  const sel = document.getElementById('global-account-select');
+  if (!sel || !sel.value) return;
+  const opt = sel.options[sel.selectedIndex];
+  if (!opt) return;
+  const qtyField = document.getElementById('cmd-qty');
+  if (!qtyField.value && opt.dataset.defaultQty) {
+    qtyField.value = opt.dataset.defaultQty;
+    updateRiskReadout();
+  }
+  if (opt.dataset.defaultInstrument) {
+    setInst(opt.dataset.defaultInstrument);
+  }
+}
 
 // ── Command Bar Toggles ──────────────────────────────────────────────────────
 function setDir(d) {

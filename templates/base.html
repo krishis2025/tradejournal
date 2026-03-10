@@ -558,6 +558,8 @@
         o.value = p.id;
         o.textContent = p.name;
         o.dataset.color = p.color;
+        if (p.default_qty) o.dataset.defaultQty = p.default_qty;
+        if (p.default_instrument) o.dataset.defaultInstrument = p.default_instrument;
         sel.appendChild(o);
       });
 
@@ -572,6 +574,7 @@
 
       applyAccountUI(sel.value);
       updateNavLinks(sel.value);
+      document.dispatchEvent(new Event('accounts-loaded'));
 
     } catch(e) { /* server may not be ready */ }
   }
