@@ -192,8 +192,9 @@ def live_trade_page():
     else:
         date_from = date_to = today.isoformat()
 
-    open_trades  = db.get_all_live_trades(status="open", date_from=date_from, date_to=date_to)
-    closed_trades = db.get_all_live_trades(status="closed", date_from=date_from, date_to=date_to)
+    account_id = request.args.get("account")
+    open_trades  = db.get_all_live_trades(status="open", date_from=date_from, date_to=date_to, account_id=account_id)
+    closed_trades = db.get_all_live_trades(status="closed", date_from=date_from, date_to=date_to, account_id=account_id)
 
     # Pre-compute calc for each open trade
     for t in open_trades:

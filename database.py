@@ -1093,10 +1093,11 @@ def get_live_trade(live_trade_id):
         return td
 
 
-def get_all_live_trades(status=None, date_from=None, date_to=None):
+def get_all_live_trades(status=None, date_from=None, date_to=None, account_id=None):
     """
-    Get live trades with optional status and date range filters.
+    Get live trades with optional status, date range, and account filters.
     date_from / date_to are ISO date strings (YYYY-MM-DD).
+    account_id filters to a single account when provided.
     """
     with get_conn() as conn:
         conditions = []
@@ -1110,6 +1111,9 @@ def get_all_live_trades(status=None, date_from=None, date_to=None):
         if date_to:
             conditions.append("date(lt.created_at, 'localtime') <= ?")
             params.append(date_to)
+        if account_id:
+            conditions.append("lt.account_id = ?")
+            params.append(account_id)
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
         rows = conn.execute(f"""
             SELECT lt.*, a.name as account_name, a.color as account_color
