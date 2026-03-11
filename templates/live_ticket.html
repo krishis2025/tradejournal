@@ -1454,6 +1454,7 @@ function editPortionPrice(event, el, tradeId, portion, type) {
       t.levels = newLevels; t.calc = data.calc;
       renderTradeCard(t);
       if (activeTrade && activeTrade.id === tradeId) selectTrade(tradeId);
+      updateGlobalSummary();
     } else { el.textContent = currentVal; }
   };
 
