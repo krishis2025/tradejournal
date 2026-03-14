@@ -463,6 +463,36 @@
 }
 .qe-action-btn:hover { color:var(--text); border-color:var(--muted); background:var(--surface3); }
 
+/* Set Levels widget */
+.sl-widget { display:flex; align-items:flex-start; gap:10px; }
+.sl-price-input {
+  width:90px; flex-shrink:0;
+  background:var(--bg); border:1px solid var(--border2); color:var(--text);
+  font-family:var(--font-mono); font-size:13px; padding:8px 10px; outline:none;
+}
+.sl-price-input:focus { border-color:var(--accent); }
+.sl-buttons { display:flex; flex-direction:column; gap:4px; flex:1; }
+.sl-row { display:flex; align-items:center; gap:4px; }
+.sl-row-label {
+  font-size:8px; letter-spacing:1.5px; text-transform:uppercase;
+  color:var(--muted); min-width:32px;
+}
+.sl-btn {
+  padding:5px 10px; border:1px solid var(--border2); background:var(--surface2);
+  font-family:var(--font-mono); font-size:10px; letter-spacing:1px;
+  cursor:pointer; transition:all 0.12s; text-transform:uppercase; flex:1; text-align:center;
+}
+.sl-btn:hover { border-color:var(--muted); background:var(--surface3); color:var(--text); }
+.sl-btn:active { transform:scale(0.96); }
+.sl-btn.sl-stop { border-left:2px solid var(--red); color:var(--muted2); }
+.sl-btn.sl-stop:hover { border-color:var(--red); background:rgba(255,77,109,0.06); color:var(--red); }
+.sl-btn.sl-tp { border-left:2px solid var(--green); color:var(--muted2); }
+.sl-btn.sl-tp:hover { border-color:var(--green); background:rgba(79,255,176,0.06); color:var(--green); }
+.sl-btn.sl-disabled { opacity:0.3; cursor:default; pointer-events:none; }
+.sl-row-full .sl-btn { padding:8px 10px; }
+@keyframes slFlash { 0%{background:rgba(79,255,176,0.25)} 100%{background:var(--surface2)} }
+.sl-btn.sl-applied { animation:slFlash 0.4s ease-out; }
+
 /* Tags slide-out panel */
 .tags-panel {
   position:fixed; top:56px; right:-420px; width:400px; bottom:0;
@@ -733,6 +763,15 @@
         </div>
         <div class="qe-action-row">
           <button class="qe-action-btn" onclick="moveStopsToBE()">Move Stops to BE</button>
+        </div>
+      </div>
+
+      <!-- Set Levels -->
+      <div class="rp-section" id="set-levels-section" style="display:none;">
+        <div class="rp-title">Set Levels</div>
+        <div class="sl-widget">
+          <input type="number" step="0.25" id="sl-price" class="sl-price-input" placeholder="Price">
+          <div class="sl-buttons" id="sl-buttons"></div>
         </div>
       </div>
 
@@ -1243,6 +1282,7 @@ function selectTrade(id) {
 
   // Build Quick Exit buttons
   buildQuickExitButtons(t);
+  buildSetLevelButtons(t);
   syncTagButtons();
 
   if (isSwitching) {
@@ -1546,6 +1586,120 @@ async function moveStopsToBE() {
     renderTradeCard(t);
     selectTrade(t.id);
     showToast('Stops moved to breakeven');
+  } else {
+    showToast(data.error || 'Failed', true);
+  }
+}
+
+// ── Set Levels Widget ────────────────────────────────────────────────────────
+function buildSetLevelButtons(t) {
+  const section = document.getElementById('set-levels-section');
+  const container = document.getElementById('sl-buttons');
+  const remaining = t.calc?.remaining_qty ?? t.total_qty;
+
+  if (!t || t._pushed || remaining <= 0) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = '';
+
+  const levels = t.levels || [];
+  const executions = t.executions || [];
+  const portionExited = {};
+  executions.forEach(e => { portionExited[e.portion] = (portionExited[e.portion]||0) + e.qty; });
+
+  const stops = levels.filter(l=>l.level_type==='stop').sort((a,b)=>a.portion-b.portion);
+  const tps = levels.filter(l=>l.level_type==='tp').sort((a,b)=>a.portion-b.portion);
+
+  const isClosed = (lv) => {
+    const exited = portionExited[lv.portion] || 0;
+    return exited >= lv.qty;
+  };
+
+  let html = '';
+
+  if (t.mode === 'partials') {
+    // Stop row
+    const allStopsClosed = stops.length > 0 && stops.every(isClosed);
+    html += '<div class="sl-row"><span class="sl-row-label">Stop</span>';
+    stops.forEach(s => {
+      const dis = isClosed(s) ? ' sl-disabled' : '';
+      html += `<button class="sl-btn sl-stop${dis}" onclick="applyPriceToLevel(${s.portion},'stop',this)">S${s.portion}</button>`;
+    });
+    html += `<button class="sl-btn sl-stop${allStopsClosed ? ' sl-disabled' : ''}" onclick="applyPriceToLevel('all','stop',this)">All ▼</button>`;
+    html += '</div>';
+
+    // TP row
+    const allTpsClosed = tps.length > 0 && tps.every(isClosed);
+    html += '<div class="sl-row"><span class="sl-row-label">TP</span>';
+    tps.forEach(tp => {
+      const dis = isClosed(tp) ? ' sl-disabled' : '';
+      html += `<button class="sl-btn sl-tp${dis}" onclick="applyPriceToLevel(${tp.portion},'tp',this)">T${tp.portion}</button>`;
+    });
+    html += `<button class="sl-btn sl-tp${allTpsClosed ? ' sl-disabled' : ''}" onclick="applyPriceToLevel('all','tp',this)">All ▲</button>`;
+    html += '</div>';
+  } else {
+    // Full mode: single row
+    html += '<div class="sl-row sl-row-full">';
+    html += `<button class="sl-btn sl-stop" onclick="applyPriceToLevel(1,'stop',this)">Stop</button>`;
+    html += `<button class="sl-btn sl-tp" onclick="applyPriceToLevel(1,'tp',this)">Target</button>`;
+    html += '</div>';
+  }
+
+  container.innerHTML = html;
+}
+
+async function applyPriceToLevel(portion, type, btnEl) {
+  if (!activeTrade) return;
+  const priceInput = document.getElementById('sl-price');
+  const price = parseFloat(priceInput.value);
+  if (!price) { showToast('Enter a price first', true); return; }
+
+  const t = activeTrade;
+  const executions = t.executions || [];
+  const portionExited = {};
+  executions.forEach(e => { portionExited[e.portion] = (portionExited[e.portion]||0) + e.qty; });
+
+  let changed = false;
+  const newLevels = (t.levels||[]).map(lv => {
+    const l = {...lv};
+    if (l.level_type !== type) return l;
+    const exited = portionExited[l.portion] || 0;
+    const closed = exited >= l.qty;
+    if (closed) return l;
+    if (portion === 'all' || l.portion === portion) {
+      if (l.price !== price) { l.price = price; changed = true; }
+    }
+    return l;
+  });
+
+  if (!changed) { showToast('No open portions to update', true); return; }
+
+  const res = await fetch(`/api/live/${t.id}/levels`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({levels:newLevels})
+  });
+  const data = await res.json();
+  if (data.ok) {
+    t.levels = newLevels; t.calc = data.calc;
+    renderTradeCard(t);
+    selectTrade(t.id);
+    updateGlobalSummary();
+
+    // Toast
+    const typeLabel = type === 'stop' ? 'Stop' : 'TP';
+    if (portion === 'all') {
+      showToast(`${typeLabel}s → ${price}`);
+    } else {
+      showToast(`${typeLabel} ${portion} → ${price}`);
+    }
+
+    // Flash button
+    if (btnEl) {
+      btnEl.classList.remove('sl-applied');
+      void btnEl.offsetWidth;
+      btnEl.classList.add('sl-applied');
+    }
   } else {
     showToast(data.error || 'Failed', true);
   }
