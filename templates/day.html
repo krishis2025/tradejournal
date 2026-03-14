@@ -135,6 +135,11 @@
   color:var(--muted2);transition:color 0.15s;padding:3px 8px;border:1px solid var(--border);border-radius:1px;
 }
 .trade-view-link:hover { color:var(--accent2);border-color:var(--accent2); }
+
+/* Daily Reflection collapse */
+#refl-body.collapsed { display:none; }
+.refl-arrow { transform:rotate(-90deg); }
+.refl-arrow.open { transform:rotate(0deg); }
 {% endblock %}
 
 {% block nav_actions %}
@@ -181,6 +186,112 @@
 <div class="day-chart-wrap">
   <div class="day-chart-title">Cumulative P&L — {{ day.date }}</div>
   <canvas id="day-pnl-chart" height="90"></canvas>
+</div>
+{% endif %}
+
+<!-- ── Daily Reflection ── -->
+{% set has_reflection = day.day_type or day.day_value or day.notes_well or day.notes_improve or day.notes_lessons or day.notes_focus or day_images %}
+<div class="day-chart-wrap" id="daily-reflection" style="margin-bottom:20px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="document.getElementById('refl-body').classList.toggle('collapsed');this.querySelector('.refl-arrow').classList.toggle('open')">
+    <div class="day-chart-title" style="margin-bottom:0;">Daily Reflection</div>
+    <span class="refl-arrow {{ 'open' if has_reflection else '' }}" style="color:var(--muted);font-size:14px;transition:transform 0.25s;display:inline-block;">&#9662;</span>
+  </div>
+  <div id="refl-body" class="{{ '' if has_reflection else 'collapsed' }}">
+    <div style="margin-top:14px;">
+      <!-- Day Type (multi-select) -->
+      <div style="margin-bottom:12px;">
+        <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Day Type</div>
+        <div id="day-type-row" style="display:flex;flex-wrap:wrap;gap:6px;">
+          {% set active_types = day.day_type.split(',') if day.day_type else [] %}
+          {% for t in ['Balancing','Trending','Low Volume','High Volume','Old Business','New Money'] %}
+          <button type="button" class="tag-btn {{ 'active-vol' if t in active_types else '' }}"
+            data-tag="{{ t }}" data-active-class="active-vol"
+            onclick="toggleDayTag('day_type','{{ t }}',true)">{{ t }}</button>
+          {% endfor %}
+        </div>
+      </div>
+      <!-- Value (single-select) -->
+      <div style="margin-bottom:16px;">
+        <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Value</div>
+        <div id="day-value-row" style="display:flex;flex-wrap:wrap;gap:6px;">
+          {% for v in ['Overlapping','Higher','Lower','OL','OH'] %}
+          <button type="button" class="tag-btn {{ 'active-setup' if day.day_value == v else '' }}"
+            data-tag="{{ v }}" data-active-class="active-setup"
+            onclick="toggleDayTag('day_value','{{ v }}',false)">{{ v }}</button>
+          {% endfor %}
+        </div>
+      </div>
+      <!-- Note Textareas -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div>
+          <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">What went well</div>
+          <textarea class="notes-area" id="day-notes-well" oninput="scheduleDayNoteSave()" placeholder="Wins, good decisions, discipline...">{{ day.notes_well or '' }}</textarea>
+        </div>
+        <div>
+          <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">What to improve</div>
+          <textarea class="notes-area" id="day-notes-improve" oninput="scheduleDayNoteSave()" placeholder="Mistakes, missed opportunities...">{{ day.notes_improve or '' }}</textarea>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div>
+          <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Lessons learned</div>
+          <textarea class="notes-area" id="day-notes-lessons" oninput="scheduleDayNoteSave()" placeholder="Key takeaways from today...">{{ day.notes_lessons or '' }}</textarea>
+        </div>
+        <div>
+          <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Focus for tomorrow</div>
+          <textarea class="notes-area" id="day-notes-focus" oninput="scheduleDayNoteSave()" placeholder="What to focus on next session...">{{ day.notes_focus or '' }}</textarea>
+        </div>
+      </div>
+      <!-- Day Images -->
+      <div>
+        <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+          Daily Screenshots / Scans
+        </div>
+        <div class="image-grid" id="day-img-grid">
+          {% for img in day_images %}
+          <div class="image-thumb" id="day-img-{{ img.id }}">
+            <img src="/images/{{ img.filename }}" alt="{{ img.caption }}"
+                 onclick="openLightbox('/images/{{ img.filename }}', '{{ img.caption|e }}')">
+            <div class="image-thumb-caption" title="{{ img.caption }}">{{ img.caption or img.filename }}</div>
+            <button class="image-thumb-del" onclick="deleteDayImage({{ img.id }})">&#10005;</button>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="images-drop-zone" id="day-img-drop"
+             ondragover="event.preventDefault();this.classList.add('drag-over')"
+             ondragleave="this.classList.remove('drag-over')"
+             ondrop="event.preventDefault();this.classList.remove('drag-over');uploadDayImages(event.dataTransfer.files)">
+          <input type="file" accept="image/*" multiple
+                 onchange="uploadDayImages(this.files)"
+                 style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;">
+          <div class="images-drop-text">Drop screenshots here or click to upload</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Day Observations ── -->
+{% if observations %}
+<div class="day-chart-wrap" style="margin-bottom:20px;">
+  <div class="day-chart-title">Observations — {{ day.date }}</div>
+  {% for obs in observations %}
+  <div style="padding:10px 0;border-bottom:1px solid var(--border);{% if loop.last %}border-bottom:none;{% endif %}">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+      <span style="font-size:11px;color:var(--muted2);">{{ obs.time }}</span>
+      <span class="badge" style="background:rgba(180,127,255,0.12);color:var(--purple);border:1px solid rgba(180,127,255,0.25);font-size:9px;">{{ obs.category }}</span>
+    </div>
+    <div style="font-size:12px;color:var(--text);line-height:1.6;">{{ obs.text }}</div>
+    {% if obs.images %}
+    <div style="display:flex;gap:6px;margin-top:6px;">
+      {% for img in obs.images %}
+      <img src="/images/{{ img.filename }}" style="width:60px;height:40px;object-fit:cover;border:1px solid var(--border);border-radius:2px;cursor:pointer;"
+           onclick="openLightbox('/images/{{ img.filename }}','{{ img.caption|e }}')">
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
 </div>
 {% endif %}
 
@@ -605,5 +716,90 @@ function closeLightbox() {
   document.getElementById('lightbox-img').src = '';
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
+// ── Day Notes (Daily Reflection) ────────────────────────────────────────────
+const DAY_ID = {{ day.id }};
+let dayNoteTimer = null;
+
+function scheduleDayNoteSave() {
+  clearTimeout(dayNoteTimer);
+  dayNoteTimer = setTimeout(() => {
+    fetch(`/api/day/${DAY_ID}/notes`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        notes_well:    document.getElementById('day-notes-well').value,
+        notes_improve: document.getElementById('day-notes-improve').value,
+        notes_lessons: document.getElementById('day-notes-lessons').value,
+        notes_focus:   document.getElementById('day-notes-focus').value,
+      })
+    }).then(() => showToast('Saved'));
+  }, 600);
+}
+
+function toggleDayTag(field, tag, multi) {
+  const rowId = field === 'day_type' ? 'day-type-row' : 'day-value-row';
+  const row = document.getElementById(rowId);
+  const buttons = row.querySelectorAll('.tag-btn');
+
+  if (multi) {
+    // Multi-select: toggle this button
+    const btn = [...buttons].find(b => b.dataset.tag === tag);
+    const cls = btn.dataset.activeClass;
+    btn.classList.toggle(cls);
+    // Collect active tags
+    const active = [...buttons].filter(b => b.classList.contains(b.dataset.activeClass)).map(b => b.dataset.tag);
+    fetch(`/api/day/${DAY_ID}/notes`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({[field]: active.join(',')})
+    }).then(() => showToast('Saved'));
+  } else {
+    // Single-select
+    const btn = [...buttons].find(b => b.dataset.tag === tag);
+    const cls = btn.dataset.activeClass;
+    const wasActive = btn.classList.contains(cls);
+    buttons.forEach(b => b.classList.remove(b.dataset.activeClass));
+    if (!wasActive) btn.classList.add(cls);
+    const val = wasActive ? '' : tag;
+    fetch(`/api/day/${DAY_ID}/notes`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({[field]: val})
+    }).then(() => showToast('Saved'));
+  }
+}
+
+// ── Day Images ──────────────────────────────────────────────────────────────
+async function uploadDayImages(files) {
+  if (!files || !files.length) return;
+  for (const file of Array.from(files)) {
+    const form = new FormData();
+    form.append('image', file);
+    form.append('caption', file.name.replace(/\.[^.]+$/, ''));
+    try {
+      const res = await fetch(`/api/day/${DAY_ID}/images`, {method:'POST', body:form});
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error || 'Upload failed', true); continue; }
+      const grid = document.getElementById('day-img-grid');
+      const div = document.createElement('div');
+      div.className = 'image-thumb';
+      div.id = 'day-img-' + data.id;
+      div.innerHTML = `
+        <img src="${data.url}" alt="${data.caption}" onclick="openLightbox('${data.url}','${data.caption.replace(/'/g,"\\'")}')">
+        <div class="image-thumb-caption" title="${data.caption}">${data.caption || data.url.split('/').pop()}</div>
+        <button class="image-thumb-del" onclick="deleteDayImage(${data.id})">&#10005;</button>
+      `;
+      grid.appendChild(div);
+      showToast('Screenshot saved');
+    } catch(e) { showToast('Upload error', true); }
+  }
+}
+
+async function deleteDayImage(imageId) {
+  const res = await fetch(`/api/day-image/${imageId}`, {method:'DELETE'});
+  if (res.ok) {
+    const el = document.getElementById('day-img-' + imageId);
+    if (el) { el.style.opacity='0';el.style.transition='opacity 0.2s';setTimeout(()=>el.remove(),200); }
+    showToast('Screenshot deleted');
+  } else { showToast('Delete failed', true); }
+}
 </script>
 {% endblock %}

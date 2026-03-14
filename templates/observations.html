@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}Observations — Trade Journal{% endblock %}
+
+{% block extra_styles %}
+.obs-filters {
+  display: flex; align-items: center; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;
+}
+.preset-btn {
+  background:var(--surface2);border:1px solid var(--border2);color:var(--muted2);
+  padding:5px 12px;font-family:var(--font-mono);font-size:10px;cursor:pointer;
+  transition:all 0.12s;letter-spacing:0.5px;text-decoration:none;
+}
+.preset-btn:hover { color:var(--text);border-color:var(--muted); }
+.preset-btn.active { background:rgba(79,255,176,0.12);border-color:var(--accent);color:var(--accent); }
+
+.cat-select {
+  background:var(--surface2);border:1px solid var(--border2);color:var(--text);
+  padding:5px 12px;font-family:var(--font-mono);font-size:10px;outline:none;
+  cursor:pointer;appearance:none;-webkit-appearance:none;
+}
+.cat-select:focus { border-color:var(--accent); }
+.cat-select option { background:var(--surface2); }
+
+.obs-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 2px;
+  padding: 16px 20px; margin-bottom: 12px; transition: border-color 0.15s;
+}
+.obs-card:hover { border-color: var(--border2); }
+
+.obs-meta {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+}
+.obs-date { font-size: 12px; color: var(--muted2); }
+.obs-cat-badge {
+  display: inline-block; padding: 2px 8px; font-size: 9px; letter-spacing: 0.5px;
+  border-radius: 1px; background: rgba(180,127,255,0.12); color: var(--purple);
+  border: 1px solid rgba(180,127,255,0.25);
+}
+.obs-text { font-size: 12px; color: var(--text); line-height: 1.7; white-space: pre-wrap; }
+.obs-images { display: flex; gap: 8px; margin-top: 8px; }
+.obs-images img {
+  width: 80px; height: 55px; object-fit: cover; border: 1px solid var(--border);
+  border-radius: 2px; cursor: pointer; transition: border-color 0.15s;
+}
+.obs-images img:hover { border-color: var(--accent2); }
+.obs-actions {
+  display: flex; gap: 8px; margin-top: 8px; justify-content: flex-end;
+}
+.obs-actions button {
+  background: none; border: 1px solid var(--border2); color: var(--muted2);
+  padding: 3px 10px; font-family: var(--font-mono); font-size: 9px;
+  cursor: pointer; transition: all 0.12s; letter-spacing: 0.5px;
+}
+.obs-actions button:hover { color: var(--text); border-color: var(--muted); }
+.obs-actions button.del:hover { color: var(--red); border-color: var(--red); }
+
+/* Edit inline */
+.obs-edit-area {
+  width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);
+  font-family:var(--font-mono);font-size:12px;padding:8px 10px;resize:vertical;
+  min-height:50px;outline:none;line-height:1.7;margin-bottom:8px;
+}
+
+/* Lightbox */
+.lightbox { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:200;align-items:center;justify-content:center; }
+.lightbox.show { display:flex; }
+.lightbox-img { max-width:90vw;max-height:85vh;object-fit:contain;border:1px solid var(--border2); }
+.lightbox-close { position:fixed;top:20px;right:28px;background:none;border:none;color:var(--muted2);font-size:28px;cursor:pointer;z-index:201; }
+.lightbox-close:hover { color:var(--text); }
+.lightbox-caption { position:fixed;bottom:24px;left:50%;transform:translateX(-50%);color:var(--muted2);font-family:var(--font-mono);font-size:12px;background:rgba(0,0,0,0.7);padding:6px 16px;border-radius:2px; }
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:20px;">
+  <div>
+    <div class="page-title">OBSERVATIONS</div>
+    <div class="page-sub">In-the-moment notes for weekly review</div>
+  </div>
+</div>
+
+<div class="obs-filters">
+  <div style="display:flex;gap:4px;">
+    {% for p, label in [('this_week','This Week'),('last_week','Last Week'),('2_weeks','2 Weeks'),('all','All')] %}
+    <a href="?preset={{ p }}&category={{ category }}" class="preset-btn {{ 'active' if preset == p else '' }}">{{ label }}</a>
+    {% endfor %}
+  </div>
+  <div style="display:flex;align-items:center;gap:6px;">
+    <span style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);">Category:</span>
+    <select class="cat-select" onchange="window.location.href='?preset={{ preset }}&category='+this.value">
+      <option value="all" {{ 'selected' if category == 'all' else '' }}>All</option>
+      {% for c in categories %}
+      <option value="{{ c }}" {{ 'selected' if category == c else '' }}>{{ c }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+
+{% for obs in observations %}
+<div class="obs-card" id="obs-card-{{ obs.id }}">
+  <div class="obs-meta">
+    <span class="obs-date">{{ obs.date }}{% if obs.time %}, {{ obs.time }}{% endif %}</span>
+    <span class="obs-cat-badge">{{ obs.category }}</span>
+  </div>
+  <div class="obs-text" id="obs-text-{{ obs.id }}">{{ obs.text }}</div>
+  {% if obs.images %}
+  <div class="obs-images">
+    {% for img in obs.images %}
+    <img src="/images/{{ img.filename }}" alt="{{ img.caption }}"
+         onclick="openLightbox('/images/{{ img.filename }}','{{ img.caption|e }}')">
+    {% endfor %}
+  </div>
+  {% endif %}
+  <div class="obs-actions">
+    <button onclick="editObs({{ obs.id }})">Edit</button>
+    <button class="del" onclick="deleteObs({{ obs.id }})">&#10005;</button>
+  </div>
+</div>
+{% endfor %}
+
+{% if not observations %}
+<div style="text-align:center;padding:60px;color:var(--muted);">
+  <div style="font-size:13px;margin-bottom:8px;">No observations in this range</div>
+  <div style="font-size:11px;">Use the + button in the bottom-left to capture observations.</div>
+</div>
+{% endif %}
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">&#10005;</button>
+  <img class="lightbox-img" id="lightbox-img" src="" alt="">
+  <div class="lightbox-caption" id="lightbox-caption"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openLightbox(url, caption) {
+  document.getElementById('lightbox-img').src = url;
+  document.getElementById('lightbox-caption').textContent = caption || '';
+  document.getElementById('lightbox').classList.add('show');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('show');
+  document.getElementById('lightbox-img').src = '';
+}
+
+function editObs(id) {
+  const textEl = document.getElementById('obs-text-' + id);
+  const current = textEl.textContent.trim();
+  textEl.innerHTML = `<textarea class="obs-edit-area" id="obs-edit-${id}">${current}</textarea>
+    <div style="display:flex;gap:6px;justify-content:flex-end;">
+      <button class="btn btn-ghost" style="padding:4px 12px;font-size:10px;" onclick="location.reload()">Cancel</button>
+      <button class="btn btn-primary" style="padding:4px 12px;font-size:10px;" onclick="saveObs(${id})">Save</button>
+    </div>`;
+  document.getElementById('obs-edit-' + id).focus();
+}
+
+async function saveObs(id) {
+  const text = document.getElementById('obs-edit-' + id).value.trim();
+  await fetch(`/api/observation/${id}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({text})
+  });
+  location.reload();
+}
+
+async function deleteObs(id) {
+  if (!confirm('Delete this observation?')) return;
+  await fetch(`/api/observation/${id}`, {method:'DELETE'});
+  const el = document.getElementById('obs-card-' + id);
+  if (el) { el.style.opacity='0';el.style.transition='opacity 0.2s';setTimeout(()=>el.remove(),200); }
+  showToast('Deleted');
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+</script>
+{% endblock %}

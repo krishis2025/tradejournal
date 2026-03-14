@@ -336,6 +336,72 @@ def init_db():
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_acct_config ON account_config(account_id)")
 
+        # Migration: add day notes columns to trading_days
+        day_cols = [r[1] for r in conn.execute("PRAGMA table_info(trading_days)").fetchall()]
+        for col, default in [
+            ("day_type", "''"), ("day_value", "''"),
+            ("notes_well", "''"), ("notes_improve", "''"),
+            ("notes_lessons", "''"), ("notes_focus", "''"),
+        ]:
+            if col not in day_cols:
+                conn.execute(f"ALTER TABLE trading_days ADD COLUMN {col} TEXT NOT NULL DEFAULT {default}")
+
+        # Migration: create day_images table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS day_images (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                day_id      INTEGER NOT NULL REFERENCES trading_days(id) ON DELETE CASCADE,
+                filename    TEXT    NOT NULL,
+                caption     TEXT    NOT NULL DEFAULT '',
+                uploaded_at TEXT    NOT NULL DEFAULT (datetime('now'))
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_day_images_day ON day_images(day_id)")
+
+        # Migration: create setups and setup_images tables
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS setups (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                name            TEXT NOT NULL UNIQUE,
+                description     TEXT NOT NULL DEFAULT '',
+                characteristics TEXT NOT NULL DEFAULT '',
+                created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS setup_images (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                setup_id    INTEGER NOT NULL REFERENCES setups(id) ON DELETE CASCADE,
+                filename    TEXT    NOT NULL,
+                caption     TEXT    NOT NULL DEFAULT '',
+                uploaded_at TEXT    NOT NULL DEFAULT (datetime('now'))
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_setup_images ON setup_images(setup_id)")
+
+        # Migration: create observations and observation_images tables
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS observations (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                date        TEXT NOT NULL DEFAULT (date('now','localtime')),
+                time        TEXT NOT NULL DEFAULT '',
+                text        TEXT NOT NULL DEFAULT '',
+                category    TEXT NOT NULL DEFAULT 'general',
+                created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_obs_date ON observations(date)")
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS observation_images (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                observation_id  INTEGER NOT NULL REFERENCES observations(id) ON DELETE CASCADE,
+                filename        TEXT    NOT NULL,
+                caption         TEXT    NOT NULL DEFAULT '',
+                uploaded_at     TEXT    NOT NULL DEFAULT (datetime('now'))
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_obs_images ON observation_images(observation_id)")
+
 
 # ── Accounts ─────────────────────────────────────────────────────────────────
 
@@ -661,17 +727,83 @@ def get_tag_config():
         return result
 
 
+def _cascade_tag_rename(conn, group_id, old_name, new_name):
+    """Cascade a tag rename across all tables that store the tag string."""
+    import json
+
+    # 1. trade_tags — handle UNIQUE constraint first:
+    #    if a trade already has new_name for this group, delete the old row
+    conn.execute("""
+        DELETE FROM trade_tags
+        WHERE group_id = ? AND tag = ? AND trade_id IN (
+            SELECT trade_id FROM trade_tags WHERE group_id = ? AND tag = ?
+        )
+    """, (group_id, old_name, group_id, new_name))
+    conn.execute(
+        "UPDATE trade_tags SET tag = ? WHERE group_id = ? AND tag = ?",
+        (new_name, group_id, old_name)
+    )
+
+    # 2. setups table (only for 'setup' group)
+    if group_id == "setup":
+        existing = conn.execute("SELECT id FROM setups WHERE name = ?", (new_name,)).fetchone()
+        if not existing:
+            conn.execute("UPDATE setups SET name = ? WHERE name = ?", (new_name, old_name))
+
+    # 3. live_trades.tags_json — parse, replace, write back
+    rows = conn.execute(
+        "SELECT id, tags_json FROM live_trades WHERE tags_json LIKE ?",
+        (f'%{old_name}%',)
+    ).fetchall()
+    for row in rows:
+        try:
+            tags_data = json.loads(row["tags_json"])
+            if group_id in tags_data and old_name in tags_data[group_id]:
+                tags_data[group_id] = [new_name if t == old_name else t for t in tags_data[group_id]]
+                conn.execute(
+                    "UPDATE live_trades SET tags_json = ? WHERE id = ?",
+                    (json.dumps(tags_data), row["id"])
+                )
+        except (json.JSONDecodeError, TypeError, KeyError):
+            continue
+
+
 def save_tag_config(group_id, tags):
     """Replace all tags for a group with the provided ordered list."""
     with get_conn() as conn:
+        # 1. Read old tags in order
+        old_rows = conn.execute(
+            "SELECT tag FROM tag_config WHERE group_id = ? ORDER BY position",
+            (group_id,)
+        ).fetchall()
+        old_tags = [r["tag"] for r in old_rows]
+
+        # Fallback to hardcoded defaults if tag_config was empty
+        if not old_tags:
+            from app_logic import TAG_GROUPS
+            group = next((g for g in TAG_GROUPS if g["id"] == group_id), None)
+            if group:
+                old_tags = list(group["tags"])
+
+        # 2. Detect renames by position
+        new_tags = [t.strip() for t in tags if t.strip()]
+        renames = []
+        for i, new_tag in enumerate(new_tags):
+            if i < len(old_tags) and old_tags[i] != new_tag:
+                if old_tags[i] not in new_tags:
+                    renames.append((old_tags[i], new_tag))
+
+        # 3. Cascade each rename
+        for old_name, new_name in renames:
+            _cascade_tag_rename(conn, group_id, old_name, new_name)
+
+        # 4. Replace tag_config (existing logic)
         conn.execute("DELETE FROM tag_config WHERE group_id = ?", (group_id,))
-        for i, tag in enumerate(tags):
-            tag = tag.strip()
-            if tag:
-                conn.execute(
-                    "INSERT OR REPLACE INTO tag_config (group_id, tag, position, enabled) VALUES (?, ?, ?, 1)",
-                    (group_id, tag, i)
-                )
+        for i, tag in enumerate(new_tags):
+            conn.execute(
+                "INSERT OR REPLACE INTO tag_config (group_id, tag, position, enabled) VALUES (?, ?, ?, 1)",
+                (group_id, tag, i)
+            )
 
 
 def reset_tag_config(group_id):
@@ -1340,3 +1472,250 @@ def get_cross_account_trades(limit=50):
                     })
             result.append(t)
         return result
+
+
+# ── Day Notes & Images ───────────────────────────────────────────────────────
+
+def update_day_notes(day_id, **fields):
+    allowed = {"day_type", "day_value", "notes_well", "notes_improve", "notes_lessons", "notes_focus"}
+    with get_conn() as conn:
+        sets, vals = [], []
+        for k, v in fields.items():
+            if k in allowed:
+                sets.append(f"{k} = ?")
+                vals.append(v)
+        if sets:
+            vals.append(day_id)
+            conn.execute(f"UPDATE trading_days SET {', '.join(sets)} WHERE id = ?", vals)
+
+
+def get_day_images(day_id):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM day_images WHERE day_id = ? ORDER BY uploaded_at", (day_id,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def add_day_image(day_id, filename, caption=""):
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO day_images (day_id, filename, caption) VALUES (?, ?, ?)",
+            (day_id, filename, caption)
+        )
+        return cur.lastrowid
+
+
+def delete_day_image(image_id):
+    with get_conn() as conn:
+        row = conn.execute("SELECT filename FROM day_images WHERE id=?", (image_id,)).fetchone()
+        filename = row["filename"] if row else None
+        conn.execute("DELETE FROM day_images WHERE id=?", (image_id,))
+        return filename
+
+
+def update_day_image_caption(image_id, caption):
+    with get_conn() as conn:
+        conn.execute("UPDATE day_images SET caption=? WHERE id=?", (caption, image_id))
+
+
+# ── Setups ───────────────────────────────────────────────────────────────────
+
+def get_all_setups():
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT s.*,
+                   (SELECT COUNT(*) FROM trade_tags tt
+                    JOIN trades t ON t.id = tt.trade_id
+                    WHERE tt.group_id = 'setup' AND tt.tag = s.name) AS trade_count,
+                   (SELECT ROUND(100.0 * SUM(CASE WHEN t.pnl > 0 THEN 1 ELSE 0 END) / COUNT(*), 1)
+                    FROM trade_tags tt JOIN trades t ON t.id = tt.trade_id
+                    WHERE tt.group_id = 'setup' AND tt.tag = s.name) AS win_rate,
+                   (SELECT ROUND(AVG(t.pnl), 2) FROM trade_tags tt JOIN trades t ON t.id = tt.trade_id
+                    WHERE tt.group_id = 'setup' AND tt.tag = s.name) AS avg_pnl
+            FROM setups s ORDER BY s.name
+        """).fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            # Get first image as thumbnail
+            img = conn.execute(
+                "SELECT filename FROM setup_images WHERE setup_id = ? ORDER BY uploaded_at LIMIT 1",
+                (d["id"],)
+            ).fetchone()
+            d["thumbnail"] = img["filename"] if img else None
+            result.append(d)
+        return result
+
+
+def get_setup(setup_id):
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM setups WHERE id = ?", (setup_id,)).fetchone()
+        if not row:
+            return None
+        d = dict(row)
+        d["images"] = [dict(r) for r in conn.execute(
+            "SELECT * FROM setup_images WHERE setup_id = ? ORDER BY uploaded_at", (setup_id,)
+        ).fetchall()]
+        return d
+
+
+def create_setup(name):
+    with get_conn() as conn:
+        cur = conn.execute("INSERT OR IGNORE INTO setups (name) VALUES (?)", (name.strip(),))
+        if cur.lastrowid:
+            return cur.lastrowid
+        row = conn.execute("SELECT id FROM setups WHERE name = ?", (name.strip(),)).fetchone()
+        return row["id"] if row else None
+
+
+def update_setup(setup_id, **fields):
+    allowed = {"name", "description", "characteristics"}
+    with get_conn() as conn:
+        sets, vals = [], []
+        for k, v in fields.items():
+            if k in allowed:
+                sets.append(f"{k} = ?")
+                vals.append(v)
+        if sets:
+            vals.append(setup_id)
+            conn.execute(f"UPDATE setups SET {', '.join(sets)} WHERE id = ?", vals)
+
+
+def delete_setup(setup_id):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM setups WHERE id = ?", (setup_id,))
+
+
+def add_setup_image(setup_id, filename, caption=""):
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO setup_images (setup_id, filename, caption) VALUES (?, ?, ?)",
+            (setup_id, filename, caption)
+        )
+        return cur.lastrowid
+
+
+def delete_setup_image(image_id):
+    with get_conn() as conn:
+        row = conn.execute("SELECT filename FROM setup_images WHERE id=?", (image_id,)).fetchone()
+        filename = row["filename"] if row else None
+        conn.execute("DELETE FROM setup_images WHERE id=?", (image_id,))
+        return filename
+
+
+def get_setup_trades(setup_name, date_from=None, date_to=None):
+    with get_conn() as conn:
+        conditions = ["tt.group_id = 'setup'", "tt.tag = ?"]
+        params = [setup_name]
+        if date_from:
+            conditions.append("d.date >= ?")
+            params.append(date_from)
+        if date_to:
+            conditions.append("d.date <= ?")
+            params.append(date_to)
+        where = " AND ".join(conditions)
+        rows = conn.execute(f"""
+            SELECT t.id, t.direction, t.qty, t.avg_entry, t.avg_exit,
+                   t.pnl, t.entry_time, t.exit_time, d.date, d.id as day_id
+            FROM trade_tags tt
+            JOIN trades t ON t.id = tt.trade_id
+            JOIN trading_days d ON d.id = t.day_id
+            WHERE {where}
+            ORDER BY d.date DESC, t.entry_time DESC
+        """, params).fetchall()
+        return [dict(r) for r in rows]
+
+
+def seed_setups():
+    """Create setup entries from existing setup tags if setups table is empty."""
+    with get_conn() as conn:
+        count = conn.execute("SELECT COUNT(*) FROM setups").fetchone()[0]
+        if count > 0:
+            return
+        # Gather names from trade_tags
+        names = set()
+        for r in conn.execute("SELECT DISTINCT tag FROM trade_tags WHERE group_id='setup'").fetchall():
+            names.add(r["tag"])
+        # Also from tag_config
+        for r in conn.execute("SELECT tag FROM tag_config WHERE group_id='setup'").fetchall():
+            names.add(r["tag"])
+        for name in sorted(names):
+            conn.execute("INSERT OR IGNORE INTO setups (name) VALUES (?)", (name.strip(),))
+
+
+# ── Observations ─────────────────────────────────────────────────────────────
+
+def create_observation(date, time, text, category="general"):
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO observations (date, time, text, category) VALUES (?, ?, ?, ?)",
+            (date, time, text, category)
+        )
+        return cur.lastrowid
+
+
+def update_observation(obs_id, **fields):
+    allowed = {"date", "time", "text", "category"}
+    with get_conn() as conn:
+        sets, vals = [], []
+        for k, v in fields.items():
+            if k in allowed:
+                sets.append(f"{k} = ?")
+                vals.append(v)
+        if sets:
+            vals.append(obs_id)
+            conn.execute(f"UPDATE observations SET {', '.join(sets)} WHERE id = ?", vals)
+
+
+def delete_observation(obs_id):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM observations WHERE id = ?", (obs_id,))
+
+
+def get_observations(date_from=None, date_to=None, category=None):
+    with get_conn() as conn:
+        conditions, params = [], []
+        if date_from:
+            conditions.append("o.date >= ?")
+            params.append(date_from)
+        if date_to:
+            conditions.append("o.date <= ?")
+            params.append(date_to)
+        if category and category != "all":
+            conditions.append("o.category = ?")
+            params.append(category)
+        where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+        rows = conn.execute(f"""
+            SELECT o.* FROM observations o {where} ORDER BY o.date DESC, o.time DESC
+        """, params).fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            d["images"] = [dict(i) for i in conn.execute(
+                "SELECT * FROM observation_images WHERE observation_id = ? ORDER BY uploaded_at",
+                (d["id"],)
+            ).fetchall()]
+            result.append(d)
+        return result
+
+
+def get_observations_for_date(date_str):
+    return get_observations(date_from=date_str, date_to=date_str)
+
+
+def add_observation_image(obs_id, filename, caption=""):
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO observation_images (observation_id, filename, caption) VALUES (?, ?, ?)",
+            (obs_id, filename, caption)
+        )
+        return cur.lastrowid
+
+
+def delete_observation_image(image_id):
+    with get_conn() as conn:
+        row = conn.execute("SELECT filename FROM observation_images WHERE id=?", (image_id,)).fetchone()
+        filename = row["filename"] if row else None
+        conn.execute("DELETE FROM observation_images WHERE id=?", (image_id,))
+        return filename

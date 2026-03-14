@@ -58,10 +58,15 @@ def day_view(day_id):
     if not day:
         return render_template("404.html", message=f"Day #{day_id} not found"), 404
     trades = db.get_trades_for_day(day_id)
+    day_images = db.get_day_images(day_id)
+    observations = db.get_observations_for_date(day["date"])
     return render_template(
         "day.html",
         day=day,
         trades=trades,
+        day_images=day_images,
+        observations=observations,
+        observation_categories=logic.OBSERVATION_CATEGORIES,
         tag_groups=logic.get_tag_groups(),
         tags_json=json.dumps(logic.get_tag_groups())
     )
@@ -693,6 +698,231 @@ def api_live_recalc(live_id):
         return jsonify({"error": "Trade not found"}), 404
     calc = logic.recalculate_live_trade(trade)
     return jsonify(calc)
+
+
+# ── API: Day Notes & Images ──────────────────────────────────────────────────
+
+@app.route("/api/day/<int:day_id>/notes", methods=["POST"])
+def api_save_day_notes(day_id):
+    body = request.get_json(silent=True) or {}
+    db.update_day_notes(day_id, **body)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/day/<int:day_id>/images", methods=["POST"])
+def api_upload_day_image(day_id):
+    if "image" not in request.files:
+        return jsonify({"error": "No image file"}), 400
+    f = request.files["image"]
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext not in ALLOWED_IMAGE_EXTS:
+        return jsonify({"error": f"File type {ext} not allowed"}), 422
+    unique_name = f"day_{day_id}_{uuid.uuid4().hex[:8]}{ext}"
+    f.save(os.path.join(IMAGES_DIR, unique_name))
+    caption = request.form.get("caption", "")
+    image_id = db.add_day_image(day_id, unique_name, caption)
+    return jsonify({"ok": True, "id": image_id, "url": f"/images/{unique_name}", "caption": caption})
+
+
+@app.route("/api/day-image/<int:image_id>/caption", methods=["POST"])
+def api_update_day_image_caption(image_id):
+    body = request.get_json(silent=True) or {}
+    db.update_day_image_caption(image_id, body.get("caption", ""))
+    return jsonify({"ok": True})
+
+
+@app.route("/api/day-image/<int:image_id>", methods=["DELETE"])
+def api_delete_day_image(image_id):
+    filename = db.delete_day_image(image_id)
+    if filename:
+        path = os.path.join(IMAGES_DIR, filename)
+        if os.path.exists(path):
+            os.remove(path)
+    return jsonify({"ok": True})
+
+
+# ── Setups ───────────────────────────────────────────────────────────────────
+
+@app.route("/setups")
+def setups_view():
+    db.seed_setups()
+    # Also seed from app_logic TAG_GROUPS fallback
+    with db.get_conn() as conn:
+        count = conn.execute("SELECT COUNT(*) FROM setups").fetchone()[0]
+    if count == 0:
+        setup_group = next((g for g in logic.TAG_GROUPS if g["id"] == "setup"), None)
+        if setup_group:
+            for tag in setup_group["tags"]:
+                db.create_setup(tag)
+    setups = db.get_all_setups()
+    return render_template("setups.html", setups=setups)
+
+
+@app.route("/setup/<int:setup_id>")
+def setup_detail_view(setup_id):
+    setup = db.get_setup(setup_id)
+    if not setup:
+        return render_template("404.html", message=f"Setup #{setup_id} not found"), 404
+    # Date range from query
+    date_from = request.args.get("from", "")
+    date_to = request.args.get("to", "")
+    preset = request.args.get("preset", "all")
+    from datetime import timedelta
+    today = date.today()
+    if preset == "30d":
+        date_from = (today - timedelta(days=30)).isoformat()
+        date_to = today.isoformat()
+    elif preset == "6mo":
+        date_from = (today - timedelta(days=180)).isoformat()
+        date_to = today.isoformat()
+    elif preset == "1yr":
+        date_from = (today - timedelta(days=365)).isoformat()
+        date_to = today.isoformat()
+    elif preset == "all":
+        date_from = ""
+        date_to = ""
+    trades = db.get_setup_trades(setup["name"], date_from or None, date_to or None)
+    # Compute stats
+    total = len(trades)
+    wins = sum(1 for t in trades if t["pnl"] > 0)
+    total_pnl = sum(t["pnl"] for t in trades)
+    avg_pnl = round(total_pnl / total, 2) if total else 0
+    win_rate = round(wins / total * 100, 1) if total else 0
+    stats = {"total": total, "wins": wins, "total_pnl": round(total_pnl, 2), "avg_pnl": avg_pnl, "win_rate": win_rate}
+    return render_template(
+        "setup_detail.html", setup=setup, trades=trades, stats=stats,
+        date_from=date_from, date_to=date_to, preset=preset,
+    )
+
+
+@app.route("/api/setup", methods=["POST"])
+def api_create_setup():
+    body = request.get_json(silent=True) or {}
+    name = (body.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "Name required"}), 400
+    sid = db.create_setup(name)
+    return jsonify({"ok": True, "id": sid})
+
+
+@app.route("/api/setup/<int:setup_id>", methods=["PUT"])
+def api_update_setup(setup_id):
+    body = request.get_json(silent=True) or {}
+    db.update_setup(setup_id, **body)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/setup/<int:setup_id>", methods=["DELETE"])
+def api_delete_setup(setup_id):
+    db.delete_setup(setup_id)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/setup/<int:setup_id>/images", methods=["POST"])
+def api_upload_setup_image(setup_id):
+    if "image" not in request.files:
+        return jsonify({"error": "No image file"}), 400
+    f = request.files["image"]
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext not in ALLOWED_IMAGE_EXTS:
+        return jsonify({"error": f"File type {ext} not allowed"}), 422
+    unique_name = f"setup_{setup_id}_{uuid.uuid4().hex[:8]}{ext}"
+    f.save(os.path.join(IMAGES_DIR, unique_name))
+    caption = request.form.get("caption", "")
+    image_id = db.add_setup_image(setup_id, unique_name, caption)
+    return jsonify({"ok": True, "id": image_id, "url": f"/images/{unique_name}", "caption": caption})
+
+
+@app.route("/api/setup-image/<int:image_id>", methods=["DELETE"])
+def api_delete_setup_image(image_id):
+    filename = db.delete_setup_image(image_id)
+    if filename:
+        path = os.path.join(IMAGES_DIR, filename)
+        if os.path.exists(path):
+            os.remove(path)
+    return jsonify({"ok": True})
+
+
+# ── Observations ─────────────────────────────────────────────────────────────
+
+@app.route("/observations")
+def observations_view():
+    date_from = request.args.get("from", "")
+    date_to = request.args.get("to", "")
+    preset = request.args.get("preset", "this_week")
+    category = request.args.get("category", "all")
+    from datetime import timedelta
+    today = date.today()
+    if preset == "this_week":
+        date_from = (today - timedelta(days=today.weekday())).isoformat()
+        date_to = today.isoformat()
+    elif preset == "last_week":
+        start = today - timedelta(days=today.weekday() + 7)
+        date_from = start.isoformat()
+        date_to = (start + timedelta(days=6)).isoformat()
+    elif preset == "2_weeks":
+        date_from = (today - timedelta(days=14)).isoformat()
+        date_to = today.isoformat()
+    elif preset == "all":
+        date_from = ""
+        date_to = ""
+    obs = db.get_observations(date_from or None, date_to or None, category if category != "all" else None)
+    return render_template(
+        "observations.html",
+        observations=obs,
+        categories=logic.OBSERVATION_CATEGORIES,
+        date_from=date_from, date_to=date_to, preset=preset, category=category,
+    )
+
+
+@app.route("/api/observation", methods=["POST"])
+def api_create_observation():
+    body = request.get_json(silent=True) or {}
+    obs_id = db.create_observation(
+        body.get("date", date.today().isoformat()),
+        body.get("time", ""),
+        body.get("text", ""),
+        body.get("category", "general"),
+    )
+    return jsonify({"ok": True, "id": obs_id})
+
+
+@app.route("/api/observation/<int:obs_id>", methods=["PUT"])
+def api_update_observation(obs_id):
+    body = request.get_json(silent=True) or {}
+    db.update_observation(obs_id, **body)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/observation/<int:obs_id>", methods=["DELETE"])
+def api_delete_observation(obs_id):
+    db.delete_observation(obs_id)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/observation/<int:obs_id>/images", methods=["POST"])
+def api_upload_observation_image(obs_id):
+    if "image" not in request.files:
+        return jsonify({"error": "No image file"}), 400
+    f = request.files["image"]
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext not in ALLOWED_IMAGE_EXTS:
+        return jsonify({"error": f"File type {ext} not allowed"}), 422
+    unique_name = f"obs_{obs_id}_{uuid.uuid4().hex[:8]}{ext}"
+    f.save(os.path.join(IMAGES_DIR, unique_name))
+    caption = request.form.get("caption", "")
+    image_id = db.add_observation_image(obs_id, unique_name, caption)
+    return jsonify({"ok": True, "id": image_id, "url": f"/images/{unique_name}", "caption": caption})
+
+
+@app.route("/api/obs-image/<int:image_id>", methods=["DELETE"])
+def api_delete_obs_image(image_id):
+    filename = db.delete_observation_image(image_id)
+    if filename:
+        path = os.path.join(IMAGES_DIR, filename)
+        if os.path.exists(path):
+            os.remove(path)
+    return jsonify({"ok": True})
 
 
 # ── Entry Point ───────────────────────────────────────────────────────────────

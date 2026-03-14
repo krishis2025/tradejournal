@@ -97,6 +97,11 @@ def get_tag_groups():
 
 
 
+OBSERVATION_CATEGORIES = [
+    "price-action", "market-structure", "volume",
+    "mkt internals", "psychology", "nuances", "general"
+]
+
 REQUIRED_COLUMNS = {"B/S", "avgPrice", "filledQty", "Fill Time", "Date"}
 
 

@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Setups — Trade Journal{% endblock %}
+
+{% block extra_styles %}
+.setup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+.setup-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  transition: border-color 0.15s, transform 0.15s;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+}
+.setup-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+.setup-card-thumb {
+  width: 100%; height: 120px; object-fit: cover; display: block;
+  background: var(--surface2);
+}
+.setup-card-noimg {
+  width: 100%; height: 120px; display: flex; align-items: center; justify-content: center;
+  background: var(--surface2); color: var(--border2); font-size: 11px; letter-spacing: 1px;
+}
+.setup-card-body { padding: 14px; }
+.setup-card-name {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 1px;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.setup-card-stats {
+  display: flex; gap: 16px; font-size: 11px; color: var(--muted2);
+}
+.setup-card-stat-val { color: var(--text); font-weight: 500; }
+
+/* New setup modal */
+#new-setup-modal { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:150;align-items:center;justify-content:center; }
+#new-setup-modal.show { display:flex; }
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:8px;">
+  <div>
+    <div class="page-title">SETUPS</div>
+    <div class="page-sub">Setup & Strategy Library</div>
+  </div>
+  <button class="btn btn-primary" onclick="document.getElementById('new-setup-modal').classList.add('show')">+ New Setup</button>
+</div>
+
+<div class="setup-grid">
+  {% for s in setups %}
+  <a href="/setup/{{ s.id }}" class="setup-card">
+    {% if s.thumbnail %}
+    <img class="setup-card-thumb" src="/images/{{ s.thumbnail }}" alt="{{ s.name }}">
+    {% else %}
+    <div class="setup-card-noimg">No image</div>
+    {% endif %}
+    <div class="setup-card-body">
+      <div class="setup-card-name">{{ s.name }}</div>
+      <div class="setup-card-stats">
+        <div>{{ s.trade_count or 0 }} trades</div>
+        <div>Win: <span class="setup-card-stat-val">{{ s.win_rate or 0 }}%</span></div>
+        <div>Avg: <span class="setup-card-stat-val {{ 'pnl-pos' if (s.avg_pnl or 0) >= 0 else 'pnl-neg' }}">{{ '+' if (s.avg_pnl or 0) >= 0 else '' }}${{ '%.2f'|format(s.avg_pnl or 0) }}</span></div>
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+
+{% if not setups %}
+<div style="text-align:center;padding:60px;color:var(--muted);">
+  <div style="font-size:13px;margin-bottom:8px;">No setups yet</div>
+  <div style="font-size:11px;">Create one or import trades with setup tags to auto-populate.</div>
+</div>
+{% endif %}
+
+<!-- New Setup Modal -->
+<div id="new-setup-modal">
+  <div style="background:var(--surface);border:1px solid var(--border);padding:24px;width:400px;max-width:90vw;">
+    <div style="font-family:var(--font-display);font-size:20px;letter-spacing:2px;color:var(--accent);margin-bottom:16px;">NEW SETUP</div>
+    <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Name</div>
+    <input type="text" id="new-setup-name" placeholder="e.g. VWAP Recapture" style="
+      width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);
+      padding:9px 12px;font-family:var(--font-mono);font-size:12px;outline:none;margin-bottom:16px;
+    ">
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="document.getElementById('new-setup-modal').classList.remove('show')">Cancel</button>
+      <button class="btn btn-primary" onclick="createSetup()">Create</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function createSetup() {
+  const name = document.getElementById('new-setup-name').value.trim();
+  if (!name) { showToast('Name required', true); return; }
+  const res = await fetch('/api/setup', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name})
+  });
+  const data = await res.json();
+  if (res.ok) {
+    window.location.href = '/setup/' + data.id;
+  } else {
+    showToast(data.error || 'Failed', true);
+  }
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('new-setup-modal')?.classList.remove('show');
+});
+</script>
+{% endblock %}
