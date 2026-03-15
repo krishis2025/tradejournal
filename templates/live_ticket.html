@@ -174,38 +174,30 @@
 /* ── Global Summary Strip ── */
 .global-summary {
   padding:10px 18px; border-bottom:1px solid var(--border);
-  display:grid; grid-template-columns:1fr 1fr; gap:4px 16px;
+  display:grid; grid-template-columns:1fr 1fr 1fr; gap:0;
   font-family:var(--font-mono); font-size:11px;
   background:var(--surface2);
 }
-.gs-item { display:flex; align-items:center; gap:6px; }
-.gs-label { color:var(--muted); font-size:9px; letter-spacing:1.5px; text-transform:uppercase; }
-.gs-val { color:var(--text); font-weight:500; }
+.gs-col { display:flex; flex-direction:column; gap:2px; padding:0 14px; }
+.gs-col:first-child { padding-left:0; }
+.gs-col-border { border-left:1px solid var(--border); }
+.gs-col-title { color:var(--muted); font-size:9px; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:2px; }
+.gs-row { line-height:1.4; }
+.gs-primary { font-size:12px; font-weight:500; color:var(--text); }
+.gs-secondary { font-size:10px; font-weight:400; color:var(--muted); }
+.gs-open-labels { font-size:9px; color:var(--muted); }
 
 /* ── Open Trade Card (compact, select-only) ── */
 .trade-card {
-  border-bottom:1px solid var(--border); padding:0;
-  animation: fadeIn 0.3s ease both;
-  cursor:pointer; transition:opacity 0.25s, box-shadow 0.25s;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 2px; margin: 0 12px 12px; overflow: hidden;
+  transition: border-color 0.15s, opacity 0.25s, box-shadow 0.25s;
+  animation: fadeIn 0.3s ease both; cursor: pointer;
 }
 .trade-card:hover { background:var(--surface2); }
 
-/* Trade card banner colors */
-.tc-banner {
-  display:flex; align-items:center; gap:8px; padding:6px 18px;
-  font-size:10px; letter-spacing:2px; text-transform:uppercase;
-  font-family:var(--font-mono); border-bottom:1px solid rgba(34,38,49,0.5);
-}
-.tc-banner-label { font-weight:500; }
-.tc-banner-sub { font-size:9px; color:var(--muted); letter-spacing:1px; }
-
-/* 6 distinct trade colors */
-.tc-color-0 .tc-banner { background:rgba(79,255,176,0.08); color:var(--green); border-left:3px solid var(--green); }
-.tc-color-1 .tc-banner { background:rgba(0,207,255,0.08); color:#00cfff; border-left:3px solid #00cfff; }
-.tc-color-2 .tc-banner { background:rgba(255,179,71,0.08); color:#ffb347; border-left:3px solid #ffb347; }
-.tc-color-3 .tc-banner { background:rgba(180,127,255,0.08); color:#b47fff; border-left:3px solid #b47fff; }
-.tc-color-4 .tc-banner { background:rgba(255,107,107,0.08); color:#ff6b6b; border-left:3px solid #ff6b6b; }
-.tc-color-5 .tc-banner { background:rgba(88,166,255,0.08); color:#58a6ff; border-left:3px solid #58a6ff; }
+/* First card spacing after summary strip */
+#trades-list .trade-card:first-of-type { margin-top: 12px; }
 
 /* Left border stripe for whole card */
 .tc-color-0 { border-left:3px solid var(--green); }
@@ -215,11 +207,16 @@
 .tc-color-4 { border-left:3px solid #ff6b6b; }
 .tc-color-5 { border-left:3px solid #58a6ff; }
 
-.tc-header {
-  display:flex; align-items:center; gap:12px;
-  padding:10px 18px;
-  transition:background 0.1s;
+/* Grid header */
+.tc-row-header {
+  display: grid;
+  grid-template-columns: 52px 72px 1fr 1fr 1fr 36px;
+  align-items: center; user-select: none;
 }
+.tc-cell { padding: 10px 12px; border-right: 1px solid var(--border); }
+.tc-cell:last-child { border-right: none; }
+.tc-cell-label { font-size: 8px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.tc-cell-val { font-size: 12px; }
 
 .tc-dir-badge {
   font-family:var(--font-mono); font-size:10px; letter-spacing:1.5px;
@@ -229,12 +226,17 @@
 .tc-dir-long  { background:rgba(79,255,176,0.15); color:var(--green); }
 .tc-dir-short { background:rgba(255,77,109,0.15); color:var(--red); }
 
-.tc-title { font-size:13px; color:var(--text); flex:1; }
-.tc-title span { color:var(--muted); font-size:11px; }
-
-.tc-pnl {
-  font-family:var(--font-display); font-size:22px; letter-spacing:1px;
+/* Expand arrow */
+.tc-expand-toggle {
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-size: 14px;
+  transition: transform 0.25s, color 0.15s;
 }
+.trade-card.expanded .tc-expand-toggle { transform: rotate(180deg); color: var(--accent); }
+
+/* Portion detail expand */
+.tc-detail { max-height: 0; overflow: hidden; transition: max-height 0.4s cubic-bezier(0.4,0,0.2,1); border-top: 0px solid var(--border); }
+.trade-card.expanded .tc-detail { max-height: 800px; border-top-width: 1px; }
 
 .tc-status {
   font-size:9px; letter-spacing:2px; text-transform:uppercase;
@@ -245,26 +247,12 @@
 .tc-status-protected { color:var(--green); background:rgba(79,255,176,0.08); }
 .tc-status-closed { color:var(--green); background:rgba(79,255,176,0.08); }
 
-/* Compact card body with stats row + progress bar */
-.tc-compact-body {
-  padding:4px 18px 10px;
-}
-.tc-compact-stats {
-  display:flex; align-items:center; gap:12px;
-  font-family:var(--font-mono); font-size:11px; color:var(--muted2);
-  margin-bottom:6px;
-}
-.tc-compact-stats span { white-space:nowrap; }
-
-/* Progress bar */
-.tc-progress {
-  height:6px; background:var(--surface2); border:1px solid var(--border);
-  display:flex; overflow:hidden;
-}
-.tc-prog-seg { height:100%; transition:width 0.3s; }
-.tc-prog-green { background:var(--green); }
-.tc-prog-red { background:var(--red); }
-.tc-prog-gray { background:var(--border2); }
+/* Outcome boxes (per-contract squares) */
+.tc-outcome-bar { display:flex; gap:2px; margin-top:4px; }
+.tc-outcome-box { width:10px; height:10px; border-radius:1px; }
+.tc-ob-green { background:var(--green); }
+.tc-ob-red { background:var(--red); }
+.tc-ob-gray { background:var(--border2); }
 
 /* Active card glow, inactive cards dim */
 .trade-card.tc-dimmed { opacity:0.45; }
@@ -396,17 +384,6 @@
 .qe-section-label:first-child { border-top:none; padding-top:0; }
 
 /* ── Portion Accordion inside Trade Cards ── */
-.portion-acc { border-top:1px solid var(--border); overflow:hidden; }
-.portion-acc-header {
-  display:flex; align-items:center; gap:6px; padding:6px 18px;
-  cursor:pointer; font-size:10px; letter-spacing:1.5px; text-transform:uppercase;
-  color:var(--muted); user-select:none; transition:color 0.12s;
-}
-.portion-acc-header:hover { color:var(--text); }
-.portion-acc-header .arrow { transition:transform 0.2s; display:inline-block; font-size:8px; }
-.portion-acc.open .portion-acc-header .arrow { transform:rotate(90deg); }
-.portion-acc-body { display:none; padding:0 18px 10px; }
-.portion-acc.open .portion-acc-body { display:block; }
 .portion-row {
   display:flex; align-items:baseline; gap:10px; padding:8px 0;
   border-bottom:1px solid var(--border);
@@ -702,12 +679,22 @@
 
     <!-- Global Summary Strip -->
     <div class="global-summary" id="global-summary">
-      <div class="gs-item"><span class="gs-label">Open</span> <span class="gs-val" id="gs-open">0</span></div>
-      <div class="gs-item"><span class="gs-label">Closed</span> <span class="gs-val" id="gs-closed">0</span></div>
-      <div class="gs-item"><span class="gs-label">Risk</span> <span class="gs-val" id="gs-risk">$0</span></div>
-      <div class="gs-item"><span class="gs-label">Realized</span> <span class="gs-val" id="gs-realized">$0</span></div>
-      <div class="gs-item"><span class="gs-label">Net</span> <span class="gs-val" id="gs-net">—</span></div>
-      <div class="gs-item"><span class="gs-label">Potential</span> <span class="gs-val" id="gs-potential">$0</span></div>
+      <div class="gs-col">
+        <div class="gs-col-title">Session Flow</div>
+        <div class="gs-row gs-secondary" id="gs-closed">0 Closed</div>
+        <div class="gs-row gs-primary" id="gs-open">0 Open</div>
+        <div class="gs-row gs-open-labels" id="gs-open-labels"></div>
+      </div>
+      <div class="gs-col gs-col-border">
+        <div class="gs-col-title">Realized P&L</div>
+        <div class="gs-row gs-primary" id="gs-realized">$0</div>
+        <div class="gs-row gs-secondary" id="gs-potential">$0</div>
+      </div>
+      <div class="gs-col gs-col-border">
+        <div class="gs-col-title">Open Trades</div>
+        <div class="gs-row gs-primary" id="gs-risk">$0</div>
+        <div class="gs-row gs-secondary" id="gs-net">—</div>
+      </div>
     </div>
 
     {% for t in open_trades %}
@@ -1082,6 +1069,15 @@ function deriveTradeStatus(t) {
   return 'partial';
 }
 
+// ── Outcome Boxes (per-contract squares) ──────────────────────────────────────
+function buildOutcomeBoxes(greenQty, redQty, grayQty) {
+  let html = '';
+  for (let i = 0; i < greenQty; i++) html += '<div class="tc-outcome-box tc-ob-green"></div>';
+  for (let i = 0; i < redQty; i++) html += '<div class="tc-outcome-box tc-ob-red"></div>';
+  for (let i = 0; i < grayQty; i++) html += '<div class="tc-outcome-box tc-ob-gray"></div>';
+  return html;
+}
+
 // ── Render Trade Card (compact, select-only) ─────────────────────────────────
 let nextTradeNum = 1;  // stable trade numbering
 
@@ -1120,10 +1116,6 @@ function renderTradeCard(t) {
       else manualLossQty += e.qty;
     }
   });
-  const greenPct = ((tpQty + manualWinQty) / totalQty * 100).toFixed(1);
-  const redPct = ((stopQty + manualLossQty) / totalQty * 100).toFixed(1);
-  const grayPct = (remaining / totalQty * 100).toFixed(1);
-
   const riskStr = netExp != null
     ? (netExp < 0 ? '<span class="pnl-neg">-$' + Math.abs(netExp).toFixed(0) + '</span>' : '<span class="pnl-pos">+$' + netExp.toFixed(0) + '</span>')
     : '—';
@@ -1134,29 +1126,35 @@ function renderTradeCard(t) {
 
   const html = `
   <div class="trade-card tc-color-${colorIdx}" id="tc-${t.id}" data-trade-id="${t.id}" ${cardClick} style="${dimStyle}">
-    <div class="tc-banner">
-      <span class="tc-banner-label">T${tradeNum}</span>
-      <span class="tc-banner-sub">${t.direction} · ${t.instrument} · ${t.entry_time}</span>
-    </div>
-    <div class="tc-header">
-      <span class="tc-dir-badge ${isLong ? 'tc-dir-long' : 'tc-dir-short'}">${t.direction}</span>
-      <span class="tc-title">${t.instrument} @ ${t.entry_price} <span>${t.entry_time}</span></span>
-      <span class="tc-pnl ${realized >= 0 ? 'pnl-pos' : 'pnl-neg'}" style="font-size:16px;">${realized >= 0 ? '+' : ''}$${realized.toFixed(2)}</span>
-      <span class="tc-status ${statusClass}">${statusLabel}</span>
-    </div>
-    <div class="tc-compact-body">
-      <div class="tc-compact-stats">
-        <span>Rem: ${remaining}/${totalQty}</span>
-        <span>Real: ${realStr}</span>
-        <span>Risk: ${riskStr}</span>
+    <div class="tc-row-header">
+      <div class="tc-cell" style="padding:10px 8px;text-align:center;">
+        <div style="font-family:var(--font-display);font-size:22px;color:var(--border2);line-height:1;">T${tradeNum}</div>
       </div>
-      <div class="tc-progress">
-        <div class="tc-prog-seg tc-prog-green" style="width:${greenPct}%"></div>
-        <div class="tc-prog-seg tc-prog-red" style="width:${redPct}%"></div>
-        <div class="tc-prog-seg tc-prog-gray" style="width:${grayPct}%"></div>
+      <div class="tc-cell">
+        <span class="tc-dir-badge ${isLong ? 'tc-dir-long' : 'tc-dir-short'}">${t.direction}</span>
       </div>
+      <div class="tc-cell">
+        <div class="tc-cell-label">Entry</div>
+        <div class="tc-cell-val">${t.total_qty}× ${t.instrument} @ ${t.entry_price}</div>
+        <div style="font-size:10px;color:var(--muted);">${t.entry_time}</div>
+      </div>
+      <div class="tc-cell">
+        <div class="tc-cell-label">Closed / Risk</div>
+        <div class="tc-cell-val">${totalQty - remaining}/${totalQty}  ·  ${riskStr}</div>
+        <div class="tc-outcome-bar">${buildOutcomeBoxes(tpQty + manualWinQty, stopQty + manualLossQty, remaining)}</div>
+      </div>
+      <div class="tc-cell">
+        <div class="tc-cell-label">Realized</div>
+        <div class="tc-cell-val ${realized >= 0 ? 'pnl-pos' : 'pnl-neg'}" style="font-size:14px;font-weight:500;">
+          ${realized >= 0 ? '+' : ''}$${realized.toFixed(2)}
+        </div>
+        <span class="tc-status ${statusClass}" style="margin-top:2px;display:inline-block;">${statusLabel}</span>
+      </div>
+      <div class="tc-cell tc-expand-toggle" onclick="toggleTradeExpand(event,${t.id})">▾</div>
     </div>
-    ${buildPortionTable(t)}
+    <div class="tc-detail">
+      ${buildPortionRows(t)}
+    </div>
   </div>`;
 
   const emptyEl = document.getElementById('empty-state');
@@ -1184,10 +1182,10 @@ function renderTradeCard(t) {
     }
   }
 
-  // Restore portion accordion state
+  // Restore expand state
   if (openPortionAccs.has(t.id)) {
-    const acc = document.querySelector(`#tc-${t.id} .portion-acc`);
-    if (acc) acc.classList.add('open');
+    const card = document.getElementById('tc-' + t.id);
+    if (card) card.classList.add('expanded');
   }
 }
 
@@ -1371,17 +1369,17 @@ function buildQuickExitButtons(t) {
 // ── Portion Accordion State ───────────────────────────────────────────────────
 const openPortionAccs = new Set();
 
-function togglePortionAcc(event, tradeId) {
+function toggleTradeExpand(event, tradeId) {
   event.stopPropagation();
-  const el = document.querySelector(`#tc-${tradeId} .portion-acc`);
-  if (!el) return;
-  el.classList.toggle('open');
-  if (el.classList.contains('open')) openPortionAccs.add(tradeId);
+  const card = document.getElementById('tc-' + tradeId);
+  if (!card) return;
+  card.classList.toggle('expanded');
+  if (card.classList.contains('expanded')) openPortionAccs.add(tradeId);
   else openPortionAccs.delete(tradeId);
 }
 
-// ── Build Portion Table ──────────────────────────────────────────────────────
-function buildPortionTable(t) {
+// ── Build Portion Rows ───────────────────────────────────────────────────────
+function buildPortionRows(t) {
   const levels = t.levels || [];
   const executions = t.executions || [];
   const isLong = t.direction === 'Long';
@@ -1449,12 +1447,8 @@ function buildPortionTable(t) {
     }
   });
 
-  return `<div class="portion-acc">
-    <div class="portion-acc-header" onclick="togglePortionAcc(event,${t.id})">
-      <span class="arrow">▸</span> Portions
-    </div>
-    <div class="portion-acc-body">${rows}</div>
-  </div>`;
+  if (!rows) return '';
+  return `<div style="padding:4px 12px 10px;">${rows}</div>`;
 }
 
 // ── Inline Price Edit in Portion Table ───────────────────────────────────────
@@ -1877,7 +1871,7 @@ function updateGlobalSummary() {
   const gsEl = document.getElementById('global-summary');
   gsEl.style.display = 'grid';
 
-  let openCount = 0, closedCount = 0, totalRisk = 0, totalRealized = 0, totalPotential = 0;
+  let openCount = 0, closedCount = 0, totalRawStopRisk = 0, totalRealized = 0, totalPotential = 0;
   const netExposure = {};
 
   allTrades.forEach(t => {
@@ -1893,7 +1887,12 @@ function updateGlobalSummary() {
       closedCount++;
     }
 
-    totalRisk += isPushed ? 0 : (calc.net_stop_exposure || 0);
+    // Raw stop risk = net_stop_exposure minus the trade's own realized P&L
+    // so global risk = totalRealized + totalRawStopRisk = day-level net risk
+    if (!isPushed && rem > 0) {
+      const rawStop = (calc.net_stop_exposure || 0) - (calc.realized_pnl || 0);
+      totalRawStopRisk += rawStop;
+    }
     totalRealized += calc.realized_pnl || 0;
     totalPotential += isPushed ? 0 : (calc.potential_reward || 0);
 
@@ -1915,12 +1914,18 @@ function updateGlobalSummary() {
     }
   });
 
-  document.getElementById('gs-open').textContent = openCount;
-  document.getElementById('gs-closed').textContent = closedCount;
+  document.getElementById('gs-open').textContent = openCount + ' Open';
+  document.getElementById('gs-closed').textContent = closedCount + ' Closed';
 
   const gsRisk = document.getElementById('gs-risk');
-  gsRisk.textContent = totalRisk < 0 ? '-$' + Math.abs(totalRisk).toFixed(0) : '+$' + totalRisk.toFixed(0);
-  gsRisk.style.color = totalRisk < 0 ? 'var(--red)' : 'var(--green)';
+  if (openCount === 0) {
+    gsRisk.textContent = '—';
+    gsRisk.style.color = '';
+  } else {
+    const netRisk = totalRealized + totalRawStopRisk;
+    gsRisk.textContent = 'Risk ' + (netRisk < 0 ? '-$' + Math.abs(netRisk).toFixed(0) : '+$' + netRisk.toFixed(0));
+    gsRisk.style.color = netRisk < 0 ? 'var(--red)' : 'var(--green)';
+  }
 
   const gsReal = document.getElementById('gs-realized');
   gsReal.textContent = (totalRealized >= 0 ? '+' : '') + '$' + totalRealized.toFixed(0);
@@ -1934,8 +1939,18 @@ function updateGlobalSummary() {
   document.getElementById('gs-net').textContent = parts.length > 0 ? parts.join(' · ') : '—';
 
   const gsPot = document.getElementById('gs-potential');
-  gsPot.textContent = '+$' + totalPotential.toFixed(0);
+  gsPot.textContent = 'Potential +$' + totalPotential.toFixed(0);
   gsPot.style.color = 'var(--green)';
+
+  // Open trade labels
+  const openLabels = [];
+  allTrades.forEach((t, i) => {
+    const calc = t.calc || {};
+    const rem = calc.remaining_qty ?? t.total_qty;
+    if (!t._pushed && rem > 0) openLabels.push('T' + (i + 1));
+  });
+  const gsLabels = document.getElementById('gs-open-labels');
+  gsLabels.textContent = openLabels.length > 0 ? '(' + openLabels.join(', ') + ')' : '';
 }
 
 // ── Keyboard Shortcuts ───────────────────────────────────────────────────────
