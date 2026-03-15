@@ -646,7 +646,7 @@
         <input type="file" accept="image/*" multiple id="obs-file-input"
                onchange="window._obsFiles=this.files;document.getElementById('obs-file-label').textContent=this.files.length+' file(s) selected'"
                style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;">
-        <div id="obs-file-label" style="font-size:11px;color:var(--muted);letter-spacing:0.5px;">Drop images here or click to upload</div>
+        <div id="obs-file-label" style="font-size:11px;color:var(--muted);letter-spacing:0.5px;">Drop, click, or paste (⌘V) to upload</div>
       </div>
     </div>
     <div style="text-align:right;">
@@ -701,7 +701,7 @@
     document.getElementById('obs-date').value = now.toISOString().split('T')[0];
     document.getElementById('obs-time').value = now.toTimeString().slice(0,5);
     document.getElementById('obs-text').value = '';
-    document.getElementById('obs-file-label').textContent = 'Drop images here or click to upload';
+    document.getElementById('obs-file-label').textContent = 'Drop, click, or paste (⌘V) to upload';
     document.getElementById('obs-file-input').value = '';
     window._obsFiles = null;
   });
@@ -722,7 +722,8 @@ async function saveQuickObs() {
     if (!res.ok) { showToast(data.error || 'Save failed', true); return; }
     // Upload images if any
     if (window._obsFiles && window._obsFiles.length) {
-      for (const file of Array.from(window._obsFiles)) {
+      for (let file of Array.from(window._obsFiles)) {
+        file = await compressImage(file);
         const form = new FormData();
         form.append('image', file);
         form.append('caption', file.name.replace(/\.[^.]+$/, ''));
@@ -737,6 +738,68 @@ async function saveQuickObs() {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') document.getElementById('obs-modal')?.classList.remove('show');
 });
+
+// Paste support for observation modal
+document.getElementById('obs-modal')?.addEventListener('paste', async (e) => {
+  const file = clipboardToFile(e);
+  if (!file) return;
+  e.preventDefault();
+  e.stopPropagation();
+  // Accumulate pasted files
+  const dt = new DataTransfer();
+  if (window._obsFiles) {
+    for (const f of Array.from(window._obsFiles)) dt.items.add(f);
+  }
+  dt.items.add(file);
+  window._obsFiles = dt.files;
+  document.getElementById('obs-file-label').textContent = dt.files.length + ' file(s) selected';
+  // Brief green flash on drop zone
+  const zone = document.getElementById('obs-drop-zone');
+  zone.classList.add('drag-over');
+  setTimeout(() => zone.classList.remove('drag-over'), 400);
+});
+</script>
+
+<!-- Shared image utilities (compression + clipboard) -->
+<script>
+async function compressImage(file, quality = 0.7, maxDim = 1920) {
+  if (file.size < 100 * 1024) return file;
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (w > maxDim || h > maxDim) {
+        const scale = maxDim / Math.max(w, h);
+        w = Math.round(w * scale);
+        h = Math.round(h * scale);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      canvas.toBlob(blob => {
+        resolve(new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' }));
+      }, 'image/jpeg', quality);
+      URL.revokeObjectURL(img.src);
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+function clipboardToFile(e) {
+  const items = e.clipboardData?.items;
+  if (!items) return null;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const blob = item.getAsFile();
+      const ts = new Date().toISOString().slice(0, 19).replace('T', ' ');
+      return new File([blob], `Screenshot ${ts}.png`, { type: blob.type });
+    }
+  }
+  return null;
+}
 </script>
 
 {% block scripts %}{% endblock %}

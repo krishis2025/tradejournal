@@ -264,7 +264,7 @@
           <input type="file" accept="image/*" multiple
                  onchange="uploadDayImages(this.files)"
                  style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;">
-          <div class="images-drop-text">Drop screenshots here or click to upload</div>
+          <div class="images-drop-text">Drop, click, or paste (⌘V) to upload</div>
         </div>
       </div>
     </div>
@@ -465,7 +465,7 @@
            ondrop="imgDrop(event, {{ trade.id }})">
         <input type="file" accept="image/*" id="img-input-{{ trade.id }}"
                onchange="uploadImages({{ trade.id }}, this.files)">
-        <div class="images-drop-text">📎 Drop screenshots here or click to upload · JPG, PNG, WebP</div>
+        <div class="images-drop-text">📎 Drop, click, or paste (⌘V) · JPG, PNG, WebP</div>
       </div>
     </div>
 
@@ -669,7 +669,8 @@ function imgDrop(e, tradeId) {
 
 async function uploadImages(tradeId, files) {
   if (!files || !files.length) return;
-  for (const file of Array.from(files)) {
+  for (let file of Array.from(files)) {
+    file = await compressImage(file);
     const form = new FormData();
     form.append('image', file);
     form.append('caption', file.name.replace(/\.[^.]+$/, ''));
@@ -770,7 +771,8 @@ function toggleDayTag(field, tag, multi) {
 // ── Day Images ──────────────────────────────────────────────────────────────
 async function uploadDayImages(files) {
   if (!files || !files.length) return;
-  for (const file of Array.from(files)) {
+  for (let file of Array.from(files)) {
+    file = await compressImage(file);
     const form = new FormData();
     form.append('image', file);
     form.append('caption', file.name.replace(/\.[^.]+$/, ''));
@@ -801,5 +803,27 @@ async function deleteDayImage(imageId) {
     showToast('Screenshot deleted');
   } else { showToast('Delete failed', true); }
 }
+
+// ── Clipboard paste ──────────────────────────────────────────────────────────
+document.addEventListener('paste', async (e) => {
+  // Don't intercept if obs modal is open (it has its own handler)
+  if (document.getElementById('obs-modal')?.classList.contains('show')) return;
+  // Don't intercept if user is pasting text into a textarea/input
+  const active = document.activeElement;
+  if (active && (active.tagName === 'TEXTAREA' || active.tagName === 'INPUT')) return;
+
+  const file = clipboardToFile(e);
+  if (!file) return;
+  e.preventDefault();
+
+  // If a trade card is expanded, attach to that trade; otherwise attach to day images
+  const expandedCard = document.querySelector('.trade-row-card.expanded');
+  if (expandedCard) {
+    const tradeId = parseInt(expandedCard.id.replace('trade-card-', ''));
+    await uploadImages(tradeId, [file]);
+  } else {
+    await uploadDayImages([file]);
+  }
+});
 </script>
 {% endblock %}
