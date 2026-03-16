@@ -201,8 +201,8 @@ def live_trade_page():
     open_trades  = db.get_all_live_trades(status="open", date_from=date_from, date_to=date_to, account_id=account_id)
     closed_trades = db.get_all_live_trades(status="closed", date_from=date_from, date_to=date_to, account_id=account_id)
 
-    # Pre-compute calc for each open trade
-    for t in open_trades:
+    # Pre-compute calc for each trade (open and closed)
+    for t in open_trades + closed_trades:
         full = db.get_live_trade(t["id"])
         t["levels"] = full.get("levels", [])
         t["executions"] = full.get("executions", [])
@@ -689,6 +689,36 @@ def api_delete_execution(live_id, exec_id):
     if trade["status"] == "closed" and not calc["is_closed"]:
         db.update_live_trade(live_id, status="open", closed_at=None, journal_trade_id=None)
     return jsonify({"ok": True, "calc": calc})
+
+
+@app.route("/api/live/<int:live_id>/images", methods=["POST"])
+def api_upload_live_image(live_id):
+    if "image" not in request.files:
+        return jsonify({"error": "No image file"}), 400
+    f = request.files["image"]
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext not in ALLOWED_IMAGE_EXTS:
+        return jsonify({"error": f"File type {ext} not allowed"}), 422
+    unique_name = f"live_{live_id}_{uuid.uuid4().hex[:8]}{ext}"
+    f.save(os.path.join(IMAGES_DIR, unique_name))
+    caption = request.form.get("caption", "")
+    image_id = db.add_live_trade_image(live_id, unique_name, caption)
+    return jsonify({"ok": True, "id": image_id, "url": f"/images/{unique_name}", "caption": caption})
+
+
+@app.route("/api/live/<int:live_id>/images", methods=["GET"])
+def api_get_live_images(live_id):
+    return jsonify(db.get_live_trade_images(live_id))
+
+
+@app.route("/api/live/images/<int:image_id>", methods=["DELETE"])
+def api_delete_live_image(image_id):
+    filename = db.delete_live_trade_image(image_id)
+    if filename:
+        path = os.path.join(IMAGES_DIR, filename)
+        if os.path.exists(path):
+            os.remove(path)
+    return jsonify({"ok": True})
 
 
 @app.route("/api/live/<int:live_id>/recalc", methods=["GET"])

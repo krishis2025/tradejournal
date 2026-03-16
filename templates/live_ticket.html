@@ -195,6 +195,8 @@
   animation: fadeIn 0.3s ease both; cursor: pointer;
 }
 .trade-card:hover { background:var(--surface2); }
+.trade-card.tc-closed { background: var(--surface2); opacity: 0.7; }
+.trade-card.tc-pushed { background: var(--bg); opacity: 0.55; cursor: default; }
 
 /* First card spacing after summary strip */
 #trades-list .trade-card:first-of-type { margin-top: 12px; }
@@ -507,6 +509,37 @@
 .tp-tag-btn.active-setup   { background:rgba(180,127,255,0.12); border-color:var(--purple); color:var(--purple); }
 .tp-tag-btn.active-pre     { background:rgba(138,150,170,0.15); border-color:var(--muted2); color:var(--text); }
 
+/* Live trade image upload */
+.lt-img-drop {
+  border: 1px dashed var(--border2); border-radius: 2px;
+  padding: 16px; text-align: center; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.lt-img-drop:hover, .lt-img-drop.drag-over {
+  border-color: var(--accent); background: rgba(79,255,176,0.05);
+}
+.lt-img-drop-text {
+  font-size: 10px; color: var(--muted); letter-spacing: 0.5px;
+}
+.lt-img-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 6px; margin-bottom: 8px;
+}
+.lt-img-thumb {
+  position: relative; aspect-ratio: 4/3; border-radius: 2px;
+  overflow: hidden; border: 1px solid var(--border);
+}
+.lt-img-thumb img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.lt-img-thumb .lt-img-del {
+  position: absolute; top: 2px; right: 2px;
+  background: rgba(0,0,0,0.6); color: #fff; border: none;
+  font-size: 10px; width: 18px; height: 18px; cursor: pointer;
+  display: none; border-radius: 2px;
+}
+.lt-img-thumb:hover .lt-img-del { display: block; }
+
 /* Push bar */
 .push-row {
   display:flex; align-items:center; gap:8px; margin-top:12px;
@@ -519,15 +552,6 @@
 }
 .day-footer-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:4px; }
 .day-footer-val   { font-family:var(--font-display); font-size:28px; letter-spacing:1px; }
-
-/* ── Pushed trade tray ── */
-.pushed-tray {
-  padding:10px 18px; border-bottom:1px solid var(--border);
-  display:grid; grid-template-columns: auto 1fr auto auto;
-  align-items:center; gap:12px; opacity:0.5;
-  transition:opacity 0.15s;
-}
-.pushed-tray:hover { opacity:0.8; }
 
 /* ── Date Range Filter Bar ── */
 .date-filter-bar {
@@ -645,8 +669,8 @@
     <button class="cmd-time-refresh" onclick="refreshTime()" title="Set to current time">↻</button>
   </div>
   <div class="cmd-mode">
-    <button class="cmd-mode-btn active" id="cmd-full" onclick="setMode('full')">FULL</button>
-    <button class="cmd-mode-btn" id="cmd-partials" onclick="setMode('partials')">3-WAY</button>
+    <button class="cmd-mode-btn" id="cmd-full" onclick="setMode('full')">FULL</button>
+    <button class="cmd-mode-btn active" id="cmd-partials" onclick="setMode('partials')">3-WAY</button>
   </div>
   <div class="cmd-go">
     <button class="cmd-go-btn" id="cmd-enter" onclick="openTrade()">ENTER ↵</button>
@@ -702,14 +726,7 @@
     {% endfor %}
 
     {% for t in closed_trades %}
-    <div class="pushed-tray">
-      <span class="tc-dir-badge {{ 'tc-dir-long' if t.direction == 'Long' else 'tc-dir-short' }}">{{ t.direction[:1] }}</span>
-      <span style="font-size:12px;">{{ t.total_qty }}× {{ t.instrument }} @ {{ t.entry_price }} {{ t.entry_time }}</span>
-      <span class="tc-pnl {{ 'pnl-pos' if t.realized_pnl >= 0 else 'pnl-neg' }}" style="font-size:16px;">
-        ${{ '%.2f'|format(t.realized_pnl) }}
-      </span>
-      <span class="tc-status tc-status-closed">pushed ✓</span>
-    </div>
+    <!-- Closed trades loaded into JS below -->
     {% endfor %}
 
     <div class="empty-state" id="empty-state" {% if open_trades or closed_trades %}style="display:none;"{% endif %}>
@@ -835,6 +852,19 @@
     </div>
   </div>
   {% endfor %}
+
+  <!-- Screenshots -->
+  <div class="tp-group" id="tp-screenshots">
+    <div class="tp-group-label">
+      <span class="tp-dot" style="background:var(--accent);"></span>
+      Screenshots
+    </div>
+    <div class="lt-img-grid" id="lt-img-grid"></div>
+    <div class="lt-img-drop" id="lt-img-drop">
+      <div class="lt-img-drop-text">Drop image, paste, or click to upload</div>
+      <input type="file" accept="image/*" multiple id="lt-img-input" style="display:none;">
+    </div>
+  </div>
 </div>
 
 <!-- Risk Calculator popup -->
@@ -900,7 +930,7 @@ const TRADE_DEFAULTS = {{ trade_defaults_json|safe }};
 // ── State ────────────────────────────────────────────────────────────────────
 let formDir  = 'Long';
 let formInst = 'MES';
-let formMode = 'full';
+let formMode = 'partials';
 let activeTrade = null;
 let activeTags = {};
 let allTrades = [];
@@ -919,15 +949,23 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('cmd-time').value = getCurrentTimeStr();
   document.getElementById('cmd-price').focus();
 
-  const serverTrades = {{ open_trades|tojson }};
-  serverTrades.forEach(t => {
+  // Load all trades (open + closed) sorted by created_at ascending for stable numbering
+  const serverOpen = {{ open_trades|tojson }};
+  const serverClosed = {{ closed_trades|tojson }};
+  const allServer = serverOpen.concat(serverClosed);
+  // Sort ascending by created_at so oldest = T1
+  allServer.sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
+  allServer.forEach(t => {
     try { t.tags = typeof t.tags_json === 'string' ? JSON.parse(t.tags_json) : (t.tags_json || {}); } catch(e) { t.tags = {}; }
+    if (t.status === 'closed') t._pushed = true;
     allTrades.push(t);
     renderTradeCard(t);
   });
 
-  if (allTrades.length > 0) {
-    selectTrade(allTrades[0].id);
+  // Select first open trade
+  const firstOpen = allTrades.find(t => !t._pushed);
+  if (firstOpen) {
+    selectTrade(firstOpen.id);
   }
 
   updateDayPnl();
@@ -1012,7 +1050,8 @@ async function openTrade() {
     id: data.id, direction: formDir, instrument: formInst,
     entry_price: price, entry_time: time, total_qty: qty,
     mode: formMode, status: 'open', notes: '', tags: {},
-    levels: [], executions: [], calc: calc
+    levels: [], executions: [], calc: calc,
+    created_at: new Date().toISOString().replace('T', ' ').slice(0, 19)
   };
 
   const isLong = formDir === 'Long';
@@ -1042,7 +1081,7 @@ async function openTrade() {
   if (!activeTrade) {
     selectTrade(trade.id);
   } else {
-    showToast(`${formDir} ${qty}× ${formInst} @ ${price} — click T${allTrades.length} to manage`);
+    showToast(`${formDir} ${qty}× ${formInst} @ ${price} — click T${trade._tradeNum} to manage`);
   }
 
   document.getElementById('cmd-price').value = '';
@@ -1122,10 +1161,10 @@ function renderTradeCard(t) {
   const realStr = realized >= 0 ? '<span class="pnl-pos">+$' + realized.toFixed(0) + '</span>' : '<span class="pnl-neg">-$' + Math.abs(realized).toFixed(0) + '</span>';
 
   const cardClick = isPushed ? '' : `onclick="selectTrade(${t.id})"`;
-  const dimStyle = isPushed ? 'opacity:0.55;cursor:default;' : '';
+  const statusCls = isPushed ? 'tc-pushed' : (remaining === 0 ? 'tc-closed' : '');
 
   const html = `
-  <div class="trade-card tc-color-${colorIdx}" id="tc-${t.id}" data-trade-id="${t.id}" ${cardClick} style="${dimStyle}">
+  <div class="trade-card tc-color-${colorIdx} ${statusCls}" id="tc-${t.id}" data-trade-id="${t.id}" ${cardClick}>
     <div class="tc-row-header">
       <div class="tc-cell" style="padding:10px 8px;text-align:center;">
         <div style="font-family:var(--font-display);font-size:22px;color:var(--border2);line-height:1;">T${tradeNum}</div>
@@ -1159,28 +1198,33 @@ function renderTradeCard(t) {
 
   const emptyEl = document.getElementById('empty-state');
 
-  const myIdx = allTrades.indexOf(t);
-  const allCards = document.querySelectorAll('.trade-card[data-trade-id]');
-  let inserted = false;
-  for (const card of allCards) {
-    const cardId = parseInt(card.dataset.tradeId);
-    const cardIdx = allTrades.findIndex(tr => tr.id === cardId);
-    if (cardIdx > myIdx) {
-      card.insertAdjacentHTML('beforebegin', html);
-      inserted = true;
-      break;
-    }
+  // Sort: open trades first, then closed/pushed — within each group, newest on top
+  function isTradeOpen(trade) {
+    if (trade._pushed || trade.status === 'closed') return false;
+    const rem = trade.calc?.remaining_qty ?? trade.total_qty;
+    return rem > 0;
   }
-  if (!inserted) {
-    const pushedTrays = document.querySelectorAll('.pushed-tray');
-    if (pushedTrays.length > 0) {
-      pushedTrays[0].insertAdjacentHTML('beforebegin', html);
-    } else if (emptyEl) {
-      emptyEl.insertAdjacentHTML('beforebegin', html);
-    } else {
-      document.getElementById('trades-list').insertAdjacentHTML('beforeend', html);
-    }
-  }
+
+  // Re-sort all cards in the DOM after insertion
+  const tradesList = document.getElementById('trades-list');
+  tradesList.insertAdjacentHTML('beforeend', html);
+
+  // Collect all trade cards and sort them
+  const allCards = [...tradesList.querySelectorAll('.trade-card[data-trade-id]')];
+  allCards.sort((a, b) => {
+    const tA = allTrades.find(tr => tr.id === parseInt(a.dataset.tradeId));
+    const tB = allTrades.find(tr => tr.id === parseInt(b.dataset.tradeId));
+    const openA = tA ? isTradeOpen(tA) : false;
+    const openB = tB ? isTradeOpen(tB) : false;
+    // Open trades first
+    if (openA !== openB) return openA ? -1 : 1;
+    // Within same group, newest first (descending by created_at)
+    const timeA = tA ? (tA.created_at || tA.entry_time || '') : '';
+    const timeB = tB ? (tB.created_at || tB.entry_time || '') : '';
+    return timeB.localeCompare(timeA);
+  });
+  // Re-append in sorted order (before empty-state)
+  allCards.forEach(card => tradesList.insertBefore(card, emptyEl));
 
   // Restore expand state
   if (openPortionAccs.has(t.id)) {
@@ -1199,7 +1243,7 @@ function selectTrade(id) {
   activeTrade = t;
   try { activeTags = typeof t.tags === 'object' ? {...t.tags} : JSON.parse(t.tags_json||'{}'); } catch(e) { activeTags = {}; }
 
-  const tradeNum = t._tradeNum || (allTrades.indexOf(t) + 1);
+  const tradeNum = t._tradeNum;
   const colorIdx = (tradeNum - 1) % 6;
   const isSwitching = lastActiveId !== null && lastActiveId !== id;
 
@@ -1282,6 +1326,7 @@ function selectTrade(id) {
   buildQuickExitButtons(t);
   buildSetLevelButtons(t);
   syncTagButtons();
+  loadLiveImages(t.id);
 
   if (isSwitching) {
     showToast(`Switched to Trade ${tradeNum}`);
@@ -1783,6 +1828,72 @@ function closeTagsPanel() {
   document.getElementById('tags-overlay').classList.remove('open');
 }
 
+// ── Live Trade Screenshots ──────────────────────────────────────────────────
+function loadLiveImages(liveTradeId) {
+  const grid = document.getElementById('lt-img-grid');
+  grid.innerHTML = '';
+  fetch(`/api/live/${liveTradeId}/images`)
+    .then(r => r.json())
+    .then(imgs => {
+      imgs.forEach(img => appendLiveThumb(img));
+    });
+}
+
+function appendLiveThumb(img) {
+  const grid = document.getElementById('lt-img-grid');
+  const url = img.url || `/images/${img.filename}`;
+  const div = document.createElement('div');
+  div.className = 'lt-img-thumb';
+  div.innerHTML = `<img src="${url}" onclick="window.open('${url}','_blank')">
+    <button class="lt-img-del" onclick="event.stopPropagation();deleteLiveImage(${img.id},this.parentElement)">✕</button>`;
+  grid.appendChild(div);
+}
+
+async function uploadLiveImage(files) {
+  if (!activeTrade) return;
+  for (const raw of files) {
+    let file = raw;
+    if (typeof compressImage === 'function') {
+      file = await compressImage(file);
+    }
+    const fd = new FormData();
+    fd.append('image', file);
+    const r = await fetch(`/api/live/${activeTrade.id}/images`, {method:'POST', body:fd});
+    const data = await r.json();
+    if (data.ok) appendLiveThumb(data);
+  }
+}
+
+function deleteLiveImage(imageId, el) {
+  fetch(`/api/live/images/${imageId}`, {method:'DELETE'})
+    .then(r => r.json())
+    .then(d => { if (d.ok && el) el.remove(); });
+}
+
+// Wire up drop zone
+(function() {
+  const drop = document.getElementById('lt-img-drop');
+  const inp = document.getElementById('lt-img-input');
+  drop.addEventListener('click', () => inp.click());
+  inp.addEventListener('change', () => { if (inp.files.length) uploadLiveImage(inp.files); inp.value=''; });
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag-over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('drag-over'));
+  drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('drag-over'); if (e.dataTransfer.files.length) uploadLiveImage(e.dataTransfer.files); });
+  document.addEventListener('paste', e => {
+    if (document.getElementById('obs-modal')?.classList.contains('show')) return;
+    if (!document.getElementById('tags-panel').classList.contains('open')) return;
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) uploadLiveImage([file]);
+        break;
+      }
+    }
+  });
+})();
+
 function syncTagButtons() {
   document.querySelectorAll('.tp-tag-btn').forEach(btn => {
     const gid = btn.dataset.group, tag = btn.dataset.tag, ac = btn.dataset.activeClass;
@@ -1846,20 +1957,12 @@ function toggleNoteAcc(key) {
 // ── Day P&L + Global Summary ─────────────────────────────────────────────────
 function updateDayPnl() {
   let total = 0;
-  // Sum from allTrades (includes both active and session-pushed trades)
   allTrades.forEach(t => { total += t.calc?.realized_pnl || 0; });
-  // Also count server-rendered pushed trays from prior sessions
-  let serverPushedCount = 0;
-  document.querySelectorAll('.pushed-tray .tc-pnl').forEach(el => {
-    const val = parseFloat(el.textContent.replace(/[^-\d.]/g,''));
-    if (!isNaN(val)) total += val;
-    serverPushedCount++;
-  });
   const el = document.getElementById('day-pnl');
   el.textContent = (total>=0?'+':'') + '$' + total.toFixed(2);
   el.className = 'day-footer-val ' + (total>0?'pnl-pos':total<0?'pnl-neg':'pnl-zero');
 
-  const totalTrades = allTrades.length + serverPushedCount;
+  const totalTrades = allTrades.length;
   const countEl = document.getElementById('trade-count-label');
   if (countEl) countEl.textContent = totalTrades + ' trade' + (totalTrades !== 1 ? 's' : '');
 
@@ -1904,16 +2007,6 @@ function updateGlobalSummary() {
     }
   });
 
-  // Also count server-rendered pushed trays (from prior sessions)
-  document.querySelectorAll('.pushed-tray').forEach(el => {
-    closedCount++;
-    const pnlEl = el.querySelector('.tc-pnl');
-    if (pnlEl) {
-      const val = parseFloat(pnlEl.textContent.replace(/[^-\d.]/g,''));
-      if (!isNaN(val)) totalRealized += val;
-    }
-  });
-
   document.getElementById('gs-open').textContent = openCount + ' Open';
   document.getElementById('gs-closed').textContent = closedCount + ' Closed';
 
@@ -1944,10 +2037,10 @@ function updateGlobalSummary() {
 
   // Open trade labels
   const openLabels = [];
-  allTrades.forEach((t, i) => {
+  allTrades.forEach(t => {
     const calc = t.calc || {};
     const rem = calc.remaining_qty ?? t.total_qty;
-    if (!t._pushed && rem > 0) openLabels.push('T' + (i + 1));
+    if (!t._pushed && rem > 0) openLabels.push('T' + (t._tradeNum || '?'));
   });
   const gsLabels = document.getElementById('gs-open-labels');
   gsLabels.textContent = openLabels.length > 0 ? '(' + openLabels.join(', ') + ')' : '';

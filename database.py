@@ -264,6 +264,15 @@ def init_db():
                 created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
             );
 
+            CREATE TABLE IF NOT EXISTS live_trade_images (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                live_trade_id INTEGER NOT NULL REFERENCES live_trades(id) ON DELETE CASCADE,
+                filename      TEXT    NOT NULL,
+                caption       TEXT    NOT NULL DEFAULT '',
+                uploaded_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_live_images ON live_trade_images(live_trade_id);
             CREATE INDEX IF NOT EXISTS idx_live_levels ON live_trade_levels(live_trade_id);
             CREATE INDEX IF NOT EXISTS idx_live_execs  ON live_trade_executions(live_trade_id);
         """)
@@ -708,6 +717,34 @@ def delete_trade_image(image_id):
         row = conn.execute("SELECT filename FROM trade_images WHERE id=?", (image_id,)).fetchone()
         filename = row["filename"] if row else None
         conn.execute("DELETE FROM trade_images WHERE id=?", (image_id,))
+        return filename
+
+
+# ── Live Trade Images ────────────────────────────────────────────────────────
+
+def add_live_trade_image(live_trade_id, filename, caption=""):
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO live_trade_images (live_trade_id, filename, caption) VALUES (?, ?, ?)",
+            (live_trade_id, filename, caption)
+        )
+        return cur.lastrowid
+
+
+def get_live_trade_images(live_trade_id):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM live_trade_images WHERE live_trade_id = ? ORDER BY uploaded_at",
+            (live_trade_id,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def delete_live_trade_image(image_id):
+    with get_conn() as conn:
+        row = conn.execute("SELECT filename FROM live_trade_images WHERE id=?", (image_id,)).fetchone()
+        filename = row["filename"] if row else None
+        conn.execute("DELETE FROM live_trade_images WHERE id=?", (image_id,))
         return filename
 
 

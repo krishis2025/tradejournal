@@ -723,6 +723,11 @@ def close_live_trade_to_journal(live_trade_id):
         db.insert_fill(trade_id, e["exec_time"], exit_side, e["qty"], e["price"],
                        exit_type=e.get("exec_type"))
 
+    # Copy live trade images to journal trade
+    live_images = db.get_live_trade_images(live_trade_id)
+    for img in live_images:
+        db.add_trade_image(trade_id, img['filename'], img['caption'])
+
     # Mark live trade as closed and link to journal
     db.update_live_trade(live_trade_id,
                          status="closed",
