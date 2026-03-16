@@ -509,6 +509,21 @@
 .tp-tag-btn.active-setup   { background:rgba(180,127,255,0.12); border-color:var(--purple); color:var(--purple); }
 .tp-tag-btn.active-pre     { background:rgba(138,150,170,0.15); border-color:var(--muted2); color:var(--text); }
 
+/* Drawer tabs */
+.tp-tabs {
+  display:flex; gap:0; margin-bottom:16px; border-bottom:1px solid var(--border);
+}
+.tp-tab {
+  flex:1; background:none; border:none; border-bottom:2px solid transparent;
+  color:var(--muted); font-family:var(--font-mono); font-size:10px;
+  letter-spacing:1px; text-transform:uppercase; padding:8px 0;
+  cursor:pointer; transition:all 0.15s;
+}
+.tp-tab:hover { color:var(--text); }
+.tp-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+.tp-tab-content { display:none; }
+.tp-tab-content.active { display:block; }
+
 /* Live trade image upload */
 .lt-img-drop {
   border: 1px dashed var(--border2); border-radius: 2px;
@@ -755,9 +770,14 @@
         </div>
       </div>
 
+      <!-- Tags & Notes button -->
+      <div class="rp-section" style="padding-bottom:0;">
+        <button class="tp-tag-btn" style="font-size:9px;padding:5px 12px;width:100%;text-align:center;"
+          onclick="openTagsPanel()">Tags & Notes ▸</button>
+      </div>
+
       <!-- Quick Exit (Section C+D) -->
       <div class="rp-section">
-        <div class="rp-title">Quick Exit</div>
         <div id="qe-buttons"></div>
         <div class="qe-manual">
           <input type="number" step="0.25" id="man-price" placeholder="Price">
@@ -779,36 +799,8 @@
         </div>
       </div>
 
-      <!-- Notes & Tags (Section E) -->
-      <div class="rp-section" style="flex:1;">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <div class="rp-title" style="margin:0;">Notes & Tags</div>
-          <button class="tp-tag-btn" style="font-size:9px;padding:3px 8px;" onclick="openTagsPanel()">Tags ▸</button>
-        </div>
-        <div class="note-acc open" id="note-acc-entry">
-          <div class="note-acc-header" onclick="toggleNoteAcc('entry')">
-            <span class="arrow">&#9654;</span> Entry Notes
-          </div>
-          <div class="note-acc-body">
-            <textarea class="tc-notes-input" id="rp-notes" rows="3" placeholder="Why did you enter? Setup, context, rationale..."></textarea>
-          </div>
-        </div>
-        <div class="note-acc" id="note-acc-monitoring">
-          <div class="note-acc-header" onclick="toggleNoteAcc('monitoring')">
-            <span class="arrow">&#9654;</span> Management Notes
-          </div>
-          <div class="note-acc-body">
-            <textarea class="tc-notes-input" id="rp-notes-monitoring" rows="3" placeholder="What are you watching? Price action, levels, signals..."></textarea>
-          </div>
-        </div>
-        <div class="note-acc" id="note-acc-exit">
-          <div class="note-acc-header" onclick="toggleNoteAcc('exit')">
-            <span class="arrow">&#9654;</span> Exit Notes
-          </div>
-          <div class="note-acc-body">
-            <textarea class="tc-notes-input" id="rp-notes-exit" rows="3" placeholder="Why did you exit? Outcome, lessons..."></textarea>
-          </div>
-        </div>
+      <!-- Push (Section E) -->
+      <div class="rp-section" style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;">
         <div class="push-row">
           <button class="btn btn-ghost" style="padding:6px 14px;font-size:9px;flex:1;" onclick="cancelActiveTrade()">Cancel</button>
           <button class="btn btn-primary" style="padding:6px 18px;font-size:10px;flex:2;" onclick="pushActiveTrade()">Save & Push →</button>
@@ -833,32 +825,70 @@
 <!-- Tags slide-out panel -->
 <div class="tags-panel-overlay" id="tags-overlay" onclick="closeTagsPanel()"></div>
 <div class="tags-panel" id="tags-panel">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-    <span style="font-family:var(--font-display);font-size:18px;letter-spacing:2px;">Tags</span>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0;">
+    <span style="font-family:var(--font-display);font-size:18px;letter-spacing:2px;">Details</span>
     <button class="btn btn-ghost" style="padding:4px 12px;font-size:9px;" onclick="closeTagsPanel()">✕ Close</button>
   </div>
-  {% for g in tag_groups %}
-  <div class="tp-group">
-    <div class="tp-group-label">
-      <span class="tp-dot" style="background:{{ 'var(--green)' if g.id == 'with' else 'var(--red)' if g.id == 'against' else 'var(--accent2)' if g.id == 'volume' else 'var(--warn)' if g.id == 'exit' else 'var(--purple)' if g.id == 'setup' else 'var(--muted)' }};"></span>
-      {{ g.label }}
+
+  <!-- Tab bar -->
+  <div class="tp-tabs">
+    <button class="tp-tab active" data-tab="tags" onclick="switchDrawerTab('tags')">Tags</button>
+    <button class="tp-tab" data-tab="notes" onclick="switchDrawerTab('notes')">Notes</button>
+    <button class="tp-tab" data-tab="media" onclick="switchDrawerTab('media')">Media</button>
+  </div>
+
+  <!-- Tags tab -->
+  <div class="tp-tab-content active" id="tp-tab-tags">
+    {% for g in tag_groups %}
+    <div class="tp-group">
+      <div class="tp-group-label">
+        <span class="tp-dot" style="background:{{ 'var(--green)' if g.id == 'with' else 'var(--red)' if g.id == 'against' else 'var(--accent2)' if g.id == 'volume' else 'var(--warn)' if g.id == 'exit' else 'var(--purple)' if g.id == 'setup' else 'var(--muted)' }};"></span>
+        {{ g.label }}
+      </div>
+      <div class="tp-tags" id="tp-tags-{{ g.id }}">
+        {% for tag in g.tags %}
+        <button class="tp-tag-btn" data-group="{{ g.id }}" data-tag="{{ tag }}" data-multi="{{ 'true' if g.multi else 'false' }}"
+          data-active-class="{{ g.active_class }}"
+          onclick="toggleTag('{{ g.id }}','{{ tag }}',{{ 'true' if g.multi else 'false' }},this)">{{ tag }}</button>
+        {% endfor %}
+      </div>
     </div>
-    <div class="tp-tags" id="tp-tags-{{ g.id }}">
-      {% for tag in g.tags %}
-      <button class="tp-tag-btn" data-group="{{ g.id }}" data-tag="{{ tag }}" data-multi="{{ 'true' if g.multi else 'false' }}"
-        data-active-class="{{ g.active_class }}"
-        onclick="toggleTag('{{ g.id }}','{{ tag }}',{{ 'true' if g.multi else 'false' }},this)">{{ tag }}</button>
-      {% endfor %}
+    {% endfor %}
+  </div>
+
+  <!-- Notes tab -->
+  <div class="tp-tab-content" id="tp-tab-notes">
+    <div class="note-acc open" id="note-acc-entry">
+      <div class="note-acc-header" onclick="toggleNoteAcc('entry')">
+        <span class="arrow">&#9654;</span> Entry Notes
+      </div>
+      <div class="note-acc-body">
+        <textarea class="tc-notes-input" id="rp-notes" rows="5"
+          placeholder="Why did you enter? Setup, context, rationale..."></textarea>
+      </div>
+    </div>
+    <div class="note-acc open" id="note-acc-monitoring">
+      <div class="note-acc-header" onclick="toggleNoteAcc('monitoring')">
+        <span class="arrow">&#9654;</span> Management Notes
+      </div>
+      <div class="note-acc-body">
+        <textarea class="tc-notes-input" id="rp-notes-monitoring" rows="5"
+          placeholder="What are you watching? Price action, levels, signals..."></textarea>
+      </div>
+    </div>
+    <div class="note-acc open" id="note-acc-exit">
+      <div class="note-acc-header" onclick="toggleNoteAcc('exit')">
+        <span class="arrow">&#9654;</span> Exit Notes
+      </div>
+      <div class="note-acc-body">
+        <textarea class="tc-notes-input" id="rp-notes-exit" rows="5"
+          placeholder="Why did you exit? Outcome, lessons..."></textarea>
+      </div>
     </div>
   </div>
-  {% endfor %}
 
-  <!-- Screenshots -->
-  <div class="tp-group" id="tp-screenshots">
-    <div class="tp-group-label">
-      <span class="tp-dot" style="background:var(--accent);"></span>
-      Screenshots
-    </div>
+  <!-- Media tab -->
+  <div class="tp-tab-content" id="tp-tab-media">
     <div class="lt-img-grid" id="lt-img-grid"></div>
     <div class="lt-img-drop" id="lt-img-drop">
       <div class="lt-img-drop-text">Drop image, paste, or click to upload</div>
@@ -1818,10 +1848,17 @@ async function cancelActiveTrade() {
 }
 
 // ── Tags ─────────────────────────────────────────────────────────────────────
-function openTagsPanel() {
+function openTagsPanel(tab) {
   document.getElementById('tags-panel').classList.add('open');
   document.getElementById('tags-overlay').classList.add('open');
   syncTagButtons();
+  if (tab) switchDrawerTab(tab);
+}
+function switchDrawerTab(tab) {
+  document.querySelectorAll('.tp-tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('.tp-tab-content').forEach(c =>
+    c.classList.toggle('active', c.id === 'tp-tab-' + tab));
 }
 function closeTagsPanel() {
   document.getElementById('tags-panel').classList.remove('open');
@@ -1882,6 +1919,7 @@ function deleteLiveImage(imageId, el) {
   document.addEventListener('paste', e => {
     if (document.getElementById('obs-modal')?.classList.contains('show')) return;
     if (!document.getElementById('tags-panel').classList.contains('open')) return;
+    if (!document.getElementById('tp-tab-media').classList.contains('active')) return;
     const items = e.clipboardData?.items;
     if (!items) return;
     for (const item of items) {
