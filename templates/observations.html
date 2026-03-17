@@ -3,7 +3,10 @@
 
 {% block extra_styles %}
 .obs-filters {
-  display: flex; align-items: center; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.obs-filter-row {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 10px;
 }
 .preset-btn {
   background:var(--surface2);border:1px solid var(--border2);color:var(--muted2);
@@ -13,13 +16,15 @@
 .preset-btn:hover { color:var(--text);border-color:var(--muted); }
 .preset-btn.active { background:rgba(79,255,176,0.12);border-color:var(--accent);color:var(--accent); }
 
-.cat-select {
-  background:var(--surface2);border:1px solid var(--border2);color:var(--text);
-  padding:5px 12px;font-family:var(--font-mono);font-size:10px;outline:none;
-  cursor:pointer;appearance:none;-webkit-appearance:none;
+.custom-date-row {
+  display:none; align-items:center; gap:8px; margin-top:6px; margin-bottom:6px;
 }
-.cat-select:focus { border-color:var(--accent); }
-.cat-select option { background:var(--surface2); }
+.custom-date-row.show { display:flex; }
+.custom-date-input {
+  background:var(--bg);border:1px solid var(--border);color:var(--text);
+  padding:5px 10px;font-family:var(--font-mono);font-size:11px;outline:none;
+}
+.custom-date-input:focus { border-color:var(--accent); }
 
 .obs-card {
   background: var(--surface); border: 1px solid var(--border); border-radius: 2px;
@@ -35,6 +40,11 @@
   display: inline-block; padding: 2px 8px; font-size: 9px; letter-spacing: 0.5px;
   border-radius: 1px; background: rgba(180,127,255,0.12); color: var(--purple);
   border: 1px solid rgba(180,127,255,0.25);
+}
+.obs-group-badge {
+  display:inline-block; padding:2px 8px; font-size:9px; letter-spacing:0.5px;
+  border-radius:1px; background:rgba(0,207,255,0.12); color:var(--accent2);
+  border:1px solid rgba(0,207,255,0.25);
 }
 .obs-text { font-size: 12px; color: var(--text); line-height: 1.7; white-space: pre-wrap; }
 .obs-images { display: flex; gap: 8px; margin-top: 8px; }
@@ -79,19 +89,38 @@
 </div>
 
 <div class="obs-filters">
-  <div style="display:flex;gap:4px;">
-    {% for p, label in [('this_week','This Week'),('last_week','Last Week'),('2_weeks','2 Weeks'),('all','All')] %}
-    <a href="?preset={{ p }}&category={{ category }}" class="preset-btn {{ 'active' if preset == p else '' }}">{{ label }}</a>
-    {% endfor %}
-  </div>
-  <div style="display:flex;align-items:center;gap:6px;">
-    <span style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);">Category:</span>
-    <select class="cat-select" onchange="window.location.href='?preset={{ preset }}&category='+this.value">
-      <option value="all" {{ 'selected' if category == 'all' else '' }}>All</option>
-      {% for c in categories %}
-      <option value="{{ c }}" {{ 'selected' if category == c else '' }}>{{ c }}</option>
+  <!-- Row 1: Date presets + Custom -->
+  <div class="obs-filter-row">
+    <div style="display:flex;gap:4px;">
+      {% for p, label in [('this_week','This Week'),('last_week','Last Week'),('2_weeks','2 Weeks'),('all','All')] %}
+      <a href="?preset={{ p }}&category={{ category }}&group={{ group }}" class="preset-btn {{ 'active' if preset == p else '' }}">{{ label }}</a>
       {% endfor %}
-    </select>
+      <button class="preset-btn {{ 'active' if preset == 'custom' else '' }}" onclick="toggleCustomDate()" id="custom-date-btn">Custom</button>
+    </div>
+  </div>
+  <div class="custom-date-row {{ 'show' if preset == 'custom' else '' }}" id="custom-date-row">
+    <input type="date" class="custom-date-input" id="custom-from" value="{{ date_from }}">
+    <span style="color:var(--muted);font-size:10px;">to</span>
+    <input type="date" class="custom-date-input" id="custom-to" value="{{ date_to }}">
+    <button class="preset-btn" onclick="applyCustomDate()">Apply</button>
+  </div>
+
+  <!-- Row 2: Group + Category side by side -->
+  <div class="obs-filter-row">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+      <span style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);">Group:</span>
+      <button class="preset-btn {{ 'active' if group == 'all' }}" onclick="setGroupFilter('all')">All</button>
+      {% for g in groups %}
+      <button class="preset-btn {{ 'active' if group == g }}" onclick="setGroupFilter('{{ g }}')">{{ g }}</button>
+      {% endfor %}
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+      <span style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);">Category:</span>
+      <button class="preset-btn {{ 'active' if category == 'all' }}" onclick="setCatFilter('all')">All</button>
+      {% for c in categories %}
+      <button class="preset-btn {{ 'active' if category == c }}" onclick="setCatFilter('{{ c }}')">{{ c }}</button>
+      {% endfor %}
+    </div>
   </div>
 </div>
 
@@ -99,7 +128,12 @@
 <div class="obs-card" id="obs-card-{{ obs.id }}">
   <div class="obs-meta">
     <span class="obs-date">{{ obs.date }}{% if obs.time %}, {{ obs.time }}{% endif %}</span>
-    <span class="obs-cat-badge">{{ obs.category }}</span>
+    {% if obs.obs_group %}
+    <span class="obs-group-badge">{{ obs.obs_group }}</span>
+    {% endif %}
+    {% for cat in obs.category_list %}
+    <span class="obs-cat-badge">{{ cat }}</span>
+    {% endfor %}
   </div>
   <div class="obs-text" id="obs-text-{{ obs.id }}">{{ obs.text }}</div>
   {% if obs.images %}
@@ -173,5 +207,46 @@ async function deleteObs(id) {
 }
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
+// Filter helpers
+function _buildParams() {
+  const params = new URLSearchParams(window.location.search);
+  return params;
+}
+
+function setCatFilter(val) {
+  const params = _buildParams();
+  params.set('category', val);
+  params.set('preset', '{{ preset }}');
+  params.set('group', '{{ group }}');
+  if ('{{ preset }}' === 'custom') { params.set('from', '{{ date_from }}'); params.set('to', '{{ date_to }}'); }
+  window.location.href = '?' + params.toString();
+}
+
+function setGroupFilter(val) {
+  const params = _buildParams();
+  params.set('group', val);
+  params.set('preset', '{{ preset }}');
+  params.set('category', '{{ category }}');
+  if ('{{ preset }}' === 'custom') { params.set('from', '{{ date_from }}'); params.set('to', '{{ date_to }}'); }
+  window.location.href = '?' + params.toString();
+}
+
+function toggleCustomDate() {
+  document.getElementById('custom-date-row').classList.toggle('show');
+}
+
+function applyCustomDate() {
+  const from = document.getElementById('custom-from').value;
+  const to = document.getElementById('custom-to').value;
+  if (!from || !to) { showToast('Select both dates', true); return; }
+  const params = _buildParams();
+  params.set('preset', 'custom');
+  params.set('from', from);
+  params.set('to', to);
+  params.set('category', '{{ category }}');
+  params.set('group', '{{ group }}');
+  window.location.href = '?' + params.toString();
+}
 </script>
 {% endblock %}

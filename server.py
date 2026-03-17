@@ -24,6 +24,14 @@ def _ensure_db():
     os.makedirs(IMAGES_DIR, exist_ok=True)
 
 
+@app.context_processor
+def inject_obs_categories():
+    return {
+        "obs_categories": logic.get_observation_categories(),
+        "obs_groups": logic.get_observation_groups(),
+    }
+
+
 # ── Pages ─────────────────────────────────────────────────────────────────────
 
 @app.route("/")
@@ -40,6 +48,9 @@ def index():
     account_id = request.args.get("account") or None
 
     days = db.get_all_days(date_from, date_to, account_id)
+
+    for day in days:
+        day["grade_pct"] = logic.compute_day_score(day.get("day_score", ""))
 
     return render_template(
         "index.html",
@@ -66,9 +77,15 @@ def day_view(day_id):
         trades=trades,
         day_images=day_images,
         observations=observations,
-        observation_categories=logic.OBSERVATION_CATEGORIES,
+        observation_categories=logic.get_observation_categories(),
         tag_groups=logic.get_tag_groups(),
-        tags_json=json.dumps(logic.get_tag_groups())
+        tags_json=json.dumps(logic.get_tag_groups()),
+        day_type_tags=logic.get_day_type_tags(),
+        day_value_tags=logic.get_day_value_tags(),
+        day_volume_tags=logic.get_day_volume_tags(),
+        grade_categories=logic.get_grade_categories(),
+        grade_pct=logic.compute_day_score(day.get("day_score", "")),
+        grade_categories_hints=logic.get_grade_categories_with_hints(),
     )
 
 
@@ -156,12 +173,36 @@ def settings_view():
     trade_defaults = logic.get_trade_defaults()
     instrument_config = logic.get_instrument_config()
     accounts = db.get_all_accounts()
+    # Build obs category group with current (possibly custom) tags
+    obs_cat_group = dict(logic.OBS_CATEGORY_GROUP)
+    obs_cat_group["tags"] = logic.get_observation_categories()
+    # Build obs group group with current (possibly custom) tags
+    obs_group_group = dict(logic.OBS_GROUP_GROUP)
+    obs_group_group["tags"] = logic.get_observation_groups()
+    # Build day marker groups
+    day_type_group = dict(logic.DAY_TYPE_GROUP)
+    day_type_group["tags"] = logic.get_day_type_tags()
+    day_value_group = dict(logic.DAY_VALUE_GROUP)
+    day_value_group["tags"] = logic.get_day_value_tags()
+    day_volume_group = dict(logic.DAY_VOLUME_GROUP)
+    day_volume_group["tags"] = logic.get_day_volume_tags()
+    grade_cat_group = dict(logic.DAY_GRADE_GROUP)
+    grade_cat_group["tags"] = logic.get_grade_categories()
+    all_defaults = defaults + [logic.OBS_CATEGORY_GROUP, logic.OBS_GROUP_GROUP,
+                               logic.DAY_TYPE_GROUP, logic.DAY_VALUE_GROUP, logic.DAY_VOLUME_GROUP,
+                               logic.DAY_GRADE_GROUP]
     return render_template(
         "settings.html",
         tag_groups=tag_groups,
         defaults=defaults,
-        defaults_json=json.dumps(defaults),
+        defaults_json=json.dumps(all_defaults),
         tag_groups_json=json.dumps(tag_groups),
+        obs_cat_group=obs_cat_group,
+        obs_group_group=obs_group_group,
+        day_type_group=day_type_group,
+        day_value_group=day_value_group,
+        day_volume_group=day_volume_group,
+        grade_cat_group=grade_cat_group,
         trade_defaults=trade_defaults,
         instrument_config=instrument_config,
         accounts=accounts,
@@ -535,6 +576,18 @@ def api_save_tag_config(group_id):
 @app.route("/api/settings/tags/<group_id>/reset", methods=["POST"])
 def api_reset_tag_config(group_id):
     db.reset_tag_config(group_id)
+    if group_id == "obs_categories":
+        return jsonify({"ok": True, "tags": logic.OBSERVATION_CATEGORIES})
+    if group_id == "obs_groups":
+        return jsonify({"ok": True, "tags": logic.OBSERVATION_GROUPS})
+    if group_id == "day_type":
+        return jsonify({"ok": True, "tags": logic.DAY_TYPE_TAGS})
+    if group_id == "day_value":
+        return jsonify({"ok": True, "tags": logic.DAY_VALUE_TAGS})
+    if group_id == "day_volume":
+        return jsonify({"ok": True, "tags": logic.DAY_VOLUME_TAGS})
+    if group_id == "grade_categories":
+        return jsonify({"ok": True, "tags": [c["name"] for c in logic.DAY_GRADE_CATEGORIES]})
     group = next((g for g in logic.TAG_GROUPS if g["id"] == group_id), None)
     return jsonify({"ok": True, "tags": group["tags"] if group else []})
 
@@ -881,6 +934,7 @@ def observations_view():
     date_to = request.args.get("to", "")
     preset = request.args.get("preset", "this_week")
     category = request.args.get("category", "all")
+    group = request.args.get("group", "all")
     from datetime import timedelta
     today = date.today()
     if preset == "this_week":
@@ -896,23 +950,38 @@ def observations_view():
     elif preset == "all":
         date_from = ""
         date_to = ""
-    obs = db.get_observations(date_from or None, date_to or None, category if category != "all" else None)
+    elif preset == "custom":
+        date_from = request.args.get("from", "")
+        date_to = request.args.get("to", "")
+    obs = db.get_observations(
+        date_from or None, date_to or None,
+        category if category != "all" else None,
+        obs_group=group if group != "all" else None,
+    )
     return render_template(
         "observations.html",
         observations=obs,
-        categories=logic.OBSERVATION_CATEGORIES,
-        date_from=date_from, date_to=date_to, preset=preset, category=category,
+        categories=logic.get_observation_categories(),
+        groups=logic.get_observation_groups(),
+        date_from=date_from, date_to=date_to, preset=preset,
+        category=category, group=group,
     )
 
 
 @app.route("/api/observation", methods=["POST"])
 def api_create_observation():
     body = request.get_json(silent=True) or {}
+    category = body.get("category", "general")
+    # Accept both string and list — normalize to list for DB
+    if isinstance(category, str):
+        category = [category]
+    obs_group = body.get("obs_group", "")
     obs_id = db.create_observation(
         body.get("date", date.today().isoformat()),
         body.get("time", ""),
         body.get("text", ""),
-        body.get("category", "general"),
+        category,
+        obs_group=obs_group,
     )
     return jsonify({"ok": True, "id": obs_id})
 

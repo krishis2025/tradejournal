@@ -153,6 +153,7 @@
       <tr>
         <th>Date</th>
         <th>Trades</th>
+        <th>Score</th>
         <th>Net P&L</th>
         <th>Win Rate</th>
         <th>Record</th>
@@ -168,6 +169,18 @@
           <a href="/day/{{ day.id }}" class="link" style="font-size:14px;font-weight:500;">{{ day.date }}</a>
         </td>
         <td style="color:var(--text);">{{ day.trade_count }}</td>
+        <td>
+          {% set gpct = day.grade_pct %}
+          {% if gpct is not none %}
+          {% set gcolor = '#00e676' if gpct >= 85 else '#ffaa00' if gpct >= 70 else '#ff4d4d' %}
+          <span style="display:inline-block;padding:2px 8px;border-radius:2px;font-size:10px;font-weight:600;
+            background:{{ gcolor }}22;color:{{ gcolor }};border:1px solid {{ gcolor }}40;">
+            {{ gpct }}%
+          </span>
+          {% else %}
+          <span style="color:var(--border2);font-size:11px;">—</span>
+          {% endif %}
+        </td>
         <td>
           <span class="{{ 'pnl-pos' if pnl >= 0 else 'pnl-neg' }}" style="font-size:14px;">
             {{ '+' if pnl >= 0 else '' }}${{ '%.2f'|format(pnl) }}

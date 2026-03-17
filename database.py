@@ -131,6 +131,14 @@ def _migrate_portfolio_to_account(conn):
     conn.execute("CREATE INDEX IF NOT EXISTS idx_live_execs ON live_trade_executions(live_trade_id)")
 
 
+def _migrate_obs_category_to_json(conn):
+    """Migrate observation category from single TEXT value to JSON array."""
+    conn.execute("""
+        UPDATE observations SET category = '["' || category || '"]'
+        WHERE category NOT LIKE '[%'
+    """)
+
+
 def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     with get_conn() as conn:
@@ -351,9 +359,14 @@ def init_db():
             ("day_type", "''"), ("day_value", "''"),
             ("notes_well", "''"), ("notes_improve", "''"),
             ("notes_lessons", "''"), ("notes_focus", "''"),
+            ("day_volume", "''"), ("day_score", "'0'"),
         ]:
             if col not in day_cols:
                 conn.execute(f"ALTER TABLE trading_days ADD COLUMN {col} TEXT NOT NULL DEFAULT {default}")
+
+        # Migration: copy day_rating data → day_score (day_score column already ensured above)
+        if "day_rating" in day_cols:
+            conn.execute("UPDATE trading_days SET day_score = day_rating WHERE (day_score = '0' OR day_score = '') AND day_rating != '0' AND day_rating != ''")
 
         # Migration: create day_images table
         conn.execute("""
@@ -410,6 +423,14 @@ def init_db():
             )
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_obs_images ON observation_images(observation_id)")
+
+        # Migration: convert observation category from single TEXT to JSON array
+        _migrate_obs_category_to_json(conn)
+
+        # Migration: add obs_group column to observations
+        obs_cols = [r[1] for r in conn.execute("PRAGMA table_info(observations)").fetchall()]
+        if "obs_group" not in obs_cols:
+            conn.execute("ALTER TABLE observations ADD COLUMN obs_group TEXT NOT NULL DEFAULT ''")
 
 
 # ── Accounts ─────────────────────────────────────────────────────────────────
@@ -494,7 +515,7 @@ def get_all_days(date_from=None, date_to=None, account_id=None):
         where_sql = ("WHERE " + " AND ".join(wheres)) if wheres else ""
 
         rows = conn.execute(f"""
-            SELECT d.id, d.date, d.imported_at, d.account_id,
+            SELECT d.id, d.date, d.imported_at, d.account_id, d.day_score,
                    a.name  as account_name,
                    a.color as account_color,
                    COUNT(t.id)  as trade_count,
@@ -764,9 +785,95 @@ def get_tag_config():
         return result
 
 
+def _cascade_obs_category_rename(conn, old_name, new_name):
+    """Cascade an observation category rename across all observations."""
+    import json
+    rows = conn.execute(
+        "SELECT id, category FROM observations WHERE category LIKE ?",
+        (f'%"{old_name}"%',)
+    ).fetchall()
+    for row in rows:
+        try:
+            cats = json.loads(row["category"])
+            cats = [new_name if c == old_name else c for c in cats]
+            conn.execute(
+                "UPDATE observations SET category = ? WHERE id = ?",
+                (json.dumps(cats), row["id"])
+            )
+        except (json.JSONDecodeError, TypeError):
+            continue
+
+
+def _cascade_obs_group_rename(conn, old_name, new_name):
+    """Cascade an observation group rename across all observations."""
+    conn.execute(
+        "UPDATE observations SET obs_group = ? WHERE obs_group = ?",
+        (new_name, old_name)
+    )
+
+
+def _cascade_day_type_rename(conn, old_name, new_name):
+    """Cascade a day_type tag rename across trading_days (comma-separated)."""
+    rows = conn.execute(
+        "SELECT id, day_type FROM trading_days WHERE day_type LIKE ?",
+        (f'%{old_name}%',)
+    ).fetchall()
+    for row in rows:
+        types = [t.strip() for t in row["day_type"].split(",") if t.strip()]
+        types = [new_name if t == old_name else t for t in types]
+        conn.execute(
+            "UPDATE trading_days SET day_type = ? WHERE id = ?",
+            (",".join(types), row["id"])
+        )
+
+
+def _cascade_grade_category_rename(conn, old_name, new_name):
+    """Rename a grade category key in all day_score JSON objects."""
+    import json
+    rows = conn.execute("SELECT id, day_score FROM trading_days WHERE day_score IS NOT NULL AND day_score != '' AND day_score != '0'").fetchall()
+    for row in rows:
+        try:
+            scores = json.loads(row["day_score"])
+            if isinstance(scores, dict) and old_name in scores:
+                scores[new_name] = scores.pop(old_name)
+                conn.execute("UPDATE trading_days SET day_score = ? WHERE id = ?", (json.dumps(scores), row["id"]))
+        except (json.JSONDecodeError, TypeError):
+            continue
+
+
 def _cascade_tag_rename(conn, group_id, old_name, new_name):
     """Cascade a tag rename across all tables that store the tag string."""
     import json
+
+    # grade_categories group — cascade to trading_days.day_score JSON keys
+    if group_id == "grade_categories":
+        _cascade_grade_category_rename(conn, old_name, new_name)
+        return
+
+    # obs_categories group — cascade to observations table
+    if group_id == "obs_categories":
+        _cascade_obs_category_rename(conn, old_name, new_name)
+        return
+
+    # obs_groups group — cascade to observations table
+    if group_id == "obs_groups":
+        _cascade_obs_group_rename(conn, old_name, new_name)
+        return
+
+    # day_type group — cascade to trading_days.day_type (comma-separated)
+    if group_id == "day_type":
+        _cascade_day_type_rename(conn, old_name, new_name)
+        return
+
+    # day_value group — cascade to trading_days.day_value (plain text)
+    if group_id == "day_value":
+        conn.execute("UPDATE trading_days SET day_value = ? WHERE day_value = ?", (new_name, old_name))
+        return
+
+    # day_volume group — cascade to trading_days.day_volume (plain text)
+    if group_id == "day_volume":
+        conn.execute("UPDATE trading_days SET day_volume = ? WHERE day_volume = ?", (new_name, old_name))
+        return
 
     # 1. trade_tags — handle UNIQUE constraint first:
     #    if a trade already has new_name for this group, delete the old row
@@ -817,10 +924,29 @@ def save_tag_config(group_id, tags):
 
         # Fallback to hardcoded defaults if tag_config was empty
         if not old_tags:
-            from app_logic import TAG_GROUPS
-            group = next((g for g in TAG_GROUPS if g["id"] == group_id), None)
-            if group:
-                old_tags = list(group["tags"])
+            if group_id == "obs_categories":
+                from app_logic import OBSERVATION_CATEGORIES
+                old_tags = list(OBSERVATION_CATEGORIES)
+            elif group_id == "obs_groups":
+                from app_logic import OBSERVATION_GROUPS
+                old_tags = list(OBSERVATION_GROUPS)
+            elif group_id == "day_type":
+                from app_logic import DAY_TYPE_TAGS
+                old_tags = list(DAY_TYPE_TAGS)
+            elif group_id == "day_value":
+                from app_logic import DAY_VALUE_TAGS
+                old_tags = list(DAY_VALUE_TAGS)
+            elif group_id == "day_volume":
+                from app_logic import DAY_VOLUME_TAGS
+                old_tags = list(DAY_VOLUME_TAGS)
+            elif group_id == "grade_categories":
+                from app_logic import DAY_GRADE_CATEGORIES
+                old_tags = [c["name"] for c in DAY_GRADE_CATEGORIES]
+            else:
+                from app_logic import TAG_GROUPS
+                group = next((g for g in TAG_GROUPS if g["id"] == group_id), None)
+                if group:
+                    old_tags = list(group["tags"])
 
         # 2. Detect renames by position
         new_tags = [t.strip() for t in tags if t.strip()]
@@ -1514,7 +1640,7 @@ def get_cross_account_trades(limit=50):
 # ── Day Notes & Images ───────────────────────────────────────────────────────
 
 def update_day_notes(day_id, **fields):
-    allowed = {"day_type", "day_value", "notes_well", "notes_improve", "notes_lessons", "notes_focus"}
+    allowed = {"day_type", "day_value", "day_volume", "day_score", "notes_well", "notes_improve", "notes_lessons", "notes_focus"}
     with get_conn() as conn:
         sets, vals = [], []
         for k, v in fields.items():
@@ -1683,23 +1809,32 @@ def seed_setups():
 
 # ── Observations ─────────────────────────────────────────────────────────────
 
-def create_observation(date, time, text, category="general"):
+def create_observation(date, time, text, category="general", obs_group=""):
+    import json
+    if isinstance(category, list):
+        cat_str = json.dumps(category)
+    else:
+        cat_str = json.dumps([category])
     with get_conn() as conn:
         cur = conn.execute(
-            "INSERT INTO observations (date, time, text, category) VALUES (?, ?, ?, ?)",
-            (date, time, text, category)
+            "INSERT INTO observations (date, time, text, category, obs_group) VALUES (?, ?, ?, ?, ?)",
+            (date, time, text, cat_str, obs_group)
         )
         return cur.lastrowid
 
 
 def update_observation(obs_id, **fields):
-    allowed = {"date", "time", "text", "category"}
+    import json
+    allowed = {"date", "time", "text", "category", "obs_group"}
     with get_conn() as conn:
         sets, vals = [], []
         for k, v in fields.items():
             if k in allowed:
                 sets.append(f"{k} = ?")
-                vals.append(v)
+                if k == "category" and isinstance(v, list):
+                    vals.append(json.dumps(v))
+                else:
+                    vals.append(v)
         if sets:
             vals.append(obs_id)
             conn.execute(f"UPDATE observations SET {', '.join(sets)} WHERE id = ?", vals)
@@ -1710,7 +1845,8 @@ def delete_observation(obs_id):
         conn.execute("DELETE FROM observations WHERE id = ?", (obs_id,))
 
 
-def get_observations(date_from=None, date_to=None, category=None):
+def get_observations(date_from=None, date_to=None, category=None, obs_group=None):
+    import json
     with get_conn() as conn:
         conditions, params = [], []
         if date_from:
@@ -1719,9 +1855,14 @@ def get_observations(date_from=None, date_to=None, category=None):
         if date_to:
             conditions.append("o.date <= ?")
             params.append(date_to)
+        # Category filter: single value, match within JSON array
         if category and category != "all":
-            conditions.append("o.category = ?")
-            params.append(category)
+            conditions.append("o.category LIKE ?")
+            params.append(f'%"{category}"%')
+        # Group filter
+        if obs_group and obs_group != "all":
+            conditions.append("o.obs_group = ?")
+            params.append(obs_group)
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
         rows = conn.execute(f"""
             SELECT o.* FROM observations o {where} ORDER BY o.date DESC, o.time DESC
@@ -1729,6 +1870,11 @@ def get_observations(date_from=None, date_to=None, category=None):
         result = []
         for r in rows:
             d = dict(r)
+            # Parse category JSON into category_list
+            try:
+                d["category_list"] = json.loads(d["category"])
+            except (json.JSONDecodeError, TypeError):
+                d["category_list"] = [d["category"]] if d["category"] else ["general"]
             d["images"] = [dict(i) for i in conn.execute(
                 "SELECT * FROM observation_images WHERE observation_id = ? ORDER BY uploaded_at",
                 (d["id"],)

@@ -631,6 +631,10 @@
       <div id="obs-cat-row" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
     </div>
     <div style="margin-bottom:14px;">
+      <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Group</div>
+      <div id="obs-grp-row" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+    </div>
+    <div style="margin-bottom:14px;">
       <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Observation</div>
       <textarea id="obs-text" placeholder="What did you notice..." style="
         width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);
@@ -677,23 +681,48 @@
 <script>
 // ── FAB Observation Modal ──────────────────────────────────────────────
 (function initObsModal() {
-  const cats = ["price-action","market-structure","volume","mkt internals","psychology","nuances","general"];
+  // Category — single-select
+  const cats = {{ obs_categories | tojson }};
   const row = document.getElementById('obs-cat-row');
   if (!row) return;
-  let selected = 'general';
+  let selectedCat = 'general';
   cats.forEach(c => {
     const btn = document.createElement('button');
-    btn.className = 'obs-cat-btn' + (c === selected ? ' active' : '');
+    btn.className = 'obs-cat-btn' + (c === selectedCat ? ' active' : '');
     btn.textContent = c;
     btn.type = 'button';
     btn.onclick = () => {
       row.querySelectorAll('.obs-cat-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      selected = c;
+      selectedCat = c;
     };
     row.appendChild(btn);
   });
-  window._obsGetCat = () => selected;
+  window._obsGetCat = () => [selectedCat];
+
+  // Group — single-select (optional, can deselect)
+  const grps = {{ obs_groups | tojson }};
+  const grpRow = document.getElementById('obs-grp-row');
+  let selectedGrp = '';
+  grps.forEach(g => {
+    const btn = document.createElement('button');
+    btn.className = 'obs-cat-btn';
+    btn.textContent = g;
+    btn.type = 'button';
+    btn.style.cssText = '';
+    btn.onclick = () => {
+      if (selectedGrp === g) {
+        selectedGrp = '';
+        btn.classList.remove('active');
+      } else {
+        grpRow.querySelectorAll('.obs-cat-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedGrp = g;
+      }
+    };
+    grpRow.appendChild(btn);
+  });
+  window._obsGetGrp = () => selectedGrp;
 
   // Auto-fill date/time when modal opens
   const fab = document.getElementById('obs-fab');
@@ -706,6 +735,14 @@
     document.getElementById('obs-file-input').value = '';
     window._obsFiles = null;
     document.getElementById('obs-thumb-grid').innerHTML = '';
+    // Reset category selection
+    selectedCat = 'general';
+    row.querySelectorAll('.obs-cat-btn').forEach(b => {
+      b.classList.toggle('active', b.textContent === selectedCat);
+    });
+    // Reset group selection
+    selectedGrp = '';
+    grpRow.querySelectorAll('.obs-cat-btn').forEach(b => b.classList.remove('active'));
   });
 })();
 
@@ -757,9 +794,10 @@ async function saveQuickObs() {
   const category = window._obsGetCat();
   if (!text) { showToast('Write something first', true); return; }
   try {
+    const obs_group = window._obsGetGrp ? window._obsGetGrp() : '';
     const res = await fetch('/api/observation', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({date, time, text, category})
+      body: JSON.stringify({date, time, text, category, obs_group})
     });
     const data = await res.json();
     if (!res.ok) { showToast(data.error || 'Save failed', true); return; }

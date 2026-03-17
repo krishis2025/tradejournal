@@ -303,6 +303,16 @@
 }
 .db-import-status.ok  { color: var(--green); }
 .db-import-status.err { color: var(--red); }
+
+/* Sub-tabs within Tags section */
+.sub-tabs { display:flex; gap:0; margin-bottom:20px; border-bottom:1px solid var(--border); }
+.sub-tab {
+  padding:8px 20px; background:none; border:none; border-bottom:2px solid transparent;
+  color:var(--muted); font-family:var(--font-mono); font-size:10px;
+  letter-spacing:1px; text-transform:uppercase; cursor:pointer; transition:all 0.15s;
+}
+.sub-tab:hover { color:var(--text); }
+.sub-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
 {% endblock %}
 
 {% block nav_actions %}
@@ -357,14 +367,174 @@
       <div class="settings-section-title">Tags</div>
       <div class="settings-section-sub">Edit, reorder (drag), or add tags for each section. Click Reset to restore defaults.</div>
 
-      <div class="settings-grid" id="settings-grid">
-        {% set dot_colors = {
-          'dot-with':'#4fffb0','dot-against':'#ff4d6d','dot-vol':'#00cfff',
-          'dot-exit':'#ffb347','dot-setup':'#b47fff','dot-pre':'#8a96aa','dot-entry':'#8a96aa'
-        } %}
+      <!-- Sub-tabs -->
+      <div class="sub-tabs">
+        <button class="sub-tab active" onclick="showSubTab('trade-tags', this)">Technical Markers</button>
+        <button class="sub-tab" onclick="showSubTab('obs-cats', this)">Observation Markers</button>
+        <button class="sub-tab" onclick="showSubTab('day-markers', this)">Day Markers</button>
+      </div>
 
-        {% for g in tag_groups %}
-        <div class="tag-config-card" id="card-{{ g.id }}" data-group="{{ g.id }}" data-multi="{{ 'true' if g.multi else 'false' }}">
+      <!-- Trade Tags sub-tab -->
+      <div class="sub-tab-content" id="subtab-trade-tags">
+        <div class="settings-grid" id="settings-grid">
+          {% set dot_colors = {
+            'dot-with':'#4fffb0','dot-against':'#ff4d6d','dot-vol':'#00cfff',
+            'dot-exit':'#ffb347','dot-setup':'#b47fff','dot-pre':'#8a96aa','dot-entry':'#8a96aa',
+            'dot-obs':'#b47fff',
+            'dot-day-type':'#00cfff','dot-day-value':'#b47fff','dot-day-vol':'#00cfff',
+            'dot-grade-cat':'#00e676'
+          } %}
+
+          {% for g in tag_groups %}
+          <div class="tag-config-card" id="card-{{ g.id }}" data-group="{{ g.id }}" data-multi="{{ 'true' if g.multi else 'false' }}">
+            <div class="tag-config-header">
+              <div class="tag-config-title">
+                <span class="tg-dot" style="background:{{ dot_colors[g.dot] }};box-shadow:0 0 8px {{ dot_colors[g.dot] }}50;"></span>
+                {{ g.label }}
+                <span style="font-size:11px;color:var(--muted);font-family:var(--font-mono);font-weight:400;letter-spacing:1px;">
+                  ({{ g.tags|length }} tags)
+                </span>
+              </div>
+              <div class="multi-toggle">
+                <span>Multi-select</span>
+                <div class="toggle-switch {{ 'on' if g.multi else '' }}" id="multi-{{ g.id }}"
+                  onclick="toggleMulti('{{ g.id }}', this)"></div>
+              </div>
+            </div>
+
+            <div class="tag-config-body">
+              <div class="tag-list" id="list-{{ g.id }}"
+                   ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '{{ g.id }}')">
+                {% for tag in g.tags %}
+                <div class="tag-item" draggable="true"
+                     ondragstart="onDragStart(event, '{{ g.id }}')"
+                     ondragend="onDragEnd(event)">
+                  <span class="tag-item-handle">⠿</span>
+                  <input class="tag-item-text" type="text" value="{{ tag }}"
+                         oninput="markDirty('{{ g.id }}')">
+                  <button class="tag-item-del" onclick="removeTag(this)" title="Remove tag">✕</button>
+                </div>
+                {% endfor %}
+              </div>
+
+              <div class="add-tag-row">
+                <input class="add-tag-input" type="text" placeholder="Add new tag..."
+                       id="add-input-{{ g.id }}"
+                       onkeydown="if(event.key==='Enter') addTag('{{ g.id }}')">
+                <button class="add-tag-btn" onclick="addTag('{{ g.id }}')">+ Add</button>
+              </div>
+            </div>
+
+            <div class="tag-config-footer">
+              <span class="save-status" id="status-{{ g.id }}">—</span>
+              <div style="display:flex;gap:12px;align-items:center;">
+                <button class="reset-btn" onclick="resetGroup('{{ g.id }}')">↺ Reset to defaults</button>
+                <button class="btn btn-ghost" style="padding:5px 14px;font-size:10px;"
+                        onclick="saveGroup('{{ g.id }}')">Save</button>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Observation Markers sub-tab -->
+      <div class="sub-tab-content" id="subtab-obs-cats" style="display:none;">
+        {% set g = obs_cat_group %}
+        <div class="tag-config-card" id="card-{{ g.id }}" data-group="{{ g.id }}" data-multi="false" style="max-width:500px;margin-bottom:20px;">
+          <div class="tag-config-header">
+            <div class="tag-config-title">
+              <span class="tg-dot" style="background:{{ dot_colors[g.dot] }};box-shadow:0 0 8px {{ dot_colors[g.dot] }}50;"></span>
+              {{ g.label }}
+              <span style="font-size:11px;color:var(--muted);font-family:var(--font-mono);font-weight:400;letter-spacing:1px;">
+                ({{ g.tags|length }} categories)
+              </span>
+            </div>
+          </div>
+
+          <div class="tag-config-body">
+            <div class="tag-list" id="list-{{ g.id }}"
+                 ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '{{ g.id }}')">
+              {% for tag in g.tags %}
+              <div class="tag-item" draggable="true"
+                   ondragstart="onDragStart(event, '{{ g.id }}')"
+                   ondragend="onDragEnd(event)">
+                <span class="tag-item-handle">⠿</span>
+                <input class="tag-item-text" type="text" value="{{ tag }}"
+                       oninput="markDirty('{{ g.id }}')">
+                <button class="tag-item-del" onclick="removeTag(this)" title="Remove tag">✕</button>
+              </div>
+              {% endfor %}
+            </div>
+
+            <div class="add-tag-row">
+              <input class="add-tag-input" type="text" placeholder="Add new category..."
+                     id="add-input-{{ g.id }}"
+                     onkeydown="if(event.key==='Enter') addTag('{{ g.id }}')">
+              <button class="add-tag-btn" onclick="addTag('{{ g.id }}')">+ Add</button>
+            </div>
+          </div>
+
+          <div class="tag-config-footer">
+            <span class="save-status" id="status-{{ g.id }}">—</span>
+            <div style="display:flex;gap:12px;align-items:center;">
+              <button class="reset-btn" onclick="resetGroup('{{ g.id }}')">↺ Reset to defaults</button>
+              <button class="btn btn-ghost" style="padding:5px 14px;font-size:10px;"
+                      onclick="saveGroup('{{ g.id }}')">Save</button>
+            </div>
+          </div>
+        </div>
+
+        {% set gg = obs_group_group %}
+        <div class="tag-config-card" id="card-{{ gg.id }}" data-group="{{ gg.id }}" data-multi="false" style="max-width:500px;">
+          <div class="tag-config-header">
+            <div class="tag-config-title">
+              <span class="tg-dot" style="background:var(--accent2);box-shadow:0 0 8px rgba(0,207,255,0.3);"></span>
+              {{ gg.label }}
+              <span style="font-size:11px;color:var(--muted);font-family:var(--font-mono);font-weight:400;letter-spacing:1px;">
+                ({{ gg.tags|length }} groups)
+              </span>
+            </div>
+          </div>
+
+          <div class="tag-config-body">
+            <div class="tag-list" id="list-{{ gg.id }}"
+                 ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '{{ gg.id }}')">
+              {% for tag in gg.tags %}
+              <div class="tag-item" draggable="true"
+                   ondragstart="onDragStart(event, '{{ gg.id }}')"
+                   ondragend="onDragEnd(event)">
+                <span class="tag-item-handle">⠿</span>
+                <input class="tag-item-text" type="text" value="{{ tag }}"
+                       oninput="markDirty('{{ gg.id }}')">
+                <button class="tag-item-del" onclick="removeTag(this)" title="Remove tag">✕</button>
+              </div>
+              {% endfor %}
+            </div>
+
+            <div class="add-tag-row">
+              <input class="add-tag-input" type="text" placeholder="Add new group..."
+                     id="add-input-{{ gg.id }}"
+                     onkeydown="if(event.key==='Enter') addTag('{{ gg.id }}')">
+              <button class="add-tag-btn" onclick="addTag('{{ gg.id }}')">+ Add</button>
+            </div>
+          </div>
+
+          <div class="tag-config-footer">
+            <span class="save-status" id="status-{{ gg.id }}">—</span>
+            <div style="display:flex;gap:12px;align-items:center;">
+              <button class="reset-btn" onclick="resetGroup('{{ gg.id }}')">↺ Reset to defaults</button>
+              <button class="btn btn-ghost" style="padding:5px 14px;font-size:10px;"
+                      onclick="saveGroup('{{ gg.id }}')">Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Day Markers sub-tab -->
+      <div class="sub-tab-content" id="subtab-day-markers" style="display:none;">
+        {% for g in [day_type_group, day_value_group, day_volume_group] %}
+        <div class="tag-config-card" id="card-{{ g.id }}" data-group="{{ g.id }}" data-multi="{{ 'true' if g.multi else 'false' }}" style="max-width:500px;margin-bottom:20px;">
           <div class="tag-config-header">
             <div class="tag-config-title">
               <span class="tg-dot" style="background:{{ dot_colors[g.dot] }};box-shadow:0 0 8px {{ dot_colors[g.dot] }}50;"></span>
@@ -373,15 +543,10 @@
                 ({{ g.tags|length }} tags)
               </span>
             </div>
-            <div class="multi-toggle">
-              <span>Multi-select</span>
-              <div class="toggle-switch {{ 'on' if g.multi else '' }}" id="multi-{{ g.id }}"
-                onclick="toggleMulti('{{ g.id }}', this)"></div>
-            </div>
           </div>
 
           <div class="tag-config-body">
-            <div class="tag-list" id="list-{{ g.id }}" 
+            <div class="tag-list" id="list-{{ g.id }}"
                  ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '{{ g.id }}')">
               {% for tag in g.tags %}
               <div class="tag-item" draggable="true"
@@ -413,6 +578,51 @@
           </div>
         </div>
         {% endfor %}
+
+        {% set g = grade_cat_group %}
+        <div class="tag-config-card" id="card-{{ g.id }}" data-group="{{ g.id }}" data-multi="false" style="max-width:500px;margin-bottom:20px;">
+          <div class="tag-config-header">
+            <div class="tag-config-title">
+              <span class="tg-dot" style="background:{{ dot_colors[g.dot] }};box-shadow:0 0 8px {{ dot_colors[g.dot] }}50;"></span>
+              {{ g.label }}
+              <span style="font-size:11px;color:var(--muted);font-family:var(--font-mono);font-weight:400;letter-spacing:1px;">
+                ({{ g.tags|length }} categories)
+              </span>
+            </div>
+          </div>
+
+          <div class="tag-config-body">
+            <div class="tag-list" id="list-{{ g.id }}"
+                 ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '{{ g.id }}')">
+              {% for tag in g.tags %}
+              <div class="tag-item" draggable="true"
+                   ondragstart="onDragStart(event, '{{ g.id }}')"
+                   ondragend="onDragEnd(event)">
+                <span class="tag-item-handle">⠿</span>
+                <input class="tag-item-text" type="text" value="{{ tag }}"
+                       oninput="markDirty('{{ g.id }}')">
+                <button class="tag-item-del" onclick="removeTag(this)" title="Remove tag">✕</button>
+              </div>
+              {% endfor %}
+            </div>
+
+            <div class="add-tag-row">
+              <input class="add-tag-input" type="text" placeholder="Add new category..."
+                     id="add-input-{{ g.id }}"
+                     onkeydown="if(event.key==='Enter') addTag('{{ g.id }}')">
+              <button class="add-tag-btn" onclick="addTag('{{ g.id }}')">+ Add</button>
+            </div>
+          </div>
+
+          <div class="tag-config-footer">
+            <span class="save-status" id="status-{{ g.id }}">—</span>
+            <div style="display:flex;gap:12px;align-items:center;">
+              <button class="reset-btn" onclick="resetGroup('{{ g.id }}')">↺ Reset to defaults</button>
+              <button class="btn btn-ghost" style="padding:5px 14px;font-size:10px;"
+                      onclick="saveGroup('{{ g.id }}')">Save</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -813,6 +1023,14 @@
       e.returnValue = '';
     }
   });
+
+  // ── Sub-tab switching (within Tags section) ────────────────────────
+  function showSubTab(id, el) {
+    document.querySelectorAll('.sub-tab-content').forEach(c => c.style.display = 'none');
+    document.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('subtab-' + id).style.display = '';
+    el.classList.add('active');
+  }
 
   // ── Sidebar section switching ───────────────────────────────────────
   function showSection(id, el) {

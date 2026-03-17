@@ -136,6 +136,31 @@
 }
 .trade-view-link:hover { color:var(--accent2);border-color:var(--accent2); }
 
+/* ── Grade tray ── */
+.grade-tray {
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 3px solid var(--accent); border-radius: 2px;
+  margin-bottom: 16px; overflow: hidden;
+}
+.grade-tray-header {
+  display: grid;
+  grid-template-columns: 1fr 80px 100px 120px 100px 48px;
+  align-items: center; cursor: pointer; user-select: none;
+}
+.grade-tray .trc-label { white-space:nowrap; }
+.grade-tray.expanded .expand-toggle { transform:rotate(180deg); color:var(--accent); }
+.grade-tray-detail {
+  max-height:0; overflow:hidden;
+  transition: max-height 0.5s cubic-bezier(0.4,0,0.2,1);
+  border-top: 0px solid var(--border);
+}
+.grade-tray.expanded .grade-tray-detail { max-height:1200px; border-top-width:1px; }
+
+.active-grade-poor { background:rgba(255,77,77,0.12); color:#ff4d4d; border-color:rgba(255,77,77,0.4); }
+.active-grade-avg { background:rgba(255,170,0,0.12); color:#ffaa00; border-color:rgba(255,170,0,0.4); }
+.active-grade-good { background:rgba(0,207,255,0.12); color:#00cfff; border-color:rgba(0,207,255,0.4); }
+.active-grade-excellent { background:rgba(0,230,118,0.12); color:#00e676; border-color:rgba(0,230,118,0.4); }
+
 /* Daily Reflection collapse */
 #refl-body.collapsed { display:none; }
 .refl-arrow { transform:rotate(-90deg); }
@@ -158,25 +183,96 @@
   {% endif %}
 </div>
 
-<div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:28px;">
-  <div>
-    <div class="page-title">{{ day.date }}</div>
-    <div class="page-sub">{{ trades|length }} trades · MES{% if day.account_name %} · {{ day.account_name }}{% endif %}</div>
-  </div>
-  {% set total_pnl = trades|sum(attribute='pnl') %}
-  {% set wins = trades|selectattr('pnl','gt',0)|list|length %}
-  {% set wr = (wins / trades|length * 100)|round|int if trades else 0 %}
-  <div class="stat-grid">
-    <div class="stat-block"><div class="stat-label">Trades</div><div class="stat-value">{{ trades|length }}</div></div>
-    <div class="stat-block">
-      <div class="stat-label">Win Rate</div>
-      <div class="stat-value {{ 'pnl-pos' if wr >= 50 else 'pnl-neg' }}">{{ wr }}%</div>
+{% set total_pnl = trades|sum(attribute='pnl') %}
+{% set wins = trades|selectattr('pnl','gt',0)|list|length %}
+{% set wr = (wins / trades|length * 100)|round|int if trades else 0 %}
+
+<!-- ── Grade Tray (Day Header) ── -->
+<div class="grade-tray" id="grade-tray">
+  <div class="grade-tray-header" onclick="toggleGradeTray()">
+    <div class="trc">
+      <div class="trc-val" style="font-size:15px;font-weight:500;">{{ day.date }}</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:2px;">{{ trades|length }} trades · MES{% if day.account_name %} · {{ day.account_name }}{% endif %}</div>
     </div>
-    <div class="stat-block">
-      <div class="stat-label">Net P&L</div>
-      <div class="stat-value {{ 'pnl-pos' if total_pnl >= 0 else 'pnl-neg' }}">
+    <div class="trc" style="text-align:center;">
+      <div class="trc-label">Trades</div>
+      <div class="trc-val">{{ trades|length }}</div>
+    </div>
+    <div class="trc" style="text-align:center;">
+      <div class="trc-label">Win Rate</div>
+      <div class="trc-val {{ 'pnl-pos' if wr >= 50 else 'pnl-neg' }}">{{ wr }}%</div>
+    </div>
+    <div class="trc" style="text-align:center;">
+      <div class="trc-label">Net P&L</div>
+      <div class="trc-val" style="font-weight:500;color:{{ 'var(--green)' if total_pnl >= 0 else 'var(--red)' }};">
         {{ '+' if total_pnl >= 0 else '' }}${{ '%.2f'|format(total_pnl) }}
       </div>
+    </div>
+    <div class="trc" style="text-align:center;">
+      <div class="trc-label">Day Score</div>
+      <div class="trc-val" id="grade-header-chiclet">
+        {% if grade_pct is not none %}
+          {% set gcolor = '#00e676' if grade_pct >= 85 else '#ffcc00' if grade_pct >= 70 else '#ff4d4d' %}
+          <span style="display:inline-block;padding:2px 10px;border-radius:2px;font-size:13px;font-weight:600;background:{{ gcolor }}22;color:{{ gcolor }};border:1px solid {{ gcolor }}40;">{{ grade_pct }}%</span>
+        {% else %}
+          <span style="color:var(--border2);">—</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="trc expand-toggle">▾</div>
+  </div>
+
+  <div class="grade-tray-detail">
+    <div style="padding:20px;">
+      <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">Day Score</div>
+      {% set col1_cats = ["Market Read", "Patience", "Emotional Control"] %}
+      {% set col2_cats = ["Entry Quality", "Risk Management", "Exit Discipline"] %}
+      <div id="day-scorecard" style="display:grid;grid-template-columns:1fr 1fr;gap:16px 32px;">
+        {% for col_cats in [col1_cats, col2_cats] %}
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          {% for cat_hint in grade_categories_hints %}
+          {% if cat_hint.name in col_cats %}
+          <div class="scorecard-row" data-cat="{{ cat_hint.name }}">
+            <div style="margin-bottom:4px;">
+              <span style="font-size:11px;color:var(--text2);" {% if cat_hint.hint %}title="{{ cat_hint.hint }}"{% endif %}>{{ cat_hint.name }}</span>
+            </div>
+            <div style="display:flex;gap:4px;">
+              {% for val, active_cls in [("Poor","active-grade-poor"),("Avg","active-grade-avg"),("Good","active-grade-good"),("Excellent","active-grade-excellent")] %}
+              <button class="tag-btn score-btn" data-cat="{{ cat_hint.name }}" data-val="{{ val }}"
+                data-active-class="{{ active_cls }}"
+                onclick="setScore('{{ cat_hint.name }}','{{ val }}')"
+                style="padding:3px 8px;font-size:9px;">
+                {{ val }}
+              </button>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+          {% endfor %}
+          {# Render custom categories not in predefined columns at end of col2 #}
+          {% if loop.index == 2 %}
+          {% for cat_hint in grade_categories_hints if cat_hint.name not in col1_cats and cat_hint.name not in col2_cats %}
+          <div class="scorecard-row" data-cat="{{ cat_hint.name }}">
+            <div style="margin-bottom:4px;">
+              <span style="font-size:11px;color:var(--text2);" {% if cat_hint.hint %}title="{{ cat_hint.hint }}"{% endif %}>{{ cat_hint.name }}</span>
+            </div>
+            <div style="display:flex;gap:4px;">
+              {% for val, active_cls in [("Poor","active-grade-poor"),("Avg","active-grade-avg"),("Good","active-grade-good"),("Excellent","active-grade-excellent")] %}
+              <button class="tag-btn score-btn" data-cat="{{ cat_hint.name }}" data-val="{{ val }}"
+                data-active-class="{{ active_cls }}"
+                onclick="setScore('{{ cat_hint.name }}','{{ val }}')"
+                style="padding:3px 8px;font-size:9px;">
+                {{ val }}
+              </button>
+              {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <div id="grade-summary" style="margin-top:12px;font-size:12px;color:var(--muted);"></div>
     </div>
   </div>
 </div>
@@ -190,7 +286,7 @@
 {% endif %}
 
 <!-- ── Daily Reflection ── -->
-{% set has_reflection = day.day_type or day.day_value or day.notes_well or day.notes_improve or day.notes_lessons or day.notes_focus or day_images %}
+{% set has_reflection = day.day_type or day.day_value or day.day_volume or day.notes_well or day.notes_improve or day.notes_lessons or day.notes_focus or day_images %}
 <div class="day-chart-wrap" id="daily-reflection" style="margin-bottom:20px;">
   <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="document.getElementById('refl-body').classList.toggle('collapsed');this.querySelector('.refl-arrow').classList.toggle('open')">
     <div class="day-chart-title" style="margin-bottom:0;">Daily Reflection</div>
@@ -203,7 +299,7 @@
         <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Day Type</div>
         <div id="day-type-row" style="display:flex;flex-wrap:wrap;gap:6px;">
           {% set active_types = day.day_type.split(',') if day.day_type else [] %}
-          {% for t in ['Balancing','Trending','Low Volume','High Volume','Old Business','New Money'] %}
+          {% for t in day_type_tags %}
           <button type="button" class="tag-btn {{ 'active-vol' if t in active_types else '' }}"
             data-tag="{{ t }}" data-active-class="active-vol"
             onclick="toggleDayTag('day_type','{{ t }}',true)">{{ t }}</button>
@@ -211,13 +307,24 @@
         </div>
       </div>
       <!-- Value (single-select) -->
-      <div style="margin-bottom:16px;">
+      <div style="margin-bottom:12px;">
         <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Value</div>
         <div id="day-value-row" style="display:flex;flex-wrap:wrap;gap:6px;">
-          {% for v in ['Overlapping','Higher','Lower','OL','OH'] %}
+          {% for v in day_value_tags %}
           <button type="button" class="tag-btn {{ 'active-setup' if day.day_value == v else '' }}"
             data-tag="{{ v }}" data-active-class="active-setup"
             onclick="toggleDayTag('day_value','{{ v }}',false)">{{ v }}</button>
+          {% endfor %}
+        </div>
+      </div>
+      <!-- Volume (single-select) -->
+      <div style="margin-bottom:12px;">
+        <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Volume</div>
+        <div id="day-volume-row" style="display:flex;flex-wrap:wrap;gap:6px;">
+          {% for v in day_volume_tags %}
+          <button type="button" class="tag-btn {{ 'active-vol' if day.day_volume == v else '' }}"
+            data-tag="{{ v }}" data-active-class="active-vol"
+            onclick="toggleDayTag('day_volume','{{ v }}',false)">{{ v }}</button>
           {% endfor %}
         </div>
       </div>
@@ -279,7 +386,12 @@
   <div style="padding:10px 0;border-bottom:1px solid var(--border);{% if loop.last %}border-bottom:none;{% endif %}">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
       <span style="font-size:11px;color:var(--muted2);">{{ obs.time }}</span>
-      <span class="badge" style="background:rgba(180,127,255,0.12);color:var(--purple);border:1px solid rgba(180,127,255,0.25);font-size:9px;">{{ obs.category }}</span>
+      {% if obs.obs_group %}
+      <span class="badge" style="background:rgba(0,207,255,0.12);color:var(--accent2);border:1px solid rgba(0,207,255,0.25);font-size:9px;">{{ obs.obs_group }}</span>
+      {% endif %}
+      {% for cat in obs.category_list %}
+      <span class="badge" style="background:rgba(180,127,255,0.12);color:var(--purple);border:1px solid rgba(180,127,255,0.25);font-size:9px;">{{ cat }}</span>
+      {% endfor %}
     </div>
     <div style="font-size:12px;color:var(--text);line-height:1.6;">{{ obs.text }}</div>
     {% if obs.images %}
@@ -738,7 +850,8 @@ function scheduleDayNoteSave() {
 }
 
 function toggleDayTag(field, tag, multi) {
-  const rowId = field === 'day_type' ? 'day-type-row' : 'day-value-row';
+  const rowMap = {day_type:'day-type-row', day_value:'day-value-row', day_volume:'day-volume-row'};
+  const rowId = rowMap[field];
   const row = document.getElementById(rowId);
   const buttons = row.querySelectorAll('.tag-btn');
 
@@ -766,6 +879,70 @@ function toggleDayTag(field, tag, multi) {
       body: JSON.stringify({[field]: val})
     }).then(() => showToast('Saved'));
   }
+}
+
+// ── Grade Tray Toggle ───────────────────────────────────────────────────────
+function toggleGradeTray() {
+  document.getElementById('grade-tray').classList.toggle('expanded');
+}
+
+// ── Day Scorecard ───────────────────────────────────────────────────────────
+let dayScores = {};
+try {
+  const raw = {{ day.day_score|default("")|tojson }};
+  const parsed = JSON.parse(raw || '{}');
+  if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) dayScores = parsed;
+} catch(e) { dayScores = {}; }
+
+const GRADE_ACTIVE_CLASSES = {Poor:'active-grade-poor', Avg:'active-grade-avg', Good:'active-grade-good', Excellent:'active-grade-excellent'};
+
+function resetScoreBtns(cat) {
+  document.querySelectorAll(`.score-btn[data-cat="${cat}"]`).forEach(b => {
+    const cls = b.dataset.activeClass;
+    if (cls) b.classList.remove(cls);
+  });
+}
+
+// Highlight active scores on load
+Object.entries(dayScores).forEach(([cat, val]) => {
+  const btn = document.querySelector(`.score-btn[data-cat="${cat}"][data-val="${val}"]`);
+  if (btn && btn.dataset.activeClass) btn.classList.add(btn.dataset.activeClass);
+});
+updateGradeSummary();
+
+function setScore(cat, val) {
+  if (dayScores[cat] === val) {
+    delete dayScores[cat];
+    resetScoreBtns(cat);
+  } else {
+    dayScores[cat] = val;
+    resetScoreBtns(cat);
+    const btn = document.querySelector(`.score-btn[data-cat="${cat}"][data-val="${val}"]`);
+    if (btn && btn.dataset.activeClass) btn.classList.add(btn.dataset.activeClass);
+  }
+  updateGradeSummary();
+  fetch(`/api/day/${DAY_ID}/notes`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({day_score: JSON.stringify(dayScores)})
+  }).then(() => showToast('Saved'));
+}
+
+const GRADE_VALS = {Poor:1, Avg:2, Good:3, Excellent:4};
+function updateGradeSummary() {
+  let total = 0, count = 0;
+  Object.values(dayScores).forEach(v => { if (GRADE_VALS[v]) { total += GRADE_VALS[v]; count++; } });
+  const el = document.getElementById('grade-summary');
+  const chiclet = document.getElementById('grade-header-chiclet');
+  if (count === 0) {
+    el.textContent = '';
+    if (chiclet) chiclet.innerHTML = '<span style="color:var(--border2);">—</span>';
+    return;
+  }
+  const pct = Math.round((total / (count * 4)) * 100);
+  const color = pct >= 85 ? '#00e676' : pct >= 70 ? '#ffcc00' : '#ff4d4d';
+  const pillStyle = `display:inline-block;padding:2px 10px;border-radius:2px;font-size:13px;font-weight:600;background:${color}22;color:${color};border:1px solid ${color}40;`;
+  el.innerHTML = `<span style="${pillStyle}">${pct}%</span> <span style="color:var(--muted);">(${count} of ${document.querySelectorAll('.scorecard-row').length} scored)</span>`;
+  if (chiclet) chiclet.innerHTML = `<span style="${pillStyle}">${pct}%</span>`;
 }
 
 // ── Day Images ──────────────────────────────────────────────────────────────

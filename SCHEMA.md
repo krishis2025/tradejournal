@@ -62,6 +62,10 @@ Records of trading days per account.
 | notes_improve | TEXT    | NOT NULL DEFAULT ''                      |
 | notes_lessons | TEXT    | NOT NULL DEFAULT ''                      |
 | notes_focus   | TEXT    | NOT NULL DEFAULT ''                      |
+| day_volume    | TEXT    | NOT NULL DEFAULT ''                      |
+| day_score     | TEXT    | NOT NULL DEFAULT '0'                     |
+
+`day_score` stores a JSON object mapping grade category names to score values (e.g. `{"Market Read":"Good","Entry Quality":"Poor"}`).
 
 **Unique:** (date, account_id)
 

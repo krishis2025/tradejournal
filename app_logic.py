@@ -102,6 +102,165 @@ OBSERVATION_CATEGORIES = [
     "mkt internals", "psychology", "nuances", "general"
 ]
 
+OBS_CATEGORY_GROUP = {
+    "id": "obs_categories",
+    "label": "Observation Categories",
+    "tags": OBSERVATION_CATEGORIES,
+    "multi": False,
+    "dot": "dot-obs",
+    "active_class": "active-obs",
+}
+
+OBSERVATION_GROUPS = ["Nuance", "Psychology", "Missed Opportunity", "Trade Setup"]
+
+OBS_GROUP_GROUP = {
+    "id": "obs_groups",
+    "label": "Observation Groups",
+    "tags": OBSERVATION_GROUPS,
+    "multi": False,
+    "dot": "dot-obs-grp",
+    "active_class": "active-obs-grp",
+}
+
+
+def get_observation_categories():
+    """Return observation categories, using custom DB config if available."""
+    custom = db.get_tag_config()
+    if custom and "obs_categories" in custom:
+        return custom["obs_categories"]
+    return OBSERVATION_CATEGORIES
+
+
+def get_observation_groups():
+    """Return observation groups, using custom DB config if available."""
+    custom = db.get_tag_config()
+    if custom and "obs_groups" in custom:
+        return custom["obs_groups"]
+    return OBSERVATION_GROUPS
+
+
+# ── Day Marker Definitions ──────────────────────────────────────────────────
+
+DAY_TYPE_TAGS = ["Balancing", "Trending", "Short Covering", "Liquidation", "Gap day", "Old business", "New Money"]
+DAY_VALUE_TAGS = ["Lower", "OL", "Overlapping", "OH", "Higher"]
+DAY_VOLUME_TAGS = ["Below Avg", "Avg", "Above Avg"]
+
+DAY_TYPE_GROUP = {
+    "id": "day_type",
+    "label": "Day Type",
+    "tags": DAY_TYPE_TAGS,
+    "multi": True,
+    "dot": "dot-day-type",
+    "active_class": "active-vol",
+}
+
+DAY_VALUE_GROUP = {
+    "id": "day_value",
+    "label": "Value",
+    "tags": DAY_VALUE_TAGS,
+    "multi": False,
+    "dot": "dot-day-value",
+    "active_class": "active-setup",
+}
+
+DAY_VOLUME_GROUP = {
+    "id": "day_volume",
+    "label": "Volume",
+    "tags": DAY_VOLUME_TAGS,
+    "multi": False,
+    "dot": "dot-day-vol",
+    "active_class": "active-vol",
+}
+
+
+def get_day_type_tags():
+    custom = db.get_tag_config()
+    if custom and "day_type" in custom:
+        return custom["day_type"]
+    return DAY_TYPE_TAGS
+
+
+def get_day_value_tags():
+    custom = db.get_tag_config()
+    if custom and "day_value" in custom:
+        return custom["day_value"]
+    return DAY_VALUE_TAGS
+
+
+def get_day_volume_tags():
+    custom = db.get_tag_config()
+    if custom and "day_volume" in custom:
+        return custom["day_volume"]
+    return DAY_VOLUME_TAGS
+
+
+DAY_GRADE_CATEGORIES = [
+    {"name": "Market Read", "hint": "How well did you read market conditions?"},
+    {"name": "Patience", "hint": "Waiting for setups, not forcing trades"},
+    {"name": "Entry Quality", "hint": "Quality of trade entries"},
+    {"name": "Risk Management", "hint": "Position sizing and stop placement"},
+    {"name": "Exit Discipline", "hint": "Following exit rules"},
+    {"name": "Emotional Control", "hint": "Managing emotions during trading"},
+]
+
+DAY_GRADE_GROUP = {
+    "id": "grade_categories",
+    "label": "Grade Categories",
+    "tags": [c["name"] for c in DAY_GRADE_CATEGORIES],
+    "multi": False,
+    "dot": "dot-grade-cat",
+    "active_class": "active-grade-cat",
+}
+
+GRADE_VALUES = {"Poor": 1, "Avg": 2, "Good": 3, "Excellent": 4}
+
+
+def get_grade_categories():
+    """Return list of grade category names (custom or default)."""
+    custom = db.get_tag_config()
+    if custom and "grade_categories" in custom:
+        return custom["grade_categories"]
+    return [c["name"] for c in DAY_GRADE_CATEGORIES]
+
+
+def get_grade_categories_with_hints():
+    """Return list of {name, hint} dicts for grade categories."""
+    custom = db.get_tag_config()
+    if custom and "grade_categories" in custom:
+        default_hints = {c["name"]: c["hint"] for c in DAY_GRADE_CATEGORIES}
+        return [{"name": n, "hint": default_hints.get(n, "")} for n in custom["grade_categories"]]
+    return DAY_GRADE_CATEGORIES
+
+
+def compute_day_score(scores_json):
+    """Compute grade % from JSON scores dict. Returns None if no scores.
+
+    scores_json: string like '{"Market Read":"Good","Entry Quality":"Poor"}'
+    Only categories WITH a score count toward denominator.
+    Old star values ("0"-"5") return None gracefully.
+    """
+    import json
+    if not scores_json:
+        return None
+    try:
+        scores = json.loads(scores_json)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if not isinstance(scores, dict):
+        return None  # handles old integer star values
+
+    total = 0
+    count = 0
+    for cat, val in scores.items():
+        if val in GRADE_VALUES:
+            total += GRADE_VALUES[val]
+            count += 1
+
+    if count == 0:
+        return None
+    return round((total / (count * 4)) * 100)
+
+
 REQUIRED_COLUMNS = {"B/S", "avgPrice", "filledQty", "Fill Time", "Date"}
 
 
