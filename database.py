@@ -313,6 +313,11 @@ def init_db():
         if "notes_exit" not in lt_cols2:
             conn.execute("ALTER TABLE live_trades ADD COLUMN notes_exit TEXT NOT NULL DEFAULT ''")
 
+        # Migration: add guard_json to live_trades
+        lt_cols3 = [r[1] for r in conn.execute("PRAGMA table_info(live_trades)").fetchall()]
+        if "guard_json" not in lt_cols3:
+            conn.execute("ALTER TABLE live_trades ADD COLUMN guard_json TEXT NOT NULL DEFAULT ''")
+
         # Migration: add account profile columns to accounts
         acct_cols = [r[1] for r in conn.execute("PRAGMA table_info(accounts)").fetchall()]
         if "account_size" not in acct_cols:
@@ -1354,15 +1359,15 @@ def clear_account_config(account_id, prefix=None):
 
 def create_live_trade(account_id, direction, instrument, entry_price, entry_time,
                       total_qty, mode, notes="", tags_json="{}",
-                      notes_monitoring="", notes_exit=""):
+                      notes_monitoring="", notes_exit="", guard_json=""):
     with get_conn() as conn:
         cur = conn.execute("""
             INSERT INTO live_trades
                 (account_id, direction, instrument, entry_price, entry_time,
-                 total_qty, mode, notes, tags_json, notes_monitoring, notes_exit)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 total_qty, mode, notes, tags_json, notes_monitoring, notes_exit, guard_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (account_id, direction, instrument, entry_price, entry_time,
-              total_qty, mode, notes, tags_json, notes_monitoring, notes_exit))
+              total_qty, mode, notes, tags_json, notes_monitoring, notes_exit, guard_json))
         return cur.lastrowid
 
 

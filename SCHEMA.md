@@ -183,6 +183,9 @@ Active live trades during trading sessions.
 | journal_trade_id | INTEGER |                                        |
 | notes_monitoring | TEXT    | NOT NULL DEFAULT ''                    |
 | notes_exit       | TEXT    | NOT NULL DEFAULT ''                    |
+| guard_json       | TEXT    | NOT NULL DEFAULT ''                    |
+
+`guard_json` stores the pre-trade execution guard data as JSON: `{"tech":["developing_value","volume_tempo",...],"repeatable":true,"entry_mode":"strength","mental_state":"patient","score":20}`. Mental states: `patient` (+5), `intuition` (+3), `eager` (-5). Max score: 20.
 
 ---
 

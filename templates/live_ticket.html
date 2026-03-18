@@ -83,6 +83,132 @@
 .cmd-go-btn:hover { background:#6fffbe; }
 .cmd-go-btn:disabled { opacity:0.3; cursor:not-allowed; }
 
+/* ── Prep Mode Toggle ── */
+.cmd-prep-toggle {
+  height:100%; padding:0 14px; border:none; cursor:pointer;
+  font-family:var(--font-mono); font-size:10px; letter-spacing:1.5px;
+  text-transform:uppercase; transition:all 0.15s;
+  background:var(--surface); color:var(--muted2);
+  border-right:1px solid var(--border);
+}
+.cmd-prep-toggle:hover { color:var(--text); }
+.cmd-prep-toggle.active { color:var(--warn); background:rgba(255,179,71,0.10); }
+
+/* ── Guard Overlay ── */
+.guard-backdrop {
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:900;
+}
+.guard-backdrop.open { display:block; }
+.gatekeeper-card {
+  display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+  width:440px; z-index:901;
+  background:#1a1d23; border:1px solid rgba(255,255,255,0.1);
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  border-radius:16px; padding:0;
+  font-family:'Inter', -apple-system, sans-serif;
+  box-shadow:0 10px 40px rgba(0,0,0,0.5);
+  transition:all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  color:#e0e0e0;
+}
+.gatekeeper-card.open { display:block; }
+.gk-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:18px 24px; border-bottom:1px solid rgba(255,255,255,0.1);
+}
+.gk-title { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#888; font-weight:600; }
+.gk-score {
+  font-size:18px; font-weight:600; color:#666;
+  font-variant-numeric:tabular-nums;
+}
+.gk-score.good { color:#4fffb0; }
+.gk-score.bad  { color:#ff4d6d; }
+.gk-body { padding:20px 24px; }
+.gk-section { margin-bottom:20px; }
+.gk-section-label {
+  font-size:0.72rem; letter-spacing:0.5px; text-transform:uppercase;
+  color:#888; margin-bottom:10px; font-weight:600;
+}
+.gk-chips {
+  display:grid; grid-template-columns:1fr 1fr; gap:8px;
+}
+.gk-chip {
+  padding:10px 12px; border:1px solid rgba(255,255,255,0.1); cursor:pointer;
+  font-size:0.75rem; color:#999; border-radius:6px;
+  background:rgba(255,255,255,0.02); text-align:center; transition:all 0.2s;
+  user-select:none;
+}
+.gk-chip:hover { background:rgba(255,255,255,0.05); color:#ccc; }
+.gk-chip.active { background:#4fffb0; color:#000; border-color:#4fffb0; font-weight:bold; }
+.gk-chip.full-width { grid-column:1 / -1; margin-top:4px; border-style:dashed; }
+.gk-chip.full-width.active { border-style:solid; }
+
+/* Toggle box (sliding bar) for Entry Mode & Mental State */
+.gk-toggle-box {
+  display:flex; background:rgba(0,0,0,0.4); border-radius:8px; padding:4px; gap:4px;
+}
+.gk-toggle-btn {
+  flex:1; padding:10px; border-radius:6px; border:none;
+  background:transparent; color:#555; cursor:pointer;
+  font-size:0.8rem; transition:0.3s; font-family:inherit;
+}
+.gk-toggle-btn:hover { color:#888; }
+.gk-toggle-btn.active { background:rgba(255,255,255,0.08); color:#fff; }
+.gk-toggle-btn.active.strength { color:#4fffb0; }
+.gk-toggle-btn.active.warn { color:#ff4d6d; }
+.gk-toggle-btn.active.caution { color:#ffb347; }
+.gk-toggle-btn.active.patient { color:#4fffb0; }
+
+.gk-footer {
+  padding:16px 24px; border-top:1px solid rgba(255,255,255,0.1);
+  display:flex; flex-direction:column; gap:10px;
+}
+.gk-execute-btn {
+  width:100%; padding:16px; border:none; cursor:pointer; border-radius:10px;
+  font-size:0.85rem; letter-spacing:2px;
+  text-transform:uppercase; font-weight:800; transition:all 0.3s;
+}
+.gk-execute-btn.locked {
+  background:#222; color:#444; cursor:not-allowed;
+}
+.gk-execute-btn.execute {
+  background:#4fffb0; color:#000; box-shadow:0 4px 15px rgba(79,255,176,0.3);
+}
+.gk-execute-btn.execute:hover { box-shadow:0 4px 20px rgba(79,255,176,0.45); }
+.gk-execute-btn.gamble {
+  background:#ff4d6d; color:#fff;
+}
+.gk-execute-btn.gamble:hover { opacity:0.85; }
+.gk-status {
+  font-size:0.72rem; color:#666; text-align:center; line-height:1.4;
+}
+
+
+/* ── Overlay Card Border Animation ── */
+.gatekeeper-card.card-neutral  { border-color:rgba(255,255,255,0.1); }
+.gatekeeper-card.card-ready    { border:3px solid #4fffb0; box-shadow:0 0 30px rgba(79,255,176,0.15); }
+.gatekeeper-card.card-caution  { border:3px solid #ffb347; box-shadow:0 0 30px rgba(255,179,71,0.15); }
+.gatekeeper-card.card-warning  { border:3px solid #ff4d6d; animation:pulse-red-card 1.5s infinite; }
+@keyframes pulse-red-card {
+  0%, 100% { box-shadow:0 0 15px rgba(255,77,109,0.2); }
+  50%      { box-shadow:0 0 35px rgba(255,77,109,0.4); }
+}
+
+/* ── Page Border Animation ── */
+.page.guard-ready {
+  border:3px solid var(--accent); box-shadow:0 0 30px rgba(79,255,176,0.15);
+  transition:border 0.3s, box-shadow 0.3s;
+}
+.page.guard-warning {
+  border:3px solid var(--red); animation:pulse-red 1.5s infinite;
+}
+.page.guard-neutral {
+  border:3px solid var(--border2); transition:border 0.3s, box-shadow 0.3s;
+}
+@keyframes pulse-red {
+  0%, 100% { box-shadow:0 0 15px rgba(255,77,109,0.2); }
+  50%      { box-shadow:0 0 35px rgba(255,77,109,0.4); }
+}
+
 /* ── Paper Light theme: stronger command bar selections ── */
 [data-theme="paper"] .cmd-dir-btn.sel-long {
   background:rgba(13,124,62,0.18); color:var(--green); font-weight:600;
@@ -687,12 +813,55 @@
     <button class="cmd-mode-btn" id="cmd-full" onclick="setMode('full')">FULL</button>
     <button class="cmd-mode-btn active" id="cmd-partials" onclick="setMode('partials')">3-WAY</button>
   </div>
-  <div class="cmd-go">
+  <div class="cmd-go" style="display:flex;align-items:center;">
+    <button class="cmd-prep-toggle active" id="cmd-prep" onclick="togglePrepMode()">PREP</button>
     <button class="cmd-go-btn" id="cmd-enter" onclick="openTrade()">ENTER ↵</button>
   </div>
   <div class="cmd-risk" id="cmd-risk" onclick="openRiskCalc()" title="Click for risk calculator">
     <span class="cmd-risk-dollar" id="risk-label">Risk: —</span>
     <span class="cmd-risk-pts" id="risk-pts-label"></span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     GUARD OVERLAY — Pre-trade execution gatekeeper
+     ═══════════════════════════════════════════════════════════ -->
+<div class="guard-backdrop" id="guard-backdrop" onclick="closeGuardOverlay()"></div>
+<div class="gatekeeper-card" id="guard-card">
+  <div class="gk-header">
+    <span class="gk-title">Pre-Trade Check</span>
+    <span class="gk-score" id="gk-score">0 / 18</span>
+  </div>
+  <div class="gk-body">
+    <div class="gk-section">
+      <div class="gk-section-label">Technical Criteria</div>
+      <div class="gk-chips">
+        <button class="gk-chip" data-tech="developing_value" onclick="toggleTechChip(this)">Developing Value</button>
+        <button class="gk-chip" data-tech="volume_tempo" onclick="toggleTechChip(this)">Volume / Tempo</button>
+        <button class="gk-chip" data-tech="trend_alignment" onclick="toggleTechChip(this)">Trend Alignment</button>
+        <button class="gk-chip" data-tech="internals_adh" onclick="toggleTechChip(this)">Internals / ADH</button>
+        <button class="gk-chip full-width" data-tech="repeatable" onclick="toggleRepeatable(this)">1000× Repeatable</button>
+      </div>
+    </div>
+    <div class="gk-section">
+      <div class="gk-section-label">Entry Mode</div>
+      <div class="gk-toggle-box">
+        <button class="gk-toggle-btn active" data-mode="anticipating" onclick="setEntryMode(this)">Anticipating</button>
+        <button class="gk-toggle-btn" data-mode="strength" onclick="setEntryMode(this)">Strength</button>
+      </div>
+    </div>
+    <div class="gk-section">
+      <div class="gk-section-label">Mental State</div>
+      <div class="gk-toggle-box">
+        <button class="gk-toggle-btn" data-mental="eager" onclick="setMentalState(this)">Eager / FOMO</button>
+        <button class="gk-toggle-btn" data-mental="intuition" onclick="setMentalState(this)">Intuition / Mkt Feel</button>
+        <button class="gk-toggle-btn" data-mental="patient" onclick="setMentalState(this)">Trade Came to Me</button>
+      </div>
+    </div>
+  </div>
+  <div class="gk-footer">
+    <button class="gk-execute-btn locked" id="gk-execute" onclick="guardExecute()" disabled>LOCKED</button>
+    <div class="gk-status" id="gk-status">Select at least 3 technical criteria and confirm repeatable</div>
   </div>
 </div>
 
@@ -965,6 +1134,176 @@ let activeTrade = null;
 let activeTags = {};
 let allTrades = [];
 
+// ── Guard / Prep Mode State ──────────────────────────────────────────────────
+let prepMode = localStorage.getItem('prepMode') !== 'false';  // default ON
+let guardState = { tech: [], repeatable: false, entry_mode: 'anticipating', mental_state: null, score: 0 };
+let guardApproved = false;
+
+(function initPrepToggle() {
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('cmd-prep');
+    if (btn) btn.classList.toggle('active', prepMode);
+  });
+})();
+
+function togglePrepMode() {
+  prepMode = !prepMode;
+  localStorage.setItem('prepMode', prepMode);
+  document.getElementById('cmd-prep').classList.toggle('active', prepMode);
+  if (!prepMode) clearPageGuardBorder();
+}
+
+function resetGuardState() {
+  guardState = { tech: [], repeatable: false, entry_mode: 'anticipating', mental_state: null, score: 0 };
+  guardApproved = false;
+}
+
+function showGuardOverlay() {
+  resetGuardState();
+  // Reset UI chips
+  document.querySelectorAll('.gk-chip').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.gk-toggle-btn').forEach(r => r.classList.remove('active', 'warn', 'caution', 'strength', 'patient'));
+  // Default entry_mode to anticipating
+  document.querySelector('.gk-toggle-btn[data-mode="anticipating"]').classList.add('active');
+  document.getElementById('guard-backdrop').classList.add('open');
+  document.getElementById('guard-card').classList.add('open');
+  updateGuardState();
+}
+
+function closeGuardOverlay() {
+  document.getElementById('guard-backdrop').classList.remove('open');
+  const card = document.getElementById('guard-card');
+  card.classList.remove('open', 'card-ready', 'card-warning', 'card-caution', 'card-neutral');
+  clearPageGuardBorder();
+}
+
+function clearPageGuardBorder() {
+  const page = document.querySelector('.page');
+  if (page) page.classList.remove('guard-ready', 'guard-warning', 'guard-neutral');
+}
+
+function toggleTechChip(el) {
+  const key = el.dataset.tech;
+  el.classList.toggle('active');
+  if (el.classList.contains('active')) {
+    if (!guardState.tech.includes(key)) guardState.tech.push(key);
+  } else {
+    guardState.tech = guardState.tech.filter(t => t !== key);
+  }
+  updateGuardState();
+}
+
+function toggleRepeatable(el) {
+  el.classList.toggle('active');
+  guardState.repeatable = el.classList.contains('active');
+  updateGuardState();
+}
+
+function setEntryMode(el) {
+  const box = el.parentElement;
+  box.querySelectorAll('.gk-toggle-btn').forEach(r => r.classList.remove('active', 'strength'));
+  el.classList.add('active');
+  if (el.dataset.mode === 'strength') el.classList.add('strength');
+  guardState.entry_mode = el.dataset.mode;
+  updateGuardState();
+}
+
+function setMentalState(el) {
+  const box = el.parentElement;
+  box.querySelectorAll('.gk-toggle-btn').forEach(r => r.classList.remove('active', 'warn', 'caution', 'patient'));
+  el.classList.add('active');
+  if (el.dataset.mental === 'eager') el.classList.add('warn');
+  if (el.dataset.mental === 'intuition') el.classList.add('caution');
+  if (el.dataset.mental === 'patient') el.classList.add('patient');
+  guardState.mental_state = el.dataset.mental;
+  updateGuardState();
+}
+
+function updateGuardState() {
+  // Score calculation
+  let score = guardState.tech.length * 2;                       // each tech = +2
+  if (guardState.repeatable) score += 5;                         // repeatable = +5
+  score += guardState.entry_mode === 'strength' ? 2 : 1;        // strength=+2, anticipating=+1
+  if (guardState.mental_state === 'patient') score += 5;         // patient = +5
+  else if (guardState.mental_state === 'intuition') score += 3;  // intuition = +3
+  else if (guardState.mental_state === 'eager') score -= 5;      // eager = -5
+  guardState.score = Math.max(0, score);
+
+  // Update score display
+  const scoreEl = document.getElementById('gk-score');
+  scoreEl.textContent = `${guardState.score} / 20`;
+  scoreEl.className = 'gk-score';
+
+  const techCount = guardState.tech.length;
+  const btn = document.getElementById('gk-execute');
+  const status = document.getElementById('gk-status');
+  const page = document.querySelector('.page');
+  const card = document.getElementById('guard-card');
+
+  // Clear border classes
+  page.classList.remove('guard-ready', 'guard-warning', 'guard-neutral');
+  card.classList.remove('card-ready', 'card-warning', 'card-caution', 'card-neutral');
+
+  if (techCount < 3 || !guardState.repeatable) {
+    // LOCKED — missing tech/repeatable
+    btn.className = 'gk-execute-btn locked';
+    btn.textContent = 'LOCKED';
+    btn.disabled = true;
+    status.textContent = 'Select at least 3 technical criteria and confirm repeatable';
+    page.classList.add('guard-neutral');
+    card.classList.add('card-neutral');
+  } else if (!guardState.mental_state) {
+    // LOCKED — need mental state
+    btn.className = 'gk-execute-btn locked';
+    btn.textContent = 'LOCKED';
+    btn.disabled = true;
+    status.textContent = 'Select your mental state';
+    page.classList.add('guard-neutral');
+    card.classList.add('card-neutral');
+  } else if (guardState.mental_state === 'patient') {
+    // EXECUTE — best state
+    const modeLabel = guardState.entry_mode === 'strength' ? 'STRENGTH' : 'ANTICIPATING';
+    btn.className = 'gk-execute-btn execute';
+    btn.textContent = `EXECUTE ${modeLabel}`;
+    btn.disabled = false;
+    status.textContent = 'All criteria met — clear to execute';
+    scoreEl.classList.add('good');
+    page.classList.add('guard-ready');
+    card.classList.add('card-ready');
+  } else if (guardState.mental_state === 'intuition') {
+    // EXECUTE — intuition (orange border)
+    const modeLabel = guardState.entry_mode === 'strength' ? 'STRENGTH' : 'ANTICIPATING';
+    btn.className = 'gk-execute-btn execute';
+    btn.textContent = `EXECUTE ${modeLabel}`;
+    btn.disabled = false;
+    status.textContent = 'Intuition entry — trust but verify';
+    scoreEl.classList.add('good');
+    page.classList.add('guard-ready');
+    card.classList.add('card-caution');
+  } else {
+    // GAMBLE — eager/FOMO
+    btn.className = 'gk-execute-btn gamble';
+    btn.textContent = 'GAMBLE';
+    btn.disabled = false;
+    status.textContent = 'FOMO detected — this is a gamble, not a trade';
+    scoreEl.classList.add('bad');
+    page.classList.add('guard-warning');
+    card.classList.add('card-warning');
+  }
+}
+
+function guardExecute() {
+  guardApproved = true;
+  closeGuardOverlay();
+  openTrade();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('guard-backdrop').classList.contains('open')) {
+    closeGuardOverlay();
+  }
+});
+
 // ── Time Helpers ─────────────────────────────────────────────────────────────
 function getCurrentTimeStr() {
   const now = new Date();
@@ -1056,18 +1395,25 @@ function setMode(m) {
 
 // ── Open Trade ───────────────────────────────────────────────────────────────
 async function openTrade() {
+  if (prepMode && !guardApproved) {
+    showGuardOverlay();
+    return;
+  }
+
   const price = parseFloat(document.getElementById('cmd-price').value);
   const qty   = parseInt(document.getElementById('cmd-qty').value);
   const time  = document.getElementById('cmd-time').value;
   if (!price || !qty || !time) { showToast('Fill price, qty & time', true); return; }
 
   const pid = document.getElementById('global-account-select')?.value || null;
+  const guardData = guardApproved ? guardState : null;
   const res = await fetch('/api/live', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
       direction: formDir, instrument: formInst, entry_price: price,
       entry_time: time, total_qty: qty, mode: formMode,
-      notes: '', tags: {}, account_id: pid ? parseInt(pid) : null
+      notes: '', tags: {}, account_id: pid ? parseInt(pid) : null,
+      guard: guardData
     })
   });
   const data = await res.json();
@@ -1124,6 +1470,8 @@ async function openTrade() {
 
   updateDayPnl();
   showToast(`${formDir} ${qty}× ${formInst} @ ${price}`);
+  guardApproved = false;
+  resetGuardState();
 }
 
 // ── Derive Trade Status ──────────────────────────────────────────────────────

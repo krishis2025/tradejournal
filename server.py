@@ -645,6 +645,7 @@ def api_create_live_trade():
             tags_json=json.dumps(body.get("tags", {})),
             notes_monitoring=body.get("notes_monitoring", ""),
             notes_exit=body.get("notes_exit", ""),
+            guard_json=json.dumps(body.get("guard", {})) if body.get("guard") else "",
         )
         # Compute and save default levels
         levels = logic.compute_live_trade_plan(
