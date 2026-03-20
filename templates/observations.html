@@ -128,9 +128,9 @@
 <div class="obs-card" id="obs-card-{{ obs.id }}">
   <div class="obs-meta">
     <span class="obs-date">{{ obs.date }}{% if obs.time %}, {{ obs.time }}{% endif %}</span>
-    {% if obs.obs_group %}
-    <span class="obs-group-badge">{{ obs.obs_group }}</span>
-    {% endif %}
+    {% for grp in obs.group_list %}
+    <span class="obs-group-badge">{{ grp }}</span>
+    {% endfor %}
     {% for cat in obs.category_list %}
     <span class="obs-cat-badge">{{ cat }}</span>
     {% endfor %}

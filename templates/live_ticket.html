@@ -96,102 +96,99 @@
 
 /* ── Guard Overlay ── */
 .guard-backdrop {
-  display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:900;
+  display:none; position:fixed; inset:0; background:rgba(10,12,16,0.98);
+  backdrop-filter:blur(12px); z-index:900;
 }
 .guard-backdrop.open { display:block; }
 .gatekeeper-card {
   display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-  width:440px; z-index:901;
-  background:#1a1d23; border:1px solid rgba(255,255,255,0.1);
-  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
-  border-radius:16px; padding:0;
+  width:480px; z-index:901;
+  background:#1a1d23; border:2px solid rgba(255,255,255,0.1);
+  border-radius:24px; padding:40px;
   font-family:'Inter', -apple-system, sans-serif;
   box-shadow:0 10px 40px rgba(0,0,0,0.5);
   transition:all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  color:#e0e0e0;
+  color:#e0e0e0; text-align:center;
 }
 .gatekeeper-card.open { display:block; }
-.gk-header {
-  display:flex; align-items:center; justify-content:space-between;
-  padding:18px 24px; border-bottom:1px solid rgba(255,255,255,0.1);
-}
-.gk-title { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#888; font-weight:600; }
-.gk-score {
-  font-size:18px; font-weight:600; color:#666;
-  font-variant-numeric:tabular-nums;
-}
-.gk-score.good { color:#4fffb0; }
-.gk-score.bad  { color:#ff4d6d; }
-.gk-body { padding:20px 24px; }
-.gk-section { margin-bottom:20px; }
-.gk-section-label {
-  font-size:0.72rem; letter-spacing:0.5px; text-transform:uppercase;
-  color:#888; margin-bottom:10px; font-weight:600;
-}
-.gk-chips {
-  display:grid; grid-template-columns:1fr 1fr; gap:8px;
-}
-.gk-chip {
-  padding:10px 12px; border:1px solid rgba(255,255,255,0.1); cursor:pointer;
-  font-size:0.75rem; color:#999; border-radius:6px;
-  background:rgba(255,255,255,0.02); text-align:center; transition:all 0.2s;
-  user-select:none;
-}
-.gk-chip:hover { background:rgba(255,255,255,0.05); color:#ccc; }
-.gk-chip.active { background:#4fffb0; color:#000; border-color:#4fffb0; font-weight:bold; }
-.gk-chip.full-width { grid-column:1 / -1; margin-top:4px; border-style:dashed; }
-.gk-chip.full-width.active { border-style:solid; }
+.gk-header { margin-bottom:10px; }
+.gk-title { font-weight:300; letter-spacing:2px; text-transform:uppercase; color:#fff; font-size:1.1rem; }
+.gk-sub { color:#666; font-size:0.85rem; margin-bottom:30px; line-height:1.4; }
 
-/* Toggle box (sliding bar) for Entry Mode & Mental State */
-.gk-toggle-box {
-  display:flex; background:rgba(0,0,0,0.4); border-radius:8px; padding:4px; gap:4px;
+/* Three large mental-state buttons stacked vertically */
+.gk-traffic { display:flex; flex-direction:column; gap:15px; }
+.gk-traffic-btn {
+  padding:22px; border-radius:12px; cursor:pointer;
+  border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.02);
+  color:#fff; font-size:1rem; font-weight:700; text-align:center;
+  text-transform:uppercase; letter-spacing:1.5px;
+  transition:all 0.2s; font-family:inherit;
 }
-.gk-toggle-btn {
-  flex:1; padding:10px; border-radius:6px; border:none;
-  background:transparent; color:#555; cursor:pointer;
-  font-size:0.8rem; transition:0.3s; font-family:inherit;
+.gk-traffic-btn:disabled { opacity:0.3; cursor:not-allowed; }
+.gk-traffic-btn.green:hover:not(:disabled), .gk-traffic-btn.green.selected {
+  border-color:#00ff88; color:#00ff88; background:rgba(0,255,136,0.05);
 }
-.gk-toggle-btn:hover { color:#888; }
-.gk-toggle-btn.active { background:rgba(255,255,255,0.08); color:#fff; }
-.gk-toggle-btn.active.strength { color:#4fffb0; }
-.gk-toggle-btn.active.warn { color:#ff4d6d; }
-.gk-toggle-btn.active.caution { color:#ffb347; }
-.gk-toggle-btn.active.patient { color:#4fffb0; }
+.gk-traffic-btn.orange:hover:not(:disabled), .gk-traffic-btn.orange.selected {
+  border-color:#ff9800; color:#ff9800; background:rgba(255,152,0,0.05);
+}
+.gk-traffic-btn.red:hover:not(:disabled), .gk-traffic-btn.red.selected {
+  border-color:#ff4d4d; color:#ff4d4d; background:rgba(255,77,77,0.05);
+}
+.gk-traffic-btn.selected { opacity:1 !important; }
 
-.gk-footer {
-  padding:16px 24px; border-top:1px solid rgba(255,255,255,0.1);
-  display:flex; flex-direction:column; gap:10px;
+/* Consequence box (appears on hover / after selection) */
+.gk-consequence {
+  margin-top:30px; padding:20px; border-radius:12px;
+  background:rgba(0,0,0,0.5); border:1px solid transparent;
+  min-height:60px; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; transition:0.3s; gap:12px;
 }
-.gk-execute-btn {
-  width:100%; padding:16px; border:none; cursor:pointer; border-radius:10px;
-  font-size:0.85rem; letter-spacing:2px;
-  text-transform:uppercase; font-weight:800; transition:all 0.3s;
+.gk-consequence-msg {
+  font-size:0.9rem; font-weight:500; color:#555; text-align:center; line-height:1.4;
 }
-.gk-execute-btn.locked {
-  background:#222; color:#444; cursor:not-allowed;
+
+/* Confirm button inside consequence box (for intuition) */
+.gk-confirm-btn {
+  display:none; padding:14px 32px; border-radius:10px; border:none; cursor:pointer;
+  font-size:0.85rem; font-weight:700; text-transform:uppercase; letter-spacing:1.5px;
+  font-family:inherit; transition:all 0.2s;
 }
-.gk-execute-btn.execute {
-  background:#4fffb0; color:#000; box-shadow:0 4px 15px rgba(79,255,176,0.3);
+.gk-confirm-btn.visible { display:inline-block; }
+.gk-confirm-btn.orange {
+  background:#ff9800; color:#1a1d23;
 }
-.gk-execute-btn.execute:hover { box-shadow:0 4px 20px rgba(79,255,176,0.45); }
-.gk-execute-btn.gamble {
-  background:#ff4d6d; color:#fff;
+.gk-confirm-btn.orange:hover { box-shadow:0 4px 20px rgba(255,152,0,0.4); }
+.gk-confirm-btn.red { background:#ff4d4d; color:#fff; }
+.gk-confirm-btn.red:hover { box-shadow:0 4px 20px rgba(255,77,77,0.4); }
+.gk-confirm-btn:disabled { opacity:0.3; cursor:not-allowed; box-shadow:none; }
+
+/* Type-to-confirm input for eager */
+.gk-gamble-input {
+  display:none; margin-top:0; width:100%; padding:12px; border-radius:8px;
+  border:2px solid #ff4d4d; background:rgba(255,77,77,0.08); color:#ff4d4d;
+  font-family:inherit; font-size:0.85rem; font-weight:700;
+  text-align:center; letter-spacing:2px; text-transform:uppercase; outline:none;
+  box-sizing:border-box;
 }
-.gk-execute-btn.gamble:hover { opacity:0.85; }
-.gk-status {
-  font-size:0.72rem; color:#666; text-align:center; line-height:1.4;
+.gk-gamble-input.visible { display:block; }
+.gk-gamble-input::placeholder { color:rgba(255,77,77,0.4); text-transform:none; font-weight:400; letter-spacing:0; }
+
+/* Pulse animations for card border */
+@keyframes guard-breathe {
+  0%, 100% { box-shadow:0 0 10px rgba(0,255,136,0.1); }
+  50% { box-shadow:0 0 30px rgba(0,255,136,0.3); }
+}
+@keyframes guard-strobe {
+  0%, 100% { opacity:1; }
+  50% { border-color:transparent; box-shadow:none; }
 }
 
 
 /* ── Overlay Card Border Animation ── */
 .gatekeeper-card.card-neutral  { border-color:rgba(255,255,255,0.1); }
-.gatekeeper-card.card-ready    { border:3px solid #4fffb0; box-shadow:0 0 30px rgba(79,255,176,0.15); }
-.gatekeeper-card.card-caution  { border:3px solid #ffb347; box-shadow:0 0 30px rgba(255,179,71,0.15); }
-.gatekeeper-card.card-warning  { border:3px solid #ff4d6d; animation:pulse-red-card 1.5s infinite; }
-@keyframes pulse-red-card {
-  0%, 100% { box-shadow:0 0 15px rgba(255,77,109,0.2); }
-  50%      { box-shadow:0 0 35px rgba(255,77,109,0.4); }
-}
+.gatekeeper-card.card-ready    { border-color:#00ff88; box-shadow:0 0 30px rgba(0,255,136,0.2); animation:guard-breathe 3s infinite; }
+.gatekeeper-card.card-caution  { border-color:#ff9800; box-shadow:0 0 20px rgba(255,152,0,0.2); }
+.gatekeeper-card.card-warning  { border-color:#ff4d4d; box-shadow:0 0 30px rgba(255,77,77,0.3); animation:guard-strobe 0.8s infinite; }
 
 /* ── Page Border Animation ── */
 .page.guard-ready {
@@ -824,44 +821,42 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
-     GUARD OVERLAY — Pre-trade execution gatekeeper
+     GUARD OVERLAY — Post-execution honest reflection
      ═══════════════════════════════════════════════════════════ -->
 <div class="guard-backdrop" id="guard-backdrop" onclick="closeGuardOverlay()"></div>
 <div class="gatekeeper-card" id="guard-card">
   <div class="gk-header">
-    <span class="gk-title">Pre-Trade Check</span>
-    <span class="gk-score" id="gk-score">0 / 18</span>
+    <span class="gk-title">How did you enter?</span>
   </div>
-  <div class="gk-body">
-    <div class="gk-section">
-      <div class="gk-section-label">Technical Criteria</div>
-      <div class="gk-chips">
-        <button class="gk-chip" data-tech="developing_value" onclick="toggleTechChip(this)">Developing Value</button>
-        <button class="gk-chip" data-tech="volume_tempo" onclick="toggleTechChip(this)">Volume / Tempo</button>
-        <button class="gk-chip" data-tech="trend_alignment" onclick="toggleTechChip(this)">Trend Alignment</button>
-        <button class="gk-chip" data-tech="internals_adh" onclick="toggleTechChip(this)">Internals / ADH</button>
-        <button class="gk-chip full-width" data-tech="repeatable" onclick="toggleRepeatable(this)">1000× Repeatable</button>
-      </div>
-    </div>
-    <div class="gk-section">
-      <div class="gk-section-label">Entry Mode</div>
-      <div class="gk-toggle-box">
-        <button class="gk-toggle-btn active" data-mode="anticipating" onclick="setEntryMode(this)">Anticipating</button>
-        <button class="gk-toggle-btn" data-mode="strength" onclick="setEntryMode(this)">Strength</button>
-      </div>
-    </div>
-    <div class="gk-section">
-      <div class="gk-section-label">Mental State</div>
-      <div class="gk-toggle-box">
-        <button class="gk-toggle-btn" data-mental="eager" onclick="setMentalState(this)">Eager / FOMO</button>
-        <button class="gk-toggle-btn" data-mental="intuition" onclick="setMentalState(this)">Intuition / Mkt Feel</button>
-        <button class="gk-toggle-btn" data-mental="patient" onclick="setMentalState(this)">Trade Came to Me</button>
-      </div>
-    </div>
+  <div class="gk-sub">Be honest — this is for you.</div>
+  <div class="gk-traffic">
+    <button class="gk-traffic-btn green" id="gk-patient"
+            onclick="guardSelectPatient()"
+            onmouseenter="guardHover('patient')" onmouseleave="guardHoverReset()">
+      Trade Came to Me
+    </button>
+    <button class="gk-traffic-btn orange" id="gk-intuition"
+            onclick="guardSelectIntuition()"
+            onmouseenter="guardHover('intuition')" onmouseleave="guardHoverReset()">
+      Intuition / Mkt Feel
+    </button>
+    <button class="gk-traffic-btn red" id="gk-eager"
+            onclick="guardSelectEager()"
+            onmouseenter="guardHover('eager')" onmouseleave="guardHoverReset()">
+      Eager / FOMO
+    </button>
   </div>
-  <div class="gk-footer">
-    <button class="gk-execute-btn locked" id="gk-execute" onclick="guardExecute()" disabled>LOCKED</button>
-    <div class="gk-status" id="gk-status">Select at least 3 technical criteria and confirm repeatable</div>
+  <div class="gk-consequence" id="gk-consequence">
+    <div class="gk-consequence-msg" id="gk-consequence-msg">Identify your mental state to unlock the journal.</div>
+    <button class="gk-confirm-btn orange" id="gk-intuition-confirm" onclick="guardConfirmIntuition()">
+      I Understand — Log Trade
+    </button>
+    <input class="gk-gamble-input" id="gk-gamble-input"
+           placeholder='Type "GAMBLE" to continue'
+           oninput="checkGambleInput(this)">
+    <button class="gk-confirm-btn red" id="gk-gamble-confirm" onclick="guardConfirmGamble()" disabled>
+      Gamble
+    </button>
   </div>
 </div>
 
@@ -1136,8 +1131,9 @@ let allTrades = [];
 
 // ── Guard / Prep Mode State ──────────────────────────────────────────────────
 let prepMode = localStorage.getItem('prepMode') !== 'false';  // default ON
-let guardState = { tech: [], repeatable: false, entry_mode: 'anticipating', mental_state: null, score: 0 };
+let guardState = { mental_state: null };
 let guardApproved = false;
+let guardLocked = false;  // true after a button is clicked (waiting for confirm/gamble input)
 
 (function initPrepToggle() {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1153,27 +1149,34 @@ function togglePrepMode() {
   if (!prepMode) clearPageGuardBorder();
 }
 
-function resetGuardState() {
-  guardState = { tech: [], repeatable: false, entry_mode: 'anticipating', mental_state: null, score: 0 };
-  guardApproved = false;
-}
-
 function showGuardOverlay() {
-  resetGuardState();
-  // Reset UI chips
-  document.querySelectorAll('.gk-chip').forEach(c => c.classList.remove('active'));
-  document.querySelectorAll('.gk-toggle-btn').forEach(r => r.classList.remove('active', 'warn', 'caution', 'strength', 'patient'));
-  // Default entry_mode to anticipating
-  document.querySelector('.gk-toggle-btn[data-mode="anticipating"]').classList.add('active');
+  guardState = { mental_state: null };
+  guardApproved = false;
+  guardLocked = false;
+  // Reset UI
+  document.getElementById('gk-gamble-input').classList.remove('visible');
+  document.getElementById('gk-gamble-input').value = '';
+  document.getElementById('gk-gamble-confirm').classList.remove('visible');
+  document.getElementById('gk-gamble-confirm').disabled = true;
+  document.getElementById('gk-intuition-confirm').classList.remove('visible');
+  document.getElementById('gk-patient').disabled = false;
+  document.getElementById('gk-intuition').disabled = false;
+  document.getElementById('gk-intuition').classList.remove('selected');
+  document.getElementById('gk-eager').disabled = false;
+  document.getElementById('gk-eager').classList.remove('selected');
+  const card = document.getElementById('guard-card');
+  card.classList.remove('card-ready','card-caution','card-warning','card-neutral');
+  document.getElementById('gk-consequence-msg').textContent = 'Identify your mental state to unlock the journal.';
+  document.getElementById('gk-consequence-msg').style.color = '#555';
+  // Show
   document.getElementById('guard-backdrop').classList.add('open');
-  document.getElementById('guard-card').classList.add('open');
-  updateGuardState();
+  card.classList.add('open');
 }
 
 function closeGuardOverlay() {
   document.getElementById('guard-backdrop').classList.remove('open');
   const card = document.getElementById('guard-card');
-  card.classList.remove('open', 'card-ready', 'card-warning', 'card-caution', 'card-neutral');
+  card.classList.remove('open','card-ready','card-caution','card-warning','card-neutral');
   clearPageGuardBorder();
 }
 
@@ -1182,117 +1185,96 @@ function clearPageGuardBorder() {
   if (page) page.classList.remove('guard-ready', 'guard-warning', 'guard-neutral');
 }
 
-function toggleTechChip(el) {
-  const key = el.dataset.tech;
-  el.classList.toggle('active');
-  if (el.classList.contains('active')) {
-    if (!guardState.tech.includes(key)) guardState.tech.push(key);
-  } else {
-    guardState.tech = guardState.tech.filter(t => t !== key);
-  }
-  updateGuardState();
-}
-
-function toggleRepeatable(el) {
-  el.classList.toggle('active');
-  guardState.repeatable = el.classList.contains('active');
-  updateGuardState();
-}
-
-function setEntryMode(el) {
-  const box = el.parentElement;
-  box.querySelectorAll('.gk-toggle-btn').forEach(r => r.classList.remove('active', 'strength'));
-  el.classList.add('active');
-  if (el.dataset.mode === 'strength') el.classList.add('strength');
-  guardState.entry_mode = el.dataset.mode;
-  updateGuardState();
-}
-
-function setMentalState(el) {
-  const box = el.parentElement;
-  box.querySelectorAll('.gk-toggle-btn').forEach(r => r.classList.remove('active', 'warn', 'caution', 'patient'));
-  el.classList.add('active');
-  if (el.dataset.mental === 'eager') el.classList.add('warn');
-  if (el.dataset.mental === 'intuition') el.classList.add('caution');
-  if (el.dataset.mental === 'patient') el.classList.add('patient');
-  guardState.mental_state = el.dataset.mental;
-  updateGuardState();
-}
-
-function updateGuardState() {
-  // Score calculation
-  let score = guardState.tech.length * 2;                       // each tech = +2
-  if (guardState.repeatable) score += 5;                         // repeatable = +5
-  score += guardState.entry_mode === 'strength' ? 2 : 1;        // strength=+2, anticipating=+1
-  if (guardState.mental_state === 'patient') score += 5;         // patient = +5
-  else if (guardState.mental_state === 'intuition') score += 3;  // intuition = +3
-  else if (guardState.mental_state === 'eager') score -= 5;      // eager = -5
-  guardState.score = Math.max(0, score);
-
-  // Update score display
-  const scoreEl = document.getElementById('gk-score');
-  scoreEl.textContent = `${guardState.score} / 20`;
-  scoreEl.className = 'gk-score';
-
-  const techCount = guardState.tech.length;
-  const btn = document.getElementById('gk-execute');
-  const status = document.getElementById('gk-status');
-  const page = document.querySelector('.page');
+// Hover effects (Simple_V2 style — border pulse + consequence message)
+function guardHover(type) {
+  if (guardLocked) return;
   const card = document.getElementById('guard-card');
-
-  // Clear border classes
-  page.classList.remove('guard-ready', 'guard-warning', 'guard-neutral');
-  card.classList.remove('card-ready', 'card-warning', 'card-caution', 'card-neutral');
-
-  if (techCount < 3 || !guardState.repeatable) {
-    // LOCKED — missing tech/repeatable
-    btn.className = 'gk-execute-btn locked';
-    btn.textContent = 'LOCKED';
-    btn.disabled = true;
-    status.textContent = 'Select at least 3 technical criteria and confirm repeatable';
-    page.classList.add('guard-neutral');
-    card.classList.add('card-neutral');
-  } else if (!guardState.mental_state) {
-    // LOCKED — need mental state
-    btn.className = 'gk-execute-btn locked';
-    btn.textContent = 'LOCKED';
-    btn.disabled = true;
-    status.textContent = 'Select your mental state';
-    page.classList.add('guard-neutral');
-    card.classList.add('card-neutral');
-  } else if (guardState.mental_state === 'patient') {
-    // EXECUTE — best state
-    const modeLabel = guardState.entry_mode === 'strength' ? 'STRENGTH' : 'ANTICIPATING';
-    btn.className = 'gk-execute-btn execute';
-    btn.textContent = `EXECUTE ${modeLabel}`;
-    btn.disabled = false;
-    status.textContent = 'All criteria met — clear to execute';
-    scoreEl.classList.add('good');
-    page.classList.add('guard-ready');
+  const msg = document.getElementById('gk-consequence-msg');
+  card.classList.remove('card-ready','card-caution','card-warning','card-neutral');
+  if (type === 'patient') {
     card.classList.add('card-ready');
-  } else if (guardState.mental_state === 'intuition') {
-    // EXECUTE — intuition (orange border)
-    const modeLabel = guardState.entry_mode === 'strength' ? 'STRENGTH' : 'ANTICIPATING';
-    btn.className = 'gk-execute-btn execute';
-    btn.textContent = `EXECUTE ${modeLabel}`;
-    btn.disabled = false;
-    status.textContent = 'Intuition entry — trust but verify';
-    scoreEl.classList.add('good');
-    page.classList.add('guard-ready');
+    msg.textContent = 'Professional: You traded your edge. This behavior leads to long-term profitability.';
+    msg.style.color = '#00ff88';
+  } else if (type === 'intuition') {
     card.classList.add('card-caution');
-  } else {
-    // GAMBLE — eager/FOMO
-    btn.className = 'gk-execute-btn gamble';
-    btn.textContent = 'GAMBLE';
-    btn.disabled = false;
-    status.textContent = 'FOMO detected — this is a gamble, not a trade';
-    scoreEl.classList.add('bad');
-    page.classList.add('guard-warning');
+    msg.textContent = "You have identified Competition's situation, but your trigger is based on 'Feel' rather than strength. Volume must confirm your edge.";
+    msg.style.color = '#ff9800';
+  } else if (type === 'eager') {
     card.classList.add('card-warning');
+    msg.textContent = 'Gamble: You are chasing. This is a direct threat to your account.';
+    msg.style.color = '#ff4d4d';
   }
 }
 
-function guardExecute() {
+function guardHoverReset() {
+  if (guardLocked) return;
+  const card = document.getElementById('guard-card');
+  card.classList.remove('card-ready','card-caution','card-warning','card-neutral');
+  const msg = document.getElementById('gk-consequence-msg');
+  msg.textContent = 'Identify your mental state to unlock the journal.';
+  msg.style.color = '#555';
+}
+
+// GREEN — instant proceed
+function guardSelectPatient() {
+  if (guardLocked) return;
+  guardState.mental_state = 'patient';
+  guardApproved = true;
+  closeGuardOverlay();
+  openTrade();
+}
+
+// ORANGE — must click confirm button
+function guardSelectIntuition() {
+  if (guardLocked) return;
+  guardLocked = true;
+  const card = document.getElementById('guard-card');
+  card.classList.remove('card-ready','card-caution','card-warning','card-neutral');
+  card.classList.add('card-caution');
+  const msg = document.getElementById('gk-consequence-msg');
+  msg.textContent = "You have identified Competition's situation, but your trigger is based on 'Feel' rather than strength. Volume must confirm your edge.";
+  msg.style.color = '#ff9800';
+  // Disable other buttons, highlight selected, show confirm
+  document.getElementById('gk-patient').disabled = true;
+  document.getElementById('gk-intuition').classList.add('selected');
+  document.getElementById('gk-eager').disabled = true;
+  document.getElementById('gk-intuition-confirm').classList.add('visible');
+}
+
+function guardConfirmIntuition() {
+  guardState.mental_state = 'intuition';
+  guardApproved = true;
+  closeGuardOverlay();
+  openTrade();
+}
+
+// RED — type GAMBLE to confirm
+function guardSelectEager() {
+  if (guardLocked) return;
+  guardLocked = true;
+  const card = document.getElementById('guard-card');
+  card.classList.remove('card-ready','card-caution','card-warning','card-neutral');
+  card.classList.add('card-warning');
+  const msg = document.getElementById('gk-consequence-msg');
+  msg.textContent = 'FOMO detected — type GAMBLE to continue, or close to reconsider.';
+  msg.style.color = '#ff4d4d';
+  document.getElementById('gk-gamble-input').classList.add('visible');
+  document.getElementById('gk-gamble-input').focus();
+  // Disable other buttons, highlight selected
+  document.getElementById('gk-patient').disabled = true;
+  document.getElementById('gk-intuition').disabled = true;
+  document.getElementById('gk-eager').classList.add('selected');
+}
+
+function checkGambleInput(el) {
+  const btn = document.getElementById('gk-gamble-confirm');
+  const match = el.value.trim().toUpperCase() === 'GAMBLE';
+  btn.disabled = !match;
+  if (match) btn.classList.add('visible'); else btn.classList.remove('visible');
+}
+
+function guardConfirmGamble() {
+  guardState.mental_state = 'eager';
   guardApproved = true;
   closeGuardOverlay();
   openTrade();
@@ -1471,7 +1453,7 @@ async function openTrade() {
   updateDayPnl();
   showToast(`${formDir} ${qty}× ${formInst} @ ${price}`);
   guardApproved = false;
-  resetGuardState();
+  guardState = { mental_state: null };
 }
 
 // ── Derive Trade Status ──────────────────────────────────────────────────────

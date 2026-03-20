@@ -940,7 +940,7 @@ def observations_view():
     today = date.today()
     if preset == "this_week":
         date_from = (today - timedelta(days=today.weekday())).isoformat()
-        date_to = today.isoformat()
+        date_to = (today - timedelta(days=today.weekday()) + timedelta(days=6)).isoformat()
     elif preset == "last_week":
         start = today - timedelta(days=today.weekday() + 7)
         date_from = start.isoformat()
@@ -976,7 +976,10 @@ def api_create_observation():
     # Accept both string and list — normalize to list for DB
     if isinstance(category, str):
         category = [category]
-    obs_group = body.get("obs_group", "")
+    obs_group = body.get("obs_group", [])
+    # Accept both string and list
+    if isinstance(obs_group, str):
+        obs_group = [obs_group] if obs_group else []
     obs_id = db.create_observation(
         body.get("date", date.today().isoformat()),
         body.get("time", ""),

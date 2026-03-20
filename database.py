@@ -811,10 +811,25 @@ def _cascade_obs_category_rename(conn, old_name, new_name):
 
 def _cascade_obs_group_rename(conn, old_name, new_name):
     """Cascade an observation group rename across all observations."""
-    conn.execute(
-        "UPDATE observations SET obs_group = ? WHERE obs_group = ?",
-        (new_name, old_name)
-    )
+    import json
+    # Handle JSON array format
+    rows = conn.execute(
+        "SELECT id, obs_group FROM observations WHERE obs_group LIKE ? OR obs_group = ?",
+        (f'%"{old_name}"%', old_name)
+    ).fetchall()
+    for row in rows:
+        val = row["obs_group"]
+        try:
+            parsed = json.loads(val)
+            if isinstance(parsed, list):
+                updated = [new_name if g == old_name else g for g in parsed]
+                conn.execute("UPDATE observations SET obs_group = ? WHERE id = ?", (json.dumps(updated), row["id"]))
+                continue
+        except (json.JSONDecodeError, TypeError, ValueError):
+            pass
+        # Legacy plain text
+        if val == old_name:
+            conn.execute("UPDATE observations SET obs_group = ? WHERE id = ?", (json.dumps([new_name]), row["id"]))
 
 
 def _cascade_day_type_rename(conn, old_name, new_name):
@@ -1820,10 +1835,16 @@ def create_observation(date, time, text, category="general", obs_group=""):
         cat_str = json.dumps(category)
     else:
         cat_str = json.dumps([category])
+    if isinstance(obs_group, list):
+        grp_str = json.dumps(obs_group)
+    elif obs_group:
+        grp_str = json.dumps([obs_group])
+    else:
+        grp_str = json.dumps([])
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO observations (date, time, text, category, obs_group) VALUES (?, ?, ?, ?, ?)",
-            (date, time, text, cat_str, obs_group)
+            (date, time, text, cat_str, grp_str)
         )
         return cur.lastrowid
 
@@ -1836,7 +1857,7 @@ def update_observation(obs_id, **fields):
         for k, v in fields.items():
             if k in allowed:
                 sets.append(f"{k} = ?")
-                if k == "category" and isinstance(v, list):
+                if k in ("category", "obs_group") and isinstance(v, list):
                     vals.append(json.dumps(v))
                 else:
                     vals.append(v)
@@ -1864,9 +1885,10 @@ def get_observations(date_from=None, date_to=None, category=None, obs_group=None
         if category and category != "all":
             conditions.append("o.category LIKE ?")
             params.append(f'%"{category}"%')
-        # Group filter
+        # Group filter: single value, match within JSON array (or legacy plain text)
         if obs_group and obs_group != "all":
-            conditions.append("o.obs_group = ?")
+            conditions.append("(o.obs_group LIKE ? OR o.obs_group = ?)")
+            params.append(f'%"{obs_group}"%')
             params.append(obs_group)
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
         rows = conn.execute(f"""
@@ -1880,6 +1902,12 @@ def get_observations(date_from=None, date_to=None, category=None, obs_group=None
                 d["category_list"] = json.loads(d["category"])
             except (json.JSONDecodeError, TypeError):
                 d["category_list"] = [d["category"]] if d["category"] else ["general"]
+            # Parse obs_group JSON into group_list
+            try:
+                parsed = json.loads(d["obs_group"])
+                d["group_list"] = parsed if isinstance(parsed, list) else [parsed] if parsed else []
+            except (json.JSONDecodeError, TypeError, ValueError):
+                d["group_list"] = [d["obs_group"]] if d.get("obs_group") else []
             d["images"] = [dict(i) for i in conn.execute(
                 "SELECT * FROM observation_images WHERE observation_id = ? ORDER BY uploaded_at",
                 (d["id"],)

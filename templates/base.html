@@ -681,78 +681,78 @@
 <script>
 // ── FAB Observation Modal ──────────────────────────────────────────────
 (function initObsModal() {
-  // Category — single-select
+  // Category — multi-select
   const cats = {{ obs_categories | tojson }};
   const row = document.getElementById('obs-cat-row');
   if (!row) return;
-  let selectedCat = 'general';
+  let selectedCats = new Set(['general']);
   cats.forEach(c => {
     const btn = document.createElement('button');
-    btn.className = 'obs-cat-btn' + (c === selectedCat ? ' active' : '');
+    btn.className = 'obs-cat-btn' + (selectedCats.has(c) ? ' active' : '');
     btn.textContent = c;
     btn.type = 'button';
     btn.onclick = () => {
-      row.querySelectorAll('.obs-cat-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      selectedCat = c;
+      if (selectedCats.has(c)) {
+        selectedCats.delete(c);
+        btn.classList.remove('active');
+      } else {
+        selectedCats.add(c);
+        btn.classList.add('active');
+      }
     };
     row.appendChild(btn);
   });
-  window._obsGetCat = () => [selectedCat];
+  window._obsGetCat = () => Array.from(selectedCats);
 
-  // Group — single-select (optional, can deselect)
+  // Group — multi-select (optional, can deselect all)
   const grps = {{ obs_groups | tojson }};
   const grpRow = document.getElementById('obs-grp-row');
-  let selectedGrp = '';
+  let selectedGrps = new Set();
   grps.forEach(g => {
     const btn = document.createElement('button');
     btn.className = 'obs-cat-btn';
     btn.textContent = g;
     btn.type = 'button';
-    btn.style.cssText = '';
     btn.onclick = () => {
-      if (selectedGrp === g) {
-        selectedGrp = '';
+      if (selectedGrps.has(g)) {
+        selectedGrps.delete(g);
         btn.classList.remove('active');
       } else {
-        grpRow.querySelectorAll('.obs-cat-btn').forEach(b => b.classList.remove('active'));
+        selectedGrps.add(g);
         btn.classList.add('active');
-        selectedGrp = g;
       }
     };
     grpRow.appendChild(btn);
   });
-  window._obsGetGrp = () => selectedGrp;
+  window._obsGetGrp = () => Array.from(selectedGrps);
 
   // Auto-fill date/time when modal opens
   const fab = document.getElementById('obs-fab');
   fab.addEventListener('click', () => {
     const now = new Date();
-    document.getElementById('obs-date').value = now.toISOString().split('T')[0];
+    document.getElementById('obs-date').value = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
     document.getElementById('obs-time').value = now.toTimeString().slice(0,5);
     document.getElementById('obs-text').value = '';
     document.getElementById('obs-file-label').textContent = 'Drop, click, or paste (⌘V) to upload';
     document.getElementById('obs-file-input').value = '';
     window._obsFiles = null;
+    window._obsFileList = [];
     document.getElementById('obs-thumb-grid').innerHTML = '';
     // Reset category selection
-    selectedCat = 'general';
+    selectedCats = new Set(['general']);
     row.querySelectorAll('.obs-cat-btn').forEach(b => {
-      b.classList.toggle('active', b.textContent === selectedCat);
+      b.classList.toggle('active', b.textContent === 'general');
     });
     // Reset group selection
-    selectedGrp = '';
+    selectedGrps = new Set();
     grpRow.querySelectorAll('.obs-cat-btn').forEach(b => b.classList.remove('active'));
   });
 })();
 
 function _addObsFiles(newFiles) {
-  const dt = new DataTransfer();
-  if (window._obsFiles) {
-    for (const f of Array.from(window._obsFiles)) dt.items.add(f);
-  }
-  for (const f of Array.from(newFiles)) dt.items.add(f);
-  window._obsFiles = dt.files;
+  if (!window._obsFileList) window._obsFileList = [];
+  for (const f of Array.from(newFiles)) window._obsFileList.push(f);
+  window._obsFiles = window._obsFileList;
   _renderObsThumbs();
 }
 
@@ -777,9 +777,8 @@ function _renderObsThumbs() {
     div.addEventListener('mouseenter', () => del.style.display = 'block');
     div.addEventListener('mouseleave', () => del.style.display = 'none');
     del.addEventListener('click', () => {
-      const dt = new DataTransfer();
-      Array.from(window._obsFiles).forEach((f, i) => { if (i !== idx) dt.items.add(f); });
-      window._obsFiles = dt.files.length ? dt.files : null;
+      window._obsFileList = window._obsFileList.filter((f, i) => i !== idx);
+      window._obsFiles = window._obsFileList.length ? window._obsFileList : null;
       _renderObsThumbs();
     });
     div.appendChild(del);
@@ -794,7 +793,7 @@ async function saveQuickObs() {
   const category = window._obsGetCat();
   if (!text) { showToast('Write something first', true); return; }
   try {
-    const obs_group = window._obsGetGrp ? window._obsGetGrp() : '';
+    const obs_group = window._obsGetGrp ? window._obsGetGrp() : [];
     const res = await fetch('/api/observation', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({date, time, text, category, obs_group})
@@ -813,6 +812,10 @@ async function saveQuickObs() {
     }
     document.getElementById('obs-modal').classList.remove('show');
     showToast('Observation saved');
+    // Reload if on observations page so new entry appears
+    if (window.location.pathname === '/observations') {
+      setTimeout(() => location.reload(), 300);
+    }
   } catch(e) { showToast('Error saving', true); }
 }
 
@@ -841,12 +844,9 @@ document.addEventListener('paste', (e) => {
   e.preventDefault();
   e.stopImmediatePropagation();
   // Accumulate pasted files
-  const dt = new DataTransfer();
-  if (window._obsFiles) {
-    for (const f of Array.from(window._obsFiles)) dt.items.add(f);
-  }
-  dt.items.add(file);
-  window._obsFiles = dt.files;
+  if (!window._obsFileList) window._obsFileList = [];
+  window._obsFileList.push(file);
+  window._obsFiles = window._obsFileList;
   _renderObsThumbs();
   // Brief green flash on drop zone
   const zone = document.getElementById('obs-drop-zone');
