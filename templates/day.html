@@ -289,7 +289,13 @@
 {% set has_reflection = day.day_type or day.day_value or day.day_volume or day.notes_well or day.notes_improve or day.notes_lessons or day.notes_focus or day_images %}
 <div class="day-chart-wrap" id="daily-reflection" style="margin-bottom:20px;">
   <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="document.getElementById('refl-body').classList.toggle('collapsed');this.querySelector('.refl-arrow').classList.toggle('open')">
-    <div class="day-chart-title" style="margin-bottom:0;">Daily Reflection</div>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div class="day-chart-title" style="margin-bottom:0;">Daily Reflection</div>
+      <a href="/day/{{ day.id }}/internals" target="_blank"
+         style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--accent2);text-decoration:none;padding:3px 10px;border:1px solid var(--border2);border-radius:2px;transition:all 0.15s;white-space:nowrap;"
+         onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+         onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--accent2)'">Market Internals ↗</a>
+    </div>
     <span class="refl-arrow {{ 'open' if has_reflection else '' }}" style="color:var(--muted);font-size:14px;transition:transform 0.25s;display:inline-block;">&#9662;</span>
   </div>
   <div id="refl-body" class="{{ '' if has_reflection else 'collapsed' }}">

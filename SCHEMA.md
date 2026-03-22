@@ -19,6 +19,8 @@ setups ──< setup_images
 
 observations ──< observation_images
 
+trading_days ──< market_internals
+
 tag_config (standalone)
 app_config (standalone)
 ```
@@ -331,6 +333,36 @@ Images attached to observations.
 
 ---
 
+### 20. MARKET_INTERNALS
+Daily market internals logged per session (morning, midday, afternoon).
+
+| Column       | Type    | Constraints                                    |
+|--------------|---------|------------------------------------------------|
+| id           | INTEGER | PK AUTOINCREMENT                               |
+| day_id       | INTEGER | NOT NULL, FK → trading_days(id) ON DELETE CASCADE |
+| session      | TEXT    | NOT NULL (morning, midday, afternoon)          |
+| timestamp    | TEXT    | DEFAULT ''                                     |
+| structure    | TEXT    | DEFAULT ''                                     |
+| value_area   | TEXT    | DEFAULT ''                                     |
+| vix          | TEXT    | DEFAULT ''                                     |
+| trin         | TEXT    | DEFAULT ''                                     |
+| vol_pct      | TEXT    | DEFAULT ''                                     |
+| vold_nyse    | TEXT    | DEFAULT ''                                     |
+| vold_nq      | TEXT    | DEFAULT ''                                     |
+| add_nyse     | TEXT    | DEFAULT ''                                     |
+| add_nq       | TEXT    | DEFAULT ''                                     |
+| adh          | TEXT    | DEFAULT ''                                     |
+| sectors_json | TEXT    | DEFAULT '[]'                                   |
+| tape_notes   | TEXT    | DEFAULT ''                                     |
+
+**Unique:** (day_id, session)
+
+`structure` values: Balanced, Trending, Short Covering, Liquidation, Thin Structure.
+`value_area` values: Lower, Overlapping Lower, Overlapping, Overlapping Higher, Higher.
+`sectors_json` stores a JSON array of `{ticker, value}` objects for sector weighting.
+
+---
+
 ## Foreign Key Summary
 
 ### CASCADE deletes (deleting parent removes children):
@@ -349,6 +381,7 @@ Images attached to observations.
 | live_trades    | live_trade_images      | live_trade_id    |
 | setups         | setup_images           | setup_id         |
 | observations   | observation_images     | observation_id   |
+| trading_days   | market_internals       | day_id           |
 
 ### SET NULL on delete (parent deletion nullifies FK):
 | Parent   | Child        | FK Column  |
@@ -379,6 +412,7 @@ Images attached to observations.
 | idx_setup_images   | setup_images           | setup_id        |
 | idx_obs_date       | observations           | date            |
 | idx_obs_images     | observation_images     | observation_id  |
+| idx_internals_day  | market_internals       | day_id          |
 
 ---
 

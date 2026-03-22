@@ -1,0 +1,718 @@
+{% extends "base.html" %}
+{% block title %}Market Internals — {{ day.date }}{% endblock %}
+
+{% block extra_styles %}
+/* ── Fonts ── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+/* ── Internals Page — full width ── */
+.page { max-width: 100%; padding: 40px 48px 80px; }
+
+.internals-header {
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:28px;
+}
+.internals-header .page-title {
+  margin:0;
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  color: #E6EDF3;
+  text-shadow: none;
+}
+
+.session-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  margin-bottom: 32px;
+  padding: 24px 28px;
+}
+
+.session-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+  margin-bottom: 18px;
+}
+
+.session-header h2 {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: 2px;
+  color: #A7B0C0;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.session-header .time-input {
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 2px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: bold;
+  width: 130px;
+}
+.session-header .time-input:focus {
+  border-color: var(--muted);
+}
+
+/* 4 tiles in a single row: equal width, sectors a bit wider */
+.market-log-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1.3fr;
+  gap: 14px;
+}
+
+.module {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.module-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+
+.module-header h4 {
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 10px;
+  margin: 0;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.mi-field { display:flex; flex-direction:column; gap:3px; margin-bottom:10px; }
+.mi-label {
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 9px; color: var(--muted); text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Selectable chip buttons (Structure, Value Area) */
+.mi-chip-row { display:flex; flex-wrap:wrap; gap:6px; }
+.mi-chip {
+  display: inline-block;
+  padding: 4px 12px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  color: var(--muted2);
+  cursor: pointer;
+  transition: all 0.12s;
+  clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+  user-select: none;
+}
+.mi-chip:hover {
+  background: var(--surface2);
+  color: var(--text);
+  border-color: var(--muted);
+}
+.mi-chip.active-green {
+  background: rgba(79,255,176,0.1);
+  border-color: var(--green);
+  color: var(--green);
+}
+.mi-chip.active-red {
+  background: rgba(255,77,109,0.1);
+  border-color: var(--red);
+  color: var(--red);
+}
+.mi-chip.active-blue {
+  background: rgba(0,207,255,0.1);
+  border-color: var(--accent2);
+  color: var(--accent2);
+}
+
+.mi-input, .mi-select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: var(--text);
+  padding: 8px 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.mi-textarea {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: var(--text);
+  padding: 8px 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.15s;
+  resize: vertical; min-height: 60px; line-height: 1.6;
+  flex: 1;
+}
+.mi-input:focus, .mi-select:focus, .mi-textarea:focus {
+  border-color: var(--accent);
+}
+
+.mi-internal {
+  text-align: center; font-weight: bold;
+  font-family: 'JetBrains Mono', monospace;
+  border: 1px solid transparent;
+}
+
+.mi-neg { background: rgba(255,77,109,0.1) !important; color: var(--red) !important; border-color: rgba(255,77,109,0.3) !important; }
+.mi-pos { background: rgba(79,255,176,0.1) !important; color: var(--green) !important; border-color: rgba(79,255,176,0.3) !important; }
+.mi-neutral { background: var(--surface3) !important; color: var(--muted2) !important; border-color: var(--border2) !important; }
+
+/* Sector buckets */
+.sector-add-row {
+  display: flex; gap: 6px; margin-top: auto; padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.sector-add-row .mi-select { flex: 1; min-width: 0; }
+.sector-add-row .mi-input { width: 70px; flex: none; }
+
+.sector-add-btn {
+  background: var(--surface3); color: var(--muted2);
+  border: 1px solid var(--border); border-radius: 2px;
+  padding: 0 10px; cursor: pointer; font-weight: 500;
+  font-family: 'Inter', sans-serif; font-size: 10px;
+  letter-spacing: 1px; text-transform: uppercase;
+  transition: all 0.12s;
+}
+.sector-add-btn:hover { background: var(--surface2); color: var(--text); border-color: var(--muted); }
+
+.sector-bucket {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 8px;
+  min-height: 36px;
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: flex-start;
+}
+.sector-bucket-label {
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 9px; letter-spacing: 1px; text-transform: uppercase;
+  width: 100%; margin-bottom: 2px;
+}
+.sector-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border-radius: 2px;
+  font-size: 11px; font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+}
+.sector-tag.pos { background: rgba(79,255,176,0.1); color: var(--green); border: 1px solid rgba(79,255,176,0.25); }
+.sector-tag.neg { background: rgba(255,77,109,0.1); color: var(--red); border: 1px solid rgba(255,77,109,0.25); }
+.sector-tag .sector-rm {
+  cursor: pointer; opacity: 0.5; font-size: 9px; margin-left: 2px;
+}
+.sector-tag .sector-rm:hover { opacity: 1; }
+
+/* Theme toggle */
+.theme-toggle-mi {
+  display: flex; align-items: center; gap: 8px;
+}
+.theme-toggle-mi label {
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--muted); cursor: pointer;
+}
+.theme-toggle-mi input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none;
+  width: 36px; height: 18px;
+  background: var(--border2); border-radius: 9px;
+  position: relative; cursor: pointer;
+  transition: background 0.2s;
+}
+.theme-toggle-mi input[type="checkbox"]::after {
+  content: '';
+  position: absolute; top: 2px; left: 2px;
+  width: 14px; height: 14px;
+  background: var(--text); border-radius: 50%;
+  transition: transform 0.2s;
+}
+.theme-toggle-mi input[type="checkbox"]:checked {
+  background: var(--accent);
+}
+.theme-toggle-mi input[type="checkbox"]:checked::after {
+  transform: translateX(18px);
+}
+
+/* Breadcrumb font */
+.breadcrumb { font-family: 'Inter', sans-serif; font-weight: 500; }
+
+/* Paper Light theme overrides */
+[data-internals-theme="paper"] {
+  --bg: #f5f3ef;
+  --surface: #ffffff;
+  --surface2: #f0ede8;
+  --surface3: #e8e4dd;
+  --border: #d8d3ca;
+  --border2: #c5bfb3;
+  --text: #2c2c2c;
+  --muted: #8a8478;
+  --muted2: #6b665c;
+  --accent: #0d7c3e;
+  --accent2: #1a6b50;
+  --red: #cc2244;
+  --green: #0d7c3e;
+  --nav-bg: rgba(245,243,239,0.95);
+  --btn-text: #ffffff;
+  --btn-hover: #10964a;
+  --grid-color: rgba(13,124,62,0.03);
+  --accent-glow: rgba(13,124,62,0.2);
+  --accent-glow-soft: rgba(13,124,62,0.1);
+}
+
+/* Responsive: stack on smaller screens */
+@media (max-width: 1400px) {
+  .market-log-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 900px) {
+  .page { padding: 24px 16px 60px; }
+  .market-log-grid {
+    grid-template-columns: 1fr;
+  }
+}
+{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="/">Journal</a>
+  <span class="sep">/</span>
+  <a href="/day/{{ day.id }}">{{ day.date }}</a>
+  <span class="sep">/</span>
+  <span style="color:var(--text);">Market Internals</span>
+</div>
+
+<div class="internals-header">
+  <div>
+    <div class="page-title">Market Internals</div>
+    <div class="page-sub" style="font-family:'Inter',sans-serif;">{{ day.date }}</div>
+  </div>
+  <div class="theme-toggle-mi">
+    <label for="mi-theme-toggle">Paper Light</label>
+    <input type="checkbox" id="mi-theme-toggle">
+  </div>
+</div>
+
+<div id="internals-app">
+  <!-- Sessions rendered by JS -->
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const DAY_ID = {{ day.id }};
+const DAY_DATE = '{{ day.date }}';
+const SESSIONS = ['morning', 'midday', 'afternoon'];
+const SESSION_LABELS = { morning: 'Morning Session', midday: 'Mid-Day Session', afternoon: 'Afternoon Session' };
+
+function formatDateShort(isoDate) {
+  const d = new Date(isoDate + 'T00:00:00');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  return `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`;
+}
+
+const STRUCTURE_OPTIONS = [
+  { value:'Balanced',       label:'Balanced' },
+  { value:'Trending',       label:'Trending' },
+  { value:'Short Covering', label:'Short Covering' },
+  { value:'Liquidation',    label:'Liquidation' },
+  { value:'Thin Structure', label:'Thin Structure' },
+];
+const VALUE_OPTIONS = [
+  { value:'Lower',              label:'Lower' },
+  { value:'Overlapping Lower',  label:'OL' },
+  { value:'Overlapping',        label:'Overlapping' },
+  { value:'Overlapping Higher', label:'OH' },
+  { value:'Higher',             label:'Higher' },
+];
+const SPY_SECTORS = [
+  { ticker:'XLK', short:'Tech',    label:'XLK - Technology (30.5%)' },
+  { ticker:'XLV', short:'Health',  label:'XLV - Health Care (12.2%)' },
+  { ticker:'XLF', short:'Fin',     label:'XLF - Financials (12.1%)' },
+  { ticker:'XLY', short:'Disc',    label:'XLY - Consumer Disc (10.2%)' },
+  { ticker:'XLC', short:'Comm',    label:'XLC - Comm Services (9.3%)' },
+  { ticker:'XLI', short:'Indust',  label:'XLI - Industrials (8.1%)' },
+  { ticker:'XLP', short:'Staples', label:'XLP - Consumer Staples (5.9%)' },
+  { ticker:'XLE', short:'Energy',  label:'XLE - Energy (3.8%)' },
+  { ticker:'XLRE',short:'RE',      label:'XLRE - Real Estate (2.2%)' },
+  { ticker:'XLB', short:'Matls',   label:'XLB - Materials (2.1%)' },
+  { ticker:'XLU', short:'Utils',   label:'XLU - Utilities (2.0%)' },
+];
+
+function sectorShortName(ticker) {
+  const s = SPY_SECTORS.find(x => x.ticker === ticker);
+  return s ? s.short : ticker;
+}
+
+// State: one object per session
+const state = {};
+SESSIONS.forEach(s => {
+  state[s] = {
+    timestamp:'', structure:'', value_area:'',
+    vix:'', trin:'', vol_pct:'',
+    vold_nyse:'', vold_nq:'', add_nyse:'', add_nq:'', adh:'',
+    sectors_json:'[]', tape_notes:''
+  };
+});
+
+// ── Debounced auto-save ──
+const _saveTimers = {};
+function scheduleSave(session) {
+  clearTimeout(_saveTimers[session]);
+  _saveTimers[session] = setTimeout(() => saveSession(session), 400);
+}
+
+async function saveSession(session) {
+  const data = { ...state[session] };
+  try {
+    const res = await fetch(`/api/day/${DAY_ID}/internals/${session}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (res.ok) showToast('Saved');
+  } catch(e) {
+    showToast('Save failed', true);
+  }
+}
+
+function updateField(session, field, value) {
+  state[session][field] = value;
+  scheduleSave(session);
+}
+
+// ── Color internal fields ──
+function colorInternal(el) {
+  const val = el.value.trim();
+  el.classList.remove('mi-pos', 'mi-neg');
+  if (!val) return;
+  const num = parseFloat(val.replace(/[^\d.\-]/g, ''));
+  if (isNaN(num)) return;
+  el.classList.add(num < 0 ? 'mi-neg' : 'mi-pos');
+}
+
+// ── Vol % formatting ──
+function parseVolNum(raw) {
+  if (!raw && raw !== 0) return NaN;
+  return parseFloat(String(raw).replace(/[^\d.\-]/g, ''));
+}
+
+function formatVol(raw) {
+  const num = parseVolNum(raw);
+  if (isNaN(num)) return '';
+  return (num >= 0 ? '+' : '') + num + '%';
+}
+
+function colorVol(el) {
+  el.classList.remove('mi-pos', 'mi-neg', 'mi-neutral');
+  const num = parseVolNum(el.value);
+  if (isNaN(num)) return;
+  if (num > 10) el.classList.add('mi-pos');
+  else if (num < -10) el.classList.add('mi-neg');
+  else el.classList.add('mi-neutral');
+}
+
+function volFocus(el, session) {
+  // Show raw number for editing
+  const num = parseVolNum(state[session].vol_pct);
+  el.value = isNaN(num) ? '' : String(num);
+}
+
+function volBlur(el, session) {
+  const raw = el.value.trim();
+  const num = parseVolNum(raw);
+  if (raw === '' || isNaN(num)) {
+    state[session].vol_pct = '';
+    el.value = '';
+  } else {
+    state[session].vol_pct = String(num);
+    el.value = formatVol(num);
+  }
+  colorVol(el);
+  scheduleSave(session);
+}
+
+// ── Sectors ──
+function parseSectors(session) {
+  try { return JSON.parse(state[session].sectors_json); }
+  catch { return []; }
+}
+
+function addSector(session) {
+  const sel = document.getElementById(`sec-sel-${session}`);
+  const inp = document.getElementById(`sec-val-${session}`);
+  const ticker = sel.value;
+  const rawVal = inp.value.trim();
+  const val = parseFloat(rawVal);
+  if (!ticker || isNaN(val)) return;
+
+  const sectors = parseSectors(session);
+  const filtered = sectors.filter(s => s.ticker !== ticker);
+  filtered.push({ ticker, value: rawVal });
+  state[session].sectors_json = JSON.stringify(filtered);
+  inp.value = '';
+  renderSectors(session);
+  scheduleSave(session);
+}
+
+function removeSector(session, ticker) {
+  const sectors = parseSectors(session).filter(s => s.ticker !== ticker);
+  state[session].sectors_json = JSON.stringify(sectors);
+  renderSectors(session);
+  scheduleSave(session);
+}
+
+function renderSectors(session) {
+  const sectors = parseSectors(session);
+  const posEl = document.getElementById(`sec-pos-${session}`);
+  const negEl = document.getElementById(`sec-neg-${session}`);
+  if (!posEl || !negEl) return;
+
+  const pos = sectors.filter(s => parseFloat(s.value) >= 0);
+  const neg = sectors.filter(s => parseFloat(s.value) < 0);
+
+  posEl.innerHTML = '<span class="sector-bucket-label" style="color:var(--green);">Positive</span>' +
+    pos.map(s => `<span class="sector-tag pos">${sectorShortName(s.ticker)} ${s.value}<span class="sector-rm" onclick="removeSector('${session}','${s.ticker}')">x</span></span>`).join('');
+  negEl.innerHTML = '<span class="sector-bucket-label" style="color:var(--red);">Negative</span>' +
+    neg.map(s => `<span class="sector-tag neg">${sectorShortName(s.ticker)} ${s.value}<span class="sector-rm" onclick="removeSector('${session}','${s.ticker}')">x</span></span>`).join('');
+}
+
+// ── Render sessions ──
+function renderAll() {
+  const app = document.getElementById('internals-app');
+  app.innerHTML = SESSIONS.map(s => renderSession(s)).join('');
+
+  SESSIONS.forEach(s => {
+    ['vold_nyse','vold_nq','add_nyse','add_nq','adh'].forEach(f => {
+      const el = document.getElementById(`${f}-${s}`);
+      if (el) colorInternal(el);
+    });
+    const volEl = document.getElementById(`vol_pct-${s}`);
+    if (volEl) colorVol(volEl);
+    renderSectors(s);
+  });
+}
+
+// Chip color maps
+const CHIP_COLORS = {
+  structure: {
+    'Trending': 'active-green', 'Short Covering': 'active-green',
+    'Liquidation': 'active-red',
+    'Balanced': 'active-blue', 'Thin Structure': 'active-blue',
+  },
+  value_area: {
+    'Higher': 'active-green', 'Overlapping Higher': 'active-green',
+    'Lower': 'active-red', 'Overlapping Lower': 'active-red',
+    'Overlapping': 'active-blue',
+  },
+};
+
+function chipColorClass(field, value) {
+  return (CHIP_COLORS[field] && CHIP_COLORS[field][value]) || 'active-blue';
+}
+
+function chipRow(options, selected, session, field) {
+  return options.map(o => {
+    const activeClass = o.value === selected ? chipColorClass(field, o.value) : '';
+    return `<button type="button" class="mi-chip ${activeClass}"
+       data-value="${o.value.replace(/"/g,'&quot;')}"
+       onclick="selectChip('${session}','${field}',this,'${o.value.replace(/'/g,"\\'")}')">
+       ${o.label}</button>`;
+  }).join('');
+}
+
+function selectChip(session, field, el, value) {
+  const isActive = el.classList.contains('active-green') ||
+                   el.classList.contains('active-red') ||
+                   el.classList.contains('active-blue');
+  const row = el.parentElement;
+  row.querySelectorAll('.mi-chip').forEach(b => {
+    b.classList.remove('active-green', 'active-red', 'active-blue');
+  });
+  if (!isActive) {
+    el.classList.add(chipColorClass(field, value));
+    updateField(session, field, value);
+  } else {
+    updateField(session, field, '');
+  }
+}
+
+function sectorOptions() {
+  return SPY_SECTORS.map(s => `<option value="${s.ticker}">${s.label}</option>`).join('');
+}
+
+function renderSession(s) {
+  const d = state[s];
+  return `
+  <section class="session-section">
+    <div class="session-header">
+      <h2>${SESSION_LABELS[s]}</h2>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <span style="font-family:'Inter',sans-serif;font-weight:500;font-size:12px;color:var(--muted2);letter-spacing:0.5px;">${formatDateShort(DAY_DATE)}</span>
+        <span class="mi-label" style="margin:0;">Timestamp</span>
+        <input type="time" class="time-input" value="${d.timestamp}"
+               onchange="updateField('${s}','timestamp',this.value)">
+      </div>
+    </div>
+    <div class="market-log-grid">
+      <!-- Market Context + Tape Nuances -->
+      <div class="module">
+        <div class="module-header"><h4>Market Context</h4></div>
+        <div class="mi-field">
+          <label class="mi-label">Structure</label>
+          <div class="mi-chip-row">
+            ${chipRow(STRUCTURE_OPTIONS, d.structure, s, 'structure')}
+          </div>
+        </div>
+        <div class="mi-field">
+          <label class="mi-label">Value Area</label>
+          <div class="mi-chip-row">
+            ${chipRow(VALUE_OPTIONS, d.value_area, s, 'value_area')}
+          </div>
+        </div>
+        <div class="mi-field" style="flex:1;display:flex;flex-direction:column;">
+          <label class="mi-label">Tape Nuances</label>
+          <textarea class="mi-textarea"
+                    onblur="updateField('${s}','tape_notes',this.value)">${d.tape_notes}</textarea>
+        </div>
+      </div>
+
+      <!-- Vitals -->
+      <div class="module">
+        <div class="module-header"><h4>Vitals</h4></div>
+        <div class="mi-field">
+          <label class="mi-label">VIX</label>
+          <input class="mi-input" value="${d.vix}"
+                 onblur="updateField('${s}','vix',this.value)">
+        </div>
+        <div class="mi-field">
+          <label class="mi-label">$TRIN</label>
+          <input class="mi-input" value="${d.trin}"
+                 onblur="updateField('${s}','trin',this.value)">
+        </div>
+        <div class="mi-field">
+          <label class="mi-label">Vol % vs 21D Avg</label>
+          <input id="vol_pct-${s}" class="mi-input" value="${formatVol(d.vol_pct)}"
+                 onfocus="volFocus(this,'${s}')" onblur="volBlur(this,'${s}')">
+        </div>
+      </div>
+
+      <!-- Internals -->
+      <div class="module">
+        <div class="module-header"><h4>Internals</h4></div>
+        <div class="mi-field">
+          <label class="mi-label">VOLD (NYSE | NQ)</label>
+          <div style="display:flex;gap:6px;">
+            <input id="vold_nyse-${s}" class="mi-input mi-internal" value="${d.vold_nyse}" placeholder="NYSE"
+                   onblur="updateField('${s}','vold_nyse',this.value);colorInternal(this)">
+            <input id="vold_nq-${s}" class="mi-input mi-internal" value="${d.vold_nq}" placeholder="NQ"
+                   onblur="updateField('${s}','vold_nq',this.value);colorInternal(this)">
+          </div>
+        </div>
+        <div class="mi-field">
+          <label class="mi-label">ADD (NYSE | NQ)</label>
+          <div style="display:flex;gap:6px;">
+            <input id="add_nyse-${s}" class="mi-input mi-internal" value="${d.add_nyse}" placeholder="NYSE"
+                   onblur="updateField('${s}','add_nyse',this.value);colorInternal(this)">
+            <input id="add_nq-${s}" class="mi-input mi-internal" value="${d.add_nq}" placeholder="NQ"
+                   onblur="updateField('${s}','add_nq',this.value);colorInternal(this)">
+          </div>
+        </div>
+        <div class="mi-field">
+          <label class="mi-label">ADH</label>
+          <input id="adh-${s}" class="mi-input mi-internal" value="${d.adh}"
+                 onblur="updateField('${s}','adh',this.value);colorInternal(this)">
+        </div>
+      </div>
+
+      <!-- Sectors -->
+      <div class="module">
+        <div class="module-header"><h4>Sectors</h4></div>
+        <div id="sec-pos-${s}" class="sector-bucket" style="border-color:rgba(79,255,176,0.2);flex:1;"></div>
+        <div id="sec-neg-${s}" class="sector-bucket" style="border-color:rgba(255,77,109,0.2);flex:1;"></div>
+        <div class="sector-add-row">
+          <select id="sec-sel-${s}" class="mi-select">${sectorOptions()}</select>
+          <input id="sec-val-${s}" class="mi-input" placeholder="+0.50"
+                 onkeydown="if(event.key==='Enter'){addSector('${s}');event.preventDefault();}">
+          <button class="sector-add-btn" onclick="addSector('${s}')">ADD</button>
+        </div>
+      </div>
+    </div>
+  </section>`;
+}
+
+// ── Load data ──
+async function loadInternals() {
+  try {
+    const res = await fetch(`/api/day/${DAY_ID}/internals`);
+    const rows = await res.json();
+    rows.forEach(row => {
+      if (state[row.session]) {
+        Object.keys(state[row.session]).forEach(k => {
+          if (row[k] !== undefined && row[k] !== null) {
+            state[row.session][k] = row[k];
+          }
+        });
+      }
+    });
+  } catch(e) { /* fresh page, no data yet */ }
+  renderAll();
+}
+
+// ── Theme toggle ──
+function initTheme() {
+  const toggle = document.getElementById('mi-theme-toggle');
+  const saved = localStorage.getItem('internals_theme');
+  if (saved === 'paper') {
+    document.body.setAttribute('data-internals-theme', 'paper');
+    toggle.checked = true;
+  }
+  toggle.addEventListener('change', () => {
+    if (toggle.checked) {
+      document.body.setAttribute('data-internals-theme', 'paper');
+      localStorage.setItem('internals_theme', 'paper');
+    } else {
+      document.body.removeAttribute('data-internals-theme');
+      localStorage.setItem('internals_theme', 'dark');
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
+  loadInternals();
+});
+</script>
+{% endblock %}

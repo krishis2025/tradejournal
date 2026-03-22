@@ -340,6 +340,19 @@ def api_import():
 
 # ── API: Trading Days ─────────────────────────────────────────────────────────
 
+@app.route("/api/day/create", methods=["POST"])
+def api_create_day():
+    data = request.json or {}
+    date_str = data.get("date")
+    account_id = data.get("account_id") or None
+    if not date_str:
+        return jsonify(error="Date is required"), 400
+    existing = db.get_day_by_date_account(date_str, account_id)
+    created = existing is None
+    day_id = db.upsert_day(date_str, account_id)
+    return jsonify(day_id=day_id, created=created)
+
+
 @app.route("/api/day/<int:day_id>", methods=["DELETE"])
 def api_delete_day(day_id):
     day = db.get_day_by_id(day_id)
@@ -822,6 +835,31 @@ def api_delete_day_image(image_id):
         path = os.path.join(IMAGES_DIR, filename)
         if os.path.exists(path):
             os.remove(path)
+    return jsonify({"ok": True})
+
+
+# ── Market Internals ─────────────────────────────────────────────────────────
+
+@app.route("/day/<int:day_id>/internals")
+def internals_view(day_id):
+    day = db.get_day_by_id(day_id)
+    if not day:
+        return render_template("404.html", message=f"Day #{day_id} not found"), 404
+    return render_template("internals.html", day=day)
+
+
+@app.route("/api/day/<int:day_id>/internals", methods=["GET"])
+def api_get_internals(day_id):
+    rows = db.get_internals_for_day(day_id)
+    return jsonify(rows)
+
+
+@app.route("/api/day/<int:day_id>/internals/<session>", methods=["POST"])
+def api_upsert_internals(day_id, session):
+    if session not in ("morning", "midday", "afternoon"):
+        return jsonify({"error": "Invalid session"}), 400
+    body = request.get_json(silent=True) or {}
+    db.upsert_internals(day_id, session, **body)
     return jsonify({"ok": True})
 
 

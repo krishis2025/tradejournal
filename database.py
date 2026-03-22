@@ -437,6 +437,30 @@ def init_db():
         if "obs_group" not in obs_cols:
             conn.execute("ALTER TABLE observations ADD COLUMN obs_group TEXT NOT NULL DEFAULT ''")
 
+        # Migration: create market_internals table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS market_internals (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                day_id      INTEGER NOT NULL REFERENCES trading_days(id) ON DELETE CASCADE,
+                session     TEXT NOT NULL,
+                timestamp   TEXT DEFAULT '',
+                structure   TEXT DEFAULT '',
+                value_area  TEXT DEFAULT '',
+                vix         TEXT DEFAULT '',
+                trin        TEXT DEFAULT '',
+                vol_pct     TEXT DEFAULT '',
+                vold_nyse   TEXT DEFAULT '',
+                vold_nq     TEXT DEFAULT '',
+                add_nyse    TEXT DEFAULT '',
+                add_nq      TEXT DEFAULT '',
+                adh         TEXT DEFAULT '',
+                sectors_json TEXT DEFAULT '[]',
+                tape_notes  TEXT DEFAULT '',
+                UNIQUE(day_id, session)
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_internals_day ON market_internals(day_id)")
+
 
 # ── Accounts ─────────────────────────────────────────────────────────────────
 
@@ -1935,3 +1959,49 @@ def delete_observation_image(image_id):
         filename = row["filename"] if row else None
         conn.execute("DELETE FROM observation_images WHERE id=?", (image_id,))
         return filename
+
+
+# ── Market Internals ─────────────────────────────────────────────────────────
+
+INTERNALS_FIELDS = [
+    "timestamp", "structure", "value_area", "vix", "trin", "vol_pct",
+    "vold_nyse", "vold_nq", "add_nyse", "add_nq", "adh",
+    "sectors_json", "tape_notes",
+]
+
+
+def upsert_internals(day_id, session, **fields):
+    with get_conn() as conn:
+        filtered = {k: v for k, v in fields.items() if k in INTERNALS_FIELDS}
+        cols = ", ".join(filtered.keys())
+        placeholders = ", ".join("?" for _ in filtered)
+        vals = list(filtered.values())
+
+        # Use INSERT OR REPLACE keyed on (day_id, session)
+        all_cols = "day_id, session" + (", " + cols if cols else "")
+        all_placeholders = "?, ?" + (", " + placeholders if placeholders else "")
+        all_vals = [day_id, session] + vals
+
+        conn.execute(
+            f"INSERT OR REPLACE INTO market_internals ({all_cols}) VALUES ({all_placeholders})",
+            all_vals,
+        )
+
+
+def get_internals_for_day(day_id):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM market_internals WHERE day_id = ? ORDER BY "
+            "CASE session WHEN 'morning' THEN 1 WHEN 'midday' THEN 2 WHEN 'afternoon' THEN 3 END",
+            (day_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_internals_session(day_id, session):
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM market_internals WHERE day_id = ? AND session = ?",
+            (day_id, session),
+        ).fetchone()
+        return dict(row) if row else None
