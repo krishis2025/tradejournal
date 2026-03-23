@@ -52,3 +52,6 @@ ehthumbs.db
 
 #__Claude_________________________________________
 .claude/
+
+# ── Root-level DB (legacy location) ──────────────────
+trade_journal.db

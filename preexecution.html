@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Guard</title>
+    <style>
+        :root {
+            --bg: #0f1115;
+            --glass: rgba(255, 255, 255, 0.05);
+            --border: rgba(255, 255, 255, 0.1);
+            --accent: #00ff88;
+            --danger: #ff4d4d;
+            --text: #e0e0e0;
+            --subtext: #888;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', -apple-system, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .gatekeeper-card {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            width: 440px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .gatekeeper-card.ready { border-color: var(--accent); box-shadow: 0 0 30px rgba(0, 255, 136, 0.15); }
+        .gatekeeper-card.warning { border-color: var(--danger); box-shadow: 0 0 30px rgba(255, 77, 77, 0.15); }
+
+        h2 { margin: 0 0 1.5rem 0; font-weight: 300; letter-spacing: 1px; color: #fff; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+
+        .section { margin-bottom: 1.5rem; }
+        .label { font-size: 0.72rem; text-transform: uppercase; color: var(--subtext); margin-bottom: 0.8rem; display: block; font-weight: 600; letter-spacing: 0.5px;}
+
+        /* Checklist Grid */
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        
+        .chip {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: 0.2s;
+            user-select: none;
+        }
+
+        .chip:hover { background: rgba(255, 255, 255, 0.05); }
+        .chip.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: bold; }
+        
+        /* Full width identity chip */
+        .chip.full-width { grid-column: span 2; margin-top: 4px; border-style: dashed; }
+
+        /* Multi-Toggle Box */
+        .toggle-box {
+            display: flex;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            padding: 4px;
+            gap: 4px;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 6px;
+            border: none;
+            background: transparent;
+            color: #555;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: 0.3s;
+        }
+
+        .toggle-btn.active { background: rgba(255, 255, 255, 0.08); color: #fff; }
+        .toggle-btn.active.bad { color: var(--danger); }
+        .toggle-btn.active.strength { color: var(--accent); }
+
+        /* Action Button */
+        .btn-enter {
+            width: 100%;
+            padding: 16px;
+            border-radius: 10px;
+            border: none;
+            background: #222;
+            color: #444;
+            font-weight: 800;
+            cursor: not-allowed;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: 0.3s;
+            margin-top: 10px;
+        }
+
+        .btn-enter.ready { background: var(--accent); color: #000; cursor: pointer; box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3); }
+        .btn-enter.gamble { background: var(--danger); color: #fff; cursor: pointer; }
+
+        .status-footer { text-align: center; font-size: 0.72rem; margin-top: 15px; min-height: 20px; color: #666; line-height: 1.4; }
+    </style>
+</head>
+<body>
+
+<div class="gatekeeper-card" id="card">
+    <h2>Execution Guard</h2>
+    
+    <div class="section">
+        <span class="label">Technical Criteria</span>
+        <div class="grid">
+            <div class="chip" onclick="toggleChip(this)">Developing Value</div>
+            <div class="chip" onclick="toggleChip(this)">Volume / Tempo</div>
+            <div class="chip" onclick="toggleChip(this)">Trend Alignment</div>
+            <div class="chip" onclick="toggleChip(this)">Internals / ADH</div>
+            <div class="chip full-width" id="id-chip" onclick="toggleChip(this)">This is a 1000x repeatable trade</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <span class="label">Entry Mode</span>
+        <div class="toggle-box">
+            <button class="toggle-btn active" onclick="setToggle('style', this, 'anticipating')">Anticipating</button>
+            <button class="toggle-btn" onclick="setToggle('style', this, 'strength')">Strength</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <span class="label">Mental State</span>
+        <div class="toggle-box">
+            <button class="toggle-btn" onclick="setToggle('mood', this, 'eager')">Eager / FOMO</button>
+            <button class="toggle-btn active" onclick="setToggle('mood', this, 'patient')">Trade Came to Me</button>
+        </div>
+    </div>
+
+    <button class="btn-enter" id="enterBtn">LOCKED</button>
+    <div class="status-footer" id="status">Analyze the tape and internals to unlock.</div>
+</div>
+
+<script>
+    let state = {
+        entryStyle: 'anticipating',
+        mood: 'patient'
+    };
+
+    function toggleChip(el) {
+        el.classList.toggle('active');
+        updateState();
+    }
+
+    function setToggle(category, el, value) {
+        const parent = el.parentElement;
+        parent.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active', 'bad', 'strength'));
+        
+        el.classList.add('active');
+        if (value === 'eager') el.classList.add('bad');
+        if (value === 'strength') el.classList.add('strength');
+        
+        if (category === 'style') state.entryStyle = value;
+        if (category === 'mood') state.mood = value;
+        
+        updateState();
+    }
+
+    function updateState() {
+        const activeTech = document.querySelectorAll('.chip.active:not(.full-width)');
+        const idChipActive = document.getElementById('id-chip').classList.contains('active');
+        
+        // Threshold: 3 out of 4 tech criteria + the mandatory Identity check
+        const techMet = activeTech.length >= 3; 
+        const isReady = techMet && idChipActive;
+
+        const card = document.getElementById('card');
+        const btn = document.getElementById('enterBtn');
+        const status = document.getElementById('status');
+
+        if (isReady) {
+            btn.disabled = false;
+            btn.classList.add('ready');
+
+            if (state.mood === 'eager') {
+                btn.innerText = "GAMBLE";
+                btn.classList.add('gamble');
+                card.classList.add('warning');
+                card.classList.remove('ready');
+                status.innerText = "Internal Conflict: Technicals exist but mindset is impulsive. Risk is elevated.";
+            } else {
+                btn.innerText = "EXECUTE " + state.entryStyle.toUpperCase();
+                btn.classList.remove('gamble');
+                card.classList.add('ready');
+                card.classList.remove('warning');
+                status.innerText = state.entryStyle === 'strength' ? 
+                    "Strength confirmed via Price & Internals. High confidence." : 
+                    "Anticipating move based on ADH/Value. Monitor for rejection.";
+            }
+        } else {
+            btn.disabled = true;
+            btn.classList.remove('ready', 'gamble');
+            btn.innerText = "LOCKED";
+            card.classList.remove('ready', 'warning');
+            status.innerText = "3+ Technical criteria and Identity Check required.";
+        }
+    }
+</script>
+
+</body>
+</html>

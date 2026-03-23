@@ -83,16 +83,55 @@
 .cmd-go-btn:hover { background:#6fffbe; }
 .cmd-go-btn:disabled { opacity:0.3; cursor:not-allowed; }
 
-/* ── Prep Mode Toggle ── */
-.cmd-prep-toggle {
+/* ── CHECK IN button ── */
+.cmd-checkin-btn {
   height:100%; padding:0 14px; border:none; cursor:pointer;
   font-family:var(--font-mono); font-size:10px; letter-spacing:1.5px;
   text-transform:uppercase; transition:all 0.15s;
   background:var(--surface); color:var(--muted2);
-  border-right:1px solid var(--border);
 }
-.cmd-prep-toggle:hover { color:var(--text); }
-.cmd-prep-toggle.active { color:var(--warn); background:rgba(255,179,71,0.10); }
+.cmd-checkin-btn:hover { color:var(--text); background:var(--surface2); }
+.cmd-checkin-btn.state-patient   { color:#00ff88; background:rgba(0,255,136,0.10); }
+.cmd-checkin-btn.state-intuition { color:#ff9800; background:rgba(255,152,0,0.10); }
+.cmd-checkin-btn.state-eager     { color:#ff4d4d; background:rgba(255,77,77,0.10); }
+
+/* ── ENTER button color states ── */
+.cmd-go-btn.enter-patient   { background:#00ff88; color:#0a0c10; }
+.cmd-go-btn.enter-patient:hover { background:#33ffaa; }
+.cmd-go-btn.enter-intuition { background:#ff9800; color:#0a0c10; }
+.cmd-go-btn.enter-intuition:hover { background:#ffb347; }
+.cmd-go-btn.enter-eager     { background:#ff4d4d; color:#fff; }
+.cmd-go-btn.enter-eager:hover { background:#ff6b6b; }
+
+/* ── Mental state box (wraps checkin + reset) ── */
+.cmd-mental-box {
+  display:flex; align-items:center; height:100%;
+  border-radius:0 4px 4px 0; transition:box-shadow 0.2s;
+}
+.cmd-mental-box.glow-patient   { box-shadow:inset 0 -2px 0 #00ff88; }
+.cmd-mental-box.glow-intuition { box-shadow:inset 0 -2px 0 #ff9800, 0 0 8px rgba(255,152,0,0.15); }
+.cmd-mental-box.glow-eager     { box-shadow:inset 0 -2px 0 #ff4d4d, 0 0 8px rgba(255,77,77,0.15); }
+.cmd-bar.bar-patient   { border:1px solid #00ff88; animation:bar-pulse-green 3s ease-in-out infinite; }
+.cmd-bar.bar-intuition { border:2px solid #ff9800; animation:bar-pulse-orange 2s ease-in-out infinite; }
+.cmd-bar.bar-eager     { border:3px solid #ff4d4d; animation:bar-pulse-red 1.2s ease-in-out infinite; }
+
+/* ── Reset button ── */
+.cmd-reset-btn {
+  height:100%; padding:0 10px; border:none; cursor:pointer;
+  background:var(--surface); color:var(--muted2);
+  font-size:14px; transition:all 0.15s; line-height:1;
+}
+.cmd-reset-btn:hover { color:var(--text); transform:rotate(90deg); }
+
+/* ── Mental state badge on trade cards ── */
+.tc-mental-badge {
+  font-family:var(--font-mono); font-size:8px; letter-spacing:1px;
+  padding:2px 6px; border-radius:1px; text-transform:uppercase;
+  display:inline-block; margin-top:3px;
+}
+.tc-mental-patient   { color:#00ff88; background:rgba(0,255,136,0.10); }
+.tc-mental-intuition { color:#ff9800; background:rgba(255,152,0,0.10); }
+.tc-mental-eager     { color:#ff4d4d; background:rgba(255,77,77,0.10); }
 
 /* ── Guard Overlay ── */
 .guard-backdrop {
@@ -204,6 +243,18 @@
 @keyframes pulse-red {
   0%, 100% { box-shadow:0 0 15px rgba(255,77,109,0.2); }
   50%      { box-shadow:0 0 35px rgba(255,77,109,0.4); }
+}
+@keyframes bar-pulse-green {
+  0%, 100% { border-color:#00ff88; box-shadow:0 0 8px rgba(0,255,136,0.15); }
+  50%      { border-color:rgba(0,255,136,0.4); box-shadow:0 0 2px rgba(0,255,136,0.05); }
+}
+@keyframes bar-pulse-orange {
+  0%, 100% { border-color:#ff9800; box-shadow:0 0 8px rgba(255,152,0,0.2); }
+  50%      { border-color:rgba(255,152,0,0.4); box-shadow:0 0 2px rgba(255,152,0,0.05); }
+}
+@keyframes bar-pulse-red {
+  0%, 100% { border-color:#ff4d4d; box-shadow:0 0 12px rgba(255,77,77,0.25); }
+  50%      { border-color:rgba(255,77,77,0.4); box-shadow:0 0 3px rgba(255,77,77,0.05); }
 }
 
 /* ── Paper Light theme: stronger command bar selections ── */
@@ -810,9 +861,12 @@
     <button class="cmd-mode-btn" id="cmd-full" onclick="setMode('full')">FULL</button>
     <button class="cmd-mode-btn active" id="cmd-partials" onclick="setMode('partials')">3-WAY</button>
   </div>
-  <div class="cmd-go" style="display:flex;align-items:center;">
-    <button class="cmd-prep-toggle active" id="cmd-prep" onclick="togglePrepMode()">PREP</button>
-    <button class="cmd-go-btn" id="cmd-enter" onclick="openTrade()">ENTER ↵</button>
+  <div class="cmd-go">
+    <button class="cmd-go-btn" id="cmd-enter" onclick="openTrade()" disabled>ENTER ↵</button>
+  </div>
+  <div class="cmd-mental-box" id="cmd-mental-box">
+    <button class="cmd-checkin-btn" id="cmd-checkin" onclick="showGuardOverlay()">🧘 MENTAL STATE</button>
+    <button class="cmd-reset-btn" id="cmd-reset" onclick="resetGuardState()" title="Reset" style="display:none;">↻</button>
   </div>
   <div class="cmd-risk" id="cmd-risk" onclick="openRiskCalc()" title="Click for risk calculator">
     <span class="cmd-risk-dollar" id="risk-label">Risk: —</span>
@@ -821,14 +875,14 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
-     GUARD OVERLAY — Post-execution honest reflection
+     GUARD OVERLAY — Pre-trade mental state check
      ═══════════════════════════════════════════════════════════ -->
 <div class="guard-backdrop" id="guard-backdrop" onclick="closeGuardOverlay()"></div>
 <div class="gatekeeper-card" id="guard-card">
   <div class="gk-header">
-    <span class="gk-title">How did you enter?</span>
+    <span class="gk-title">What's your mental state?</span>
   </div>
-  <div class="gk-sub">Be honest — this is for you.</div>
+  <div class="gk-sub">Declare before you log.</div>
   <div class="gk-traffic">
     <button class="gk-traffic-btn green" id="gk-patient"
             onclick="guardSelectPatient()"
@@ -847,7 +901,7 @@
     </button>
   </div>
   <div class="gk-consequence" id="gk-consequence">
-    <div class="gk-consequence-msg" id="gk-consequence-msg">Identify your mental state to unlock the journal.</div>
+    <div class="gk-consequence-msg" id="gk-consequence-msg">Identify your state to unlock the entry.</div>
     <button class="gk-confirm-btn orange" id="gk-intuition-confirm" onclick="guardConfirmIntuition()">
       I Understand — Log Trade
     </button>
@@ -1129,29 +1183,12 @@ let activeTrade = null;
 let activeTags = {};
 let allTrades = [];
 
-// ── Guard / Prep Mode State ──────────────────────────────────────────────────
-let prepMode = localStorage.getItem('prepMode') !== 'false';  // default ON
+// ── Guard State ──────────────────────────────────────────────────────────────
 let guardState = { mental_state: null };
-let guardApproved = false;
 let guardLocked = false;  // true after a button is clicked (waiting for confirm/gamble input)
-
-(function initPrepToggle() {
-  document.addEventListener('DOMContentLoaded', () => {
-    const btn = document.getElementById('cmd-prep');
-    if (btn) btn.classList.toggle('active', prepMode);
-  });
-})();
-
-function togglePrepMode() {
-  prepMode = !prepMode;
-  localStorage.setItem('prepMode', prepMode);
-  document.getElementById('cmd-prep').classList.toggle('active', prepMode);
-  if (!prepMode) clearPageGuardBorder();
-}
 
 function showGuardOverlay() {
   guardState = { mental_state: null };
-  guardApproved = false;
   guardLocked = false;
   // Reset UI
   document.getElementById('gk-gamble-input').classList.remove('visible');
@@ -1166,7 +1203,7 @@ function showGuardOverlay() {
   document.getElementById('gk-eager').classList.remove('selected');
   const card = document.getElementById('guard-card');
   card.classList.remove('card-ready','card-caution','card-warning','card-neutral');
-  document.getElementById('gk-consequence-msg').textContent = 'Identify your mental state to unlock the journal.';
+  document.getElementById('gk-consequence-msg').textContent = 'Identify your state to unlock the entry.';
   document.getElementById('gk-consequence-msg').style.color = '#555';
   // Show
   document.getElementById('guard-backdrop').classList.add('open');
@@ -1218,10 +1255,8 @@ function guardHoverReset() {
 // GREEN — instant proceed
 function guardSelectPatient() {
   if (guardLocked) return;
-  guardState.mental_state = 'patient';
-  guardApproved = true;
   closeGuardOverlay();
-  openTrade();
+  applyGuardState('patient');
 }
 
 // ORANGE — must click confirm button
@@ -1242,10 +1277,8 @@ function guardSelectIntuition() {
 }
 
 function guardConfirmIntuition() {
-  guardState.mental_state = 'intuition';
-  guardApproved = true;
   closeGuardOverlay();
-  openTrade();
+  applyGuardState('intuition');
 }
 
 // RED — type GAMBLE to confirm
@@ -1274,10 +1307,63 @@ function checkGambleInput(el) {
 }
 
 function guardConfirmGamble() {
-  guardState.mental_state = 'eager';
-  guardApproved = true;
   closeGuardOverlay();
-  openTrade();
+  applyGuardState('eager');
+}
+
+function applyGuardState(mentalState) {
+  guardState.mental_state = mentalState;
+  const enterBtn = document.getElementById('cmd-enter');
+  const checkinBtn = document.getElementById('cmd-checkin');
+  const resetBtn = document.getElementById('cmd-reset');
+  const mentalBox = document.getElementById('cmd-mental-box');
+
+  const cmdBar = document.querySelector('.cmd-bar');
+
+  enterBtn.disabled = false;
+  enterBtn.classList.remove('enter-patient','enter-intuition','enter-eager');
+  checkinBtn.classList.remove('state-patient','state-intuition','state-eager');
+  mentalBox.classList.remove('glow-patient','glow-intuition','glow-eager');
+  cmdBar.classList.remove('bar-patient','bar-intuition','bar-eager');
+
+  if (mentalState === 'patient') {
+    enterBtn.classList.add('enter-patient');
+    enterBtn.textContent = 'ENTER ↵';
+    checkinBtn.classList.add('state-patient');
+    checkinBtn.textContent = '🧘 PATIENT ✓';
+    mentalBox.classList.add('glow-patient');
+    cmdBar.classList.add('bar-patient');
+  } else if (mentalState === 'intuition') {
+    enterBtn.classList.add('enter-intuition');
+    enterBtn.textContent = 'INTUITION TRADE';
+    checkinBtn.classList.add('state-intuition');
+    checkinBtn.textContent = '🧘 FEEL ✓';
+    mentalBox.classList.add('glow-intuition');
+    cmdBar.classList.add('bar-intuition');
+  } else if (mentalState === 'eager') {
+    enterBtn.classList.add('enter-eager');
+    enterBtn.textContent = 'GAMBLE';
+    checkinBtn.classList.add('state-eager');
+    checkinBtn.textContent = '🧘 FOMO ✓';
+    mentalBox.classList.add('glow-eager');
+    cmdBar.classList.add('bar-eager');
+  }
+  resetBtn.style.display = '';
+}
+
+function resetGuardState() {
+  guardState = { mental_state: null };
+  const enterBtn = document.getElementById('cmd-enter');
+  enterBtn.disabled = true;
+  enterBtn.classList.remove('enter-patient','enter-intuition','enter-eager');
+  enterBtn.textContent = 'ENTER ↵';
+  const checkinBtn = document.getElementById('cmd-checkin');
+  checkinBtn.classList.remove('state-patient','state-intuition','state-eager');
+  checkinBtn.textContent = '🧘 MENTAL STATE';
+  document.getElementById('cmd-reset').style.display = 'none';
+  document.getElementById('cmd-mental-box').classList.remove('glow-patient','glow-intuition','glow-eager');
+  document.querySelector('.cmd-bar').classList.remove('bar-patient','bar-intuition','bar-eager');
+  clearPageGuardBorder();
 }
 
 document.addEventListener('keydown', e => {
@@ -1323,7 +1409,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   ['cmd-price','cmd-qty'].forEach(id => {
     document.getElementById(id).addEventListener('keydown', e => {
-      if (e.key === 'Enter') openTrade();
+      if (e.key === 'Enter' && !document.getElementById('cmd-enter').disabled) openTrade();
     });
   });
 
@@ -1377,10 +1463,7 @@ function setMode(m) {
 
 // ── Open Trade ───────────────────────────────────────────────────────────────
 async function openTrade() {
-  if (prepMode && !guardApproved) {
-    showGuardOverlay();
-    return;
-  }
+  if (!guardState.mental_state) { showToast('Check in first', true); return; }
 
   const price = parseFloat(document.getElementById('cmd-price').value);
   const qty   = parseInt(document.getElementById('cmd-qty').value);
@@ -1388,7 +1471,7 @@ async function openTrade() {
   if (!price || !qty || !time) { showToast('Fill price, qty & time', true); return; }
 
   const pid = document.getElementById('global-account-select')?.value || null;
-  const guardData = guardApproved ? guardState : null;
+  const guardData = guardState;
   const res = await fetch('/api/live', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
@@ -1409,7 +1492,8 @@ async function openTrade() {
     entry_price: price, entry_time: time, total_qty: qty,
     mode: formMode, status: 'open', notes: '', tags: {},
     levels: [], executions: [], calc: calc,
-    created_at: new Date().toISOString().replace('T', ' ').slice(0, 19)
+    created_at: new Date().toISOString().replace('T', ' ').slice(0, 19),
+    guard_json: JSON.stringify(guardState)
   };
 
   const isLong = formDir === 'Long';
@@ -1452,8 +1536,7 @@ async function openTrade() {
 
   updateDayPnl();
   showToast(`${formDir} ${qty}× ${formInst} @ ${price}`);
-  guardApproved = false;
-  guardState = { mental_state: null };
+  resetGuardState();
 }
 
 // ── Derive Trade Status ──────────────────────────────────────────────────────
@@ -1490,6 +1573,21 @@ function renderTradeCard(t) {
   const isLong = t.direction === 'Long';
   const calc = t.calc || {};
   const executions = t.executions || [];
+
+  // Mental state badge
+  let mentalState = null;
+  try {
+    const gj = typeof t.guard_json === 'string' && t.guard_json
+      ? JSON.parse(t.guard_json) : (t.guard_json || {});
+    mentalState = gj.mental_state || null;
+  } catch(e) {}
+  const mentalBadge = mentalState === 'patient'
+    ? '<span class="tc-mental-badge tc-mental-patient">Patient</span>'
+    : mentalState === 'intuition'
+    ? '<span class="tc-mental-badge tc-mental-intuition">Feel</span>'
+    : mentalState === 'eager'
+    ? '<span class="tc-mental-badge tc-mental-eager">Gamble</span>'
+    : '';
 
   const realized = calc.realized_pnl || 0;
   const netExp = calc.net_stop_exposure;
@@ -1531,6 +1629,7 @@ function renderTradeCard(t) {
       </div>
       <div class="tc-cell">
         <span class="tc-dir-badge ${isLong ? 'tc-dir-long' : 'tc-dir-short'}">${t.direction}</span>
+        ${mentalBadge}
       </div>
       <div class="tc-cell">
         <div class="tc-cell-label">Entry</div>

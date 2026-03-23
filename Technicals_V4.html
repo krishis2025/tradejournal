@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            --bg: #0b0e11;
+            --module-bg: #161a1e;
+            --input-bg: rgba(0, 0, 0, 0.4);
+            --border: rgba(255, 255, 255, 0.08);
+            --accent-green: #00ff88;
+            --text-main: #e0e0e0;
+            --text-dim: #888;
+            --tos-red-subtle: #3d1c1c; 
+            --tos-red-text: #ff9999;
+            --tos-green-subtle: #1c3d2a;
+            --tos-green-text: #99ffbc;
+        }
+
+        body { 
+            background: var(--bg); 
+            color: var(--text-main); 
+            font-family: 'Inter', sans-serif; 
+            padding: 20px;
+            margin: 0;
+            overflow-y: scroll;
+        }
+
+        .main-container { max-width: 1450px; margin: 0 auto; }
+        .page-title { font-weight: 200; letter-spacing: 5px; text-align: center; margin-bottom: 30px; text-transform: uppercase; }
+
+        .session-section {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            margin-bottom: 50px;
+            padding: 25px;
+        }
+
+        .session-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--bg);
+            padding: 15px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border);
+            margin-bottom: 25px;
+        }
+
+        .session-header h2 { margin: 0; font-weight: 300; color: var(--accent-green); text-transform: uppercase; letter-spacing: 2px; }
+
+        .time-input {
+            background: var(--module-bg);
+            border: 1px solid var(--accent-green);
+            color: var(--accent-green);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-family: 'Consolas', monospace;
+            font-weight: bold;
+            width: 130px;
+        }
+
+        .market-log-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 15px;
+        }
+
+        .module {
+            background: var(--module-bg);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            min-height: 350px;
+        }
+
+        .module-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+
+        .module-header h4 { font-size: 0.65rem; margin: 0; letter-spacing: 1px; color: var(--text-dim); text-transform: uppercase; }
+
+        .field-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+        .field-label { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700; }
+
+        input, select, textarea {
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: #fff;
+            padding: 10px;
+            font-size: 0.85rem;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .internal-box { text-align: center; font-weight: bold; font-family: 'Consolas', monospace; border: 1px solid transparent; }
+        .neg-state { background: var(--tos-red-subtle) !important; color: var(--tos-red-text) !important; border-color: #5c2a2a !important; }
+        .pos-state { background: var(--tos-green-subtle) !important; color: var(--tos-green-text) !important; border-color: #2a5c3a !important; }
+
+        .bucket {
+            background: rgba(0,0,0,0.2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px;
+            min-height: 60px;
+            margin-top: 5px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .tag { padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; }
+        
+        .save-bar { text-align: center; padding: 40px 0; }
+        .save-btn {
+            background: var(--accent-green);
+            color: #000;
+            padding: 20px 60px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 900;
+            letter-spacing: 3px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+
+<div class="main-container">
+    <h1 class="page-title">Market Structure Evolution</h1>
+
+    <script>
+        const structureOptions = ["Balanced", "Trending", "Short Covering", "Liquidation", "Thin Structure"];
+        const valueOptions = ["Lower", "Overlapping Lower", "Overlapping", "Overlapping Higher", "Higher"];
+        const spySectors = [
+            { ticker: "XLK", name: "Technology", weight: "30.5%" },
+            { ticker: "XLV", name: "Health Care", weight: "12.2%" },
+            { ticker: "XLF", name: "Financials", weight: "12.1%" },
+            { ticker: "XLY", name: "Consumer Disc", weight: "10.2%" },
+            { ticker: "XLC", name: "Comm Services", weight: "9.3%" },
+            { ticker: "XLI", name: "Industrials", weight: "8.1%" },
+            { ticker: "XLP", name: "Consumer Staples", weight: "5.9%" },
+            { ticker: "XLE", name: "Energy", weight: "3.8%" },
+            { ticker: "XLRE", name: "Real Estate", weight: "2.2%" },
+            { ticker: "XLB", name: "Materials", weight: "2.1%" },
+            { ticker: "XLU", name: "Utilities", weight: "2.0%" }
+        ];
+    </script>
+
+    <section class="session-section" id="mng-section">
+        <div class="session-header">
+            <h2>Morning Session</h2>
+            <div>
+                <label style="font-size: 0.7rem; color: #888; margin-right: 10px;">TIMESTAMP:</label>
+                <input type="time" class="time-input" value="09:45">
+            </div>
+        </div>
+        <div class="market-log-grid">
+            <div class="module">
+                <div class="module-header"><h4>Market Context</h4></div>
+                <div class="field-group">
+                    <label class="field-label">Structure</label>
+                    <select>
+                        <option>Balanced</option><option>Trending</option><option>Short Covering</option>
+                        <option>Liquidation</option><option>Thin Structure</option>
+                    </select>
+                </div>
+                <div class="field-group">
+                    <label class="field-label">Value Area</label>
+                    <select>
+                        <option>Lower</option><option>Overlapping Lower</option><option>Overlapping</option>
+                        <option>Overlapping Higher</option><option>Higher</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="module">
+                <div class="module-header"><h4>Vitals</h4></div>
+                <div class="field-group">
+                    <label class="field-label">VIX</label>
+                    <input type="text" placeholder="24.50">
+                </div>
+                <div class="field-group">
+                    <label class="field-label">$TRIN</label>
+                    <input type="text" placeholder="0.85">
+                </div>
+                <div class="field-group">
+                    <label class="field-label">Vol % (vs 21D Avg)</label>
+                    <input type="text" placeholder="+15%">
+                </div>
+            </div>
+
+            <div class="module">
+                <div class="module-header"><h4>Internals</h4></div>
+                <label class="field-label">VOLD (NYSE | NQ)</label>
+                <div style="display: flex; gap: 8px;"><input type="text" class="internal-box" onblur="colorShield(this)"><input type="text" class="internal-box" onblur="colorShield(this)"></div>
+                <label class="field-label" style="margin-top:12px;">ADD (NYSE | NQ)</label>
+                <div style="display: flex; gap: 8px;"><input type="text" class="internal-box" onblur="colorShield(this)"><input type="text" class="internal-box" onblur="colorShield(this)"></div>
+                <label class="field-label" style="margin-top:12px;">ADH Distance</label>
+                <input type="text" class="internal-box" placeholder="-444" onblur="colorShield(this)">
+            </div>
+
+            <div class="module">
+                <div class="module-header"><h4>Sector Weighting</h4></div>
+                <select id="mngSec">
+                    <option value="XLK">XLK - Technology (30.5%)</option>
+                    <option value="XLV">XLV - Health Care (12.2%)</option>
+                    <option value="XLF">XLF - Financials (12.1%)</option>
+                    <option value="XLY">XLY - Consumer Disc (10.2%)</option>
+                    <option value="XLC">XLC - Comm Services (9.3%)</option>
+                    <option value="XLI">XLI - Industrials (8.1%)</option>
+                    <option value="XLP">XLP - Consumer Staples (5.9%)</option>
+                    <option value="XLE">XLE - Energy (3.8%)</option>
+                    <option value="XLRE">XLRE - Real Estate (2.2%)</option>
+                    <option value="XLB">XLB - Materials (2.1%)</option>
+                    <option value="XLU">XLU - Utilities (2.0%)</option>
+                </select>
+                <div style="display: flex; gap: 5px; margin-top:8px;">
+                    <input type="text" id="mngVal" placeholder="Val (e.g. +0.50)">
+                    <button onclick="addSector('mng')" style="background:#1c3d2a; color:#99ffbc; border:1px solid #2a5c3a; border-radius:4px; padding:0 15px; cursor:pointer; font-weight:bold;">ADD</button>
+                </div>
+                <div class="bucket" id="mngPos" style="border-color: var(--tos-green-subtle);"><span class="field-label" style="width:100%; font-size: 0.55rem; color:var(--tos-green-text)">POS BUCKET</span></div>
+                <div class="bucket" id="mngNeg" style="border-color: var(--tos-red-subtle);"><span class="field-label" style="width:100%; font-size: 0.55rem; color:var(--tos-red-text)">NEG BUCKET</span></div>
+            </div>
+
+            <div class="module">
+                <div class="module-header"><h4>Tape Nuances</h4></div>
+                <textarea style="flex: 1; resize: none;" placeholder="Note absorption, liquidity gaps, or inventory clues..."></textarea>
+            </div>
+        </div>
+    </section>
+
+    <section class="session-section" style="opacity: 0.5;">
+        <div class="session-header"><h2>Afternoon Session (13:30)</h2></div>
+        <div style="text-align:center; padding: 40px; border: 1px dashed #333; border-radius: 12px;">Vertical Scroll Comparison Active</div>
+    </section>
+
+    <div class="save-bar">
+        <button class="save-btn">COMMIT DAILY EVOLUTION TO SQLITE</button>
+    </div>
+</div>
+
+<script>
+    function colorShield(el) {
+        const val = el.value.trim();
+        if (!val) { el.className = 'internal-box'; return; }
+        const num = parseFloat(val.replace(/[^\d.-]/g, ''));
+        el.className = 'internal-box ' + (num < 0 ? 'neg-state' : 'pos-state');
+    }
+
+    function addSector(prefix) {
+        const select = document.getElementById(prefix + 'Sec');
+        const name = select.value;
+        const rawVal = document.getElementById(prefix + 'Val').value;
+        const val = parseFloat(rawVal);
+        if (!name || isNaN(val)) return;
+
+        const tag = document.createElement('div');
+        tag.className = 'tag ' + (val < 0 ? 'neg-state' : 'pos-state');
+        tag.innerText = `${name} ${rawVal}`;
+        
+        document.getElementById(val >= 0 ? prefix + 'Pos' : prefix + 'Neg').appendChild(tag);
+        document.getElementById(prefix + 'Val').value = '';
+    }
+</script>
+
+</body>
+</html>

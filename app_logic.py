@@ -804,15 +804,25 @@ def close_live_trade_to_journal(live_trade_id):
 
     calc = recalculate_live_trade(lt)
 
-    today = dt_date.today().isoformat()
+    # Use the trade's creation date (not today) so trades land on the correct day
+    # created_at is stored as UTC; convert to local date via SQLite
+    created_at = lt.get("created_at", "")
+    if created_at:
+        with db.get_conn() as conn:
+            row = conn.execute(
+                "SELECT date(?, 'localtime')", (created_at,)
+            ).fetchone()
+            trade_date = row[0] if row and row[0] else dt_date.today().isoformat()
+    else:
+        trade_date = dt_date.today().isoformat()
     account_id = lt.get("account_id")
 
     # Find or create trading day
-    existing_day = db.get_day_by_date_account(today, account_id)
+    existing_day = db.get_day_by_date_account(trade_date, account_id)
     if existing_day:
         day_id = existing_day["id"]
     else:
-        day_id = db.upsert_day(today, account_id)
+        day_id = db.upsert_day(trade_date, account_id)
 
     # Determine next trade_num for this day
     with db.get_conn() as conn:

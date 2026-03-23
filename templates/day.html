@@ -49,18 +49,18 @@
   clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%);
 }
 .tag-btn:hover { background:var(--surface3);color:var(--text);border-color:var(--muted); }
-.tag-btn.active-with    { background:rgba(79,255,176,0.12);border-color:var(--green);color:var(--green); }
+.tag-btn.active-with    { background:rgba(52,211,153,0.12);border-color:var(--green);color:var(--green); }
 .tag-btn.active-against { background:rgba(255,77,109,0.12);border-color:var(--red);color:var(--red); }
 .tag-btn.active-vol     { background:rgba(0,207,255,0.12);border-color:var(--accent2);color:var(--accent2); }
 .tag-btn.active-exit      { background:rgba(255,179,71,0.12);border-color:var(--warn);color:var(--warn); }
 .tag-btn.active-setup     { background:rgba(180,127,255,0.12);border-color:var(--purple);color:var(--purple); }
 .tag-btn.active-pre       { background:rgba(138,150,170,0.15);border-color:var(--muted2);color:var(--text); }
-.tag-btn.active-pre-good  { background:rgba(79,255,176,0.12);border-color:var(--green);color:var(--green); }
+.tag-btn.active-pre-good  { background:rgba(52,211,153,0.12);border-color:var(--green);color:var(--green); }
 .tag-btn.active-pre-bad   { background:rgba(255,77,109,0.12);border-color:var(--red);color:var(--red); }
-.tag-btn.active-exit-good { background:rgba(79,255,176,0.12);border-color:var(--green);color:var(--green); }
+.tag-btn.active-exit-good { background:rgba(52,211,153,0.12);border-color:var(--green);color:var(--green); }
 .tag-btn.active-exit-bad  { background:rgba(255,77,109,0.12);border-color:var(--red);color:var(--red); }
 .tag-btn.active-vol-avg   { background:rgba(0,207,255,0.12);border-color:var(--accent2);color:var(--accent2); }
-.tag-btn.active-vol-high  { background:rgba(79,255,176,0.12);border-color:var(--green);color:var(--green); }
+.tag-btn.active-vol-high  { background:rgba(52,211,153,0.12);border-color:var(--green);color:var(--green); }
 .tag-btn.active-vol-low   { background:rgba(255,77,109,0.12);border-color:var(--red);color:var(--red); }
 
 /* ── Notes ── */
@@ -415,7 +415,7 @@
 
 <!-- ── Trade Cards ── -->
 {% set dot_colors = {
-  'dot-with':'#4fffb0','dot-against':'#ff4d6d','dot-vol':'#00cfff',
+  'dot-with':'#34d399','dot-against':'#ff4d6d','dot-vol':'#00cfff',
   'dot-exit':'#ffb347','dot-setup':'#b47fff','dot-pre':'#8a96aa','dot-entry':'#8a96aa'
 } %}
 
@@ -640,13 +640,13 @@ if (hash) {
     labels.push(`T${t.num} ${t.time}`);
     cumData.push(parseFloat(cum.toFixed(2)));
     barData.push(parseFloat(t.pnl.toFixed(2)));
-    const bc = t.pnl > 0 ? 'rgba(79,255,176,0.65)'
+    const bc = t.pnl > 0 ? 'rgba(52,211,153,0.65)'
                  : t.pnl < 0 ? 'rgba(255,77,109,0.65)'
                  :              'rgba(255,179,71,0.65)';
     barColors.push(bc);
   });
 
-  const finalColor = cum >= 0 ? '#4fffb0' : '#ff4d6d';
+  const finalColor = cum >= 0 ? '#34d399' : '#ff4d6d';
 
   new Chart(canvas, {
     data: {

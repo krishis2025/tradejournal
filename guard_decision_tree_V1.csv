@@ -1,0 +1,12 @@
+State,Repeatable,Mental State,Tech Met (≥3),Entry Mode,Button Class,Button Text,Card Border,Page Border,Status Text,Button Disabled
+LOCKED,NO,any,any,any,locked,LOCKED,card-neutral,guard-neutral,Confirm this is a 1000x repeatable setup,YES
+LOCKED,YES,null,any,any,locked,LOCKED,card-neutral,guard-neutral,Select your mental state,YES
+GAMBLE,YES,eager,any,any,gamble,GAMBLE,card-warning (red pulse),guard-warning,FOMO detected — this is a gamble not a trade,NO
+RED,YES,intuition,NO,anticipating,gamble,MORE ON GAMBLE SIDE,card-warning (red pulse),guard-warning,Watch out — Technical criteria not met and anticipating,NO
+RED,YES,patient,NO,anticipating,gamble,MORE ON GAMBLE SIDE,card-warning (red pulse),guard-warning,Watch out — Technical criteria not met and anticipating,NO
+ORANGE,YES,intuition,NO,strength,caution,EXECUTE STRENGTH,card-caution (orange),guard-caution,Technical criteria not met — not full confluence,NO
+ORANGE,YES,patient,NO,strength,caution,EXECUTE STRENGTH,card-caution (orange),guard-caution,Technical criteria not met — not full confluence,NO
+ORANGE,YES,intuition,YES,anticipating,caution,EXECUTE ANTICIPATING,card-caution (orange),guard-caution,Intuition entry — trust but verify,NO
+GREEN,YES,patient,YES,anticipating,execute,EXECUTE ANTICIPATING,card-ready (green),guard-ready,All criteria met — clear to execute,NO
+GREEN,YES,intuition,YES,strength,execute,EXECUTE STRENGTH,card-ready (green),guard-ready,Good setup — strength with intuition,NO
+STRONG GREEN,YES,patient,YES,strength,excellent,EXECUTE STRENGTH ★,card-excellent (pulsing green glow),guard-excellent,Excellent trade opp — consider doubling,NO

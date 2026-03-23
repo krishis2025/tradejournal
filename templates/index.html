@@ -141,11 +141,16 @@
   </div>
 </form>
 
-{% if days %}
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-  <h2>Trading Days</h2>
-  <span style="color:var(--muted);font-size:10px;letter-spacing:1.5px;">{{ days|length }} DAYS</span>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <h2>Trading Days</h2>
+    <button class="btn btn-ghost" id="add-day-btn" title="Add day"
+      style="padding:4px 10px;font-size:14px;" onclick="document.getElementById('add-day-modal').classList.add('show')">+</button>
+  </div>
+  <span style="color:var(--muted);font-size:10px;letter-spacing:1.5px;">{% if days %}{{ days|length }} DAYS{% endif %}</span>
 </div>
+
+{% if days %}
 
 <div class="card" style="overflow-x:auto;">
   <table class="data-table">
@@ -210,10 +215,29 @@
   <div class="empty-icon">📊</div>
   <div class="empty-title">No trading days in this range</div>
   <p style="font-size:12px;margin-bottom:20px;">
-    Import a fills CSV above, or widen your date range.
+    Import a fills CSV above, add a day with the + button, or widen your date range.
   </p>
 </div>
 {% endif %}
+
+<!-- Add Day Modal -->
+<div class="modal-overlay" id="add-day-modal">
+  <div class="modal">
+    <h3 style="color:var(--accent);">Add Day</h3>
+    <p>Create an empty trading day for observations, notes, or scores.</p>
+    <div style="margin-bottom:20px;">
+      <label style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px;">Date</label>
+      <input type="date" class="date-input" id="add-day-date" value="{{ today }}" style="width:100%;padding:8px 12px;font-size:13px;">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="document.getElementById('add-day-modal').classList.remove('show')">Cancel</button>
+      <button class="btn" onclick="createDay()"
+        style="background:var(--accent);color:var(--bg);clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);">
+        Create
+      </button>
+    </div>
+  </div>
+</div>
 
 <!-- Delete Confirm Modal -->
 <div class="modal-overlay" id="del-modal">
@@ -351,5 +375,28 @@
     }
   }
   document.getElementById('del-modal').addEventListener('click', e => { if (e.target===document.getElementById('del-modal')) closeModal(); });
+  document.getElementById('add-day-modal').addEventListener('click', e => { if (e.target===document.getElementById('add-day-modal')) document.getElementById('add-day-modal').classList.remove('show'); });
+
+  async function createDay() {
+    const dateStr = document.getElementById('add-day-date').value;
+    if (!dateStr) { showToast('Please select a date', true); return; }
+    const accountId = getActiveAccount();
+    try {
+      const res = await fetch('/api/day/create', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ date: dateStr, account_id: accountId || null })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (!data.created) showToast('Day already exists — opening it');
+        window.location.href = '/day/' + data.day_id;
+      } else {
+        showToast(data.error || 'Failed to create day', true);
+      }
+    } catch(e) {
+      showToast('Network error', true);
+    }
+  }
 </script>
 {% endblock %}
