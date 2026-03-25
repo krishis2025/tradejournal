@@ -11,9 +11,11 @@ accounts ──┬──< trading_days ──┬──< trades ──┬──< 
             │
             ├──< account_config
             │
-            └──< live_trades ──┬──< live_trade_levels
-                               ├──< live_trade_executions
-                               └──< live_trade_images
+            ├──< live_trades ──┬──< live_trade_levels
+            │                  ├──< live_trade_executions
+            │                  └──< live_trade_images
+            │
+            └──< developing_context
 
 setups ──< setup_images
 
@@ -363,6 +365,39 @@ Daily market internals logged per session (morning, midday, afternoon).
 
 ---
 
+### 21. DEVELOPING_CONTEXT
+Pre-trade context declarations for the Declare Setup flow.
+
+| Column       | Type    | Constraints                            |
+|--------------|---------|----------------------------------------|
+| id           | INTEGER | PK AUTOINCREMENT                       |
+| account_id   | INTEGER | FK → accounts(id) ON DELETE SET NULL   |
+| date         | TEXT    | NOT NULL                               |
+| time         | TEXT    | NOT NULL                               |
+| mkt_read     | TEXT    | NOT NULL DEFAULT ''                    |
+| value_area   | TEXT    | NOT NULL DEFAULT ''                    |
+| setup        | TEXT    | NOT NULL DEFAULT ''                    |
+| location     | TEXT    | NOT NULL DEFAULT ''                    |
+| nuance       | TEXT    | NOT NULL DEFAULT ''                    |
+| mental_state | TEXT    | NOT NULL DEFAULT 'calm'                |
+| created_at   | TEXT    | NOT NULL DEFAULT datetime('now','localtime') |
+
+`value_area` values: Lower, Overlapping Lower, Overlapping, Overlapping Higher, Higher.
+`mental_state` values: calm (passed mental state check).
+
+---
+
+### LIVE_TRADES (updated)
+Added column:
+
+| Column     | Type    | Constraints |
+|------------|---------|-------------|
+| context_id | INTEGER | nullable    |
+
+Links a live trade to the `developing_context` entry that was active when the trade was entered.
+
+---
+
 ## Foreign Key Summary
 
 ### CASCADE deletes (deleting parent removes children):
@@ -386,8 +421,9 @@ Daily market internals logged per session (morning, midday, afternoon).
 ### SET NULL on delete (parent deletion nullifies FK):
 | Parent   | Child        | FK Column  |
 |----------|--------------|------------|
-| accounts | trading_days | account_id |
-| accounts | live_trades  | account_id |
+| accounts | trading_days        | account_id |
+| accounts | live_trades         | account_id |
+| accounts | developing_context  | account_id |
 
 ---
 
@@ -413,6 +449,7 @@ Daily market internals logged per session (morning, midday, afternoon).
 | idx_obs_date       | observations           | date            |
 | idx_obs_images     | observation_images     | observation_id  |
 | idx_internals_day  | market_internals       | day_id          |
+| idx_dev_ctx_date   | developing_context     | date            |
 
 ---
 

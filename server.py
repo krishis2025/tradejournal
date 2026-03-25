@@ -249,6 +249,8 @@ def live_trade_page():
         t["executions"] = full.get("executions", [])
         t["calc"] = logic.recalculate_live_trade(full)
 
+    contexts = db.get_developing_contexts(date_from, date_to, account_id)
+
     return render_template(
         "live_ticket.html",
         open_trades=open_trades,
@@ -261,6 +263,8 @@ def live_trade_page():
         active_range=range_key,
         date_from=date_from,
         date_to=date_to,
+        contexts=contexts,
+        contexts_json=json.dumps(contexts),
     )
 
 
@@ -636,6 +640,25 @@ def api_save_instrument_config():
     return jsonify({"ok": True})
 
 
+# ── API: Developing Context ───────────────────────────────────────────────────
+
+@app.route("/api/context", methods=["POST"])
+def api_create_context():
+    body = request.get_json(silent=True) or {}
+    ctx_id = db.create_developing_context(
+        account_id=body.get("account_id") or None,
+        date=body.get("date", ""),
+        time=body.get("time", ""),
+        mkt_read=body.get("mkt_read", ""),
+        value_area=body.get("value_area", ""),
+        setup=body.get("setup", ""),
+        location=body.get("location", ""),
+        nuance=body.get("nuance", ""),
+        mental_state=body.get("mental_state", "calm"),
+    )
+    return jsonify({"ok": True, "id": ctx_id})
+
+
 # ── API: Live Trades ─────────────────────────────────────────────────────────
 
 @app.route("/api/live", methods=["POST"])
@@ -659,6 +682,7 @@ def api_create_live_trade():
             notes_monitoring=body.get("notes_monitoring", ""),
             notes_exit=body.get("notes_exit", ""),
             guard_json=json.dumps(body.get("guard", {})) if body.get("guard") else "",
+            context_id=body.get("context_id") or None,
         )
         # Compute and save default levels
         levels = logic.compute_live_trade_plan(

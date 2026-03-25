@@ -14,6 +14,7 @@
   display:flex; align-items:center; gap:1px;
   background:var(--border); border:1px solid var(--border);
   margin-bottom:16px; height:48px;
+  font-family:'Inter', sans-serif;
 }
 .cmd-bar > * { background:var(--surface); height:100%; display:flex; align-items:center; }
 .cmd-dir {
@@ -91,13 +92,13 @@
   background:var(--surface); color:var(--muted2);
 }
 .cmd-checkin-btn:hover { color:var(--text); background:var(--surface2); }
-.cmd-checkin-btn.state-patient   { color:#00ff88; background:rgba(0,255,136,0.10); }
+.cmd-checkin-btn.state-patient   { color:#2e7d32; background:rgba(46,125,50,0.10); }
 .cmd-checkin-btn.state-intuition { color:#ff9800; background:rgba(255,152,0,0.10); }
 .cmd-checkin-btn.state-eager     { color:#ff4d4d; background:rgba(255,77,77,0.10); }
 
 /* ── ENTER button color states ── */
-.cmd-go-btn.enter-patient   { background:#00ff88; color:#0a0c10; }
-.cmd-go-btn.enter-patient:hover { background:#33ffaa; }
+.cmd-go-btn.enter-patient   { background:#2e7d32; color:#fff; }
+.cmd-go-btn.enter-patient:hover { background:#388e3c; }
 .cmd-go-btn.enter-intuition { background:#ff9800; color:#0a0c10; }
 .cmd-go-btn.enter-intuition:hover { background:#ffb347; }
 .cmd-go-btn.enter-eager     { background:#ff4d4d; color:#fff; }
@@ -108,10 +109,10 @@
   display:flex; align-items:center; height:100%;
   border-radius:0 4px 4px 0; transition:box-shadow 0.2s;
 }
-.cmd-mental-box.glow-patient   { box-shadow:inset 0 -2px 0 #00ff88; }
+.cmd-mental-box.glow-patient   { box-shadow:inset 0 -2px 0 #2e7d32; }
 .cmd-mental-box.glow-intuition { box-shadow:inset 0 -2px 0 #ff9800, 0 0 8px rgba(255,152,0,0.15); }
 .cmd-mental-box.glow-eager     { box-shadow:inset 0 -2px 0 #ff4d4d, 0 0 8px rgba(255,77,77,0.15); }
-.cmd-bar.bar-patient   { border:1px solid #00ff88; animation:bar-pulse-green 3s ease-in-out infinite; }
+.cmd-bar.bar-patient   { border:1px solid var(--border); }
 .cmd-bar.bar-intuition { border:2px solid #ff9800; animation:bar-pulse-orange 2s ease-in-out infinite; }
 .cmd-bar.bar-eager     { border:3px solid #ff4d4d; animation:bar-pulse-red 1.2s ease-in-out infinite; }
 
@@ -129,7 +130,7 @@
   padding:2px 6px; border-radius:1px; text-transform:uppercase;
   display:inline-block; margin-top:3px;
 }
-.tc-mental-patient   { color:#00ff88; background:rgba(0,255,136,0.10); }
+.tc-mental-patient   { color:#2e7d32; background:rgba(46,125,50,0.10); }
 .tc-mental-intuition { color:#ff9800; background:rgba(255,152,0,0.10); }
 .tc-mental-eager     { color:#ff4d4d; background:rgba(255,77,77,0.10); }
 
@@ -325,13 +326,72 @@
 .rc-solve-row input { width:80px; }
 .rc-solve-row .rc-val { font-size:13px; color:var(--accent2); min-width:60px; text-align:right; }
 
-/* ── Main Split: Position Map (left) + Controls (right) ── */
+/* ── Main Split: Evolution (left) + Trades (center) + Controls (right) ── */
 .ticket-body {
-  display:grid; grid-template-columns:1fr minmax(380px, 420px);
+  display:grid; grid-template-columns:minmax(260px,300px) 1fr minmax(380px, 420px);
   gap:1px; background:var(--border); border:1px solid var(--border);
-  min-height: calc(100vh - 200px);
+  min-height: calc(100vh - 250px);
 }
 .ticket-left  { background:var(--surface); overflow-y:auto; }
+
+/* ── Evolution History (left column) ── */
+.evo-panel { background:var(--surface); overflow-y:auto; display:flex; flex-direction:column; }
+.evo-title {
+  font-size:9px; letter-spacing:2.5px; text-transform:uppercase;
+  color:var(--muted); padding:14px 16px 10px; border-bottom:1px solid var(--border);
+}
+.evo-cards { flex:1; overflow-y:auto; padding:10px 12px; }
+.evo-card {
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:2px; padding:16px; margin-bottom:10px;
+  font-family:'Inter', sans-serif; font-size:11px; line-height:1.6;
+  letter-spacing:1.5px;
+  animation: fadeIn 0.3s ease both;
+}
+.evo-card-header {
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:6px;
+}
+.evo-card-time { font-size:10px; color:var(--muted2); letter-spacing:0.5px; }
+.evo-card-value { font-size:10px; font-weight:700; letter-spacing:0.5px; }
+.evo-val-red { color:#d32f2f; }
+.evo-val-blue { color:#1976d2; }
+.evo-val-green { color:#2e7d32; }
+.evo-card-read { font-weight:500; color:var(--muted2); font-size:10px; letter-spacing:0.5px; }
+.evo-card-setup { color:var(--accent2); font-weight:700; font-size:10px; }
+.evo-card-location { color:var(--muted2); font-size:10px; margin-top:2px; }
+.evo-card-nuance {
+  color:var(--muted); font-size:10px; margin-top:6px;
+  padding:6px 8px; background:var(--surface); border:1px solid var(--border);
+  border-radius:2px; white-space:pre-wrap; line-height:1.5;
+}
+.evo-empty {
+  color:var(--border2); font-size:11px; text-align:center;
+  padding:40px 16px; letter-spacing:0.5px;
+}
+
+/* ── Context Ribbon ── */
+.context-ribbon {
+  width:100%; padding:12px 0; display:flex; justify-content:center;
+  align-items:center; flex-wrap:nowrap; gap:40px;
+  font-family:'Inter', sans-serif; font-size:0.75rem; text-transform:uppercase;
+  letter-spacing:1.5px;
+  border-bottom:1px solid var(--border); min-height:50px; box-sizing:border-box;
+  transition:background 0.3s, color 0.3s;
+}
+.ctx-locked { background:#8b1a1a; color:#fff; font-weight:800; }
+.ctx-ready  { background:#fff9c4; color:#1a1d23; }
+.ribbon-item { display:flex; align-items:center; gap:8px; white-space:nowrap; }
+.ribbon-label { font-size:0.55rem; font-weight:400; color:#888; letter-spacing:1.5px; }
+.ctx-locked .ribbon-label { color:rgba(255,255,255,0.5); }
+.ribbon-value { font-size:0.8rem; font-weight:700; color:#1a1d23; letter-spacing:1.5px; }
+.ribbon-val-red { color:#d32f2f; }
+.ribbon-val-blue { color:#1976d2; }
+.ribbon-val-green { color:#2e7d32; }
+.setback-box {
+  background:rgba(0,0,0,0.2); padding:3px 10px; border-radius:3px;
+  font-size:0.65rem; color:#fff; white-space:nowrap;
+}
 
 /* ── Empty state ── */
 .empty-state {
@@ -742,6 +802,47 @@
 .day-footer-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:4px; }
 .day-footer-val   { font-family:var(--font-display); font-size:28px; letter-spacing:1px; }
 
+/* ── Declare Setup Modal ── */
+.ds-modal-backdrop {
+  display:none; position:fixed; inset:0; background:rgba(10,12,16,0.95);
+  backdrop-filter:blur(12px); z-index:910;
+}
+.ds-modal-backdrop.open { display:block; }
+.ds-modal {
+  display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+  width:460px; z-index:911; background:var(--surface); border:1px solid var(--border);
+  border-radius:24px; padding:36px 40px; font-family:'Inter', sans-serif;
+  box-shadow:0 10px 40px rgba(0,0,0,0.15); color:var(--text);
+}
+.ds-modal.open { display:block; }
+.ds-title {
+  font-weight:300; letter-spacing:2px; text-transform:uppercase; color:var(--text);
+  font-size:1.1rem; text-align:center; margin-bottom:24px;
+}
+.ds-field-label {
+  font-size:0.6rem; font-weight:700; color:var(--muted); letter-spacing:1.5px;
+  text-transform:uppercase; margin-bottom:4px; margin-top:12px;
+}
+.ds-field-label:first-of-type { margin-top:0; }
+.ds-input, .ds-select, .ds-textarea {
+  width:100%; padding:12px; border:1px solid var(--border);
+  border-radius:8px; background:var(--surface2); color:var(--text);
+  font-family:inherit; font-size:0.85rem; outline:none;
+  transition:border-color 0.15s; box-sizing:border-box;
+}
+.ds-input:focus, .ds-select:focus, .ds-textarea:focus {
+  border-color:var(--border2);
+}
+.ds-select { appearance:auto; }
+.ds-textarea { resize:vertical; min-height:60px; }
+.ds-commit-btn {
+  width:100%; padding:16px; margin-top:20px; border:none; border-radius:12px;
+  background:var(--text); color:var(--surface); font-weight:800; font-size:0.85rem;
+  letter-spacing:1.5px; text-transform:uppercase; cursor:pointer;
+  transition:all 0.2s; font-family:inherit;
+}
+.ds-commit-btn:hover { opacity:0.85; }
+
 /* ── Date Range Filter Bar ── */
 .date-filter-bar {
   display:flex; align-items:center; gap:8px; margin-bottom:12px;
@@ -833,6 +934,16 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
+     CONTEXT RIBBON — Locked / Ready state
+     ═══════════════════════════════════════════════════════════ -->
+<div class="context-ribbon ctx-locked" id="context-ribbon">
+  <div id="ribbon-content" style="display:flex;align-items:center;gap:40px;">
+    <span>⚠️ MONITORING: CONTEXT UNCONFIRMED. DO NOT TRADE THE CHOP.</span>
+  </div>
+  <div class="setback-box" id="ribbon-setback">SETBACK: -3.0 DAYS</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
      COMMAND BAR — Trade Entry Strip
      ═══════════════════════════════════════════════════════════ -->
 <div class="cmd-bar" id="cmd-bar">
@@ -865,8 +976,8 @@
     <button class="cmd-go-btn" id="cmd-enter" onclick="openTrade()" disabled>ENTER ↵</button>
   </div>
   <div class="cmd-mental-box" id="cmd-mental-box">
-    <button class="cmd-checkin-btn" id="cmd-checkin" onclick="showGuardOverlay()">🧘 MENTAL STATE</button>
-    <button class="cmd-reset-btn" id="cmd-reset" onclick="resetGuardState()" title="Reset" style="display:none;">↻</button>
+    <button class="cmd-checkin-btn" id="cmd-checkin" onclick="showDeclareSetupFlow()">DECLARE SETUP</button>
+    <button class="cmd-reset-btn" id="cmd-reset-ctx" onclick="resetContextState()" style="display:none;" title="Reset context">✕</button>
   </div>
   <div class="cmd-risk" id="cmd-risk" onclick="openRiskCalc()" title="Click for risk calculator">
     <span class="cmd-risk-dollar" id="risk-label">Risk: —</span>
@@ -887,17 +998,17 @@
     <button class="gk-traffic-btn green" id="gk-patient"
             onclick="guardSelectPatient()"
             onmouseenter="guardHover('patient')" onmouseleave="guardHoverReset()">
-      Trade Came to Me
+      Calm, Focused
     </button>
     <button class="gk-traffic-btn orange" id="gk-intuition"
             onclick="guardSelectIntuition()"
             onmouseenter="guardHover('intuition')" onmouseleave="guardHoverReset()">
-      Intuition / Mkt Feel
+      Eager, Looking for a Trade
     </button>
     <button class="gk-traffic-btn red" id="gk-eager"
             onclick="guardSelectEager()"
             onmouseenter="guardHover('eager')" onmouseleave="guardHoverReset()">
-      Eager / FOMO
+      FOMO
     </button>
   </div>
   <div class="gk-consequence" id="gk-consequence">
@@ -915,11 +1026,41 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
-     MAIN BODY — Left: Trades | Right: Controls
+     DECLARE SETUP FORM MODAL
+     ═══════════════════════════════════════════════════════════ -->
+<div class="ds-modal-backdrop" id="ds-backdrop" onclick="closeDeclareSetupModal()"></div>
+<div class="ds-modal" id="ds-modal">
+  <div class="ds-title">Declare Setup</div>
+  <div class="ds-field-label">Mkt Read</div>
+  <input type="text" class="ds-input" id="ds-mkt-read" placeholder="e.g. Balancing, Initiative...">
+  <div class="ds-field-label">Value Area</div>
+  <select class="ds-select" id="ds-value-area">
+    <option value="Lower">Lower</option>
+    <option value="Overlapping Lower">Overlapping Lower (OL)</option>
+    <option value="Overlapping" selected>Overlapping</option>
+    <option value="Overlapping Higher">Overlapping Higher (OH)</option>
+    <option value="Higher">Higher</option>
+  </select>
+  <input type="text" class="ds-input" id="ds-setup" placeholder="Setup name" style="margin-top:12px;">
+  <input type="text" class="ds-input" id="ds-location" placeholder="e.g. Fade balance high @ 6630 LVN" style="margin-top:8px;">
+  <textarea class="ds-textarea" id="ds-nuance" rows="3" placeholder="Additional context, nuances..." style="margin-top:8px;"></textarea>
+  <button class="ds-commit-btn" onclick="commitContext()">COMMIT TO CONTEXT</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MAIN BODY — Evolution | Trades | Controls
      ═══════════════════════════════════════════════════════════ -->
 <div class="ticket-body">
 
-  <!-- LEFT PANEL — Trade cards stream -->
+  <!-- EVOLUTION HISTORY (left column) -->
+  <div class="evo-panel">
+    <div class="evo-title">Evolution History</div>
+    <div class="evo-cards" id="evo-cards">
+      <div class="evo-empty" id="evo-empty">No context declared yet.</div>
+    </div>
+  </div>
+
+  <!-- CENTER PANEL — Trade cards stream -->
   <div class="ticket-left" id="trades-list">
 
     <div style="padding:12px 18px 8px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);">
@@ -1174,6 +1315,7 @@
 const TAG_GROUPS = {{ tags_json|safe }};
 const INST_CONFIG = {{ instrument_config_json|safe }};
 const TRADE_DEFAULTS = {{ trade_defaults_json|safe }};
+const SERVER_CONTEXTS = {{ contexts_json|safe }};
 
 // ── State ────────────────────────────────────────────────────────────────────
 let formDir  = 'Long';
@@ -1183,9 +1325,14 @@ let activeTrade = null;
 let activeTags = {};
 let allTrades = [];
 
-// ── Guard State ──────────────────────────────────────────────────────────────
+// ── Context & Guard State ─────────────────────────────────────────────────────
 let guardState = { mental_state: null };
-let guardLocked = false;  // true after a button is clicked (waiting for confirm/gamble input)
+let guardLocked = false;
+let activeContextId = null;
+
+function showDeclareSetupFlow() {
+  showGuardOverlay();
+}
 
 function showGuardOverlay() {
   guardState = { mental_state: null };
@@ -1252,14 +1399,15 @@ function guardHoverReset() {
   msg.style.color = '#555';
 }
 
-// GREEN — instant proceed
+// GREEN — Calm, Focused → close overlay → open Declare Setup form
 function guardSelectPatient() {
   if (guardLocked) return;
+  guardState.mental_state = 'calm';
   closeGuardOverlay();
-  applyGuardState('patient');
+  openDeclareSetupModal();
 }
 
-// ORANGE — must click confirm button
+// ORANGE — Eager → confirm click → stays locked
 function guardSelectIntuition() {
   if (guardLocked) return;
   guardLocked = true;
@@ -1267,9 +1415,8 @@ function guardSelectIntuition() {
   card.classList.remove('card-ready','card-caution','card-warning','card-neutral');
   card.classList.add('card-caution');
   const msg = document.getElementById('gk-consequence-msg');
-  msg.textContent = "You have identified Competition's situation, but your trigger is based on 'Feel' rather than strength. Volume must confirm your edge.";
+  msg.textContent = "You are looking for a trade, not letting it come to you. Step away.";
   msg.style.color = '#ff9800';
-  // Disable other buttons, highlight selected, show confirm
   document.getElementById('gk-patient').disabled = true;
   document.getElementById('gk-intuition').classList.add('selected');
   document.getElementById('gk-eager').disabled = true;
@@ -1277,11 +1424,15 @@ function guardSelectIntuition() {
 }
 
 function guardConfirmIntuition() {
+  guardState.mental_state = 'eager';
   closeGuardOverlay();
-  applyGuardState('intuition');
+  // Ribbon stays RED, ENTER stays locked
+  const checkinBtn = document.getElementById('cmd-checkin');
+  checkinBtn.classList.add('state-intuition');
+  checkinBtn.textContent = 'EAGER STATE — STEP AWAY';
 }
 
-// RED — type GAMBLE to confirm
+// RED — FOMO → type GAMBLE → stays locked
 function guardSelectEager() {
   if (guardLocked) return;
   guardLocked = true;
@@ -1289,11 +1440,10 @@ function guardSelectEager() {
   card.classList.remove('card-ready','card-caution','card-warning','card-neutral');
   card.classList.add('card-warning');
   const msg = document.getElementById('gk-consequence-msg');
-  msg.textContent = 'FOMO detected — type GAMBLE to continue, or close to reconsider.';
+  msg.textContent = 'FOMO detected — type GAMBLE to acknowledge, or close to reconsider.';
   msg.style.color = '#ff4d4d';
   document.getElementById('gk-gamble-input').classList.add('visible');
   document.getElementById('gk-gamble-input').focus();
-  // Disable other buttons, highlight selected
   document.getElementById('gk-patient').disabled = true;
   document.getElementById('gk-intuition').disabled = true;
   document.getElementById('gk-eager').classList.add('selected');
@@ -1307,68 +1457,164 @@ function checkGambleInput(el) {
 }
 
 function guardConfirmGamble() {
+  guardState.mental_state = 'fomo';
   closeGuardOverlay();
-  applyGuardState('eager');
-}
-
-function applyGuardState(mentalState) {
-  guardState.mental_state = mentalState;
-  const enterBtn = document.getElementById('cmd-enter');
+  // Ribbon stays RED, ENTER stays locked
   const checkinBtn = document.getElementById('cmd-checkin');
-  const resetBtn = document.getElementById('cmd-reset');
-  const mentalBox = document.getElementById('cmd-mental-box');
-
-  const cmdBar = document.querySelector('.cmd-bar');
-
-  enterBtn.disabled = false;
-  enterBtn.classList.remove('enter-patient','enter-intuition','enter-eager');
-  checkinBtn.classList.remove('state-patient','state-intuition','state-eager');
-  mentalBox.classList.remove('glow-patient','glow-intuition','glow-eager');
-  cmdBar.classList.remove('bar-patient','bar-intuition','bar-eager');
-
-  if (mentalState === 'patient') {
-    enterBtn.classList.add('enter-patient');
-    enterBtn.textContent = 'ENTER ↵';
-    checkinBtn.classList.add('state-patient');
-    checkinBtn.textContent = '🧘 PATIENT ✓';
-    mentalBox.classList.add('glow-patient');
-    cmdBar.classList.add('bar-patient');
-  } else if (mentalState === 'intuition') {
-    enterBtn.classList.add('enter-intuition');
-    enterBtn.textContent = 'INTUITION TRADE';
-    checkinBtn.classList.add('state-intuition');
-    checkinBtn.textContent = '🧘 FEEL ✓';
-    mentalBox.classList.add('glow-intuition');
-    cmdBar.classList.add('bar-intuition');
-  } else if (mentalState === 'eager') {
-    enterBtn.classList.add('enter-eager');
-    enterBtn.textContent = 'GAMBLE';
-    checkinBtn.classList.add('state-eager');
-    checkinBtn.textContent = '🧘 FOMO ✓';
-    mentalBox.classList.add('glow-eager');
-    cmdBar.classList.add('bar-eager');
-  }
-  resetBtn.style.display = '';
+  checkinBtn.classList.add('state-eager');
+  checkinBtn.textContent = 'FOMO — DO NOT TRADE';
 }
 
-function resetGuardState() {
+// ── Declare Setup Modal ──────────────────────────────────────────────────────
+function openDeclareSetupModal() {
+  document.getElementById('ds-mkt-read').value = '';
+  document.getElementById('ds-value-area').value = 'Overlapping';
+  document.getElementById('ds-setup').value = '';
+  document.getElementById('ds-location').value = '';
+  document.getElementById('ds-nuance').value = '';
+  document.getElementById('ds-backdrop').classList.add('open');
+  document.getElementById('ds-modal').classList.add('open');
+  document.getElementById('ds-mkt-read').focus();
+}
+
+function closeDeclareSetupModal() {
+  document.getElementById('ds-backdrop').classList.remove('open');
+  document.getElementById('ds-modal').classList.remove('open');
+}
+
+function formatTime12h(t) {
+  const [h,m] = t.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+
+async function commitContext() {
+  const mktRead = document.getElementById('ds-mkt-read').value.trim();
+  const valueArea = document.getElementById('ds-value-area').value;
+  const setup = document.getElementById('ds-setup').value.trim();
+  const location = document.getElementById('ds-location').value.trim();
+  const nuance = document.getElementById('ds-nuance').value.trim();
+
+  if (!mktRead && !setup) { showToast('Fill at least Mkt Read or Setup', true); return; }
+
+  const now = new Date();
+  const timeStr = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  const pid = document.getElementById('global-account-select')?.value || null;
+
+  const res = await fetch('/api/context', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      date: dateStr, time: timeStr,
+      mkt_read: mktRead, value_area: valueArea,
+      setup: setup, location: location, nuance: nuance,
+      mental_state: guardState.mental_state || 'calm',
+      account_id: pid ? parseInt(pid) : null,
+    })
+  });
+  const data = await res.json();
+  if (!data.ok) { showToast(data.error || 'Failed', true); return; }
+
+  activeContextId = data.id;
+  closeDeclareSetupModal();
+
+  // Update ribbon to READY
+  const ribbon = document.getElementById('context-ribbon');
+  ribbon.className = 'context-ribbon ctx-ready';
+  const valColor = getValueAreaColor(valueArea);
+  document.getElementById('ribbon-content').innerHTML = `
+    <div class="ribbon-item"><span class="ribbon-label">TIME:</span> <span class="ribbon-value">${formatTime12h(timeStr)}</span></div>
+    <div class="ribbon-item"><span class="ribbon-label">VALUE:</span> <span class="ribbon-value ribbon-val-${valColor}">${valueArea.toUpperCase()}</span></div>
+    <div class="ribbon-item"><span class="ribbon-label">SETUP:</span> <span class="ribbon-value" style="color:#1976d2">${setup.toUpperCase()}</span></div>
+    <div class="ribbon-item"><span class="ribbon-label">LOCATION:</span> <span class="ribbon-value">${location}</span></div>
+  `;
+  document.getElementById('ribbon-setback').style.display = 'none';
+
+  // Unlock ENTER
+  const enterBtn = document.getElementById('cmd-enter');
+  enterBtn.disabled = false;
+  enterBtn.classList.add('enter-patient');
+  enterBtn.textContent = 'ENTER ↵';
+  const checkinBtn = document.getElementById('cmd-checkin');
+  checkinBtn.classList.add('state-patient');
+  checkinBtn.textContent = 'CONTEXT SET ✓';
+  document.getElementById('cmd-reset-ctx').style.display = '';
+  document.getElementById('cmd-mental-box').classList.add('glow-patient');
+  document.querySelector('.cmd-bar').classList.add('bar-patient');
+
+  // Add evo card
+  addEvoCard({ time: timeStr, mkt_read: mktRead, value_area: valueArea, setup: setup, location: location, nuance: nuance });
+  showToast('Context committed — ENTER unlocked');
+}
+
+function getValueAreaColor(val) {
+  if (val === 'Lower' || val === 'Overlapping Lower') return 'red';
+  if (val === 'Overlapping') return 'blue';
+  return 'green';
+}
+
+function shortValue(v) {
+  if (v === 'Overlapping Lower') return 'OL';
+  if (v === 'Overlapping Higher') return 'OH';
+  return v;
+}
+
+function addEvoCard(ctx) {
+  document.getElementById('evo-empty').style.display = 'none';
+  const card = document.createElement('div');
+  card.className = 'evo-card';
+  const valColor = getValueAreaColor(ctx.value_area);
+  const nuanceHtml = ctx.nuance ? `<div class="evo-card-nuance">${ctx.nuance}</div>` : '';
+  const locationHtml = ctx.location ? `<div class="evo-card-location">${ctx.location}</div>` : '';
+  card.innerHTML = `
+    <div class="evo-card-header">
+      <span class="evo-card-time">${formatTime12h(ctx.time)}</span>
+      <span class="evo-card-read">${ctx.mkt_read || ''}</span>
+      <span class="evo-card-value evo-val-${valColor}">${shortValue(ctx.value_area)}</span>
+    </div>
+    <div class="evo-card-setup">${ctx.setup}</div>
+    ${locationHtml}
+    ${nuanceHtml}
+  `;
+  const container = document.getElementById('evo-cards');
+  container.insertBefore(card, container.firstChild);
+}
+
+function resetContextState() {
+  activeContextId = null;
   guardState = { mental_state: null };
+  // Ribbon → RED
+  const ribbon = document.getElementById('context-ribbon');
+  ribbon.className = 'context-ribbon ctx-locked';
+  document.getElementById('ribbon-content').innerHTML =
+    '<span>⚠️ MONITORING: CONTEXT UNCONFIRMED. DO NOT TRADE THE CHOP.</span>';
+  document.getElementById('ribbon-setback').style.display = '';
+  // ENTER → locked
   const enterBtn = document.getElementById('cmd-enter');
   enterBtn.disabled = true;
   enterBtn.classList.remove('enter-patient','enter-intuition','enter-eager');
   enterBtn.textContent = 'ENTER ↵';
+  // Checkin button → default
   const checkinBtn = document.getElementById('cmd-checkin');
   checkinBtn.classList.remove('state-patient','state-intuition','state-eager');
-  checkinBtn.textContent = '🧘 MENTAL STATE';
-  document.getElementById('cmd-reset').style.display = 'none';
+  checkinBtn.textContent = 'DECLARE SETUP';
+  document.getElementById('cmd-reset-ctx').style.display = 'none';
   document.getElementById('cmd-mental-box').classList.remove('glow-patient','glow-intuition','glow-eager');
   document.querySelector('.cmd-bar').classList.remove('bar-patient','bar-intuition','bar-eager');
   clearPageGuardBorder();
 }
 
+// Keep old name for compatibility
+function resetGuardState() { resetContextState(); }
+
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && document.getElementById('guard-backdrop').classList.contains('open')) {
-    closeGuardOverlay();
+  if (e.key === 'Escape') {
+    if (document.getElementById('ds-modal').classList.contains('open')) {
+      closeDeclareSetupModal();
+    } else if (document.getElementById('guard-backdrop').classList.contains('open')) {
+      closeGuardOverlay();
+    }
   }
 });
 
@@ -1385,6 +1631,30 @@ function refreshTime() {
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('cmd-time').value = getCurrentTimeStr();
   document.getElementById('cmd-price').focus();
+
+  // Load evolution history from server
+  if (SERVER_CONTEXTS && SERVER_CONTEXTS.length > 0) {
+    document.getElementById('evo-empty').style.display = 'none';
+    // SERVER_CONTEXTS is already DESC — append in order to preserve newest-first
+    const evoContainer = document.getElementById('evo-cards');
+    SERVER_CONTEXTS.forEach(ctx => {
+      const card = document.createElement('div');
+      card.className = 'evo-card';
+      const valColor = getValueAreaColor(ctx.value_area);
+      const nuanceHtml = ctx.nuance ? `<div class="evo-card-nuance">${ctx.nuance}</div>` : '';
+      const locationHtml = ctx.location ? `<div class="evo-card-location">${ctx.location}</div>` : '';
+      card.innerHTML = `
+        <div class="evo-card-header">
+          <span class="evo-card-time">${formatTime12h(ctx.time)}</span>
+          <span class="evo-card-value evo-val-${valColor}">${shortValue(ctx.value_area)}</span>
+        </div>
+        <div class="evo-card-setup">${ctx.setup}</div>
+        ${locationHtml}
+        ${nuanceHtml}
+      `;
+      evoContainer.appendChild(card);
+    });
+  }
 
   // Load all trades (open + closed) sorted by created_at ascending for stable numbering
   const serverOpen = {{ open_trades|tojson }};
@@ -1463,7 +1733,7 @@ function setMode(m) {
 
 // ── Open Trade ───────────────────────────────────────────────────────────────
 async function openTrade() {
-  if (!guardState.mental_state) { showToast('Check in first', true); return; }
+  if (!activeContextId) { showToast('Declare setup first', true); return; }
 
   const price = parseFloat(document.getElementById('cmd-price').value);
   const qty   = parseInt(document.getElementById('cmd-qty').value);
@@ -1478,7 +1748,7 @@ async function openTrade() {
       direction: formDir, instrument: formInst, entry_price: price,
       entry_time: time, total_qty: qty, mode: formMode,
       notes: '', tags: {}, account_id: pid ? parseInt(pid) : null,
-      guard: guardData
+      guard: guardData, context_id: activeContextId
     })
   });
   const data = await res.json();
@@ -1536,7 +1806,7 @@ async function openTrade() {
 
   updateDayPnl();
   showToast(`${formDir} ${qty}× ${formInst} @ ${price}`);
-  resetGuardState();
+  resetContextState();
 }
 
 // ── Derive Trade Status ──────────────────────────────────────────────────────

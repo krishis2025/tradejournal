@@ -461,6 +461,29 @@ def init_db():
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_internals_day ON market_internals(day_id)")
 
+        # Migration: create developing_context table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS developing_context (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id    INTEGER REFERENCES accounts(id) ON DELETE SET NULL,
+                date          TEXT NOT NULL,
+                time          TEXT NOT NULL,
+                mkt_read      TEXT NOT NULL DEFAULT '',
+                value_area    TEXT NOT NULL DEFAULT '',
+                setup         TEXT NOT NULL DEFAULT '',
+                location      TEXT NOT NULL DEFAULT '',
+                nuance        TEXT NOT NULL DEFAULT '',
+                mental_state  TEXT NOT NULL DEFAULT 'calm',
+                created_at    TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_dev_ctx_date ON developing_context(date)")
+
+        # Migration: add context_id to live_trades
+        lt_cols_ctx = [r[1] for r in conn.execute("PRAGMA table_info(live_trades)").fetchall()]
+        if "context_id" not in lt_cols_ctx:
+            conn.execute("ALTER TABLE live_trades ADD COLUMN context_id INTEGER")
+
 
 # ── Accounts ─────────────────────────────────────────────────────────────────
 
@@ -1398,15 +1421,16 @@ def clear_account_config(account_id, prefix=None):
 
 def create_live_trade(account_id, direction, instrument, entry_price, entry_time,
                       total_qty, mode, notes="", tags_json="{}",
-                      notes_monitoring="", notes_exit="", guard_json=""):
+                      notes_monitoring="", notes_exit="", guard_json="",
+                      context_id=None):
     with get_conn() as conn:
         cur = conn.execute("""
             INSERT INTO live_trades
                 (account_id, direction, instrument, entry_price, entry_time,
-                 total_qty, mode, notes, tags_json, notes_monitoring, notes_exit, guard_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 total_qty, mode, notes, tags_json, notes_monitoring, notes_exit, guard_json, context_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (account_id, direction, instrument, entry_price, entry_time,
-              total_qty, mode, notes, tags_json, notes_monitoring, notes_exit, guard_json))
+              total_qty, mode, notes, tags_json, notes_monitoring, notes_exit, guard_json, context_id))
         return cur.lastrowid
 
 
@@ -2005,3 +2029,31 @@ def get_internals_session(day_id, session):
             (day_id, session),
         ).fetchone()
         return dict(row) if row else None
+
+
+# ── Developing Context ───────────────────────────────────────────────────────
+
+def create_developing_context(account_id, date, time, mkt_read, value_area,
+                               setup, location, nuance, mental_state):
+    with get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO developing_context
+                (account_id, date, time, mkt_read, value_area, setup, location, nuance, mental_state)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (account_id, date, time, mkt_read, value_area, setup, location, nuance, mental_state))
+        return cur.lastrowid
+
+
+def get_developing_contexts(date_from, date_to, account_id=None):
+    with get_conn() as conn:
+        conditions = ["date >= ?", "date <= ?"]
+        params = [date_from, date_to]
+        if account_id:
+            conditions.append("account_id = ?")
+            params.append(account_id)
+        where = " AND ".join(conditions)
+        rows = conn.execute(
+            f"SELECT * FROM developing_context WHERE {where} ORDER BY created_at DESC",
+            params,
+        ).fetchall()
+        return [dict(r) for r in rows]
