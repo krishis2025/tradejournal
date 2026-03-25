@@ -659,6 +659,13 @@ def api_create_context():
     return jsonify({"ok": True, "id": ctx_id})
 
 
+@app.route("/api/context/<int:ctx_id>", methods=["PATCH"])
+def api_update_context(ctx_id):
+    body = request.get_json(silent=True) or {}
+    db.update_developing_context(ctx_id, **body)
+    return jsonify({"ok": True})
+
+
 # ── API: Live Trades ─────────────────────────────────────────────────────────
 
 @app.route("/api/live", methods=["POST"])

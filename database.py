@@ -2044,6 +2044,19 @@ def create_developing_context(account_id, date, time, mkt_read, value_area,
         return cur.lastrowid
 
 
+def update_developing_context(ctx_id, **fields):
+    allowed = {"mkt_read", "value_area", "setup", "location", "nuance"}
+    updates = {k: v for k, v in fields.items() if k in allowed}
+    if not updates:
+        return
+    with get_conn() as conn:
+        set_clause = ", ".join(f"{k} = ?" for k in updates)
+        conn.execute(
+            f"UPDATE developing_context SET {set_clause} WHERE id = ?",
+            list(updates.values()) + [ctx_id],
+        )
+
+
 def get_developing_contexts(date_from, date_to, account_id=None):
     with get_conn() as conn:
         conditions = ["date >= ?", "date <= ?"]
