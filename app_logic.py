@@ -861,7 +861,8 @@ def close_live_trade_to_journal(live_trade_id):
         day_id, trade_num, lt["direction"], lt["total_qty"],
         lt["entry_price"], avg_exit, realized_pnl,
         lt["entry_time"], exit_time, is_open=(calc["remaining_qty"] > 0),
-        execution_json=execution_json_str
+        execution_json=execution_json_str,
+        execution_score_json=lt.get("execution_score_json")
     )
 
     # Save tags from live trade

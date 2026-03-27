@@ -427,6 +427,9 @@
   <div class="trade-row-header" onclick="toggleCard({{ trade.id }})">
     <div class="trc">
       <div style="font-family:var(--font-display);font-size:26px;color:var(--border2);line-height:1;">T{{ trade.trade_num }}</div>
+      {% if trade.exec_score is not none %}
+      <div style="font-size:10px;font-weight:700;color:{{ '#b8860b' if trade.exec_score >= 3 else '#d32f2f' }};margin-top:2px;">{{ trade.exec_score }}/5</div>
+      {% endif %}
     </div>
     <div class="trc">
       <div class="trc-label">Direction</div>
@@ -623,7 +626,7 @@ if (hash) {
 
   const trades = [
     {% for t in trades %}
-    { num: {{ t.trade_num }}, pnl: {{ t.pnl }}, time: '{{ t.entry_time }}', dir: '{{ t.direction }}' },
+    { num: {{ t.trade_num }}, pnl: {{ t.pnl }}, time: '{{ t.entry_time }}', dir: '{{ t.direction }}', execScore: {{ t.exec_score|default('null',true) }} },
     {% endfor %}
   ];
   if (!trades.length) return;
@@ -634,6 +637,7 @@ if (hash) {
   const cumData  = [0];
   const barData  = [null];      // Start slot — no bar
   const barColors = ['transparent'];  // Start slot — no color
+  const scoreLabels = [null];   // Start slot — no score
 
   trades.forEach(t => {
     cum += t.pnl;
@@ -644,11 +648,36 @@ if (hash) {
                  : t.pnl < 0 ? 'rgba(255,77,109,0.65)'
                  :              'rgba(255,179,71,0.65)';
     barColors.push(bc);
+    scoreLabels.push(t.execScore != null ? `${t.execScore}/5` : null);
   });
 
   const finalColor = cum >= 0 ? '#34d399' : '#ff4d6d';
 
+  // Plugin: draw execution score labels on bars
+  const execScorePlugin = {
+    id: 'execScoreLabels',
+    afterDatasetsDraw(chart) {
+      const barMeta = chart.getDatasetMeta(1); // bar dataset
+      if (!barMeta) return;
+      const ctx = chart.ctx;
+      ctx.save();
+      ctx.font = 'bold 10px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      barMeta.data.forEach((bar, i) => {
+        const label = scoreLabels[i];
+        if (!label) return;
+        const score = parseInt(label);
+        ctx.fillStyle = score >= 3 ? '#b8860b' : '#d32f2f';
+        const y = bar.y + (barData[i] >= 0 ? -10 : 10);
+        ctx.fillText(label, bar.x, y);
+      });
+      ctx.restore();
+    }
+  };
+
   new Chart(canvas, {
+    plugins: [execScorePlugin],
     data: {
       labels,
       datasets: [

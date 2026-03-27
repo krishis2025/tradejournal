@@ -489,6 +489,11 @@ def init_db():
         if "context_id" not in lt_cols_ctx:
             conn.execute("ALTER TABLE live_trades ADD COLUMN context_id INTEGER")
 
+        # Migration: add execution_score_json to trades
+        trades_cols = [r[1] for r in conn.execute("PRAGMA table_info(trades)").fetchall()]
+        if "execution_score_json" not in trades_cols:
+            conn.execute("ALTER TABLE trades ADD COLUMN execution_score_json TEXT DEFAULT NULL")
+
 
 # ── Accounts ─────────────────────────────────────────────────────────────────
 
@@ -668,6 +673,7 @@ def delete_day(day_id):
 # ── Trades ────────────────────────────────────────────────────────────────────
 
 def get_trades_for_day(day_id):
+    import json as _json
     with get_conn() as conn:
         trades = conn.execute(
             "SELECT * FROM trades WHERE day_id = ? ORDER BY trade_num", (day_id,)
@@ -675,6 +681,14 @@ def get_trades_for_day(day_id):
         result = []
         for t in trades:
             td = dict(t)
+            # Parse execution_score_json into exec_score integer for template use
+            es_raw = td.get("execution_score_json")
+            td["exec_score"] = None
+            if es_raw:
+                try:
+                    td["exec_score"] = _json.loads(es_raw).get("score")
+                except (ValueError, TypeError, AttributeError):
+                    pass
             td["fills"] = [dict(f) for f in conn.execute(
                 "SELECT * FROM fills WHERE trade_id = ? ORDER BY fill_time", (t["id"],)
             ).fetchall()]
@@ -720,13 +734,13 @@ def get_trade_by_id(trade_id):
         return td
 
 
-def insert_trade(day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open=False, execution_json=None):
+def insert_trade(day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open=False, execution_json=None, execution_score_json=None):
     with get_conn() as conn:
         cur = conn.execute("""
             INSERT INTO trades
-                (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open, execution_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, 1 if is_open else 0, execution_json))
+                (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open, execution_json, execution_score_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, 1 if is_open else 0, execution_json, execution_score_json))
         return cur.lastrowid
 
 
