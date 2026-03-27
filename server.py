@@ -705,7 +705,7 @@ def api_create_live_trade():
 @app.route("/api/live/<int:live_id>", methods=["PUT"])
 def api_update_live_trade(live_id):
     body = request.get_json(silent=True) or {}
-    allowed = {"notes", "notes_monitoring", "notes_exit", "tags_json", "status"}
+    allowed = {"notes", "notes_monitoring", "notes_exit", "tags_json", "status", "execution_score_json"}
     updates = {k: v for k, v in body.items() if k in allowed}
     if "tags" in body:
         updates["tags_json"] = json.dumps(body["tags"])

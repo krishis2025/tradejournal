@@ -780,6 +780,25 @@ textarea.evo-edit-field { resize:vertical; min-height:40px; }
 .tp-tab-content { display:none; }
 .tp-tab-content.active { display:block; }
 
+/* Execution Score tab */
+.es-header { text-align:center; margin-bottom:20px; }
+.es-header h2 { font-family:'Inter',sans-serif; font-weight:300; letter-spacing:6px; font-size:1.1rem; color:var(--text); text-transform:uppercase; margin:0; }
+.es-header p { font-size:0.6rem; font-weight:700; color:var(--muted); letter-spacing:1.5px; margin-top:8px; text-transform:uppercase; }
+.es-score-circle { width:56px; height:56px; border-radius:50%; margin:0 auto 20px; display:flex; align-items:center; justify-content:center; font-size:1.6rem; font-weight:700; border:1px solid var(--border); color:var(--muted); transition:all 0.3s ease; font-family:'Inter',sans-serif; }
+.es-score-circle.score-active { border-color:#b8860b; color:#b8860b; box-shadow:0 0 15px rgba(184,134,11,0.1); }
+.es-checklist { display:flex; flex-direction:column; gap:10px; }
+.es-check-item { background:#f9f8f4; border:1px solid transparent; border-radius:16px; padding:16px 18px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; transition:all 0.2s ease; }
+.es-check-item:hover { background:#f2f1ec; }
+.es-check-item.active { border-color:#b8860b; background:#fffefb; }
+.es-check-content { flex:1; padding-right:12px; }
+.es-check-title { font-size:0.65rem; font-weight:700; color:var(--text); letter-spacing:1.2px; text-transform:uppercase; display:block; font-family:'Inter',sans-serif; }
+.es-check-desc { font-size:0.72rem; font-weight:400; color:var(--muted); line-height:1.5; margin-top:4px; display:block; font-family:'Inter',sans-serif; }
+.es-checkbox-ui { width:24px; height:24px; border:2px solid #dcdcdc; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:0.85rem; color:#ccc; transition:all 0.2s ease; flex-shrink:0; background:white; }
+.es-check-item.active .es-checkbox-ui { background:#b8860b; border-color:#b8860b; color:white; }
+.es-commit-btn { width:100%; margin-top:20px; padding:14px; background:#1a1a1a; color:white; border:none; border-radius:12px; font-weight:700; font-size:0.72rem; letter-spacing:2px; text-transform:uppercase; cursor:pointer; transition:background 0.2s; font-family:'Inter',sans-serif; }
+.es-commit-btn:hover { background:#333; }
+.es-warning { color:#d32f2f; font-size:0.7rem; font-weight:600; text-align:center; margin-top:12px; display:none; letter-spacing:0.5px; font-family:'Inter',sans-serif; }
+
 /* Live trade image upload */
 .lt-img-drop {
   border: 1px dashed var(--border2); border-radius: 2px;
@@ -1216,6 +1235,7 @@ textarea.evo-edit-field { resize:vertical; min-height:40px; }
     <button class="tp-tab active" data-tab="tags" onclick="switchDrawerTab('tags')">Tags</button>
     <button class="tp-tab" data-tab="notes" onclick="switchDrawerTab('notes')">Notes</button>
     <button class="tp-tab" data-tab="media" onclick="switchDrawerTab('media')">Media</button>
+    <button class="tp-tab" data-tab="score" onclick="switchDrawerTab('score')">Score</button>
   </div>
 
   <!-- Tags tab -->
@@ -1275,6 +1295,54 @@ textarea.evo-edit-field { resize:vertical; min-height:40px; }
       <div class="lt-img-drop-text">Drop image, paste, or click to upload</div>
       <input type="file" accept="image/*" multiple id="lt-img-input" style="display:none;">
     </div>
+  </div>
+
+  <!-- Score tab -->
+  <div class="tp-tab-content" id="tp-tab-score">
+    <div class="es-header">
+      <h2>Execution Score</h2>
+      <p>Process Over P&L Audit</p>
+    </div>
+    <div class="es-score-circle" id="es-score-val">0</div>
+    <div class="es-checklist">
+      <div class="es-check-item" data-key="patience" onclick="toggleExecCheck(this)">
+        <div class="es-check-content">
+          <span class="es-check-title">Patience (Level)</span>
+          <span class="es-check-desc">Did I wait for the price to reach my planned location?</span>
+        </div>
+        <div class="es-checkbox-ui">✓</div>
+      </div>
+      <div class="es-check-item" data-key="arrival" onclick="toggleExecCheck(this)">
+        <div class="es-check-content">
+          <span class="es-check-title">Arrival (Context)</span>
+          <span class="es-check-desc">Did I watch the tape and nuances at the level?</span>
+        </div>
+        <div class="es-checkbox-ui">✓</div>
+      </div>
+      <div class="es-check-item" data-key="strength" onclick="toggleExecCheck(this)">
+        <div class="es-check-content">
+          <span class="es-check-title">Strength and Confluence</span>
+          <span class="es-check-desc">Did I execute on verified directional strength with market internals (VOLD/ADD) fully aligned?</span>
+        </div>
+        <div class="es-checkbox-ui">✓</div>
+      </div>
+      <div class="es-check-item" data-key="exit" onclick="toggleExecCheck(this)">
+        <div class="es-check-content">
+          <span class="es-check-title">Exit (Discipline)</span>
+          <span class="es-check-desc">Did I exit at planned levels without hesitation?</span>
+        </div>
+        <div class="es-checkbox-ui">✓</div>
+      </div>
+      <div class="es-check-item" data-key="review" onclick="toggleExecCheck(this)">
+        <div class="es-check-content">
+          <span class="es-check-title">Review (Continuation)</span>
+          <span class="es-check-desc">Did I monitor price behavior after the exit?</span>
+        </div>
+        <div class="es-checkbox-ui">✓</div>
+      </div>
+    </div>
+    <div class="es-warning" id="es-warning">Poor Execution. Alpha Compromised.</div>
+    <button class="es-commit-btn" onclick="commitExecutionScore()">Commit to History</button>
   </div>
 </div>
 
@@ -2001,6 +2069,7 @@ function renderTradeCard(t) {
     <div class="tc-row-header">
       <div class="tc-cell" style="padding:10px 8px;text-align:center;">
         <div style="font-family:var(--font-display);font-size:22px;color:var(--border2);line-height:1;">T${tradeNum}</div>
+        ${(() => { try { const esd = t.execution_score_json ? (typeof t.execution_score_json === 'object' ? t.execution_score_json : JSON.parse(t.execution_score_json)) : null; if (esd && esd.score != null) return `<div style="font-family:'Inter',sans-serif;font-size:9px;font-weight:600;color:${esd.score >= 3 ? '#b8860b' : '#d32f2f'};letter-spacing:0.5px;margin-top:3px;">${esd.score}/5</div>`; return ''; } catch(e) { return ''; } })()}
       </div>
       <div class="tc-cell">
         <span class="tc-dir-badge ${isLong ? 'tc-dir-long' : 'tc-dir-short'}">${t.direction}</span>
@@ -2161,6 +2230,7 @@ function selectTrade(id) {
   buildSetLevelButtons(t);
   syncTagButtons();
   loadLiveImages(t.id);
+  loadExecutionScore(t);
 
   if (isSwitching) {
     showToast(`Switched to Trade ${tradeNum}`);
@@ -2667,6 +2737,59 @@ function switchDrawerTab(tab) {
 function closeTagsPanel() {
   document.getElementById('tags-panel').classList.remove('open');
   document.getElementById('tags-overlay').classList.remove('open');
+}
+
+// ── Execution Score ──────────────────────────────────────────────────────────
+function toggleExecCheck(el) {
+  el.classList.toggle('active');
+  updateExecScore();
+}
+function updateExecScore() {
+  const count = document.querySelectorAll('.es-check-item.active').length;
+  const circle = document.getElementById('es-score-val');
+  circle.innerText = count;
+  circle.classList.toggle('score-active', count > 0);
+  const warn = document.getElementById('es-warning');
+  warn.style.display = (count > 0 && count < 3) ? 'block' : 'none';
+}
+function commitExecutionScore() {
+  if (!activeTrade) return;
+  const checks = {};
+  document.querySelectorAll('.es-check-item').forEach(el => {
+    checks[el.dataset.key] = el.classList.contains('active');
+  });
+  const score = document.querySelectorAll('.es-check-item.active').length;
+  const payload = JSON.stringify({ score, checks });
+  fetch(`/api/live/${activeTrade.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ execution_score_json: payload })
+  }).then(r => r.json()).then(() => {
+    activeTrade.execution_score_json = payload;
+    renderTradeCard(activeTrade);
+    showToast('Execution score saved');
+  });
+}
+function loadExecutionScore(trade) {
+  document.querySelectorAll('.es-check-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('es-score-val').innerText = '0';
+  document.getElementById('es-score-val').classList.remove('score-active');
+  document.getElementById('es-warning').style.display = 'none';
+  if (!trade.execution_score_json) return;
+  try {
+    const data = typeof trade.execution_score_json === 'object'
+      ? trade.execution_score_json
+      : JSON.parse(trade.execution_score_json);
+    if (data && data.checks) {
+      Object.entries(data.checks).forEach(([key, val]) => {
+        if (val) {
+          const el = document.querySelector(`.es-check-item[data-key="${key}"]`);
+          if (el) el.classList.add('active');
+        }
+      });
+      updateExecScore();
+    }
+  } catch(e) { /* ignore parse errors */ }
 }
 
 // ── Live Trade Screenshots ──────────────────────────────────────────────────

@@ -318,6 +318,11 @@ def init_db():
         if "guard_json" not in lt_cols3:
             conn.execute("ALTER TABLE live_trades ADD COLUMN guard_json TEXT NOT NULL DEFAULT ''")
 
+        # Migration: add execution_score_json to live_trades
+        lt_cols4 = [r[1] for r in conn.execute("PRAGMA table_info(live_trades)").fetchall()]
+        if "execution_score_json" not in lt_cols4:
+            conn.execute("ALTER TABLE live_trades ADD COLUMN execution_score_json TEXT DEFAULT NULL")
+
         # Migration: add account profile columns to accounts
         acct_cols = [r[1] for r in conn.execute("PRAGMA table_info(accounts)").fetchall()]
         if "account_size" not in acct_cols:
