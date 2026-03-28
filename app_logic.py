@@ -232,12 +232,16 @@ def get_grade_categories_with_hints():
     return DAY_GRADE_CATEGORIES
 
 
-def compute_day_score(scores_json):
-    """Compute grade % from JSON scores dict. Returns None if no scores.
+DAY_CHECK_ITEMS = ["calm", "mkt_read", "awareness", "take_offer"]
+DAY_CHECK_TOTAL = len(DAY_CHECK_ITEMS)  # 4
 
-    scores_json: string like '{"Market Read":"Good","Entry Quality":"Poor"}'
-    Only categories WITH a score count toward denominator.
-    Old star values ("0"-"5") return None gracefully.
+
+def compute_day_score(scores_json):
+    """Compute day checklist count from JSON.
+
+    New format: {"calm":true,"mkt_read":false,...} → returns (checked_count, 4)
+    Old format: {"Market Read":"Good",...} → returns None (graceful degrade)
+    Returns (checked, total) tuple or None if no/invalid data.
     """
     import json
     if not scores_json:
@@ -247,18 +251,58 @@ def compute_day_score(scores_json):
     except (json.JSONDecodeError, TypeError):
         return None
     if not isinstance(scores, dict):
-        return None  # handles old integer star values
-
-    total = 0
-    count = 0
-    for cat, val in scores.items():
-        if val in GRADE_VALUES:
-            total += GRADE_VALUES[val]
-            count += 1
-
-    if count == 0:
         return None
-    return round((total / (count * 4)) * 100)
+
+    # Detect old format (values are strings like "Good", "Poor")
+    for val in scores.values():
+        if isinstance(val, str):
+            return None  # old format, degrade gracefully
+
+    checked = sum(1 for k in DAY_CHECK_ITEMS if scores.get(k) is True)
+    return (checked, DAY_CHECK_TOTAL)
+
+
+def compute_combined_day_score(day_score_json, trades):
+    """Compute weighted day score: 60% trade execution + 40% process score.
+
+    Day Score = (exec_pts / possible_exec_pts) * 0.6
+              + (process_pts / possible_process_pts) * 0.4
+
+    Only components that have data contribute; weights are re-normalized
+    when one component is missing.
+    Returns integer percentage or None if nothing scored.
+    """
+    # Process score (day checklist)
+    process_pct = None
+    day_result = compute_day_score(day_score_json)
+    if day_result is not None:
+        checked, total = day_result
+        process_pct = checked / total  # 0.0–1.0
+
+    # Trade execution score
+    exec_pct = None
+    exec_num = 0
+    exec_den = 0
+    for t in (trades or []):
+        score = t.get("exec_score")
+        if score is not None:
+            exec_num += score
+            exec_den += 5
+    if exec_den > 0:
+        exec_pct = exec_num / exec_den  # 0.0–1.0
+
+    if process_pct is None and exec_pct is None:
+        return None
+
+    # Weighted combination (re-normalize if one side missing)
+    if exec_pct is not None and process_pct is not None:
+        combined = exec_pct * 0.6 + process_pct * 0.4
+    elif exec_pct is not None:
+        combined = exec_pct
+    else:
+        combined = process_pct
+
+    return round(combined * 100)
 
 
 REQUIRED_COLUMNS = {"B/S", "avgPrice", "filledQty", "Fill Time", "Date"}

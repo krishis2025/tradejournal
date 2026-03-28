@@ -154,7 +154,7 @@
 
 /* ── Calendar — Monthly P&L Calendar ─────────────────────────────────────── */
 .cal-top-kpis {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px;
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 12px;
 }
 .cal-kpi-card {
   background: var(--surface); border: 1px solid var(--border); border-radius: 2px;
@@ -166,18 +166,18 @@
   color: var(--muted); font-family: 'Inter', sans-serif; font-weight: 500;
 }
 .cal-kpi-value {
-  font-size: 22px; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+  font-size: 22px; font-weight: 700; font-family: 'Inter', sans-serif;
   letter-spacing: -0.5px; line-height: 1.2;
 }
 .cal-kpi-sub {
-  font-size: 10px; color: var(--muted); font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--muted); font-family: 'Inter', sans-serif;
   letter-spacing: 0.3px;
 }
 .cal-kpi-spark { height: 32px; max-height: 32px; margin-top: 4px; display: block; }
 .cal-kpi-gauge { width: 56px; height: 56px; margin: 4px auto 0; position: relative; }
 .cal-kpi-gauge-label {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
-  font-size: 13px; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+  font-size: 13px; font-weight: 700; font-family: 'Inter', sans-serif;
 }
 .cal-kpi-bar-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
 .cal-kpi-bar-track {
@@ -185,7 +185,7 @@
   display: flex; background: var(--surface2);
 }
 .cal-kpi-bar-fill { height: 100%; }
-.cal-kpi-bar-label { font-size: 9px; font-family: 'JetBrains Mono', monospace; color: var(--muted); white-space: nowrap; }
+.cal-kpi-bar-label { font-size: 9px; font-family: 'Inter', sans-serif; color: var(--muted); white-space: nowrap; }
 
 .cal-layout {
   display: grid; grid-template-columns: 1fr 260px; gap: 12px;
@@ -218,12 +218,15 @@
   font-family: 'Inter', sans-serif; font-weight: 500; border-bottom: 1px solid var(--border);
 }
 .cal-table th:last-child { background: var(--surface2); }
+.cal-table { border-spacing: 6px; border-collapse: separate; }
 .cal-table td {
   height: 90px; vertical-align: top; padding: 6px 8px;
-  border: 1px solid var(--border); font-family: 'JetBrains Mono', monospace;
-  transition: background 0.12s;
+  border: none; border-radius: 10px; font-family: 'Inter', sans-serif;
+  transition: background 0.12s, filter 0.12s;
+  background: var(--surface);
 }
-.cal-table td.cal-empty { border-color: transparent; background: transparent; }
+.cal-table td.cal-empty { background: transparent; }
+[data-theme="paper"] .cal-table td.cal-day:not(.has-data) { background: #F8F9FB; }
 .cal-table td.cal-day { cursor: default; }
 .cal-table td.cal-day.has-data { cursor: pointer; }
 .cal-table td.cal-day.has-data:hover { filter: brightness(1.2); }
@@ -233,7 +236,7 @@
 }
 .cal-day-num { font-size: 10px; color: var(--muted); margin-bottom: 6px; display: block; }
 .cal-day-pnl { font-size: 13px; font-weight: 600; letter-spacing: 0.3px; }
-.cal-day-count { font-size: 9px; color: var(--muted); letter-spacing: 0.5px; margin-top: 2px; }
+.cal-day-count { font-size: 9px; color: var(--muted); letter-spacing: 0.5px; margin-top: 2px; text-align: center; }
 
 .cal-eval-panel {
   background: var(--surface); border: 1px solid var(--border); border-radius: 2px;
@@ -250,7 +253,7 @@
 }
 .cal-eval-row:last-child { border-bottom: none; }
 .cal-eval-label { color: var(--muted2); font-family: 'Inter', sans-serif; font-weight: 500; }
-.cal-eval-value { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text); }
+.cal-eval-value { font-family: 'Inter', sans-serif; font-weight: 600; color: var(--text); }
 
 /* ── Calendar light-theme font weight bump ──────────────────────────────── */
 [data-theme="paper"] .cal-kpi-label { font-weight: 600; }
@@ -310,6 +313,26 @@
 .min-sample-icon { font-size: 28px; opacity: 0.35; }
 .min-sample-text { font-size: 11px; letter-spacing: 0.5px; text-align: center; line-height: 1.6; }
 .min-sample-count { font-family: var(--font-mono); font-size: 10px; color: var(--border2); letter-spacing: 1px; }
+
+/* ── Execution Grid (Macro/Micro) ─────────────────────────────────────────── */
+.eg-grid { display: grid; gap: 3px; overflow-x: auto; }
+.eg-row { display: contents; }
+.eg-row-label {
+  font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--muted); white-space: nowrap; display: flex; align-items: center;
+  padding-right: 8px; min-width: 120px;
+}
+.eg-tile {
+  width: 52px; height: 40px; border-radius: 6px; display: flex;
+  align-items: center; justify-content: center; font-size: 11px; font-weight: 600;
+  font-family: 'Inter', sans-serif;
+}
+.eg-y { background: rgba(52,211,153,0.25); color: #2d6a4f; }
+.eg-n { background: rgba(239,154,154,0.35); color: #c62828; }
+.eg-axis-label {
+  font-size: 9px; color: var(--muted); text-align: center;
+  font-family: var(--font-mono); letter-spacing: 0.5px;
+}
 {% endblock %}
 
 {% block content %}
@@ -366,6 +389,10 @@
     <div class="sidebar-item" onclick="showSection('tags', this)">
       <span class="sidebar-icon">🏷</span>
       <span class="sidebar-label">Tag Analytics</span>
+    </div>
+    <div class="sidebar-item" onclick="showSection('processes', this)">
+      <span class="sidebar-icon">🎯</span>
+      <span class="sidebar-label">Macro / Micro</span>
     </div>
   </div>
 
@@ -533,6 +560,11 @@
           <div class="cal-kpi-value" id="cal-kpi-pf-val">—</div>
           <div class="cal-kpi-sub" id="cal-kpi-pf-sub"></div>
         </div>
+        <div class="cal-kpi-card" id="cal-kpi-exp">
+          <div class="cal-kpi-label">Expectancy</div>
+          <div class="cal-kpi-value" id="cal-kpi-exp-val">—</div>
+          <div class="cal-kpi-sub" id="cal-kpi-exp-sub"></div>
+        </div>
       </div>
 
       <!-- Calendar + Evaluation layout -->
@@ -545,7 +577,7 @@
             <button id="cal-next">&#8250;</button>
           </div>
           <table class="cal-table">
-            <thead><tr><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th><th>Total</th></tr></thead>
+            <thead><tr><th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Total</th></tr></thead>
             <tbody id="cal-body"></tbody>
           </table>
         </div>
@@ -638,6 +670,42 @@
       </div>
 
     </div><!-- /section-tags -->
+
+    <!-- ════════════════════════════════════════════════════════════════════ -->
+    <!--  SECTION: Macro / Micro Processes                                   -->
+    <!-- ════════════════════════════════════════════════════════════════════ -->
+    <div class="a-section" id="section-processes">
+
+      <!-- Trade Execution at a Glance -->
+      <div class="card" style="margin-bottom:18px;">
+        <div class="card-header">Trade Execution at a Glance</div>
+        <div id="eg-grid-wrap" style="padding:12px 16px;">
+          <div class="no-data" id="eg-empty" style="display:none;">
+            <div class="no-data-icon">🎯</div>
+            <p>No scored trades yet. Score trades via the Trade Execution view.</p>
+          </div>
+          <div id="eg-grid" class="eg-grid"></div>
+          <div style="text-align:center;margin-top:10px;">
+            <button id="eg-load-more" class="date-btn" style="display:none;" onclick="egLoadMore()">Load More</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Process Correlation Scatter -->
+      <div class="card">
+        <div class="card-header">Process Correlation</div>
+        <div style="padding:12px 16px;">
+          <div class="no-data" id="scatter-empty" style="display:none;">
+            <div class="no-data-icon">🎯</div>
+            <p>No scored trades yet.</p>
+          </div>
+          <div id="scatter-wrap" style="position:relative;height:420px;">
+            <canvas id="chart-process-scatter"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /section-processes -->
 
   </div><!-- /analytics-content -->
 
@@ -980,10 +1048,18 @@ initFunctions.calendar = function() {
     document.getElementById('cal-kpi-pf-sub').textContent =
       tradingDays ? `${fmtDollar(avgPerDay)} avg/day` : '';
 
+    // Expectancy
+    const expectancy = totalTrades ? netPnl / totalTrades : 0;
+    const expEl = document.getElementById('cal-kpi-exp-val');
+    expEl.textContent = totalTrades ? fmtDollar(expectancy) : '—';
+    expEl.style.color = expectancy > 0 ? 'var(--green)' : expectancy < 0 ? 'var(--red)' : 'var(--muted2)';
+    document.getElementById('cal-kpi-exp-sub').textContent =
+      totalTrades ? `per trade · ${totalTrades} trades` : '';
+
     // ── Calendar Table ──
     const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
-    // Monday=0 ... Sunday=6
-    const firstDow = (new Date(calYear, calMonth, 1).getDay() + 6) % 7;
+    // Sunday=0 ... Saturday=6
+    const firstDow = new Date(calYear, calMonth, 1).getDay();
     let maxAbsPnl = 0;
     monthData.forEach(d => { const a = Math.abs(d.pnl); if (a > maxAbsPnl) maxAbsPnl = a; });
 
@@ -995,6 +1071,7 @@ initFunctions.calendar = function() {
     for (let w = 0; w < totalWeeks; w++) {
       const tr = document.createElement('tr');
       weekPnl = 0;
+      let weekTrades = 0;
       let weekHasData = false;
       for (let dow = 0; dow < 7; dow++) {
         const td = document.createElement('td');
@@ -1018,6 +1095,7 @@ initFunctions.calendar = function() {
           td.classList.add('has-data');
           weekHasData = true;
           weekPnl += data.pnl;
+          weekTrades += data.trades;
 
           // Background tint
           const intensity = maxAbsPnl ? Math.min(Math.abs(data.pnl) / maxAbsPnl, 1) : 0;
@@ -1038,7 +1116,7 @@ initFunctions.calendar = function() {
           // Trade count
           const cntDiv = document.createElement('div');
           cntDiv.className = 'cal-day-count';
-          cntDiv.textContent = `${data.trades}t`;
+          cntDiv.textContent = `${data.trades} trade${data.trades !== 1 ? 's' : ''}`;
           td.appendChild(cntDiv);
 
           td.onclick = () => { window.location.href = `/?date_from=${dateStr}&date_to=${dateStr}`; };
@@ -1049,8 +1127,14 @@ initFunctions.calendar = function() {
       const totalTd = document.createElement('td');
       totalTd.className = 'cal-week-total';
       if (weekHasData) {
-        totalTd.textContent = fmtDollarShort(weekPnl);
-        totalTd.style.color = weekPnl > 0 ? '#34d399' : weekPnl < 0 ? '#ff4d6d' : 'var(--muted2)';
+        const pnlSpan = document.createElement('div');
+        pnlSpan.textContent = fmtDollarShort(weekPnl);
+        pnlSpan.style.color = weekPnl > 0 ? '#34d399' : weekPnl < 0 ? '#ff4d6d' : 'var(--muted2)';
+        totalTd.appendChild(pnlSpan);
+        const cntSpan = document.createElement('div');
+        cntSpan.className = 'cal-day-count';
+        cntSpan.textContent = `${weekTrades} trade${weekTrades !== 1 ? 's' : ''}`;
+        totalTd.appendChild(cntSpan);
       }
       tr.appendChild(totalTd);
       body.appendChild(tr);
@@ -1075,7 +1159,7 @@ initFunctions.calendar = function() {
     const weeksWithTrades = new Set();
     monthData.forEach(d => {
       const dt = new Date(d.date+'T00:00:00');
-      const weekNum = Math.ceil((dt.getDate() + ((new Date(dt.getFullYear(), dt.getMonth(), 1).getDay() + 6) % 7)) / 7);
+      const weekNum = Math.ceil((dt.getDate() + new Date(dt.getFullYear(), dt.getMonth(), 1).getDay()) / 7);
       if (d.trades > 0) weeksWithTrades.add(weekNum);
     });
     const tradesPerWeek = weeksWithTrades.size ? (totalTrades / weeksWithTrades.size).toFixed(1) : '—';
@@ -1223,13 +1307,229 @@ initFunctions.tags = function() {
 };
 
 
+// ── Macro / Micro Processes ──────────────────────────────────────────────────
+
+let egPageSize = 20;
+let egShown = 0;
+
+function egLoadMore() {
+  egShown += egPageSize;
+  initFunctions._renderEgGrid();
+}
+
+initFunctions._renderEgGrid = function() {
+  const sd = RAW.score_data || [];
+  if (!sd.length) return;
+
+  const visible = sd.slice(-(egShown));
+  const grid = document.getElementById('eg-grid');
+  const btn = document.getElementById('eg-load-more');
+
+  const ROW_LABELS = [
+    { key: 'patience', label: 'Patience (Level)' },
+    { key: 'arrival', label: 'Arrival (Context)' },
+    { key: 'strength', label: 'Strength & Conf.' },
+    { key: 'exit', label: 'Exit (Discipline)' },
+    { key: 'review', label: 'Review (Cont.)' },
+  ];
+
+  const cols = visible.length + 1; // +1 for label column
+  grid.style.gridTemplateColumns = `120px repeat(${visible.length}, 52px)`;
+  grid.style.gridTemplateRows = `repeat(${ROW_LABELS.length}, 40px) 20px`;
+
+  let html = '';
+  ROW_LABELS.forEach(row => {
+    html += `<div class="eg-row-label">${row.label}</div>`;
+    visible.forEach(t => {
+      const checks = t.micro_checks || {};
+      const val = checks[row.key];
+      if (val === true) {
+        html += `<div class="eg-tile eg-y">Y</div>`;
+      } else if (val === false) {
+        html += `<div class="eg-tile eg-n">N</div>`;
+      } else {
+        html += `<div class="eg-tile" style="opacity:0.2;">—</div>`;
+      }
+    });
+  });
+
+  // X-axis labels
+  html += `<div class="eg-axis-label"></div>`;
+  visible.forEach((t, i) => {
+    const offset = visible.length - 1 - i;
+    html += `<div class="eg-axis-label">T-${offset}</div>`;
+  });
+
+  grid.innerHTML = html;
+
+  if (egShown >= sd.length) {
+    btn.style.display = 'none';
+  } else {
+    btn.style.display = '';
+  }
+};
+
+initFunctions.processes = function() {
+  const sd = RAW.score_data || [];
+
+  // ── Tile Grid ──
+  if (!sd.length) {
+    document.getElementById('eg-empty').style.display = '';
+    document.getElementById('eg-grid').style.display = 'none';
+    document.getElementById('scatter-empty').style.display = '';
+    document.getElementById('scatter-wrap').style.display = 'none';
+    return;
+  }
+
+  egShown = Math.min(egPageSize, sd.length);
+  initFunctions._renderEgGrid();
+  if (sd.length > egPageSize) {
+    document.getElementById('eg-load-more').style.display = '';
+  }
+
+  // ── Scatter Plot ──
+  const COLORS = {
+    pro: '#2d6a4f', goodLoser: '#b8860b', gambler: '#ef9a9a', blowup: '#c62828'
+  };
+
+  const points = sd.map(t => {
+    const microPts = (t.micro_score / 5) * 0.6;
+    const macroPts = (t.macro_score / 4) * 0.4;
+    const x = Math.round((microPts + macroPts) * 100) / 100;
+    const y = t.pnl;
+
+    let color;
+    if (x >= 0.5 && y >= 0) color = COLORS.pro;
+    else if (x >= 0.5 && y < 0) color = COLORS.goodLoser;
+    else if (x < 0.5 && y >= 0) color = COLORS.gambler;
+    else color = COLORS.blowup;
+
+    return { x, y, color, trade: t };
+  });
+
+  // Quadrant labels plugin
+  const quadrantLabels = {
+    id: 'quadrantLabels',
+    beforeDraw(chart) {
+      const { ctx, chartArea: { left, right, top, bottom }, scales: { x: xScale, y: yScale } } = chart;
+
+      // Quadrant divider lines (solid, like a cross)
+      ctx.save();
+      ctx.strokeStyle = 'rgba(138,150,170,0.4)';
+      ctx.lineWidth = 1;
+
+      // Vertical at x=0.5
+      const cx = xScale.getPixelForValue(0.5);
+      ctx.beginPath(); ctx.moveTo(cx, top); ctx.lineTo(cx, bottom); ctx.stroke();
+
+      // Horizontal at y=0
+      const cy = yScale.getPixelForValue(0);
+      if (cy >= top && cy <= bottom) {
+        ctx.beginPath(); ctx.moveTo(left, cy); ctx.lineTo(right, cy); ctx.stroke();
+      }
+
+      // Quadrant labels
+      ctx.font = "700 14px 'Inter', sans-serif";
+      ctx.globalAlpha = 0.35;
+      const pad = 14;
+
+      ctx.fillStyle = COLORS.gambler;
+      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillText('THE GAMBLER', left + pad, top + pad);
+      ctx.font = "500 10px 'Inter', sans-serif";
+      ctx.fillText('Low Process / High Profit', left + pad, top + pad + 18);
+
+      ctx.font = "600 13px 'Inter', sans-serif";
+      ctx.fillStyle = COLORS.pro;
+      ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+      ctx.fillText('THE PROFESSIONAL', right - pad, top + pad);
+      ctx.font = "500 10px 'Inter', sans-serif";
+      ctx.fillText('High Process / High Profit', right - pad, top + pad + 18);
+
+      ctx.font = "600 13px 'Inter', sans-serif";
+      ctx.fillStyle = COLORS.blowup;
+      ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+      ctx.fillText('THE BLOW-UP / CHOP', left + pad, bottom - pad);
+      ctx.font = "500 10px 'Inter', sans-serif";
+      ctx.fillText('Low Process / Low Profit', left + pad, bottom - pad - 18);
+
+      ctx.font = "600 13px 'Inter', sans-serif";
+      ctx.fillStyle = COLORS.goodLoser;
+      ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+      ctx.fillText('THE GOOD LOSER', right - pad, bottom - pad);
+      ctx.font = "500 10px 'Inter', sans-serif";
+      ctx.fillText('High Process / Low Profit', right - pad, bottom - pad - 18);
+
+      ctx.restore();
+    }
+  };
+
+  new Chart(document.getElementById('chart-process-scatter'), {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        data: points.map(p => ({ x: p.x, y: p.y })),
+        pointBackgroundColor: points.map(p => p.color),
+        pointBorderColor: points.map(p => p.color),
+        pointRadius: 7,
+        pointHoverRadius: 10,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          ...tooltipStyle,
+          callbacks: {
+            title(ctx) {
+              const t = points[ctx[0].dataIndex].trade;
+              return `T${t.trade_num} · ${(t.entry_time || '').slice(0,5)}   ${t.date}`;
+            },
+            label(ctx) {
+              const t = points[ctx.dataIndex].trade;
+              const missedMicro = Object.entries(t.micro_checks || {}).filter(([,v]) => v === false).map(([k]) => k);
+              const missedMacro = Object.entries(t.macro_checks || {}).filter(([,v]) => v === false).map(([k]) => k);
+              const lines = [
+                `Execution: ${t.micro_score}/5${missedMicro.length ? ' — Missed ' + missedMicro.join(', ') : ''}`,
+                `Day Score: ${t.macro_score}/4${missedMacro.length ? ' — Missed ' + missedMacro.join(', ') : ''}`,
+                `P&L: ${t.pnl >= 0 ? '+' : ''}$${t.pnl.toFixed(2)}`,
+              ];
+              if (t.notes) lines.push(`Notes: ${t.notes}`);
+              return lines;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          min: 0, max: 1,
+          title: { display: true, text: 'Process Score (Macro + Micro)', color: labelColor, font: { size: 11 } },
+          grid: { display: false },
+          ticks: { color: tickColor, callback: v => v.toFixed(1) }
+        },
+        y: {
+          // Symmetric around 0 so all four quadrants are equal
+          min: -(function(){ const m = Math.max(...points.map(p => Math.abs(p.y)), 100); return Math.ceil(m / 100) * 100; })(),
+          max:  (function(){ const m = Math.max(...points.map(p => Math.abs(p.y)), 100); return Math.ceil(m / 100) * 100; })(),
+          title: { display: true, text: 'P&L ($)', color: labelColor, font: { size: 11 } },
+          grid: { display: false },
+          ticks: { color: tickColor, callback: v => '$' + v }
+        }
+      }
+    },
+    plugins: [quadrantLabels]
+  });
+};
+
+
 // ══════════════════════════════════════════════════════════════════════════════
 //  BOOT: Initialize default section + restore hash state
 // ══════════════════════════════════════════════════════════════════════════════
 
 (function() {
   const hash = window.location.hash.replace('#','');
-  const validSections = ['kpis','equity','calendar','time','tags'];
+  const validSections = ['kpis','equity','calendar','time','tags','processes'];
   const target = validSections.includes(hash) ? hash : 'kpis';
 
   // Find matching sidebar item

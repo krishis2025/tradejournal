@@ -5,6 +5,7 @@ All SQLite interactions. No business logic, no HTTP concerns.
 
 import sqlite3
 import os
+import json
 from contextlib import contextmanager
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "data", "journal.db")
@@ -1220,13 +1221,44 @@ def get_analytics(account_id=None, date_from=None, date_to=None):
         all_trades = conn.execute(f"""
             SELECT t.id, t.pnl, t.entry_time, t.exit_time, t.direction, t.qty,
                    t.avg_entry, t.avg_exit, t.execution_json,
-                   d.date
+                   t.execution_score_json, t.trade_num, t.notes,
+                   d.date, d.day_score
             FROM trades t
             JOIN trading_days d ON d.id = t.day_id
             {p_filter_day}
             ORDER BY d.date, t.entry_time
         """, date_params).fetchall()
         all_trades_list = [dict(r) for r in all_trades]
+
+        # Build score_data for Macro/Micro analytics
+        score_data = []
+        for t in all_trades_list:
+            es_raw = t.get("execution_score_json")
+            if not es_raw:
+                continue
+            es = json.loads(es_raw)
+            checks = es.get("checks", {})
+            micro_score = es.get("score", 0)
+
+            ds_raw = t.get("day_score", "")
+            macro_checked = 0
+            macro_checks = {}
+            if ds_raw and ds_raw != "0":
+                try:
+                    ds = json.loads(ds_raw)
+                    if isinstance(ds, dict):
+                        macro_checks = {k: v for k, v in ds.items() if isinstance(v, bool)}
+                        macro_checked = sum(1 for v in macro_checks.values() if v)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+            score_data.append({
+                "date": t["date"], "trade_num": t.get("trade_num", 0),
+                "entry_time": t["entry_time"], "pnl": t["pnl"],
+                "micro_score": micro_score, "micro_checks": checks,
+                "macro_score": macro_checked, "macro_checks": macro_checks,
+                "notes": (t.get("notes") or "")[:120],
+            })
 
         # Streaks
         streak_data = _compute_streaks(all_trades_list)
@@ -1267,6 +1299,7 @@ def get_analytics(account_id=None, date_from=None, date_to=None):
             "duration_stats": duration_stats,
             "calendar":     calendar,
             "tag_correlations": tag_correlations,
+            "score_data": score_data,
         }
 
 

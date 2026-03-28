@@ -50,7 +50,8 @@ def index():
     days = db.get_all_days(date_from, date_to, account_id)
 
     for day in days:
-        day["grade_pct"] = logic.compute_day_score(day.get("day_score", ""))
+        day_trades = db.get_trades_for_day(day["id"])
+        day["grade_pct"] = logic.compute_combined_day_score(day.get("day_score", ""), day_trades)
 
     return render_template(
         "index.html",
@@ -83,9 +84,7 @@ def day_view(day_id):
         day_type_tags=logic.get_day_type_tags(),
         day_value_tags=logic.get_day_value_tags(),
         day_volume_tags=logic.get_day_volume_tags(),
-        grade_categories=logic.get_grade_categories(),
-        grade_pct=logic.compute_day_score(day.get("day_score", "")),
-        grade_categories_hints=logic.get_grade_categories_with_hints(),
+        grade_pct=logic.compute_combined_day_score(day.get("day_score", ""), trades),
     )
 
 
@@ -186,6 +185,7 @@ def settings_view():
     day_value_group["tags"] = logic.get_day_value_tags()
     day_volume_group = dict(logic.DAY_VOLUME_GROUP)
     day_volume_group["tags"] = logic.get_day_volume_tags()
+    # Build grade categories group
     grade_cat_group = dict(logic.DAY_GRADE_GROUP)
     grade_cat_group["tags"] = logic.get_grade_categories()
     all_defaults = defaults + [logic.OBS_CATEGORY_GROUP, logic.OBS_GROUP_GROUP,
@@ -603,8 +603,6 @@ def api_reset_tag_config(group_id):
         return jsonify({"ok": True, "tags": logic.DAY_VALUE_TAGS})
     if group_id == "day_volume":
         return jsonify({"ok": True, "tags": logic.DAY_VOLUME_TAGS})
-    if group_id == "grade_categories":
-        return jsonify({"ok": True, "tags": [c["name"] for c in logic.DAY_GRADE_CATEGORIES]})
     group = next((g for g in logic.TAG_GROUPS if g["id"] == group_id), None)
     return jsonify({"ok": True, "tags": group["tags"] if group else []})
 
