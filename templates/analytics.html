@@ -154,7 +154,7 @@
 
 /* ── Calendar — Monthly P&L Calendar ─────────────────────────────────────── */
 .cal-top-kpis {
-  display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 12px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px;
 }
 .cal-kpi-card {
   background: var(--surface); border: 1px solid var(--border); border-radius: 2px;
@@ -559,11 +559,6 @@
           <div class="cal-kpi-label">Profit Factor</div>
           <div class="cal-kpi-value" id="cal-kpi-pf-val">—</div>
           <div class="cal-kpi-sub" id="cal-kpi-pf-sub"></div>
-        </div>
-        <div class="cal-kpi-card" id="cal-kpi-exp">
-          <div class="cal-kpi-label">Expectancy</div>
-          <div class="cal-kpi-value" id="cal-kpi-exp-val">—</div>
-          <div class="cal-kpi-sub" id="cal-kpi-exp-sub"></div>
         </div>
       </div>
 
@@ -1048,14 +1043,6 @@ initFunctions.calendar = function() {
     document.getElementById('cal-kpi-pf-sub').textContent =
       tradingDays ? `${fmtDollar(avgPerDay)} avg/day` : '';
 
-    // Expectancy
-    const expectancy = totalTrades ? netPnl / totalTrades : 0;
-    const expEl = document.getElementById('cal-kpi-exp-val');
-    expEl.textContent = totalTrades ? fmtDollar(expectancy) : '—';
-    expEl.style.color = expectancy > 0 ? 'var(--green)' : expectancy < 0 ? 'var(--red)' : 'var(--muted2)';
-    document.getElementById('cal-kpi-exp-sub').textContent =
-      totalTrades ? `per trade · ${totalTrades} trades` : '';
-
     // ── Calendar Table ──
     const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
     // Sunday=0 ... Saturday=6
@@ -1119,7 +1106,7 @@ initFunctions.calendar = function() {
           cntDiv.textContent = `${data.trades} trade${data.trades !== 1 ? 's' : ''}`;
           td.appendChild(cntDiv);
 
-          td.onclick = () => { window.location.href = `/?date_from=${dateStr}&date_to=${dateStr}`; };
+          td.onclick = () => { window.location.href = `/day/${dateStr}`; };
         }
         tr.appendChild(td);
       }

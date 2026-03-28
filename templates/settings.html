@@ -348,6 +348,9 @@
     <div class="sidebar-item active" onclick="showSection('tags',this)">
       <span class="sidebar-icon">🏷</span> Tags
     </div>
+    <div class="sidebar-item" onclick="showSection('import',this)">
+      <span class="sidebar-icon">📂</span> Import Trades
+    </div>
     <div class="sidebar-item" onclick="showSection('db',this)">
       <span class="sidebar-icon">🗄</span> DB Admin
     </div>
@@ -620,6 +623,34 @@
               <button class="reset-btn" onclick="resetGroup('{{ g.id }}')">↺ Reset to defaults</button>
               <button class="btn btn-ghost" style="padding:5px 14px;font-size:10px;"
                       onclick="saveGroup('{{ g.id }}')">Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════ IMPORT TRADES SECTION ════════════ -->
+    <div class="settings-section" id="section-import">
+      <div class="settings-section-title">Import Trades</div>
+      <div class="settings-section-sub">Import trade fills from CSV or Excel files (Tradovate / TradeStation format)</div>
+
+      <div style="margin-top:20px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+          <span style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);">Imports into:</span>
+          <span id="import-account-badge" style="font-size:11px;color:var(--accent);font-family:var(--font-mono);">— None —</span>
+          <span style="font-size:10px;color:var(--muted);">(change via Account selector in nav bar)</span>
+        </div>
+
+        <div class="import-zone" id="drop-zone" style="
+          border:2px dashed var(--border2);padding:32px;text-align:center;
+          transition:all 0.2s;cursor:pointer;background:var(--surface);
+          position:relative;border-radius:2px;">
+          <input type="file" accept=".csv,.xlsx,.xls" id="drop-input" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;">
+          <div style="display:flex;align-items:center;gap:20px;justify-content:center;flex-wrap:wrap;">
+            <div style="font-size:28px;flex-shrink:0;">📂</div>
+            <div style="text-align:left;">
+              <div class="import-title" style="color:var(--text);font-size:13px;letter-spacing:0.5px;margin-bottom:2px;">Drop CSV or Excel fills file here, or click to browse</div>
+              <div style="color:var(--muted);font-size:11px;">Tradovate / TradeStation format · Imports into selected account</div>
             </div>
           </div>
         </div>
@@ -1266,5 +1297,59 @@
     }
   }
 
+  // ── Import Trades ─────────────────────────────────────────────────────────
+  (function initImport() {
+    const zone = document.getElementById('drop-zone');
+    const inp  = document.getElementById('drop-input');
+    if (!zone || !inp) return;
+
+    async function handleFile(file) {
+      if (!file) return;
+      zone.style.animation = 'pulse 1s ease infinite';
+      zone.querySelector('.import-title').textContent = `Importing ${file.name}...`;
+      const accountId = getActiveAccount();
+      const form = new FormData();
+      form.append('file', file);
+      if (accountId) form.append('account_id', accountId);
+      try {
+        const res  = await fetch('/api/import', { method:'POST', body:form });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.error || 'Import failed', true); return; }
+        const days = data.days.map(d => `${d.date} (${d.trade_count} trades)`).join(', ');
+        showToast(`Imported: ${days}`);
+      } catch(e) {
+        showToast('Network error — is the server running?', true);
+      } finally {
+        zone.style.animation = '';
+        zone.querySelector('.import-title').textContent = 'Drop CSV or Excel fills file here, or click to browse';
+      }
+    }
+
+    zone.addEventListener('dragover',  e => { e.preventDefault(); zone.style.borderColor = 'var(--accent)'; zone.style.background = 'rgba(79,255,176,0.03)'; });
+    zone.addEventListener('dragleave', () => { zone.style.borderColor = ''; zone.style.background = ''; });
+    zone.addEventListener('drop', e => { e.preventDefault(); zone.style.borderColor = ''; zone.style.background = ''; handleFile(e.dataTransfer.files[0]); });
+    inp.addEventListener('change', () => { handleFile(inp.files[0]); inp.value = ''; });
+
+    // Sync account badge
+    function updateImportBadge() {
+      const badge = document.getElementById('import-account-badge');
+      if (!badge) return;
+      const sel = document.getElementById('global-account-select');
+      const id  = sel ? sel.value : '';
+      const opt = sel ? sel.querySelector(`option[value="${id}"]`) : null;
+      if (opt && id) {
+        badge.textContent = opt.textContent;
+        badge.style.color = opt.dataset.color || 'var(--accent)';
+      } else {
+        badge.textContent = '— None —';
+        badge.style.color = 'var(--muted)';
+      }
+    }
+    document.addEventListener('accounts-loaded', updateImportBadge);
+  })();
+
 </script>
+<style>
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+</style>
 {% endblock %}

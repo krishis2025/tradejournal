@@ -2,27 +2,6 @@
 {% block title %}Trade Journal — Dashboard{% endblock %}
 
 {% block extra_styles %}
-.import-zone {
-  border: 2px dashed var(--border2);
-  padding: 24px 32px;
-  text-align: center;
-  transition: all 0.2s;
-  cursor: pointer;
-  background: var(--surface);
-  position: relative;
-  border-radius: 2px;
-  margin-bottom: 20px;
-}
-.import-zone.drag-over { border-color: var(--accent); background: rgba(79,255,176,0.03); }
-.import-zone input[type=file] { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%; }
-.import-body { display:flex;align-items:center;gap:20px;justify-content:center;flex-wrap:wrap; }
-.import-icon { font-size:28px;flex-shrink:0; }
-.import-text { text-align:left; }
-.import-title { color:var(--text);font-size:13px;letter-spacing:0.5px;margin-bottom:2px; }
-.import-sub   { color:var(--muted);font-size:11px; }
-.importing    { animation:pulse 1s ease infinite; }
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
-
 .filter-bar {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -101,22 +80,6 @@
     </div>
   </div>
   {% endif %}
-</div>
-
-<!-- Import Zone -->
-<div class="import-zone" id="drop-zone">
-  <input type="file" accept=".csv,.xlsx,.xls" id="drop-input">
-  <div class="import-body">
-    <div class="import-icon">📂</div>
-    <div class="import-text">
-      <div class="import-title">Drop CSV or Excel fills file here, or click to browse</div>
-      <div class="import-sub">Tradovate / TradeStation format · Imports into selected account</div>
-    </div>
-    <div onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-      <span style="font-size:10px;color:var(--muted);letter-spacing:1px;">Imports to:</span>
-      <span id="import-account-badge" style="font-size:11px;color:var(--accent);font-family:var(--font-mono);">— None —</span>
-    </div>
-  </div>
 </div>
 
 <!-- Date Filter Bar -->
@@ -264,7 +227,6 @@
     setTimeout(() => {
       const active = getActiveAccount();
       document.getElementById('f-account').value = active;
-      updateImportBadge(active);
     }, 150);
   });
 
@@ -273,22 +235,7 @@
   window.setGlobalAccount = function(id) {
     if (_base) _base(id);
     document.getElementById('f-account').value = id;
-    updateImportBadge(id);
   };
-
-  function updateImportBadge(id) {
-    const badge = document.getElementById('import-account-badge');
-    if (!badge) return;
-    const sel = document.getElementById('global-account-select');
-    const opt = sel ? sel.querySelector(`option[value="${id}"]`) : null;
-    if (opt && id) {
-      badge.textContent = opt.textContent;
-      badge.style.color = opt.dataset.color || 'var(--accent)';
-    } else {
-      badge.textContent = '— None —';
-      badge.style.color = 'var(--muted)';
-    }
-  }
 
   // Date presets
   function setPreset(p) {
@@ -311,37 +258,6 @@
   function off(d, days) {
     const n = new Date(d); n.setDate(n.getDate() + days); return n.toISOString().slice(0,10);
   }
-
-  // Import
-  async function handleFile(file) {
-    if (!file) return;
-    const zone = document.getElementById('drop-zone');
-    zone.classList.add('importing');
-    zone.querySelector('.import-title').textContent = `Importing ${file.name}...`;
-    const accountId = getActiveAccount();
-    const form = new FormData();
-    form.append('file', file);
-    if (accountId) form.append('account_id', accountId);
-    try {
-      const res  = await fetch('/api/import', { method:'POST', body:form });
-      const data = await res.json();
-      if (!res.ok) { showToast(data.error || 'Import failed', true); return; }
-      const days = data.days.map(d => `${d.date} (${d.trade_count} trades)`).join(', ');
-      showToast(`Imported: ${days}`);
-      setTimeout(() => location.reload(), 900);
-    } catch(e) {
-      showToast('Network error — is the server running?', true);
-    } finally {
-      zone.classList.remove('importing');
-      zone.querySelector('.import-title').textContent = 'Drop CSV or Excel fills file here, or click to browse';
-    }
-  }
-  const zone = document.getElementById('drop-zone');
-  const inp  = document.getElementById('drop-input');
-  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
-  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
-  inp.addEventListener('change', () => handleFile(inp.files[0]));
 
   // Delete
   let pendingDeleteId = null;
