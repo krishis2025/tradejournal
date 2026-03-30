@@ -440,6 +440,7 @@
   <div class="nav-links">
     <a href="/"            class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">Journal</a>
     <a href="/live"        class="nav-link {% if request.endpoint in ('live_trade_page','live_trade_list_legacy','live_trade_new_legacy','live_trade_view_legacy') %}active{% endif %}">Live Trade</a>
+    <a href="/live-v2"     class="nav-link {% if request.endpoint == 'live_trade_v2_page' %}active{% endif %}">Trade V2</a>
     <a href="/accounts"    class="nav-link {% if request.endpoint == 'accounts_view_manage' %}active{% endif %}">Accounts</a>
     <a href="/simulation"  class="nav-link {% if request.endpoint == 'simulation_view' %}active{% endif %}">Simulation</a>
     <a href="/analytics"    class="nav-link {% if request.endpoint == 'analytics' %}active{% endif %}">Analytics</a>

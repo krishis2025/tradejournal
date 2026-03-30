@@ -15,7 +15,8 @@ accounts ──┬──< trading_days ──┬──< trades ──┬──< 
             │                  ├──< live_trade_executions
             │                  └──< live_trade_images
             │
-            └──< developing_context
+            ├──< developing_context ──< trade_strength
+            └──< trade_strength
 
 setups ──< setup_images
 
@@ -95,6 +96,8 @@ Individual trades recorded per day.
 | execution_json   | TEXT    |                                            |
 | notes_monitoring | TEXT    | NOT NULL DEFAULT ''                        |
 | notes_exit       | TEXT    | NOT NULL DEFAULT ''                        |
+| execution_score_json | TEXT | nullable                                  |
+| context_id       | INTEGER | nullable, FK → developing_context(id)     |
 
 ---
 
@@ -387,14 +390,34 @@ Pre-trade context declarations for the Declare Setup flow.
 
 ---
 
+### 22. TRADE_STRENGTH
+Pre-entry trade strength questionnaire capturing conviction data before trade entry.
+
+| Column       | Type    | Constraints                                      |
+|--------------|---------|--------------------------------------------------|
+| id           | INTEGER | PK AUTOINCREMENT                                 |
+| context_id   | INTEGER | FK → developing_context(id) ON DELETE SET NULL   |
+| account_id   | INTEGER | FK → accounts(id) ON DELETE SET NULL             |
+| value        | INTEGER | NOT NULL DEFAULT 0 (0=No, 1=Yes)                |
+| volume       | INTEGER | NOT NULL DEFAULT 0 (0=No, 1=Yes)                |
+| trend        | INTEGER | NOT NULL DEFAULT 0 (0=No, 1=Yes)                |
+| adh          | INTEGER | NOT NULL DEFAULT 0 (0=No, 1=Yes)                |
+| mental_state | TEXT    | NOT NULL DEFAULT 'calm' (calm, fomo)             |
+| confidence   | TEXT    | NOT NULL DEFAULT 'medium' (low, medium, high)    |
+| created_at   | TEXT    | NOT NULL DEFAULT datetime('now','localtime')     |
+
+---
+
 ### LIVE_TRADES (updated)
-Added column:
+Added columns:
 
-| Column     | Type    | Constraints |
-|------------|---------|-------------|
-| context_id | INTEGER | nullable    |
+| Column      | Type    | Constraints |
+|-------------|---------|-------------|
+| context_id  | INTEGER | nullable    |
+| strength_id | INTEGER | nullable, FK → trade_strength(id) |
 
-Links a live trade to the `developing_context` entry that was active when the trade was entered.
+`context_id` links a live trade to the `developing_context` entry that was active when the trade was entered.
+`strength_id` links a live trade to the `trade_strength` questionnaire completed before entry.
 
 ---
 
@@ -419,11 +442,13 @@ Links a live trade to the `developing_context` entry that was active when the tr
 | trading_days   | market_internals       | day_id           |
 
 ### SET NULL on delete (parent deletion nullifies FK):
-| Parent   | Child        | FK Column  |
-|----------|--------------|------------|
-| accounts | trading_days        | account_id |
-| accounts | live_trades         | account_id |
-| accounts | developing_context  | account_id |
+| Parent              | Child               | FK Column    |
+|---------------------|---------------------|--------------|
+| accounts            | trading_days        | account_id   |
+| accounts            | live_trades         | account_id   |
+| accounts            | developing_context  | account_id   |
+| accounts            | trade_strength      | account_id   |
+| developing_context  | trade_strength      | context_id   |
 
 ---
 

@@ -1,0 +1,2665 @@
+{% extends "base.html" %}
+{% block title %}Trade V2 — Trade Journal{% endblock %}
+
+{% block extra_styles %}
+/* Override page padding for full-height layout */
+.page { padding: 0; max-width: 100%; }
+
+/* ── IDENTITY BAR ── */
+.identity-bar {
+  display: flex; align-items: center; gap: 1px;
+  background: var(--border); border-bottom: 1px solid var(--border);
+  height: 52px; flex-shrink: 0;
+  position: relative; z-index: 10;
+}
+.identity-bar > * {
+  background: var(--surface); height: 100%;
+  display: flex; align-items: center;
+}
+
+.phase-stepper {
+  gap: 0; padding: 0;
+}
+.phase-btn {
+  padding: 0 16px; height: 100%; border: none; cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: 11px; letter-spacing: 1.5px;
+  text-transform: uppercase; transition: all 0.12s;
+  background: var(--surface); color: var(--muted);
+  position: relative;
+}
+.phase-btn:hover { color: var(--text); background: var(--surface2); }
+.phase-btn.active {
+  color: var(--accent); background: rgba(79,255,176,0.06);
+}
+.phase-btn.active::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+  height: 2px; background: var(--accent);
+}
+
+.trade-badge {
+  padding: 0 16px; font-family: var(--font-mono); font-size: 12px;
+  letter-spacing: 1px; color: var(--muted2); gap: 8px; white-space: nowrap;
+}
+.trade-badge .dir-long { color: var(--green); }
+.trade-badge .dir-short { color: var(--red); }
+
+.trade-status {
+  padding: 0 16px; font-family: var(--font-mono); font-size: 11px;
+  color: var(--muted2); gap: 6px; white-space: nowrap;
+}
+.status-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent2); animation: pulse-dot 2s ease infinite;
+}
+.status-dot.closed { background: var(--muted); animation: none; }
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.trade-tabs {
+  margin-left: auto; gap: 0; padding: 0;
+}
+.trade-tab {
+  padding: 0 14px; height: 100%; border: none; cursor: pointer;
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: 1px;
+  background: var(--surface); color: var(--muted);
+  transition: all 0.12s; position: relative;
+}
+.trade-tab:hover { color: var(--text); background: var(--surface2); }
+.trade-tab.active {
+  color: var(--accent2);
+}
+.trade-tab.active::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+  height: 2px; background: var(--accent2);
+}
+
+/* Tab status indicators */
+.tab-dot {
+  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  margin-right: 5px; vertical-align: middle;
+}
+.tab-dot.open {
+  background: var(--accent2); animation: pulse-dot 2s ease infinite;
+}
+.tab-dot.closed {
+  background: var(--muted); animation: none;
+}
+.trade-tab.is-closed {
+  opacity: 0.55;
+}
+.tab-pnl {
+  font-size: 10px; margin-left: 4px;
+}
+.tab-pnl.win { color: var(--green); }
+.tab-pnl.loss { color: var(--red); }
+
+/* ── MAIN AREA ── */
+.main-area {
+  display: flex; flex: 1; min-height: 0;
+  position: relative; z-index: 1;
+}
+
+/* ── LEFT: CONTEXT PANEL ── */
+.context-panel {
+  width: 260px; flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  padding: 16px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.ctx-field {}
+.ctx-label {
+  font-size: 8px; text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--muted); margin-bottom: 3px;
+}
+.ctx-value {
+  font-family: var(--font-mono); font-size: 12px; color: var(--text);
+}
+.ctx-value.nuance {
+  color: var(--muted2); font-size: 11px; white-space: pre-wrap; line-height: 1.5;
+}
+.pill {
+  display: inline-block; padding: 2px 8px; border-radius: 2px;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.pill-red { background: rgba(255,77,109,0.1); color: var(--red); }
+.pill-green { background: rgba(52,211,153,0.1); color: var(--green); }
+.pill-accent2 { color: var(--accent2); }
+
+.ctx-divider {
+  height: 1px; background: var(--border); margin: 2px 0;
+}
+
+.exec-score-circle {
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 2px solid var(--warn);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-size: 22px;
+  color: var(--warn); letter-spacing: 1px; position: relative;
+}
+.exec-score-circle .sub {
+  font-family: var(--font-mono); font-size: 9px; color: var(--muted);
+  position: absolute; bottom: -2px; right: -10px;
+}
+
+/* ── CENTER: POSITION LADDER ── */
+.ladder-container {
+  flex: 1; max-width: 620px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 24px 20px; position: relative;
+  overflow-y: auto;
+}
+
+.ladder-wrapper {
+  width: 100%; max-width: 560px; position: relative;
+}
+
+/* Zone overlays */
+.zone-reward {
+  position: absolute; left: 0; right: 0;
+  background: linear-gradient(to top, rgba(52,211,153,0.01), rgba(52,211,153,0.05));
+  pointer-events: none; border-radius: 2px;
+}
+.zone-risk {
+  position: absolute; left: 0; right: 0;
+  background: linear-gradient(to bottom, rgba(255,77,109,0.01), rgba(255,77,109,0.05));
+  pointer-events: none; border-radius: 2px;
+}
+
+.ladder-row {
+  display: grid;
+  grid-template-columns: 28px 52px 80px 1fr 48px 120px;
+  align-items: center;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  position: relative;
+  transition: all 0.15s;
+  background: var(--surface);
+  z-index: 2;
+}
+.ladder-row:hover {
+  background: var(--surface2);
+}
+.ladder-row:hover .row-border-left {
+  width: 5px;
+}
+
+.row-border-left {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; border-radius: 2px 0 0 2px;
+  transition: width 0.15s;
+}
+.row-border-left.green { background: var(--green); }
+.row-border-left.red { background: var(--red); }
+.row-border-left.accent2 { background: var(--accent2); width: 4px; }
+
+/* Ladder cells */
+.row-icon {
+  font-size: 12px; text-align: center; color: var(--muted);
+}
+.row-label {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--muted2);
+}
+.row-price {
+  font-family: var(--font-mono); font-size: 14px; color: var(--text);
+  letter-spacing: 0.5px;
+}
+.row-pnl {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono); font-size: 12px;
+}
+.row-pnl.positive { color: var(--green); }
+.row-pnl.negative { color: var(--red); }
+.row-pnl.zero { color: var(--muted2); }
+
+.risk-bar {
+  height: 4px; border-radius: 1px; min-width: 2px; max-width: 80px;
+}
+.risk-bar.green { background: var(--green); }
+.risk-bar.red { background: var(--red); }
+
+.row-qty {
+  font-family: var(--font-mono); font-size: 12px; color: var(--muted2);
+  text-align: center;
+}
+.row-action {
+  text-align: right;
+}
+
+/* Entry row */
+.ladder-row.entry {
+  border: 2px solid var(--accent2);
+  background: rgba(0,207,255,0.04);
+}
+.ladder-row.entry .row-price {
+  font-size: 16px; font-weight: 600; color: var(--accent2);
+}
+.ladder-row.entry .row-label {
+  color: var(--accent2); font-weight: 500;
+}
+
+/* Executed row */
+.ladder-row.executed {
+  opacity: 0.55;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 4px,
+      rgba(52,211,153,0.04) 4px,
+      rgba(52,211,153,0.04) 8px
+    ),
+    var(--surface);
+}
+.ladder-row.executed .row-icon { color: var(--green); }
+
+/* Executed-loss row */
+.ladder-row.executed-loss {
+  opacity: 0.55;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 4px,
+      rgba(255,77,109,0.04) 4px,
+      rgba(255,77,109,0.04) 8px
+    ),
+    var(--surface);
+}
+
+/* BE badge */
+.be-badge {
+  font-family: var(--font-mono); font-size: 9px;
+  padding: 1px 6px; border-radius: 2px;
+  background: rgba(255,179,71,0.1); color: var(--warn);
+  letter-spacing: 1px;
+}
+
+/* Action buttons */
+.btn-execute {
+  padding: 3px 10px; border: 1px solid var(--green); border-radius: 2px;
+  background: rgba(52,211,153,0.06); color: var(--green);
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px;
+  cursor: pointer; transition: all 0.12s; text-transform: uppercase;
+}
+.btn-execute:hover { background: rgba(52,211,153,0.15); }
+
+.btn-hit {
+  padding: 3px 10px; border: 1px solid var(--red); border-radius: 2px;
+  background: rgba(255,77,109,0.06); color: var(--red);
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px;
+  cursor: pointer; transition: all 0.12s; text-transform: uppercase;
+}
+.btn-hit:hover { background: rgba(255,77,109,0.15); }
+
+.done-label {
+  font-family: var(--font-mono); font-size: 10px; color: var(--green);
+  letter-spacing: 0.5px;
+}
+.done-label.loss { color: var(--red); }
+
+/* ── RIGHT: HEALTH & ACTIONS ── */
+.health-panel {
+  width: 220px; flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  padding: 16px; overflow-y: auto;
+  display: flex; flex-direction: column;
+}
+
+.health-metrics {
+  display: flex; flex-direction: column; gap: 16px;
+}
+.metric-label {
+  font-size: 8px; text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--muted); margin-bottom: 2px;
+}
+.metric-value {
+  font-family: var(--font-display); font-size: 32px; letter-spacing: 2px;
+  line-height: 1;
+}
+.metric-value.text-default { color: var(--text); }
+.metric-value.text-red { color: var(--red); }
+.metric-value.text-green { color: var(--green); }
+.metric-value.text-accent2 { color: var(--accent2); }
+.metric-value.text-accent { color: var(--accent); }
+
+.health-divider {
+  height: 1px; background: var(--border); margin: 16px 0;
+}
+
+.action-buttons {
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+.btn-flatten {
+  padding: 8px; border: 1px solid var(--red); border-radius: 2px;
+  background: rgba(255,77,109,0.06); color: var(--red);
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 1px;
+  cursor: pointer; transition: all 0.12s; text-transform: uppercase;
+  text-align: center;
+}
+.btn-flatten:hover { background: rgba(255,77,109,0.15); }
+
+.btn-stops-be {
+  padding: 8px; border: 1px solid var(--warn); border-radius: 2px;
+  background: transparent; color: var(--warn);
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 1px;
+  cursor: pointer; transition: all 0.12s; text-transform: uppercase;
+  text-align: center;
+}
+.btn-stops-be:hover { background: rgba(255,179,71,0.1); }
+
+.manual-exit {
+  display: flex; flex-direction: column; gap: 6px; margin-top: 4px;
+}
+.manual-exit-row {
+  display: flex; gap: 6px;
+}
+.manual-exit input {
+  flex: 1; padding: 6px 8px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 2px; color: var(--text);
+  font-family: var(--font-mono); font-size: 12px;
+}
+.manual-exit input:focus { outline: none; border-color: var(--accent); }
+.manual-exit input::placeholder { color: var(--muted); }
+
+.btn-exit-manual {
+  padding: 6px; border: 1px solid var(--accent2); border-radius: 2px;
+  background: rgba(0,207,255,0.06); color: var(--accent2);
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px;
+  cursor: pointer; transition: all 0.12s; text-transform: uppercase;
+  text-align: center;
+}
+.btn-exit-manual:hover { background: rgba(0,207,255,0.15); }
+
+.spacer { flex: 1; }
+
+/* ── BOTTOM BAR ── */
+.bottom-bar {
+  height: 36px; flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px;
+  font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+  position: relative; z-index: 10;
+  background: var(--surface);
+}
+
+/* ── EDITABLE PRICE ── */
+.row-price.editable:hover {
+  border-bottom: 1px dashed var(--accent2);
+  cursor: pointer; color: var(--accent2);
+}
+.price-edit {
+  width: 80px; padding: 2px 4px;
+  background: var(--surface2); border: 1px solid var(--accent2);
+  border-radius: 2px; color: var(--text);
+  font-family: var(--font-mono); font-size: 14px;
+  letter-spacing: 0.5px; outline: none;
+}
+
+/* ── CLOSED TRADE OVERLAY ── */
+.closed-overlay {
+  position: absolute; inset: 0; z-index: 5;
+  background: rgba(11,13,16,0.6);
+  display: flex; align-items: center; justify-content: center;
+}
+.closed-tag {
+  font-family: var(--font-display); font-size: 48px; letter-spacing: 6px;
+  color: var(--muted); opacity: 0.5;
+}
+
+/* ── NO-DATA FALLBACK ── */
+.no-data-msg {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 12px; height: 100%;
+  color: var(--muted2); font-family: var(--font-mono); font-size: 13px;
+}
+.no-data-msg a {
+  color: var(--accent2); text-decoration: none;
+  border-bottom: 1px dashed var(--accent2);
+}
+.no-data-msg a:hover { color: var(--accent); border-color: var(--accent); }
+
+/* Full-height layout for ladder page */
+.ladder-page-wrap {
+  display: flex; flex-direction: column;
+  height: calc(100vh - 56px); /* subtract nav height */
+}
+
+/* ── CONTEXT PHASE: Declare Setup Form ── */
+.ds-inline {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.ds-field-label {
+  font-size: 9px; font-weight: 700; color: var(--muted); letter-spacing: 1.5px;
+  text-transform: uppercase; margin-bottom: 2px;
+}
+.ds-input, .ds-select, .ds-textarea {
+  width: 100%; padding: 10px; border: 1px solid var(--border);
+  border-radius: 4px; background: var(--surface2); color: var(--text);
+  font-family: 'Inter', sans-serif; font-size: 12px; outline: none;
+  transition: border-color 0.15s; box-sizing: border-box;
+}
+.ds-input:focus, .ds-select:focus, .ds-textarea:focus {
+  border-color: var(--accent);
+}
+.ds-select { appearance: auto; }
+.ds-textarea { resize: vertical; min-height: 50px; }
+.ds-commit-btn {
+  width: 100%; padding: 12px; margin-top: 6px; border: none; border-radius: 6px;
+  background: var(--accent); color: var(--btn-text); font-weight: 700; font-size: 11px;
+  letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer;
+  transition: all 0.2s; font-family: 'Inter', sans-serif;
+}
+.ds-commit-btn:hover { background: var(--btn-hover); }
+
+/* ── ENTRY PHASE: Trade Entry Form ── */
+.entry-form {
+  display: flex; flex-direction: column; gap: 14px;
+  max-width: 360px; width: 100%;
+}
+.ef-row {
+  display: flex; gap: 8px; align-items: center;
+}
+.ef-toggle-group {
+  display: flex; gap: 0;
+}
+.ef-toggle {
+  padding: 8px 16px; border: 1px solid var(--border2); cursor: pointer;
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 1.5px;
+  text-transform: uppercase; transition: all 0.12s;
+  background: var(--surface); color: var(--muted2);
+}
+.ef-toggle:first-child { border-radius: 4px 0 0 4px; }
+.ef-toggle:last-child { border-radius: 0 4px 4px 0; }
+.ef-toggle.sel-long { background: rgba(52,211,153,0.12); color: var(--green); border-color: var(--green); }
+.ef-toggle.sel-short { background: rgba(255,77,109,0.12); color: var(--red); border-color: var(--red); }
+.ef-toggle.active { color: var(--accent2); border-color: var(--accent2); background: rgba(0,207,255,0.08); }
+.ef-label {
+  font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--muted); min-width: 60px;
+}
+.ef-input {
+  flex: 1; padding: 8px 10px; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 4px; color: var(--text);
+  font-family: var(--font-mono); font-size: 13px; outline: none;
+}
+.ef-input:focus { border-color: var(--accent); }
+.ef-enter-btn {
+  width: 100%; padding: 14px; border: none; border-radius: 6px;
+  background: var(--accent); color: var(--btn-text); font-weight: 700;
+  font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+  cursor: pointer; transition: all 0.2s; font-family: 'Inter', sans-serif;
+}
+.ef-enter-btn:hover { background: var(--btn-hover); }
+.ef-enter-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ── GUARD OVERLAY ── */
+.guard-backdrop {
+  display: none; position: fixed; inset: 0; background: rgba(10,12,16,0.98);
+  backdrop-filter: blur(12px); z-index: 900;
+}
+.guard-backdrop.open { display: block; }
+.gatekeeper-card {
+  display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  width: 480px; z-index: 901;
+  background: #1a1d23; border: 2px solid rgba(255,255,255,0.1);
+  border-radius: 24px; padding: 40px;
+  font-family: 'Inter', -apple-system, sans-serif;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  color: #e0e0e0; text-align: center;
+}
+.gatekeeper-card.open { display: block; }
+.gk-title { font-weight: 300; letter-spacing: 2px; text-transform: uppercase; color: #fff; font-size: 1.1rem; }
+.gk-sub { color: #666; font-size: 0.85rem; margin: 10px 0 30px; line-height: 1.4; }
+.gk-traffic { display: flex; flex-direction: column; gap: 15px; }
+.gk-traffic-btn {
+  padding: 22px; border-radius: 12px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02);
+  color: #fff; font-size: 1rem; font-weight: 700; text-align: center;
+  text-transform: uppercase; letter-spacing: 1.5px;
+  transition: all 0.2s; font-family: inherit;
+}
+.gk-traffic-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.gk-traffic-btn.green:hover:not(:disabled), .gk-traffic-btn.green.selected {
+  border-color: #00ff88; color: #00ff88; background: rgba(0,255,136,0.05);
+}
+.gk-traffic-btn.orange:hover:not(:disabled), .gk-traffic-btn.orange.selected {
+  border-color: #ff9800; color: #ff9800; background: rgba(255,152,0,0.05);
+}
+.gk-traffic-btn.red:hover:not(:disabled), .gk-traffic-btn.red.selected {
+  border-color: #ff4d4d; color: #ff4d4d; background: rgba(255,77,77,0.05);
+}
+.gk-traffic-btn.selected { opacity: 1 !important; }
+.gk-consequence {
+  margin-top: 30px; padding: 20px; border-radius: 12px;
+  background: rgba(0,0,0,0.5); border: 1px solid transparent;
+  min-height: 60px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; transition: 0.3s; gap: 12px;
+}
+.gk-consequence-msg {
+  font-size: 0.9rem; font-weight: 500; color: #555; text-align: center; line-height: 1.4;
+}
+.gk-confirm-btn {
+  display: none; padding: 14px 32px; border-radius: 10px; border: none; cursor: pointer;
+  font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;
+  font-family: inherit; transition: all 0.2s;
+}
+.gk-confirm-btn.visible { display: inline-block; }
+.gk-confirm-btn.orange { background: #ff9800; color: #1a1d23; }
+.gk-confirm-btn.orange:hover { box-shadow: 0 4px 20px rgba(255,152,0,0.4); }
+.gk-confirm-btn.red { background: #ff4d4d; color: #fff; }
+.gk-confirm-btn.red:hover { box-shadow: 0 4px 20px rgba(255,77,77,0.4); }
+.gk-confirm-btn:disabled { opacity: 0.3; cursor: not-allowed; box-shadow: none; }
+.gk-gamble-input {
+  display: none; margin-top: 0; width: 100%; padding: 12px; border-radius: 8px;
+  border: 2px solid #ff4d4d; background: rgba(255,77,77,0.08); color: #ff4d4d;
+  font-family: inherit; font-size: 0.85rem; font-weight: 700;
+  text-align: center; letter-spacing: 2px; text-transform: uppercase; outline: none;
+  box-sizing: border-box;
+}
+.gk-gamble-input.visible { display: block; }
+.gk-gamble-input::placeholder { color: rgba(255,77,77,0.4); text-transform: none; font-weight: 400; letter-spacing: 0; }
+
+/* ── PLAN CHOICE DIALOG ── */
+.plan-choice-backdrop {
+  display: none; position: fixed; inset: 0; background: rgba(10,12,16,0.95);
+  backdrop-filter: blur(8px); z-index: 900;
+}
+.plan-choice-backdrop.open { display: block; }
+.plan-choice-card {
+  display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  width: 420px; z-index: 901;
+  background: #1a1d23; border: 2px solid rgba(255,255,255,0.1);
+  border-radius: 20px; padding: 32px;
+  font-family: 'Inter', -apple-system, sans-serif;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  color: #e0e0e0; text-align: center;
+}
+.plan-choice-card.open { display: block; }
+.plan-choice-title {
+  font-weight: 300; letter-spacing: 2px; text-transform: uppercase;
+  color: #fff; font-size: 1rem; margin-bottom: 8px;
+}
+.plan-choice-sub {
+  color: #666; font-size: 0.82rem; margin-bottom: 24px; line-height: 1.5;
+}
+.plan-choice-context {
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px; padding: 14px; margin-bottom: 24px;
+  font-family: var(--font-mono); font-size: 12px; text-align: left;
+  color: var(--muted); line-height: 1.8;
+}
+.plan-choice-context .pc-label { color: #555; text-transform: uppercase; letter-spacing: 1px; font-size: 10px; }
+.plan-choice-context .pc-val { color: #ccc; margin-left: 6px; }
+.plan-choice-btns { display: flex; gap: 12px; }
+.plan-choice-btns button {
+  flex: 1; padding: 14px; border-radius: 10px; cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1px; border: none;
+  transition: all 0.15s;
+}
+.btn-same-plan {
+  background: rgba(79,255,176,0.12); color: var(--accent); border: 1px solid rgba(79,255,176,0.25) !important;
+}
+.btn-same-plan:hover { background: rgba(79,255,176,0.2); }
+.btn-new-ctx {
+  background: rgba(255,255,255,0.05); color: var(--muted);
+  border: 1px solid rgba(255,255,255,0.1) !important;
+}
+.btn-new-ctx:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+.gatekeeper-card.card-neutral { border-color: rgba(255,255,255,0.1); }
+.gatekeeper-card.card-ready { border-color: #00ff88; box-shadow: 0 0 30px rgba(0,255,136,0.2); }
+.gatekeeper-card.card-caution { border-color: #ff9800; box-shadow: 0 0 20px rgba(255,152,0,0.2); }
+.gatekeeper-card.card-warning { border-color: #ff4d4d; box-shadow: 0 0 30px rgba(255,77,77,0.3); }
+
+/* ── REVIEW PHASE ── */
+.review-center {
+  display: flex; flex-direction: column; gap: 16px;
+  max-width: 480px; width: 100%;
+}
+.es-header { text-align: center; margin-bottom: 16px; }
+.es-header h2 { font-family: 'Inter', sans-serif; font-weight: 300; letter-spacing: 6px; font-size: 1.1rem; color: var(--text); text-transform: uppercase; margin: 0; }
+.es-header p { font-size: 10px; font-weight: 700; color: var(--muted); letter-spacing: 1.5px; margin-top: 8px; text-transform: uppercase; }
+.es-score-circle { width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; font-weight: 700; border: 1px solid var(--border); color: var(--muted); transition: all 0.3s; font-family: 'Inter', sans-serif; }
+.es-score-circle.score-active { border-color: var(--warn); color: var(--warn); box-shadow: 0 0 15px rgba(255,179,71,0.15); }
+.es-checklist { display: flex; flex-direction: column; gap: 8px; }
+.es-check-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: all 0.2s; }
+.es-check-item:hover { background: var(--surface3); }
+.es-check-item.active { border-color: var(--warn); background: rgba(255,179,71,0.06); }
+.es-check-content { flex: 1; padding-right: 12px; }
+.es-check-title { font-size: 10px; font-weight: 700; color: var(--text); letter-spacing: 1.2px; text-transform: uppercase; display: block; font-family: 'Inter', sans-serif; }
+.es-check-desc { font-size: 11px; font-weight: 400; color: var(--muted); line-height: 1.5; margin-top: 4px; display: block; font-family: 'Inter', sans-serif; }
+.es-checkbox-ui { width: 24px; height: 24px; border: 2px solid var(--border2); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; color: var(--muted); transition: all 0.2s; flex-shrink: 0; background: var(--surface); }
+.es-check-item.active .es-checkbox-ui { background: var(--warn); border-color: var(--warn); color: var(--btn-text); }
+.es-commit-btn { width: 100%; margin-top: 12px; padding: 12px; background: var(--accent); color: var(--btn-text); border: none; border-radius: 6px; font-weight: 700; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; transition: background 0.2s; font-family: 'Inter', sans-serif; }
+.es-commit-btn:hover { background: var(--btn-hover); }
+
+/* ── REVIEW: Tags ── */
+.tp-group { margin-bottom: 12px; }
+.tp-group-label {
+  font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 6px; display: flex; align-items: center; gap: 8px;
+}
+.tp-group-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.tp-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.tp-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.tp-tag-btn {
+  background: var(--surface2); border: 1px solid var(--border2); color: var(--muted2);
+  padding: 4px 10px; font-family: var(--font-mono); font-size: 10px; cursor: pointer;
+  transition: all 0.12s; letter-spacing: 0.5px;
+  clip-path: polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%);
+}
+.tp-tag-btn:hover { background: var(--surface3); color: var(--text); }
+.tp-tag-btn.active-with { background: rgba(79,255,176,0.12); border-color: var(--green); color: var(--green); }
+.tp-tag-btn.active-against { background: rgba(255,77,109,0.12); border-color: var(--red); color: var(--red); }
+.tp-tag-btn.active-vol { background: rgba(0,207,255,0.12); border-color: var(--accent2); color: var(--accent2); }
+.tp-tag-btn.active-exit { background: rgba(255,179,71,0.12); border-color: var(--warn); color: var(--warn); }
+.tp-tag-btn.active-setup { background: rgba(180,127,255,0.12); border-color: var(--purple); color: var(--purple); }
+.tp-tag-btn.active-pre { background: rgba(138,150,170,0.15); border-color: var(--muted2); color: var(--text); }
+
+/* Notes */
+.note-textarea {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); font-family: var(--font-mono); font-size: 11px;
+  padding: 8px 10px; outline: none; resize: vertical; min-height: 50px;
+  transition: border-color 0.15s; line-height: 1.5; border-radius: 4px;
+}
+.note-textarea:focus { border-color: var(--accent); }
+
+.btn-push {
+  width: 100%; padding: 14px; border: none; border-radius: 6px;
+  background: var(--accent); color: var(--btn-text); font-weight: 700;
+  font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+  cursor: pointer; transition: all 0.2s; font-family: 'Inter', sans-serif;
+  margin-top: 12px;
+}
+.btn-push:hover { background: var(--btn-hover); }
+
+/* ── Evo Card ── */
+.evo-card {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 2px; padding: 12px; margin-bottom: 8px;
+  font-family: 'Inter', sans-serif; font-size: 11px; line-height: 1.6;
+  letter-spacing: 1px; animation: fadeIn 0.3s ease both;
+}
+.evo-card-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 4px;
+}
+.evo-card-time { font-size: 10px; color: var(--muted2); letter-spacing: 0.5px; }
+.evo-card-value { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; }
+.evo-val-red { color: var(--red); }
+.evo-val-blue { color: var(--accent2); }
+.evo-val-green { color: var(--green); }
+.evo-card-read { font-weight: 500; color: var(--muted2); font-size: 10px; }
+.evo-card-setup { color: var(--accent2); font-weight: 700; font-size: 10px; }
+.evo-card-location { color: var(--muted2); font-size: 10px; margin-top: 2px; }
+.evo-card-nuance {
+  color: var(--muted); font-size: 10px; margin-top: 4px;
+  padding: 4px 6px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 2px; white-space: pre-wrap; line-height: 1.5;
+}
+
+/* ── STRENGTH BANNER ── */
+.strength-banner {
+  padding: 12px 16px; border-radius: 6px; text-align: center;
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 16px;
+}
+.strength-banner.confidence-low { background: rgba(255,77,109,0.08); border: 1px solid var(--red); color: var(--red); }
+.strength-banner.confidence-medium { background: rgba(0,207,255,0.06); border: 1px solid var(--accent2); color: var(--accent2); }
+.strength-banner.confidence-high { background: rgba(52,211,153,0.08); border: 1px solid var(--green); color: var(--green); }
+.strength-banner.fomo { background: rgba(255,77,109,0.08); border: 1px solid var(--red); color: var(--red); }
+
+/* ── STRENGTH AUDIT CARD ── */
+.sa-card { max-width: 420px; width: 100%; margin: auto; display: flex; flex-direction: column; gap: 16px; }
+.sa-header { display: flex; justify-content: space-between; align-items: baseline; }
+.sa-title { font-family: 'Inter', sans-serif; font-weight: 300; letter-spacing: 4px; font-size: 0.95rem; color: var(--text); text-transform: uppercase; }
+.sa-score { font-family: var(--font-mono); font-size: 14px; color: var(--accent2); letter-spacing: 1px; }
+
+.sa-toggle-card {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface2);
+  transition: all 0.2s; user-select: none;
+}
+.sa-toggle-card:hover { background: var(--surface3); }
+.sa-toggle-card.yes {
+  background: rgba(52,211,153,0.06); border-color: var(--green);
+}
+.sa-toggle-card-label {
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted);
+}
+.sa-toggle-card.yes .sa-toggle-card-label { color: var(--text); }
+.sa-badge {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px;
+  padding: 3px 10px; border-radius: 4px; font-weight: 700;
+}
+.sa-badge.no { background: rgba(255,77,109,0.08); color: var(--red); }
+.sa-badge.yes { background: rgba(52,211,153,0.1); color: var(--green); }
+
+.sa-bottom-row { display: flex; gap: 16px; }
+.sa-bottom-group { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.sa-bottom-label { font-size: 8px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); }
+
+/* ── RED PULSE for FOMO/low confidence ── */
+@keyframes pulse-red-border {
+  0%, 100% { border-color: var(--red); box-shadow: 0 0 0 0 rgba(255,77,109,0); }
+  50% { border-color: var(--red); box-shadow: 0 0 15px 2px rgba(255,77,109,0.3); }
+}
+.entry-form.warn-pulse {
+  border: 2px solid var(--red);
+  border-radius: 8px;
+  padding: 16px;
+  animation: pulse-red-border 2s ease infinite;
+}
+
+/* ── CANCEL BUTTON ── */
+.ef-cancel-btn {
+  width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;
+  background: transparent; color: var(--muted); font-weight: 600; font-size: 11px;
+  letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer;
+  transition: all 0.15s; font-family: 'Inter', sans-serif; margin-top: 6px;
+}
+.ef-cancel-btn:hover { color: var(--red); border-color: var(--red); }
+
+/* ── Empty phase states ── */
+.phase-empty {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; height: 100%; color: var(--muted);
+  gap: 12px; font-family: var(--font-mono); font-size: 13px;
+  text-transform: uppercase; letter-spacing: 1px;
+}
+.phase-empty-icon { font-size: 36px; opacity: 0.2; }
+
+/* Fill list in review */
+.fill-list { display: flex; flex-direction: column; gap: 4px; }
+.fill-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 0; border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono); font-size: 11px;
+}
+.fill-row:last-child { border-bottom: none; }
+
+/* ── PNL SUMMARY ── */
+.pnl-summary {
+  text-align: center; padding: 16px 0;
+  border: 1px solid var(--border); border-radius: 4px;
+  background: var(--surface2);
+}
+.pnl-summary-label { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.pnl-summary-value { font-family: var(--font-display); font-size: 36px; letter-spacing: 2px; }
+
+/* ── CONTEXT RIBBON ── */
+.context-ribbon {
+  width:100%; padding:12px 0; display:flex; justify-content:center;
+  align-items:center; flex-wrap:nowrap; gap:40px;
+  font-family:'Inter', sans-serif; font-size:0.75rem; text-transform:uppercase;
+  letter-spacing:1.5px;
+  border-bottom:1px solid var(--border); min-height:50px; box-sizing:border-box;
+  transition:background 0.3s, color 0.3s;
+}
+.ctx-locked { background:#8b1a1a; color:#fff; font-weight:800; }
+.ctx-ready  { background:#fff9c4; color:#1a1d23; }
+.ctx-managing { background:#e3f2fd; color:#1a1d23; }
+.ribbon-item { display:flex; align-items:center; gap:8px; white-space:nowrap; }
+.ribbon-label { font-size:0.55rem; font-weight:400; color:#888; letter-spacing:1.5px; }
+.ctx-locked .ribbon-label { color:rgba(255,255,255,0.5); }
+.ribbon-value { font-size:0.8rem; font-weight:700; color:#1a1d23; letter-spacing:1.5px; }
+.ribbon-val-red { color:#d32f2f; }
+.ribbon-val-blue { color:#1976d2; }
+.ribbon-val-green { color:#2e7d32; }
+.setback-box {
+  background:rgba(0,0,0,0.2); padding:3px 10px; border-radius:3px;
+  font-size:0.65rem; color:#fff; white-space:nowrap;
+}
+
+/* ── REVIEW: Expanded health panel ── */
+.health-panel.review-expanded { width: 360px; min-width: 360px; }
+
+/* ── REVIEW: Images ── */
+.lt-img-drop {
+  border: 2px dashed var(--border); border-radius: 6px; padding: 16px;
+  text-align: center; cursor: pointer; font-size: 11px; color: var(--muted);
+  transition: border-color 0.2s; box-sizing: border-box;
+}
+.lt-img-drop:hover, .lt-img-drop.drag-over { border-color: var(--accent); }
+.lt-img-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.lt-img-thumb { position: relative; width: 64px; height: 64px; border-radius: 4px; overflow: hidden; }
+.lt-img-thumb img { width: 100%; height: 100%; object-fit: cover; cursor: pointer; }
+.lt-img-del {
+  position: absolute; top: 2px; right: 2px; width: 18px; height: 18px;
+  background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 50%;
+  font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+{% endblock %}
+
+{% block content %}
+<div class="ladder-page-wrap">
+  <!-- CONTEXT RIBBON -->
+  <div class="context-ribbon ctx-locked" id="context-ribbon">
+    <div id="ribbon-content" style="display:flex;align-items:center;gap:40px;">
+      <span>⚠️ MONITORING: CONTEXT UNCONFIRMED. DO NOT TRADE THE CHOP.</span>
+    </div>
+    <div class="setback-box" id="ribbon-setback">SETBACK: -3.0 DAYS</div>
+  </div>
+
+  <!-- IDENTITY BAR -->
+  <div class="identity-bar">
+    <div class="phase-stepper" id="phase-stepper"></div>
+    <div class="trade-badge" id="trade-badge"></div>
+    <div class="trade-status" id="trade-status"></div>
+    <div class="trade-tabs" id="trade-tabs"></div>
+  </div>
+
+  <!-- MAIN AREA -->
+  <div class="main-area">
+    <!-- LEFT: Context -->
+    <div class="context-panel" id="context-panel"></div>
+
+    <!-- CENTER: Position Ladder -->
+    <div class="ladder-container">
+      <div class="ladder-wrapper" id="ladder"></div>
+    </div>
+
+    <!-- RIGHT: Health & Actions -->
+    <div class="health-panel" id="health-panel"></div>
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div class="bottom-bar">
+    <span id="bottom-left"></span>
+    <span id="bottom-clock"></span>
+  </div>
+</div>
+
+<!-- GUARD OVERLAY -->
+<div class="guard-backdrop" id="guard-backdrop" onclick="closeGuardOverlay()"></div>
+<div class="gatekeeper-card" id="guard-card">
+  <div class="gk-title">What's your mental state?</div>
+  <div class="gk-sub">Declare before you log.</div>
+  <div class="gk-traffic">
+    <button class="gk-traffic-btn green" id="gk-patient"
+            onclick="guardSelectPatient()"
+            onmouseenter="guardHover('patient')" onmouseleave="guardHoverReset()">
+      Calm, Focused
+    </button>
+    <button class="gk-traffic-btn orange" id="gk-intuition"
+            onclick="guardSelectIntuition()"
+            onmouseenter="guardHover('intuition')" onmouseleave="guardHoverReset()">
+      Eager, Looking for a Trade
+    </button>
+    <button class="gk-traffic-btn red" id="gk-eager"
+            onclick="guardSelectEager()"
+            onmouseenter="guardHover('eager')" onmouseleave="guardHoverReset()">
+      FOMO
+    </button>
+  </div>
+  <div class="gk-consequence" id="gk-consequence">
+    <div class="gk-consequence-msg" id="gk-consequence-msg">Identify your state to unlock the entry.</div>
+    <button class="gk-confirm-btn orange" id="gk-intuition-confirm" onclick="guardConfirmIntuition()">
+      I Understand — Log Trade
+    </button>
+    <input class="gk-gamble-input" id="gk-gamble-input"
+           placeholder='Type "GAMBLE" to continue'
+           oninput="checkGambleInput(this)">
+    <button class="gk-confirm-btn red" id="gk-gamble-confirm" onclick="guardConfirmGamble()" disabled>
+      Gamble
+    </button>
+  </div>
+</div>
+
+<!-- PLAN CHOICE DIALOG -->
+<div class="plan-choice-backdrop" id="plan-choice-backdrop" onclick="closePlanChoice()"></div>
+<div class="plan-choice-card" id="plan-choice-card">
+  <div class="plan-choice-title">Continue same plan?</div>
+  <div class="plan-choice-sub">You have open trades. Enter another trade on the current plan, or declare a new context.</div>
+  <div class="plan-choice-context" id="plan-choice-context-preview"></div>
+  <div class="plan-choice-btns">
+    <button class="btn-same-plan" onclick="useSamePlan()">Same Plan</button>
+    <button class="btn-new-ctx" onclick="useNewContext()">New Context</button>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ══════════════════════════════════════════════════════════════════════════════
+   TRADE V2 — Ladder-Based Trade Companion Tool
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+const TAG_GROUPS = {{ tags_json|safe }};
+const INST_CONFIG = {{ instrument_config_json|safe }};
+const TRADE_DEFAULTS = {{ trade_defaults_json|safe }};
+const SERVER_CONTEXTS = {{ contexts_json|safe }};
+const SERVER_OPEN = {{ open_trades_json|safe }};
+const SERVER_CLOSED = {{ closed_trades_json|safe }};
+const STRENGTH_MAP = {{ strength_json|safe }};
+
+/* ── State ─────────────────────────────────────────────────────────────────── */
+let activeTrade = null;       // key like 'T1'
+let activePhase = 'CONTEXT';
+let activeContextId = null;
+let TRADES = {};              // Trade models keyed by tab name
+let guardState = { mental_state: null };
+let guardLocked = false;
+let activeTags = {};
+let noteTimer = null;
+let lastCommittedContext = {};
+let activeStrengthId = null;
+let activeStrength = {};  // { value, volume, trend, mental_state, confidence }
+
+// Entry form state
+let formDir = 'Long';
+let formInst = 'MES';
+let formMode = 'partials';
+
+// Strength form state
+let strengthValue = 0;
+let strengthVolume = 0;
+let strengthTrend = 0;
+let strengthAdh = 0;
+let strengthMental = 'calm';
+let strengthConfidence = 'medium';
+
+const PHASES = ['CONTEXT', 'ENTRY', 'MANAGE', 'EXIT', 'REVIEW'];
+let strengthSubmitted = false;
+
+/* ── DATA MODEL ────────────────────────────────────────────────────────────── */
+function buildTradeModel(liveTrade, contexts, instrumentConfig) {
+  const levels = liveTrade.levels || [];
+  const executions = liveTrade.executions || [];
+  const portionMap = {};
+  for (const lv of levels) {
+    if (!portionMap[lv.portion]) portionMap[lv.portion] = { portion: lv.portion, qty: lv.qty };
+    if (lv.level_type === 'stop') portionMap[lv.portion].stop = lv.price;
+    if (lv.level_type === 'tp') portionMap[lv.portion].tp = lv.price;
+  }
+  const execMap = {};
+  for (const ex of executions) execMap[ex.portion] = ex;
+  const partials = Object.values(portionMap).map(p => {
+    const ex = execMap[p.portion];
+    return {
+      portion: p.portion, qty: p.qty, stop: p.stop, tp: p.tp,
+      status: ex ? 'executed' : 'open', pnl: ex?.pnl,
+      exitTime: ex?.exec_time, exitType: ex?.exec_type, exitPrice: ex?.price
+    };
+  });
+  const ctx = (Array.isArray(contexts) ? contexts : []).find(c => c.id === liveTrade.context_id) || {};
+  const tickValue = instrumentConfig[liveTrade.instrument]?.dollars_per_point || 5;
+  return {
+    id: liveTrade.id, direction: liveTrade.direction,
+    instrument: liveTrade.instrument || 'MES', qty: liveTrade.total_qty,
+    entry: liveTrade.entry_price, time: liveTrade.entry_time, tickValue,
+    partials, status: liveTrade.status === 'closed' ? 'closed' : undefined,
+    pnl: liveTrade.calc?.realized_pnl || 0, context_id: liveTrade.context_id,
+    levels: levels, executions: executions,
+    mode: liveTrade.mode || 'partials',
+    notes: liveTrade.notes || '', notes_monitoring: liveTrade.notes_monitoring || '',
+    notes_exit: liveTrade.notes_exit || '',
+    tags: (() => { try { return typeof liveTrade.tags_json === 'string' ? JSON.parse(liveTrade.tags_json) : (liveTrade.tags_json || {}); } catch(e) { return {}; } })(),
+    execution_score_json: liveTrade.execution_score_json,
+    pushed: liveTrade.status === 'closed',
+    context: {
+      mktRead: ctx.mkt_read || '\u2014', valueArea: ctx.value_area || '\u2014',
+      setup: ctx.setup || '\u2014', location: ctx.location || '\u2014', nuance: ctx.nuance || ''
+    },
+    strength_id: liveTrade.strength_id || null,
+    strength: liveTrade.strength_id && STRENGTH_MAP[liveTrade.strength_id] ? STRENGTH_MAP[liveTrade.strength_id] : null,
+    mentalState: ctx.mental_state || 'calm',
+    execScore: (() => {
+      try {
+        const d = liveTrade.execution_score_json ? (typeof liveTrade.execution_score_json === 'object' ? liveTrade.execution_score_json : JSON.parse(liveTrade.execution_score_json)) : null;
+        return d ? d.score : null;
+      } catch(e) { return null; }
+    })()
+  };
+}
+
+/* ── UTILITIES ─────────────────────────────────────────────────────────────── */
+function isTradeClosed(trade) {
+  if (trade.noData) return true;
+  if (trade.status === 'closed') return true;
+  if (trade.pushed) return true;
+  return trade.partials.every(p => p.status === 'executed');
+}
+
+function getTradePnl(trade) {
+  if (trade.noData) return trade.pnl || 0;
+  if (trade.pnl !== undefined) return trade.pnl;
+  return trade.partials.reduce((sum, p) => {
+    if (p.status === 'executed' && p.pnl !== undefined) return sum + p.pnl;
+    return sum;
+  }, 0);
+}
+
+function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+
+function formatTime12h(t) {
+  if (!t) return '';
+  const [h,m] = t.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+
+function getCurrentTimeStr() {
+  const now = new Date();
+  return String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+}
+
+function getValueAreaColor(val) {
+  if (val === 'Lower' || val === 'Overlapping Lower') return 'red';
+  if (val === 'Overlapping') return 'blue';
+  return 'green';
+}
+
+function shortValue(v) {
+  if (v === 'Overlapping Lower') return 'OL';
+  if (v === 'Overlapping Higher') return 'OH';
+  return v;
+}
+
+/* ── CONTEXT HELPERS ── */
+function getLastTradeContextId() {
+  const keys = Object.keys(TRADES);
+  if (keys.length === 0) return null;
+  const lastKey = keys[keys.length - 1];
+  return TRADES[lastKey]?.context_id || null;
+}
+
+function getLastTradeContext() {
+  const keys = Object.keys(TRADES);
+  if (keys.length === 0) return null;
+  const lastKey = keys[keys.length - 1];
+  return TRADES[lastKey]?.context || null;
+}
+
+/* ── RIBBON ── */
+function updateRibbon() {
+  const ribbon = document.getElementById('context-ribbon');
+  const content = document.getElementById('ribbon-content');
+  const setback = document.getElementById('ribbon-setback');
+
+  const hasOpenTrades = Object.values(TRADES).some(t => !isTradeClosed(t) && !t.pushed);
+
+  if (activeContextId) {
+    // YELLOW — new context committed, ready for next trade
+    ribbon.className = 'context-ribbon ctx-ready';
+    setback.style.display = 'none';
+    updateRibbonValues(content, lastCommittedContext);
+  } else if (hasOpenTrades) {
+    // BLUE — managing open trades on previous plan
+    ribbon.className = 'context-ribbon ctx-managing';
+    setback.style.display = 'none';
+    const trade = TRADES[activeTrade];
+    const ctx = trade?.context || {};
+    updateRibbonValues(content, ctx);
+  } else {
+    // RED — no context, no open trades
+    ribbon.className = 'context-ribbon ctx-locked';
+    content.innerHTML = '<span>⚠️ MONITORING: CONTEXT UNCONFIRMED. DO NOT TRADE THE CHOP.</span>';
+    setback.style.display = '';
+  }
+}
+
+function updateRibbonValues(el, ctx) {
+  const valColor = getValueAreaColor(ctx.valueArea || ctx.value_area || '');
+  el.innerHTML = `
+    <div class="ribbon-item"><span class="ribbon-label">TIME:</span> <span class="ribbon-value">${formatTime12h(ctx.time || ctx.entry_time || '')}</span></div>
+    <div class="ribbon-item"><span class="ribbon-label">VALUE:</span> <span class="ribbon-value ribbon-val-${valColor}">${(ctx.valueArea || ctx.value_area || '\u2014').toUpperCase()}</span></div>
+    <div class="ribbon-item"><span class="ribbon-label">SETUP:</span> <span class="ribbon-value" style="color:#1976d2">${(ctx.setup || '\u2014').toUpperCase()}</span></div>
+    <div class="ribbon-item"><span class="ribbon-label">LOCATION:</span> <span class="ribbon-value">${ctx.location || '\u2014'}</span></div>
+  `;
+}
+
+function detectPhase(trade) {
+  if (!trade) return 'CONTEXT';
+  if (trade.pushed) return 'REVIEW';
+  if (isTradeClosed(trade)) return 'REVIEW';
+  const open = trade.partials.filter(p => p.status === 'open');
+  if (open.length < trade.partials.length && open.length > 0) return 'MANAGE';
+  return 'MANAGE';
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   PHASE RENDERERS
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── RENDER: PHASE STEPPER ── */
+function renderPhases() {
+  const el = document.getElementById('phase-stepper');
+  el.innerHTML = PHASES.map(p =>
+    `<button class="phase-btn${p === activePhase ? ' active' : ''}"
+            onclick="setPhase('${p}')">${p}</button>`
+  ).join('');
+}
+
+/* ── RENDER: TRADE BADGE ── */
+function renderBadge(trade, id) {
+  const el = document.getElementById('trade-badge');
+  if (!trade) { el.innerHTML = '<span style="color:var(--muted)">NO TRADE</span>'; return; }
+  const dirClass = trade.direction === 'Long' ? 'dir-long' : 'dir-short';
+  el.innerHTML = `${id} \u00b7 <span class="${dirClass}">${trade.direction.toUpperCase()}</span> \u00b7 ${trade.qty}\u00d7${trade.instrument} @ ${trade.entry} \u00b7 ${trade.time}`;
+}
+
+/* ── RENDER: TRADE STATUS ── */
+function renderStatus(trade) {
+  const el = document.getElementById('trade-status');
+  if (!trade) { el.innerHTML = ''; return; }
+  if (isTradeClosed(trade)) {
+    const pnlColor = trade.pnl >= 0 ? 'var(--green)' : 'var(--red)';
+    const sign = trade.pnl >= 0 ? '+' : '';
+    el.innerHTML = `<span style="color:${pnlColor}">CLOSED ${sign}$${trade.pnl}</span> <div class="status-dot closed"></div>`;
+    return;
+  }
+  const open = trade.partials.filter(p => p.status === 'open');
+  const remaining = open.reduce((s, p) => s + p.qty, 0);
+  if (remaining === 0) {
+    el.innerHTML = `CLOSED <div class="status-dot closed"></div>`;
+  } else {
+    el.innerHTML = `PARTIAL (${remaining} remaining) <div class="status-dot"></div>`;
+  }
+}
+
+/* ── RENDER: TRADE TABS ── */
+function renderTabs() {
+  const el = document.getElementById('trade-tabs');
+  const keys = Object.keys(TRADES);
+  if (keys.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = keys.map(id => {
+    const trade = TRADES[id];
+    const closed = isTradeClosed(trade);
+    const dotClass = closed ? 'tab-dot closed' : 'tab-dot open';
+    const tabClass = 'trade-tab' + (id === activeTrade ? ' active' : '') + (closed ? ' is-closed' : '');
+    let pnlHtml = '';
+    if (closed) {
+      const pnl = getTradePnl(trade);
+      const sign = pnl >= 0 ? '+' : '';
+      const cls = pnl >= 0 ? 'win' : 'loss';
+      pnlHtml = `<span class="tab-pnl ${cls}">${sign}$${pnl}</span>`;
+    }
+    return `<button class="${tabClass}" onclick="switchTrade('${id}')"><span class="${dotClass}"></span>${id}${pnlHtml}</button>`;
+  }).join('');
+}
+
+/* ── RENDER: CONTEXT PANEL (left) ── */
+function renderContextPanel(trade) {
+  const el = document.getElementById('context-panel');
+
+  if (activePhase === 'CONTEXT') {
+    // Show declare setup form inline
+    renderContextForm(el);
+    return;
+  }
+
+  // If ENTRY phase with a freshly committed context, show that context (not the old trade's)
+  if (activePhase === 'ENTRY' && activeContextId && Object.keys(lastCommittedContext).length > 0) {
+    const lc = lastCommittedContext;
+    const vaClass = (lc.value_area === 'Lower' || lc.value_area === 'Upper') ? 'pill pill-red' : 'pill pill-green';
+    el.innerHTML = `
+      <div class="ctx-field"><div class="ctx-label">MKT READ</div><div class="ctx-value">${escHtml(lc.mkt_read || '')}</div></div>
+      <div class="ctx-field"><div class="ctx-label">VALUE AREA</div><div><span class="${vaClass}">${escHtml(lc.value_area || '')}</span></div></div>
+      <div class="ctx-field"><div class="ctx-label">SETUP</div><div class="ctx-value pill-accent2">${escHtml(lc.setup || '')}</div></div>
+      <div class="ctx-field"><div class="ctx-label">LOCATION</div><div class="ctx-value">${escHtml(lc.location || '')}</div></div>
+      <div class="ctx-field"><div class="ctx-label">NUANCE</div><div class="ctx-value nuance">${escHtml(lc.nuance || '')}</div></div>
+      ${buildStrengthPillsHtml(activeStrength)}
+    `;
+    return;
+  }
+
+  if (!trade) { el.innerHTML = '<div class="phase-empty"><span>No trade selected</span></div>'; return; }
+
+  const ctx = trade.context;
+  const vaClass = ctx.valueArea === 'Lower' || ctx.valueArea === 'Upper' ? 'pill pill-red' : 'pill pill-green';
+  const mentalMap = {
+    patient: { label: 'PATIENT', cls: 'pill pill-green' },
+    focused: { label: 'FOCUSED', cls: 'pill pill-green' },
+    calm: { label: 'CALM', cls: 'pill pill-green' },
+    rushed: { label: 'RUSHED', cls: 'pill pill-red' },
+    anxious: { label: 'ANXIOUS', cls: 'pill pill-red' },
+    eager: { label: 'EAGER', cls: 'pill pill-red' },
+    fomo: { label: 'FOMO', cls: 'pill pill-red' },
+  };
+  const mental = mentalMap[trade.mentalState] || { label: (trade.mentalState || '').toUpperCase(), cls: 'pill' };
+
+  let execScoreHtml = '';
+  if (trade.execScore !== null && trade.execScore !== undefined) {
+    execScoreHtml = `
+    <div class="ctx-field" style="display:flex;gap:12px;align-items:center;">
+      <div><div class="ctx-label">EXECUTION SCORE</div></div>
+      <div class="exec-score-circle">${trade.execScore}<span class="sub">/5</span></div>
+    </div>`;
+  }
+
+  // If REVIEW phase, also show fill list
+  let fillListHtml = '';
+  if (activePhase === 'REVIEW') {
+    const executed = trade.partials.filter(p => p.status === 'executed');
+    if (executed.length > 0) {
+      fillListHtml = '<div class="ctx-divider"></div><div class="ctx-field"><div class="ctx-label">FILLS</div><div class="fill-list">';
+      executed.forEach(p => {
+        const pnlStr = p.pnl !== undefined ? (p.pnl >= 0 ? `<span style="color:var(--green)">+$${p.pnl}</span>` : `<span style="color:var(--red)">-$${Math.abs(p.pnl)}</span>`) : '';
+        const typeLabel = p.exitType === 'tp_hit' ? 'TP' : p.exitType === 'stop_hit' ? 'Stop' : 'Manual';
+        fillListHtml += `<div class="fill-row"><span style="color:var(--muted2)">P${p.portion} ${p.qty}\u00d7 ${typeLabel} @ ${p.exitPrice || ''}</span><span>${pnlStr} ${p.exitTime ? '\u00b7 ' + p.exitTime : ''}</span></div>`;
+      });
+      fillListHtml += '</div></div>';
+    }
+  }
+
+  el.innerHTML = `
+    <div class="ctx-field">
+      <div class="ctx-label">MKT READ</div>
+      <div class="ctx-value">${escHtml(ctx.mktRead)}</div>
+    </div>
+    <div class="ctx-field">
+      <div class="ctx-label">VALUE AREA</div>
+      <div><span class="${vaClass}">${escHtml(ctx.valueArea)}</span></div>
+    </div>
+    <div class="ctx-field">
+      <div class="ctx-label">SETUP</div>
+      <div class="ctx-value pill-accent2">${escHtml(ctx.setup)}</div>
+    </div>
+    <div class="ctx-field">
+      <div class="ctx-label">LOCATION</div>
+      <div class="ctx-value">${escHtml(ctx.location)}</div>
+    </div>
+    <div class="ctx-field">
+      <div class="ctx-label">NUANCE</div>
+      <div class="ctx-value nuance">${escHtml(ctx.nuance)}</div>
+    </div>
+    <div class="ctx-divider"></div>
+    <div class="ctx-field">
+      <div class="ctx-label">MENTAL STATE</div>
+      <div><span class="${mental.cls}">${mental.label}</span></div>
+    </div>
+    ${execScoreHtml}
+    ${buildStrengthPillsHtml(trade.strength)}
+    ${fillListHtml}
+  `;
+}
+
+/* ── CONTEXT FORM (inline in left panel) ── */
+function renderContextForm(el) {
+  // Show evo cards + form
+  let evoHtml = '';
+  if (SERVER_CONTEXTS && SERVER_CONTEXTS.length > 0) {
+    SERVER_CONTEXTS.forEach(ctx => {
+      const valColor = getValueAreaColor(ctx.value_area);
+      const nuanceHtml = ctx.nuance ? `<div class="evo-card-nuance">${escHtml(ctx.nuance)}</div>` : '';
+      const locationHtml = ctx.location ? `<div class="evo-card-location">${escHtml(ctx.location)}</div>` : '';
+      evoHtml += `<div class="evo-card">
+        <div class="evo-card-header">
+          <span class="evo-card-time">${formatTime12h(ctx.time)}</span>
+          <span class="evo-card-read">${escHtml(ctx.mkt_read || '')}</span>
+          <span class="evo-card-value evo-val-${valColor}">${shortValue(ctx.value_area)}</span>
+        </div>
+        <div class="evo-card-setup">${escHtml(ctx.setup)}</div>
+        ${locationHtml}
+        ${nuanceHtml}
+      </div>`;
+    });
+  }
+
+  el.innerHTML = `
+    <div class="ds-inline">
+      <div class="ds-field-label">Mkt Read</div>
+      <input type="text" class="ds-input" id="ds-mkt-read" placeholder="e.g. Balancing, Initiative...">
+      <div class="ds-field-label">Value Area</div>
+      <select class="ds-select" id="ds-value-area">
+        <option value="Lower">Lower</option>
+        <option value="Overlapping Lower">Overlapping Lower (OL)</option>
+        <option value="Overlapping" selected>Overlapping</option>
+        <option value="Overlapping Higher">Overlapping Higher (OH)</option>
+        <option value="Higher">Higher</option>
+      </select>
+      <div class="ds-field-label">Setup</div>
+      <input type="text" class="ds-input" id="ds-setup" placeholder="Setup name">
+      <div class="ds-field-label">Location</div>
+      <input type="text" class="ds-input" id="ds-location" placeholder="e.g. Fade balance high @ 6630 LVN">
+      <div class="ds-field-label">Nuance</div>
+      <textarea class="ds-textarea" id="ds-nuance" rows="2" placeholder="Additional context..."></textarea>
+      <button class="ds-commit-btn" onclick="commitContext()">COMMIT</button>
+    </div>
+    <div class="ctx-divider" style="margin:8px 0;"></div>
+    <div class="ctx-label">EVOLUTION HISTORY</div>
+    ${evoHtml || '<div style="color:var(--muted);font-size:11px;text-align:center;padding:20px 0;">No context declared yet.</div>'}
+  `;
+}
+
+/* ── RENDER: CENTER PANEL ── */
+function renderCenter(trade) {
+  const el = document.getElementById('ladder');
+
+  if (activePhase === 'CONTEXT') {
+    if (activeContextId) {
+      el.innerHTML = '<div class="phase-empty"><div class="phase-empty-icon">\u2713</div><span>Context committed</span><span style="font-size:11px;color:var(--muted2);text-transform:none;letter-spacing:0;">Click ENTRY to set up your trade</span></div>';
+    } else {
+      el.innerHTML = '<div class="phase-empty"><div class="phase-empty-icon">\u25c9</div><span>Declare context to begin</span></div>';
+    }
+    return;
+  }
+
+  if (activePhase === 'ENTRY') {
+    renderEntryForm(el);
+    return;
+  }
+
+  if (activePhase === 'REVIEW') {
+    renderReviewCenter(el, trade);
+    return;
+  }
+
+  // MANAGE / EXIT — render ladder
+  if (!trade) {
+    el.innerHTML = '<div class="phase-empty"><span>No trade to display</span></div>';
+    return;
+  }
+
+  // Strength banner for MANAGE/EXIT
+  let manageBanner = '';
+  const str = trade.strength || activeStrength;
+  if (str && str.mental_state) {
+    const strScore = (str.value || 0) + (str.volume || 0) + (str.trend || 0) + (str.adh || 0);
+    if (str.mental_state === 'fomo') {
+      manageBanner = '<div class="strength-banner fomo">Trade is Live \u2014 FOMO trade</div>';
+    } else {
+      const conf = (str.confidence || 'medium').toUpperCase();
+      manageBanner = `<div class="strength-banner confidence-${str.confidence || 'medium'}">Trade is Live \u2014 ${conf} CONFIDENCE \u00b7 ${strScore}/4</div>`;
+    }
+  }
+
+  const isLong = trade.direction === 'Long';
+  if (isTradeClosed(trade) && activePhase !== 'EXIT') {
+    el.innerHTML = manageBanner + buildLadderHTML(trade, isLong) +
+      `<div class="closed-overlay"><div class="closed-tag">CLOSED</div></div>`;
+    return;
+  }
+
+  el.innerHTML = manageBanner + buildLadderHTML(trade, isLong);
+}
+
+/* ── STRENGTH PILLS (for context panel) ── */
+function buildStrengthPillsHtml(str) {
+  if (!str || !str.mental_state) return '';
+  const vPill = str.value ? '<span class="pill pill-green">VALUE \u2713</span>' : '<span class="pill pill-red">VALUE \u2717</span>';
+  const volPill = str.volume ? '<span class="pill pill-green">VOLUME \u2713</span>' : '<span class="pill pill-red">VOLUME \u2717</span>';
+  const tPill = str.trend ? '<span class="pill pill-green">TREND \u2713</span>' : '<span class="pill pill-red">TREND \u2717</span>';
+  const adhPill = str.adh ? '<span class="pill pill-green">ADH \u2713</span>' : '<span class="pill pill-red">ADH \u2717</span>';
+  const mentalMap = { calm: ['CALM', 'pill-green'], fomo: ['FOMO', 'pill-red'] };
+  const [mLabel, mCls] = mentalMap[str.mental_state] || ['CALM', 'pill-green'];
+  const confMap = { low: 'pill-red', medium: 'pill-accent2', high: 'pill-green' };
+  const confCls = confMap[str.confidence] || 'pill-accent2';
+  return `
+    <div class="ctx-divider"></div>
+    <div class="ctx-label">TRADE STRENGTH</div>
+    <div class="ctx-field" style="display:flex;gap:8px;flex-wrap:wrap;">${vPill} ${volPill} ${tPill} ${adhPill}</div>
+    <div class="ctx-field"><div class="ctx-label">MENTAL STATE</div><span class="pill ${mCls}">${mLabel}</span></div>
+    <div class="ctx-field"><div class="ctx-label">CONFIDENCE</div><span class="pill ${confCls}">${(str.confidence || 'MEDIUM').toUpperCase()}</span></div>
+  `;
+}
+
+/* ── STRENGTH HELPERS ── */
+function setStrength(field, val) {
+  if (field === 'value') strengthValue = val;
+  else if (field === 'volume') strengthVolume = val;
+  else if (field === 'trend') strengthTrend = val;
+  else if (field === 'adh') strengthAdh = val;
+  renderCenter(TRADES[activeTrade]);
+}
+function setStrengthMental(val) { strengthMental = val; renderCenter(TRADES[activeTrade]); }
+function setStrengthConf(val) { strengthConfidence = val; renderCenter(TRADES[activeTrade]); }
+
+function getStrengthScore() {
+  return strengthValue + strengthVolume + strengthTrend + strengthAdh;
+}
+
+async function commitStrength() {
+  const pid = document.getElementById('global-account-select')?.value || null;
+  const res = await fetch('/api/trade-strength', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      context_id: activeContextId,
+      account_id: pid ? parseInt(pid) : null,
+      value: strengthValue,
+      volume: strengthVolume,
+      trend: strengthTrend,
+      adh: strengthAdh,
+      mental_state: strengthMental,
+      confidence: strengthConfidence,
+    })
+  });
+  const data = await res.json();
+  if (!data.ok) { showToast(data.error || 'Failed to save strength', true); return; }
+
+  activeStrengthId = data.id;
+  activeStrength = {
+    value: strengthValue, volume: strengthVolume, trend: strengthTrend,
+    adh: strengthAdh, mental_state: strengthMental, confidence: strengthConfidence,
+  };
+  strengthSubmitted = true;
+  showToast('Trade strength saved');
+  renderCenter(TRADES[activeTrade]);
+  renderHealthPanel(TRADES[activeTrade]);
+}
+
+function cancelEntry() {
+  strengthSubmitted = false;
+  activeStrengthId = null;
+  activeStrength = {};
+  activeContextId = null;
+  lastCommittedContext = {};
+  setPhase('CONTEXT');
+}
+
+/* ── STRENGTH AUDIT CARD (step 1 of ENTRY) ── */
+function renderStrengthAudit(el) {
+  const score = getStrengthScore();
+  function toggleCard(field) {
+    const cur = field === 'value' ? strengthValue : field === 'volume' ? strengthVolume : field === 'trend' ? strengthTrend : strengthAdh;
+    return `<div class="sa-toggle-card${cur ? ' yes' : ''}" onclick="setStrength('${field}',${cur ? 0 : 1})">
+      <span class="sa-toggle-card-label">${field.toUpperCase()}</span>
+      <span class="sa-badge ${cur ? 'yes' : 'no'}">${cur ? '\u2713YES' : 'NO'}</span>
+    </div>`;
+  }
+  function mentalBtn(val, label) {
+    const isFomo = val === 'fomo';
+    const active = strengthMental === val;
+    const activeCls = active ? (isFomo ? 'sel-short' : 'sel-long') : '';
+    return `<button class="ef-toggle ${activeCls}" onclick="setStrengthMental('${val}')">${label}</button>`;
+  }
+  function confBtn(val) {
+    const cls = strengthConfidence === val ? 'active' : '';
+    return `<button class="ef-toggle ${cls}" onclick="setStrengthConf('${val}')">${val.toUpperCase()}</button>`;
+  }
+
+  el.innerHTML = `
+    <div class="sa-card">
+      <div class="sa-header">
+        <span class="sa-title">Trade Strength</span>
+        <span class="sa-score">${score}/4</span>
+      </div>
+      ${toggleCard('value')}
+      ${toggleCard('volume')}
+      ${toggleCard('trend')}
+      ${toggleCard('adh')}
+      <div class="sa-bottom-row">
+        <div class="sa-bottom-group">
+          <div class="sa-bottom-label">MENTAL STATE</div>
+          <div class="ef-toggle-group">${mentalBtn('calm','CALM')}${mentalBtn('fomo','FOMO')}</div>
+        </div>
+        <div class="sa-bottom-group">
+          <div class="sa-bottom-label">CONFIDENCE</div>
+          <div class="ef-toggle-group">${confBtn('low')}${confBtn('medium')}${confBtn('high')}</div>
+        </div>
+      </div>
+      <button class="ds-commit-btn" onclick="commitStrength()">ASSESS & CONTINUE</button>
+    </div>
+  `;
+}
+
+/* ── ENTRY FORM (two-step: strength audit → entry fields) ── */
+function renderEntryForm(el) {
+  if (!strengthSubmitted) {
+    renderStrengthAudit(el);
+    return;
+  }
+
+  // Build score banner
+  const score = (activeStrength.value || 0) + (activeStrength.volume || 0) + (activeStrength.trend || 0) + (activeStrength.adh || 0);
+  let bannerHtml = '';
+  let warnPulse = false;
+  if (activeStrength && activeStrength.mental_state) {
+    if (activeStrength.mental_state === 'fomo') {
+      bannerHtml = `<div class="strength-banner fomo">\u26a0 FOMO \u2014 STEP BACK</div>`;
+      warnPulse = true;
+    } else if (activeStrength.confidence === 'low') {
+      bannerHtml = `<div class="strength-banner confidence-low">\u26a0 LOW CONFIDENCE \u2014 RECONSIDER</div>`;
+      warnPulse = true;
+    } else if (activeStrength.confidence === 'medium') {
+      bannerHtml = `<div class="strength-banner confidence-medium">MEDIUM CONFIDENCE TRADE \u00b7 ${score}/4</div>`;
+    } else {
+      bannerHtml = `<div class="strength-banner confidence-high">HIGH CONFIDENCE TRADE \u00b7 ${score}/4</div>`;
+    }
+  }
+
+  el.innerHTML = `
+    <div class="entry-form${warnPulse ? ' warn-pulse' : ''}" style="margin:auto;">
+      ${bannerHtml}
+      <div class="ef-row">
+        <span class="ef-label">Direction</span>
+        <div class="ef-toggle-group">
+          <button class="ef-toggle ${formDir === 'Long' ? 'sel-long' : ''}" onclick="setEntryDir('Long')">LONG</button>
+          <button class="ef-toggle ${formDir === 'Short' ? 'sel-short' : ''}" onclick="setEntryDir('Short')">SHORT</button>
+        </div>
+      </div>
+      <div class="ef-row">
+        <span class="ef-label">Instrument</span>
+        <div class="ef-toggle-group">
+          <button class="ef-toggle ${formInst === 'MES' ? 'active' : ''}" onclick="setEntryInst('MES')">MES</button>
+          <button class="ef-toggle ${formInst === 'ES' ? 'active' : ''}" onclick="setEntryInst('ES')">ES</button>
+        </div>
+      </div>
+      <div class="ef-row">
+        <span class="ef-label">Price</span>
+        <input type="number" step="0.25" class="ef-input" id="ef-price" placeholder="6900" autocomplete="off">
+      </div>
+      <div class="ef-row">
+        <span class="ef-label">Qty</span>
+        <input type="number" min="1" class="ef-input" id="ef-qty" placeholder="6" autocomplete="off">
+      </div>
+      <div class="ef-row">
+        <span class="ef-label">Time</span>
+        <input type="time" class="ef-input" id="ef-time" value="${getCurrentTimeStr()}">
+      </div>
+      <div class="ef-row">
+        <span class="ef-label">Mode</span>
+        <div class="ef-toggle-group">
+          <button class="ef-toggle ${formMode === 'full' ? 'active' : ''}" onclick="setEntryMode('full')">FULL</button>
+          <button class="ef-toggle ${formMode === 'partials' ? 'active' : ''}" onclick="setEntryMode('partials')">3-WAY</button>
+        </div>
+      </div>
+      <button class="ef-enter-btn" id="ef-enter" onclick="handleEnterClick()">ENTER \u21b5</button>
+      <button class="ef-cancel-btn" onclick="cancelEntry()">CANCEL</button>
+    </div>
+  `;
+
+  // Auto-fill from account defaults
+  const sel = document.getElementById('global-account-select');
+  if (sel && sel.value) {
+    const opt = sel.options[sel.selectedIndex];
+    if (opt) {
+      const qtyField = document.getElementById('ef-qty');
+      if (qtyField && !qtyField.value && opt.dataset.defaultQty) qtyField.value = opt.dataset.defaultQty;
+      if (opt.dataset.defaultInstrument) setEntryInst(opt.dataset.defaultInstrument);
+    }
+  }
+
+  // Enter key on price/qty fields
+  ['ef-price','ef-qty'].forEach(id => {
+    const inp = document.getElementById(id);
+    if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') handleEnterClick(); });
+  });
+}
+
+function setEntryDir(d) { formDir = d; renderCenter(TRADES[activeTrade]); }
+function setEntryInst(i) { formInst = i; renderCenter(TRADES[activeTrade]); }
+function setEntryMode(m) { formMode = m; renderCenter(TRADES[activeTrade]); }
+
+/* ── REVIEW CENTER ── */
+function renderReviewCenter(el, trade) {
+  if (!trade) {
+    el.innerHTML = '<div class="phase-empty"><span>No trade to review</span></div>';
+    return;
+  }
+
+  // Execution score
+  let esChecks = {};
+  let esScore = 0;
+  try {
+    const d = trade.execution_score_json ? (typeof trade.execution_score_json === 'object' ? trade.execution_score_json : JSON.parse(trade.execution_score_json)) : null;
+    if (d && d.checks) { esChecks = d.checks; esScore = d.score || 0; }
+  } catch(e) {}
+
+  const criteria = [
+    { key: 'patience', title: 'Patience (Level)', desc: 'Did I wait for the price to reach my planned location?' },
+    { key: 'arrival', title: 'Arrival (Context)', desc: 'Did I watch the tape and nuances at the level?' },
+    { key: 'strength', title: 'Strength and Confluence', desc: 'Did I execute on verified directional strength with market internals aligned?' },
+    { key: 'exit', title: 'Exit (Discipline)', desc: 'Did I exit at planned levels without hesitation?' },
+    { key: 'review', title: 'Review (Continuation)', desc: 'Did I monitor price behavior after the exit?' },
+  ];
+
+  const pnl = getTradePnl(trade);
+  const pnlSign = pnl >= 0 ? '+' : '';
+  const pnlColor = pnl >= 0 ? 'var(--green)' : 'var(--red)';
+
+  el.innerHTML = `
+    <div class="review-center" style="margin:auto;">
+      <div class="pnl-summary">
+        <div class="pnl-summary-label">REALIZED P&L</div>
+        <div class="pnl-summary-value" style="color:${pnlColor}">${pnlSign}$${pnl}</div>
+      </div>
+      <div class="es-header">
+        <h2>Execution Score</h2>
+        <p>Process Over P&L Audit</p>
+      </div>
+      <div class="es-score-circle${esScore > 0 ? ' score-active' : ''}" id="es-score-val">${esScore}</div>
+      <div class="es-checklist">
+        ${criteria.map(c => `
+          <div class="es-check-item${esChecks[c.key] ? ' active' : ''}" data-key="${c.key}" onclick="toggleExecCheck(this)">
+            <div class="es-check-content">
+              <span class="es-check-title">${c.title}</span>
+              <span class="es-check-desc">${c.desc}</span>
+            </div>
+            <div class="es-checkbox-ui">\u2713</div>
+          </div>
+        `).join('')}
+      </div>
+      <button class="es-commit-btn" onclick="commitExecutionScore()">Save Score</button>
+    </div>
+  `;
+}
+
+/* ── RENDER: HEALTH PANEL (right) ── */
+function renderHealthPanel(trade) {
+  const el = document.getElementById('health-panel');
+
+  // Expand panel in REVIEW phase
+  el.classList.toggle('review-expanded', activePhase === 'REVIEW');
+
+  if (activePhase === 'CONTEXT') {
+    el.innerHTML = '<div class="phase-empty"><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;">Ready when you are</span></div>';
+    return;
+  }
+
+  if (activePhase === 'ENTRY') {
+    // Show risk preview
+    el.innerHTML = '<div class="phase-empty"><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;">Risk preview after entry</span></div>';
+    return;
+  }
+
+  if (activePhase === 'REVIEW') {
+    renderReviewRight(el, trade);
+    return;
+  }
+
+  // MANAGE / EXIT
+  if (!trade) { el.innerHTML = '<div class="phase-empty"><span>No trade</span></div>'; return; }
+
+  const h = computeHealth(trade);
+
+  el.innerHTML = `
+    <div class="health-metrics">
+      <div class="metric">
+        <div class="metric-label">REMAINING</div>
+        <div class="metric-value text-default">${h.remaining} / ${h.total}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">NET RISK</div>
+        <div class="metric-value text-red">${h.netRisk >= 0 ? '+' : '-'}$${Math.abs(h.netRisk)}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">REALIZED</div>
+        <div class="metric-value ${h.realized >= 0 ? 'text-green' : 'text-red'}">${h.realized >= 0 ? '+' : '-'}$${Math.abs(h.realized)}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">POTENTIAL</div>
+        <div class="metric-value text-accent2">+$${h.potential}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">R-MULTIPLE</div>
+        <div class="metric-value text-accent">${h.rMultiple}R</div>
+      </div>
+    </div>
+    <div class="health-divider"></div>
+    <div class="action-buttons">
+      <button class="btn-flatten" onclick="flattenAll()">FLATTEN ALL</button>
+      <button class="btn-stops-be" onclick="moveStopsToBE()">STOPS \u2192 BE</button>
+      <div class="manual-exit">
+        <div class="manual-exit-row">
+          <input type="number" step="0.25" id="manual-price" placeholder="Price">
+          <input type="number" id="manual-qty" placeholder="Qty" style="max-width:60px">
+        </div>
+        <button class="btn-exit-manual" onclick="manualExit()">EXIT</button>
+      </div>
+    </div>
+    <div class="spacer"></div>
+  `;
+}
+
+/* ── REVIEW RIGHT: Tags + Notes + Images + Push ── */
+function renderReviewRight(el, trade) {
+  if (!trade) { el.innerHTML = ''; return; }
+
+  let tagsHtml = '';
+  TAG_GROUPS.forEach(g => {
+    const dotColor = g.id === 'with' ? 'var(--green)' : g.id === 'against' ? 'var(--red)' : g.id === 'volume' ? 'var(--accent2)' : g.id === 'exit' ? 'var(--warn)' : g.id === 'setup' ? 'var(--purple)' : 'var(--muted)';
+    tagsHtml += `<div class="tp-group"><div class="tp-group-label"><span class="tp-dot" style="background:${dotColor};"></span>${escHtml(g.label)}</div><div class="tp-tags">`;
+    g.tags.forEach(tag => {
+      const isActive = (activeTags[g.id] || []).includes(tag);
+      tagsHtml += `<button class="tp-tag-btn${isActive ? ' ' + g.active_class : ''}" data-group="${g.id}" data-tag="${escHtml(tag)}" data-multi="${g.multi}" data-active-class="${g.active_class}" onclick="toggleTag('${g.id}','${escHtml(tag)}',${g.multi},this)">${escHtml(tag)}</button>`;
+    });
+    tagsHtml += '</div></div>';
+  });
+
+  el.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:12px;flex:1;overflow-y:auto;">
+      <div class="ctx-label">TAGS</div>
+      ${tagsHtml}
+      <div class="ctx-divider"></div>
+      <div class="ctx-label">ENTRY NOTES</div>
+      <textarea class="note-textarea" id="rv-notes" rows="2" placeholder="Why did you enter?">${escHtml(trade.notes)}</textarea>
+      <div class="ctx-label">MANAGEMENT NOTES</div>
+      <textarea class="note-textarea" id="rv-notes-monitoring" rows="2" placeholder="What did you watch?">${escHtml(trade.notes_monitoring)}</textarea>
+      <div class="ctx-label">EXIT NOTES</div>
+      <textarea class="note-textarea" id="rv-notes-exit" rows="2" placeholder="Why did you exit?">${escHtml(trade.notes_exit)}</textarea>
+      <div class="ctx-divider"></div>
+      <div class="ctx-label">IMAGES</div>
+      <div class="lt-img-drop" id="rv-img-drop">Drop or click to add images</div>
+      <input type="file" id="rv-img-input" accept="image/*" multiple style="display:none">
+      <div class="lt-img-grid" id="rv-img-grid"></div>
+      <div class="spacer"></div>
+      <button class="btn-push" onclick="pushActiveTrade()">PUSH TO JOURNAL</button>
+    </div>
+  `;
+
+  // Wire notes auto-save
+  ['rv-notes','rv-notes-monitoring','rv-notes-exit'].forEach(id => {
+    const textarea = document.getElementById(id);
+    if (textarea) textarea.addEventListener('input', scheduleNotesAutoSave);
+  });
+
+  // Wire image handlers
+  wireImageHandlers(trade.id);
+}
+
+function scheduleNotesAutoSave() {
+  if (!activeTrade || !TRADES[activeTrade]) return;
+  clearTimeout(noteTimer);
+  noteTimer = setTimeout(() => {
+    const trade = TRADES[activeTrade];
+    if (!trade) return;
+    const notes = document.getElementById('rv-notes')?.value || '';
+    const monitoring = document.getElementById('rv-notes-monitoring')?.value || '';
+    const exit = document.getElementById('rv-notes-exit')?.value || '';
+    trade.notes = notes;
+    trade.notes_monitoring = monitoring;
+    trade.notes_exit = exit;
+    fetch(`/api/live/${trade.id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes, notes_monitoring: monitoring, notes_exit: exit })
+    });
+  }, 600);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   LADDER RENDERING (from trade_v2.html)
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+function buildLadderHTML(trade, isLong) {
+  const rows = [];
+  const entry = trade.entry;
+  const maxPnl = Math.max(...trade.partials.map(p => {
+    const tpDist = Math.abs((p.tp || entry) - entry);
+    const stDist = Math.abs((p.stop || entry) - entry);
+    return Math.max(tpDist * p.qty * trade.tickValue, stDist * p.qty * trade.tickValue);
+  }), 1);
+
+  const tpRows = [];
+  const stopRows = [];
+
+  trade.partials.forEach((p, i) => {
+    const tp = p.tp || entry;
+    const stop = p.stop || entry;
+    const tpPts = isLong ? tp - entry : entry - tp;
+    const stPts = isLong ? entry - stop : stop - entry;
+    const tpPnl = tpPts * p.qty * trade.tickValue;
+    const stPnl = -(stPts * p.qty * trade.tickValue);
+    const isBE = stop === entry;
+
+    if (p.tp) {
+      tpRows.push({
+        type: 'tp', portion: p.portion, price: tp, pts: tpPts,
+        pnl: tpPnl, qty: p.qty, status: p.status,
+        exitTime: p.exitTime, exitType: p.exitType,
+        realPnl: p.pnl, exitPrice: p.exitPrice
+      });
+    }
+
+    if (p.stop !== undefined) {
+      stopRows.push({
+        type: 'stop', portion: p.portion, price: stop, pts: stPts,
+        pnl: isBE ? 0 : stPnl, qty: p.qty, status: p.status,
+        isBE: isBE, exitTime: p.exitTime, exitType: p.exitType,
+        realPnl: p.pnl, exitPrice: p.exitPrice
+      });
+    }
+  });
+
+  if (isLong) {
+    tpRows.sort((a, b) => b.price - a.price);
+    stopRows.sort((a, b) => b.price - a.price);
+  } else {
+    tpRows.sort((a, b) => a.price - b.price);
+    stopRows.sort((a, b) => a.price - b.price);
+  }
+
+  const allPrices = [...tpRows.map(r => r.price), entry, ...stopRows.map(r => r.price)];
+  const maxDist = Math.max(...allPrices) - Math.min(...allPrices);
+  const baseUnit = maxDist > 0 ? 48 / maxDist : 4;
+
+  let html = '';
+
+  tpRows.forEach((row, i) => {
+    const gap = i > 0 ? Math.max(2, Math.abs(tpRows[i-1].price - row.price) * baseUnit) : 0;
+    if (gap > 0) html += `<div style="height:${gap}px"></div>`;
+    html += renderRow(row, maxPnl);
+  });
+
+  const lastTp = tpRows[tpRows.length - 1];
+  const tpToEntry = lastTp ? Math.max(4, Math.abs(lastTp.price - entry) * baseUnit) : 8;
+  html += `<div style="height:${tpToEntry}px"></div>`;
+
+  html += `<div class="ladder-row entry">
+    <div class="row-border-left accent2"></div>
+    <div class="row-icon">\u25b8</div>
+    <div class="row-label">ENTRY</div>
+    <div class="row-price">${entry}</div>
+    <div class="row-pnl" style="font-size:11px;color:var(--muted2)">${trade.qty}\u00d7 ${trade.instrument}</div>
+    <div class="row-qty"></div>
+    <div class="row-action" style="font-size:10px;color:var(--muted)">${trade.time}</div>
+  </div>`;
+
+  const firstStop = stopRows[0];
+  const entryToStop = firstStop ? Math.max(2, Math.abs(entry - firstStop.price) * baseUnit) : 8;
+  html += `<div style="height:${entryToStop}px"></div>`;
+
+  stopRows.forEach((row, i) => {
+    const gap = i > 0 ? Math.max(2, Math.abs(stopRows[i-1].price - row.price) * baseUnit) : 0;
+    if (gap > 0) html += `<div style="height:${gap}px"></div>`;
+    html += renderRow(row, maxPnl);
+  });
+
+  return html;
+}
+
+function renderRow(row, maxPnl) {
+  const isTP = row.type === 'tp';
+  const isExecuted = row.status === 'executed';
+
+  let rowClass = 'ladder-row';
+  if (isExecuted) {
+    rowClass += row.exitType === 'stop_hit' ? ' executed-loss' : ' executed';
+  }
+
+  const borderClass = isTP ? 'green' : 'red';
+
+  let icon = '';
+  if (isExecuted && row.exitType !== 'stop_hit') icon = '\u2713';
+  else if (isExecuted && row.exitType === 'stop_hit') icon = '\u2717';
+  else if (row.isBE) icon = '\u2192';
+
+  const label = isTP ? `TP${row.portion}` : `S${row.portion}`;
+
+  const pnlVal = isExecuted ? (row.realPnl !== undefined ? row.realPnl : row.pnl) : row.pnl;
+  const pnlSign = pnlVal >= 0 ? '+' : '';
+  const pnlClass = pnlVal > 0 ? 'positive' : pnlVal < 0 ? 'negative' : 'zero';
+
+  const barWidth = Math.max(2, (Math.abs(pnlVal) / maxPnl) * 80);
+  const barClass = pnlVal >= 0 ? 'green' : 'red';
+
+  let action = '';
+  if (isExecuted) {
+    const exitLabel = row.exitType === 'stop_hit' ? 'STOP' : 'DONE';
+    const labelClass = row.exitType === 'stop_hit' ? 'done-label loss' : 'done-label';
+    const pnlDisp = row.realPnl !== undefined ? row.realPnl : pnlVal;
+    const s = pnlDisp >= 0 ? '+' : '';
+    action = `<span class="${labelClass}">${exitLabel} ${s}$${pnlDisp}${row.exitTime ? ' \u00b7 ' + row.exitTime : ''}</span>`;
+  } else if (row.isBE) {
+    action = `<span class="be-badge">\u2192 BE</span>`;
+  } else if (isTP) {
+    action = `<button class="btn-execute" onclick="executeLevelAPI(${row.portion},'tp_hit')">EXECUTE</button>`;
+  } else {
+    action = `<button class="btn-hit" onclick="executeLevelAPI(${row.portion},'stop_hit')">HIT</button>`;
+  }
+
+  return `<div class="${rowClass}">
+    <div class="row-border-left ${isExecuted ? '' : (row.isBE ? '' : borderClass)}"></div>
+    <div class="row-icon">${icon}</div>
+    <div class="row-label">${label}</div>
+    <div class="row-price${!isExecuted ? ' editable' : ''}"${!isExecuted ? ` onclick="editPrice(this,'${row.type}',${row.portion})"` : ''}>${row.price}</div>
+    <div class="row-pnl ${pnlClass}">
+      ${pnlSign}$${Math.abs(pnlVal)}
+      <div class="risk-bar ${barClass}" style="width:${barWidth}px"></div>
+    </div>
+    <div class="row-qty">${row.qty}\u00d7</div>
+    <div class="row-action">${action}</div>
+  </div>`;
+}
+
+function computeHealth(trade) {
+  const isLong = trade.direction === 'Long';
+  const entry = trade.entry;
+  let remaining = 0, total = 0, realized = 0, stopExposure = 0, potential = 0;
+
+  if (trade.status === 'closed' || trade.pushed) {
+    total = trade.qty;
+    realized = trade.pnl || 0;
+    return { remaining: 0, total, netRisk: 0, realized, potential: 0, rMultiple: '\u2014' };
+  }
+
+  trade.partials.forEach(p => {
+    total += p.qty;
+    if (p.status === 'executed') {
+      realized += (p.pnl !== undefined ? p.pnl : 0);
+    } else {
+      remaining += p.qty;
+      const stop = p.stop || entry;
+      const tp = p.tp || entry;
+      const stPts = isLong ? entry - stop : stop - entry;
+      stopExposure += stPts * p.qty * trade.tickValue;
+      const tpPts = isLong ? tp - entry : entry - tp;
+      potential += tpPts * p.qty * trade.tickValue;
+    }
+  });
+
+  // Net risk = remaining stop exposure MINUS realized profits
+  const netRisk = -(stopExposure - Math.max(0, realized));
+
+  const initialRisk = Math.abs(
+    (isLong ? entry - (trade.partials[0]?.stop || entry) : (trade.partials[0]?.stop || entry) - entry)
+    * (trade.partials[0]?.qty || 1) * trade.tickValue
+  ) || 1;
+
+  const rMult = (realized / initialRisk).toFixed(1);
+  return { remaining, total, netRisk, realized, potential, rMultiple: rMult };
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   API-BACKED ACTIONS
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+async function executeLevelAPI(portion, execType) {
+  const trade = TRADES[activeTrade];
+  if (!trade) return;
+
+  const partial = trade.partials.find(p => p.portion === portion && p.status === 'open');
+  if (!partial) return;
+
+  const price = execType === 'tp_hit' ? partial.tp : partial.stop;
+  const now = new Date();
+  const time = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+
+  const res = await fetch(`/api/live/${trade.id}/execute`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ exec_type: execType, portion, qty: partial.qty, price, exec_time: time })
+  });
+  const data = await res.json();
+  if (!data.ok) { showToast(data.error || 'Failed', true); return; }
+
+  await refreshTradeFromServer(trade.id);
+  showToast(`${execType.replace('_',' ')} \u00b7 $${data.pnl.toFixed(2)}`);
+}
+
+async function moveStopsToBE() {
+  const trade = TRADES[activeTrade];
+  if (!trade) return;
+
+  const newLevels = trade.levels.map(lv => {
+    const l = {...lv};
+    if (l.level_type === 'stop') l.price = trade.entry;
+    return l;
+  });
+
+  const res = await fetch(`/api/live/${trade.id}/levels`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ levels: newLevels })
+  });
+  const data = await res.json();
+  if (data.ok) {
+    await refreshTradeFromServer(trade.id);
+    showToast('Stops moved to breakeven');
+  }
+}
+
+async function flattenAll() {
+  const trade = TRADES[activeTrade];
+  if (!trade) return;
+  const exitPrice = prompt('Exit price for all remaining:');
+  if (!exitPrice) return;
+  const price = parseFloat(exitPrice);
+  if (isNaN(price)) return;
+
+  const now = new Date();
+  const time = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+
+  for (const p of trade.partials) {
+    if (p.status === 'open') {
+      await fetch(`/api/live/${trade.id}/execute`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ exec_type: 'manual_exit', portion: p.portion, qty: p.qty, price, exec_time: time })
+      });
+    }
+  }
+
+  await refreshTradeFromServer(trade.id);
+  showToast('Flattened all positions');
+}
+
+async function manualExit() {
+  const trade = TRADES[activeTrade];
+  if (!trade) return;
+  const price = parseFloat(document.getElementById('manual-price')?.value);
+  const qty = parseInt(document.getElementById('manual-qty')?.value);
+  if (!price || !qty) { showToast('Enter price and qty', true); return; }
+
+  const now = new Date();
+  const time = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+
+  // Find open portion matching qty
+  const partial = trade.partials.find(p => p.status === 'open');
+  if (!partial) { showToast('No open portion', true); return; }
+
+  const exitQty = Math.min(qty, partial.qty);
+  const res = await fetch(`/api/live/${trade.id}/execute`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ exec_type: 'manual_exit', portion: partial.portion, qty: exitQty, price, exec_time: time })
+  });
+  const data = await res.json();
+  if (!data.ok) { showToast(data.error || 'Failed', true); return; }
+
+  await refreshTradeFromServer(trade.id);
+  showToast(`Manual exit \u00b7 $${data.pnl.toFixed(2)}`);
+}
+
+function editPrice(el, type, portion) {
+  if (el.querySelector('.price-edit')) return;
+  const currentPrice = parseFloat(el.textContent);
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.className = 'price-edit';
+  input.value = currentPrice;
+  el.textContent = '';
+  el.appendChild(input);
+  input.focus();
+  input.select();
+
+  async function commit() {
+    const newPrice = parseFloat(input.value);
+    if (isNaN(newPrice) || newPrice <= 0) { renderAll(); return; }
+    const trade = TRADES[activeTrade];
+    if (!trade) { renderAll(); return; }
+
+    const newLevels = trade.levels.map(lv => {
+      const l = {...lv};
+      if (l.level_type === type && l.portion === portion) l.price = newPrice;
+      return l;
+    });
+
+    const res = await fetch(`/api/live/${trade.id}/levels`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ levels: newLevels })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      await refreshTradeFromServer(trade.id);
+    } else {
+      renderAll();
+    }
+  }
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') { renderAll(); }
+  });
+  input.addEventListener('blur', commit);
+}
+
+async function refreshTradeFromServer(tradeId) {
+  const res = await fetch(`/api/live/${tradeId}/recalc`);
+  const recalc = await res.json();
+
+  const fullRes = await fetch(`/api/live/${tradeId}`);
+  const full = await fullRes.json();
+
+  // Find the key in TRADES
+  const key = Object.keys(TRADES).find(k => TRADES[k].id === tradeId);
+  if (!key) return;
+
+  // Rebuild model
+  full.calc = recalc;
+  TRADES[key] = buildTradeModel(full, SERVER_CONTEXTS, INST_CONFIG);
+
+  // Check if trade closed → auto-advance to REVIEW
+  if (isTradeClosed(TRADES[key]) && (activePhase === 'MANAGE' || activePhase === 'EXIT')) {
+    activePhase = 'REVIEW';
+    activeTags = TRADES[key].tags || {};
+  }
+
+  renderAll();
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   CONTEXT & GUARD
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+async function commitContext() {
+  const mktRead = document.getElementById('ds-mkt-read')?.value.trim();
+  const valueArea = document.getElementById('ds-value-area')?.value;
+  const setup = document.getElementById('ds-setup')?.value.trim();
+  const location = document.getElementById('ds-location')?.value.trim();
+  const nuance = document.getElementById('ds-nuance')?.value.trim();
+
+  if (!mktRead && !setup) { showToast('Fill at least Mkt Read or Setup', true); return; }
+
+  const now = new Date();
+  const timeStr = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  const pid = document.getElementById('global-account-select')?.value || null;
+
+  const res = await fetch('/api/context', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      date: dateStr, time: timeStr,
+      mkt_read: mktRead, value_area: valueArea,
+      setup: setup, location: location, nuance: nuance,
+      mental_state: guardState.mental_state || 'calm',
+      account_id: pid ? parseInt(pid) : null,
+    })
+  });
+  const data = await res.json();
+  if (!data.ok) { showToast(data.error || 'Failed', true); return; }
+
+  activeContextId = data.id;
+  lastCommittedContext = { time: timeStr, mkt_read: mktRead, value_area: valueArea, setup, location, nuance };
+  // Add to SERVER_CONTEXTS for reference
+  SERVER_CONTEXTS.unshift({ id: data.id, time: timeStr, mkt_read: mktRead, value_area: valueArea, setup, location, nuance, mental_state: guardState.mental_state || 'calm' });
+
+  showToast('Context committed \u2014 assess trade strength');
+  updateRibbon();
+  // Reset strength form state
+  strengthValue = 0; strengthVolume = 0; strengthTrend = 0; strengthAdh = 0;
+  strengthMental = 'calm'; strengthConfidence = 'medium';
+  strengthSubmitted = false;
+  setPhase('ENTRY');
+}
+
+function showGuardOverlay() {
+  guardState = { mental_state: null };
+  guardLocked = false;
+  document.getElementById('gk-gamble-input').classList.remove('visible');
+  document.getElementById('gk-gamble-input').value = '';
+  document.getElementById('gk-gamble-confirm').classList.remove('visible');
+  document.getElementById('gk-gamble-confirm').disabled = true;
+  document.getElementById('gk-intuition-confirm').classList.remove('visible');
+  document.getElementById('gk-patient').disabled = false;
+  document.getElementById('gk-intuition').disabled = false;
+  document.getElementById('gk-intuition').classList.remove('selected');
+  document.getElementById('gk-eager').disabled = false;
+  document.getElementById('gk-eager').classList.remove('selected');
+  const card = document.getElementById('guard-card');
+  card.classList.remove('card-ready','card-caution','card-warning','card-neutral');
+  document.getElementById('gk-consequence-msg').textContent = 'Identify your state to unlock the entry.';
+  document.getElementById('gk-consequence-msg').style.color = '#555';
+  document.getElementById('guard-backdrop').classList.add('open');
+  card.classList.add('open');
+}
+
+function closeGuardOverlay() {
+  document.getElementById('guard-backdrop').classList.remove('open');
+  document.getElementById('guard-card').classList.remove('open','card-ready','card-caution','card-warning','card-neutral');
+}
+
+function guardHover(type) {
+  if (guardLocked) return;
+  const card = document.getElementById('guard-card');
+  const msg = document.getElementById('gk-consequence-msg');
+  card.classList.remove('card-ready','card-caution','card-warning','card-neutral');
+  if (type === 'patient') {
+    card.classList.add('card-ready');
+    msg.textContent = 'Professional: You traded your edge.';
+    msg.style.color = '#00ff88';
+  } else if (type === 'intuition') {
+    card.classList.add('card-caution');
+    msg.textContent = "Eager: Trigger based on 'Feel' rather than strength.";
+    msg.style.color = '#ff9800';
+  } else if (type === 'eager') {
+    card.classList.add('card-warning');
+    msg.textContent = 'FOMO: You are chasing. Direct threat to your account.';
+    msg.style.color = '#ff4d4d';
+  }
+}
+
+function guardHoverReset() {
+  if (guardLocked) return;
+  const card = document.getElementById('guard-card');
+  card.classList.remove('card-ready','card-caution','card-warning','card-neutral');
+  document.getElementById('gk-consequence-msg').textContent = 'Identify your state to unlock the entry.';
+  document.getElementById('gk-consequence-msg').style.color = '#555';
+}
+
+function guardSelectPatient() {
+  if (guardLocked) return;
+  guardState.mental_state = 'calm';
+  closeGuardOverlay();
+  createTradeFromForm();
+}
+
+function guardSelectIntuition() {
+  if (guardLocked) return;
+  guardLocked = true;
+  const card = document.getElementById('guard-card');
+  card.classList.remove('card-ready','card-caution','card-warning','card-neutral');
+  card.classList.add('card-caution');
+  document.getElementById('gk-consequence-msg').textContent = "You are looking for a trade. Step away.";
+  document.getElementById('gk-consequence-msg').style.color = '#ff9800';
+  document.getElementById('gk-patient').disabled = true;
+  document.getElementById('gk-intuition').classList.add('selected');
+  document.getElementById('gk-eager').disabled = true;
+  document.getElementById('gk-intuition-confirm').classList.add('visible');
+}
+
+function guardConfirmIntuition() {
+  guardState.mental_state = 'eager';
+  closeGuardOverlay();
+  createTradeFromForm();
+}
+
+function guardSelectEager() {
+  if (guardLocked) return;
+  guardLocked = true;
+  const card = document.getElementById('guard-card');
+  card.classList.remove('card-ready','card-caution','card-warning','card-neutral');
+  card.classList.add('card-warning');
+  document.getElementById('gk-consequence-msg').textContent = 'FOMO detected \u2014 type GAMBLE to acknowledge.';
+  document.getElementById('gk-consequence-msg').style.color = '#ff4d4d';
+  document.getElementById('gk-gamble-input').classList.add('visible');
+  document.getElementById('gk-gamble-input').focus();
+  document.getElementById('gk-patient').disabled = true;
+  document.getElementById('gk-intuition').disabled = true;
+  document.getElementById('gk-eager').classList.add('selected');
+}
+
+function checkGambleInput(el) {
+  const btn = document.getElementById('gk-gamble-confirm');
+  const match = el.value.trim().toUpperCase() === 'GAMBLE';
+  btn.disabled = !match;
+  if (match) btn.classList.add('visible'); else btn.classList.remove('visible');
+}
+
+function guardConfirmGamble() {
+  guardState.mental_state = 'fomo';
+  closeGuardOverlay();
+  createTradeFromForm();
+}
+
+/* ── ENTRY: Handle ENTER click → show guard → create trade ── */
+function handleEnterClick() {
+  const price = parseFloat(document.getElementById('ef-price')?.value);
+  const qty = parseInt(document.getElementById('ef-qty')?.value);
+  const time = document.getElementById('ef-time')?.value;
+  if (!price || !qty || !time) { showToast('Fill price, qty & time', true); return; }
+
+  // Store form values early (needed by both paths)
+  window._pendingEntry = { price, qty, time };
+
+  const hasOpenTrades = Object.values(TRADES).some(t => !isTradeClosed(t) && !t.pushed);
+
+  if (activeContextId) {
+    // Context is set — go straight to trade creation (strength already captured)
+    createTradeFromForm();
+  } else if (hasOpenTrades) {
+    // No active context but trades exist — ask user
+    showPlanChoiceDialog();
+  } else {
+    // No context, no trades — block
+    showToast('Declare context first', true);
+  }
+}
+
+/* ── PLAN CHOICE DIALOG ── */
+function showPlanChoiceDialog() {
+  const ctx = getLastTradeContext();
+  const preview = document.getElementById('plan-choice-context-preview');
+  if (ctx) {
+    preview.innerHTML = `
+      <div><span class="pc-label">SETUP:</span><span class="pc-val">${escHtml(ctx.setup || ctx.mktRead || '\u2014')}</span></div>
+      <div><span class="pc-label">VALUE:</span><span class="pc-val">${escHtml(ctx.valueArea || ctx.value_area || '\u2014')}</span></div>
+      <div><span class="pc-label">LOCATION:</span><span class="pc-val">${escHtml(ctx.location || '\u2014')}</span></div>
+    `;
+  } else {
+    preview.innerHTML = '<span style="color:#555">No context preview available</span>';
+  }
+  document.getElementById('plan-choice-backdrop').classList.add('open');
+  document.getElementById('plan-choice-card').classList.add('open');
+}
+
+function closePlanChoice() {
+  document.getElementById('plan-choice-backdrop').classList.remove('open');
+  document.getElementById('plan-choice-card').classList.remove('open');
+}
+
+function useSamePlan() {
+  const ctxId = getLastTradeContextId();
+  if (!ctxId) { showToast('No previous context found', true); closePlanChoice(); return; }
+  activeContextId = ctxId;
+  closePlanChoice();
+  // Reset strength and go to ENTRY phase (strength audit first)
+  strengthValue = 0; strengthVolume = 0; strengthTrend = 0; strengthAdh = 0;
+  strengthMental = 'calm'; strengthConfidence = 'medium';
+  strengthSubmitted = false;
+  setPhase('ENTRY');
+}
+
+function useNewContext() {
+  closePlanChoice();
+  setPhase('CONTEXT');
+}
+
+async function createTradeFromForm() {
+  const { price, qty, time } = window._pendingEntry || {};
+  if (!price || !qty || !time) return;
+
+  const pid = document.getElementById('global-account-select')?.value || null;
+
+  const res = await fetch('/api/live', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      direction: formDir, instrument: formInst, entry_price: price,
+      entry_time: time, total_qty: qty, mode: formMode,
+      notes: '', tags: {}, account_id: pid ? parseInt(pid) : null,
+      strength_id: activeStrengthId, context_id: activeContextId
+    })
+  });
+  const data = await res.json();
+  if (!data.ok) { showToast(data.error || 'Failed', true); return; }
+
+  // Fetch full trade data
+  const fullRes = await fetch(`/api/live/${data.id}`);
+  const full = await fullRes.json();
+  const recalcRes = await fetch(`/api/live/${data.id}/recalc`);
+  full.calc = await recalcRes.json();
+
+  // Add current strength to map so buildTradeModel can pick it up
+  if (full.strength_id && Object.keys(activeStrength).length > 0) {
+    STRENGTH_MAP[full.strength_id] = activeStrength;
+  }
+
+  const tradeNum = Object.keys(TRADES).length + 1;
+  const key = 'T' + tradeNum;
+  TRADES[key] = buildTradeModel(full, SERVER_CONTEXTS, INST_CONFIG);
+  activeTrade = key;
+  activePhase = 'MANAGE';
+  activeTags = {};
+
+  activeContextId = null;   // Context consumed by this trade
+  lastCommittedContext = {}; // Clear ribbon cache
+  activeStrengthId = null;  // Strength consumed by this trade
+  activeStrength = {};      // Clear strength cache
+  strengthSubmitted = false;
+
+  window._pendingEntry = null;
+  showToast(`${formDir} ${qty}\u00d7 ${formInst} @ ${price}`);
+  renderAll();
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   TAGS & EXECUTION SCORE
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+function toggleTag(gid, tag, multi, btn) {
+  if (!activeTrade || !TRADES[activeTrade]) return;
+  const trade = TRADES[activeTrade];
+  if (!activeTags[gid]) activeTags[gid] = [];
+  const arr = activeTags[gid];
+  const ac = btn.dataset.activeClass;
+  const idx = arr.indexOf(tag);
+
+  if (multi) {
+    if (idx >= 0) { arr.splice(idx, 1); btn.classList.remove(ac); }
+    else { arr.push(tag); btn.classList.add(ac); }
+  } else {
+    document.querySelectorAll(`.tp-tag-btn[data-group="${gid}"]`).forEach(b => b.classList.remove(b.dataset.activeClass));
+    if (idx >= 0) { activeTags[gid] = []; }
+    else { activeTags[gid] = [tag]; btn.classList.add(ac); }
+  }
+
+  trade.tags = activeTags;
+  fetch(`/api/live/${trade.id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tags: activeTags })
+  });
+}
+
+function toggleExecCheck(el) {
+  el.classList.toggle('active');
+  updateExecScore();
+}
+
+function updateExecScore() {
+  const count = document.querySelectorAll('.es-check-item.active').length;
+  const circle = document.getElementById('es-score-val');
+  if (circle) {
+    circle.innerText = count;
+    circle.classList.toggle('score-active', count > 0);
+  }
+}
+
+function commitExecutionScore() {
+  const trade = TRADES[activeTrade];
+  if (!trade) return;
+  const checks = {};
+  document.querySelectorAll('.es-check-item').forEach(el => {
+    checks[el.dataset.key] = el.classList.contains('active');
+  });
+  const score = document.querySelectorAll('.es-check-item.active').length;
+  const payload = JSON.stringify({ score, checks });
+  fetch(`/api/live/${trade.id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ execution_score_json: payload })
+  }).then(r => r.json()).then(() => {
+    trade.execution_score_json = payload;
+    trade.execScore = score;
+    showToast('Execution score saved');
+  });
+}
+
+/* ── IMAGES ── */
+function wireImageHandlers(tradeId) {
+  const drop = document.getElementById('rv-img-drop');
+  const inp = document.getElementById('rv-img-input');
+  if (!drop || !inp) return;
+
+  drop.addEventListener('click', () => inp.click());
+  inp.addEventListener('change', () => { if (inp.files.length) uploadLiveImage(inp.files, tradeId); inp.value=''; });
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag-over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('drag-over'));
+  drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('drag-over'); if (e.dataTransfer.files.length) uploadLiveImage(e.dataTransfer.files, tradeId); });
+
+  loadLiveImages(tradeId);
+}
+
+async function uploadLiveImage(files, tradeId) {
+  for (const file of files) {
+    const fd = new FormData();
+    fd.append('image', file);
+    const r = await fetch(`/api/live/${tradeId}/images`, {method:'POST', body:fd});
+    const data = await r.json();
+    if (data.ok) appendLiveThumb(data);
+  }
+}
+
+function loadLiveImages(tradeId) {
+  const grid = document.getElementById('rv-img-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  fetch(`/api/live/${tradeId}/images`).then(r => r.json()).then(imgs => {
+    if (Array.isArray(imgs)) imgs.forEach(img => appendLiveThumb(img));
+  });
+}
+
+function appendLiveThumb(img) {
+  const grid = document.getElementById('rv-img-grid');
+  if (!grid) return;
+  const url = img.url || `/images/${img.filename}`;
+  const div = document.createElement('div');
+  div.className = 'lt-img-thumb';
+  div.innerHTML = `<img src="${url}" onclick="window.open('${url}','_blank')">
+    <button class="lt-img-del" onclick="event.stopPropagation();deleteLiveImage(${img.id},this.parentElement)">\u2715</button>`;
+  grid.appendChild(div);
+}
+
+function deleteLiveImage(imageId, el) {
+  fetch(`/api/live/images/${imageId}`, {method:'DELETE'}).then(r => r.json()).then(d => { if (d.ok && el) el.remove(); });
+}
+
+/* ── PUSH TO JOURNAL ── */
+async function pushActiveTrade() {
+  const trade = TRADES[activeTrade];
+  if (!trade) return;
+  const res = await fetch(`/api/live/${trade.id}/push`, { method: 'POST' });
+  const data = await res.json();
+  if (!data.ok) { showToast(data.error || 'Failed', true); return; }
+
+  trade.pushed = true;
+  showToast('Pushed to journal \u2713');
+
+  // Find next unpushed trade, or go back to CONTEXT
+  const nextKey = Object.keys(TRADES).find(k => k !== activeTrade && !TRADES[k].pushed && !isTradeClosed(TRADES[k]));
+  if (nextKey) {
+    activeTrade = nextKey;
+    activePhase = detectPhase(TRADES[nextKey]);
+    activeTags = TRADES[nextKey].tags || {};
+  } else {
+    activeTrade = null;
+    activePhase = 'CONTEXT';
+    activeTags = {};
+    activeContextId = null;
+  }
+  renderAll();
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   SESSION SUMMARY & CLOCK
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+function renderSessionSummary() {
+  const ids = Object.keys(TRADES);
+  const totalTrades = ids.length;
+  let realized = 0, openCount = 0, closedCount = 0, openRisk = 0;
+
+  ids.forEach(id => {
+    const trade = TRADES[id];
+    const closed = isTradeClosed(trade);
+    if (closed) {
+      closedCount++;
+      realized += getTradePnl(trade);
+    } else {
+      openCount++;
+      const isLong = trade.direction === 'Long';
+      trade.partials.forEach(p => {
+        if (p.status === 'executed' && p.pnl !== undefined) realized += p.pnl;
+        if (p.status === 'open') {
+          const stPts = isLong ? trade.entry - (p.stop || trade.entry) : (p.stop || trade.entry) - trade.entry;
+          openRisk += stPts * p.qty * trade.tickValue;
+        }
+      });
+    }
+  });
+
+  // Net risk: realized profits offset open stop exposure
+  const netRisk = openRisk - Math.max(0, realized);
+  const rSign = realized >= 0 ? '+' : '';
+  const rColor = realized >= 0 ? 'var(--green)' : 'var(--red)';
+  const el = document.getElementById('bottom-left');
+  if (totalTrades === 0) {
+    el.innerHTML = 'No trades yet';
+  } else {
+    el.innerHTML = `Today: ${totalTrades} trades \u00b7 <span style="color:${rColor}">${rSign}$${realized} realized</span> \u00b7 ${openCount} open \u00b7 ${closedCount} closed${netRisk > 0 ? ' \u00b7 <span style="color:var(--red)">-$' + netRisk + ' at risk</span>' : ''}`;
+  }
+}
+
+function updateClock() {
+  document.getElementById('bottom-clock').textContent =
+    new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   STATE MACHINE
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+function switchTrade(id) {
+  activeTrade = id;
+  const trade = TRADES[id];
+  if (trade) {
+    activePhase = detectPhase(trade);
+    activeTags = trade.tags || {};
+  }
+  renderAll();
+}
+
+function setPhase(name) {
+  activePhase = name;
+  renderAll();
+}
+
+/* ── RENDER ALL ── */
+function renderAll() {
+  const trade = activeTrade ? TRADES[activeTrade] : null;
+  renderPhases();
+  if (trade) {
+    renderBadge(trade, activeTrade);
+    renderStatus(trade);
+  } else {
+    document.getElementById('trade-badge').innerHTML = '';
+    document.getElementById('trade-status').innerHTML = '';
+  }
+  renderTabs();
+  renderContextPanel(trade);
+  renderCenter(trade);
+  renderHealthPanel(trade);
+  renderSessionSummary();
+  updateRibbon();
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   INIT
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+(function init() {
+  // Build trade models from server data
+  const allServer = SERVER_OPEN.concat(SERVER_CLOSED);
+  allServer.sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
+
+  allServer.forEach((t, i) => {
+    const key = 'T' + (i + 1);
+    TRADES[key] = buildTradeModel(t, SERVER_CONTEXTS, INST_CONFIG);
+  });
+
+  // Determine initial state
+  const openKey = Object.keys(TRADES).find(k => !isTradeClosed(TRADES[k]));
+  const closedUnpushedKey = Object.keys(TRADES).find(k => isTradeClosed(TRADES[k]) && !TRADES[k].pushed);
+
+  if (openKey) {
+    activeTrade = openKey;
+    activePhase = 'MANAGE';
+    activeTags = TRADES[openKey].tags || {};
+  } else if (closedUnpushedKey) {
+    activeTrade = closedUnpushedKey;
+    activePhase = 'REVIEW';
+    activeTags = TRADES[closedUnpushedKey].tags || {};
+  } else {
+    activeTrade = null;
+    activePhase = 'CONTEXT';
+  }
+
+  renderAll();
+  updateClock();
+  setInterval(updateClock, 1000);
+})();
+
+// Keyboard: Escape closes overlays
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('plan-choice-backdrop').classList.contains('open')) {
+      closePlanChoice();
+    } else if (document.getElementById('guard-backdrop').classList.contains('open')) {
+      closeGuardOverlay();
+    }
+  }
+});
+</script>
+{% endblock %}

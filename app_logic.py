@@ -906,7 +906,8 @@ def close_live_trade_to_journal(live_trade_id):
         lt["entry_price"], avg_exit, realized_pnl,
         lt["entry_time"], exit_time, is_open=(calc["remaining_qty"] > 0),
         execution_json=execution_json_str,
-        execution_score_json=lt.get("execution_score_json")
+        execution_score_json=lt.get("execution_score_json"),
+        context_id=lt.get("context_id")
     )
 
     # Save tags from live trade

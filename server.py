@@ -37,12 +37,30 @@ def inject_obs_categories():
 @app.route("/")
 def index():
     today        = date.today()
-    default_from = (today - timedelta(days=30)).isoformat()
-    default_to   = today.isoformat()
+    preset       = request.args.get("preset", "all")
+
+    # Resolve preset to date range server-side
+    if preset == "month":
+        default_from = today.replace(day=1).isoformat()
+        default_to   = today.isoformat()
+    elif preset == "week":
+        default_from = (today - timedelta(days=today.weekday())).isoformat()
+        default_to   = today.isoformat()
+    elif preset == "90d":
+        default_from = (today - timedelta(days=90)).isoformat()
+        default_to   = today.isoformat()
+    elif preset == "30d":
+        default_from = (today - timedelta(days=30)).isoformat()
+        default_to   = today.isoformat()
+    elif preset == "all":
+        default_from = "2000-01-01"
+        default_to   = "2099-12-31"
+    else:
+        default_from = "2000-01-01"
+        default_to   = "2099-12-31"
 
     date_from = request.args.get("from",   default_from)
     date_to   = request.args.get("to",     default_to)
-    preset    = request.args.get("preset", "30d")
 
     # Account comes from query string (set by nav JS via page reload)
     account_id = request.args.get("account") or None
@@ -53,6 +71,12 @@ def index():
         day_trades = db.get_trades_for_day(day["id"])
         day["grade_pct"] = logic.compute_combined_day_score(day.get("day_score", ""), day_trades)
 
+    # Build calendar data from existing days list
+    calendar_data = [
+        {"date": d["date"], "pnl": d["total_pnl"] or 0, "trades": d["trade_count"], "wins": d["wins"] or 0}
+        for d in days
+    ]
+
     return render_template(
         "index.html",
         days=days,
@@ -61,6 +85,7 @@ def index():
         account_id=account_id,
         preset=preset,
         today=today.isoformat(),
+        calendar_json=json.dumps(calendar_data),
     )
 
 
@@ -70,6 +95,36 @@ def day_view(day_id):
     if not day:
         return render_template("404.html", message=f"Day #{day_id} not found"), 404
     trades = db.get_trades_for_day(day_id)
+    for trade in trades:
+        ctx_id = trade.get("context_id")
+        if ctx_id:
+            ctx = db.get_developing_context_by_id(ctx_id)
+            if ctx:
+                # Convert 24h time to 12h format
+                try:
+                    h, m = ctx["time"].split(":")
+                    h = int(h)
+                    ampm = "AM" if h < 12 else "PM"
+                    h = h % 12 or 12
+                    ctx["time_12h"] = f"{h}:{m} {ampm}"
+                except (ValueError, KeyError):
+                    ctx["time_12h"] = ctx.get("time", "")
+                # Shortened value area + color
+                va = ctx.get("value_area", "")
+                va_map = {
+                    "Lower": ("Lower", "red"),
+                    "Overlapping Lower": ("Ovlp Lower", "blue"),
+                    "Overlapping": ("Overlapping", "blue"),
+                    "Overlapping Higher": ("Ovlp Higher", "blue"),
+                    "Higher": ("Higher", "green"),
+                    "Balanced": ("Balanced", "blue"),
+                }
+                ctx["value_area_short"], ctx["val_color"] = va_map.get(va, (va, "blue"))
+                trade["context"] = ctx
+            else:
+                trade["context"] = None
+        else:
+            trade["context"] = None
     day_images = db.get_day_images(day_id)
     observations = db.get_observations_for_date(day["date"])
     return render_template(
@@ -113,6 +168,78 @@ def trade_view(trade_id):
         trade=trade,
         exec_detail=exec_detail,
         exec_detail_json=json.dumps(exec_detail) if exec_detail else 'null'
+    )
+
+
+@app.route("/trade/<int:trade_id>/v2")
+def trade_view_v2(trade_id):
+    trade = db.get_trade_by_id(trade_id)
+    if not trade:
+        return render_template("404.html", message=f"Trade #{trade_id} not found"), 404
+
+    # Parse execution_json for the focused trade
+    exec_detail = None
+    if trade.get("execution_json"):
+        try:
+            exec_detail = json.loads(trade["execution_json"])
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    # Parse execution_score_json for the focused trade
+    exec_score = None
+    if trade.get("execution_score_json"):
+        try:
+            exec_score = json.loads(trade["execution_score_json"])
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    # Load all sibling trades for the same day
+    siblings_raw = db.get_trades_for_day(trade["day_id"])
+    siblings = []
+    context_ids = set()
+    for st in siblings_raw:
+        sib = {
+            "id": st["id"],
+            "trade_num": st["trade_num"],
+            "direction": st.get("direction"),
+            "qty": st.get("qty"),
+            "avg_entry": st.get("avg_entry"),
+            "pnl": st.get("pnl"),
+            "is_open": st.get("is_open"),
+            "entry_time": st.get("entry_time"),
+            "context_id": st.get("context_id"),
+            "exec_detail": None,
+            "exec_score": None,
+        }
+        if st.get("execution_json"):
+            try:
+                sib["exec_detail"] = json.loads(st["execution_json"])
+            except (json.JSONDecodeError, TypeError):
+                pass
+        if st.get("execution_score_json"):
+            try:
+                sib["exec_score"] = json.loads(st["execution_score_json"])
+            except (json.JSONDecodeError, TypeError):
+                pass
+        if st.get("context_id"):
+            context_ids.add(st["context_id"])
+        siblings.append(sib)
+
+    # Load all unique contexts
+    contexts = {}
+    for cid in context_ids:
+        ctx = db.get_developing_context_by_id(cid)
+        if ctx:
+            contexts[cid] = ctx
+
+    return render_template(
+        "trade_v2.html",
+        trade=trade,
+        exec_detail=exec_detail,
+        exec_detail_json=json.dumps(exec_detail) if exec_detail else "null",
+        exec_score_json=json.dumps(exec_score) if exec_score else "null",
+        siblings_json=json.dumps(siblings),
+        contexts_json=json.dumps(contexts),
     )
 
 
@@ -265,6 +392,46 @@ def live_trade_page():
         date_to=date_to,
         contexts=contexts,
         contexts_json=json.dumps(contexts),
+    )
+
+
+@app.route("/live-v2")
+def live_trade_v2_page():
+    """Ladder-based trade companion tool — phase-driven UI."""
+    from datetime import date as dt_date
+    today = dt_date.today()
+    date_from = date_to = today.isoformat()
+    account_id = request.args.get("account") or None
+
+    open_trades = db.get_all_live_trades(status="open", date_from=date_from, date_to=date_to, account_id=account_id)
+    closed_trades = db.get_all_live_trades(status="closed", date_from=date_from, date_to=date_to, account_id=account_id)
+
+    for t in open_trades + closed_trades:
+        full = db.get_live_trade(t["id"])
+        t["levels"] = full.get("levels", [])
+        t["executions"] = full.get("executions", [])
+        t["calc"] = logic.recalculate_live_trade(full)
+
+    contexts = db.get_developing_contexts(date_from, date_to, account_id)
+
+    # Build strength lookup for trades that have a strength_id
+    strength_map = {}
+    for t in open_trades + closed_trades:
+        sid = t.get("strength_id")
+        if sid and sid not in strength_map:
+            s = db.get_trade_strength(sid)
+            if s:
+                strength_map[sid] = s
+
+    return render_template("live_v2.html",
+        open_trades=open_trades, closed_trades=closed_trades,
+        contexts=contexts, contexts_json=json.dumps(contexts),
+        tags_json=json.dumps(logic.get_tag_groups()),
+        trade_defaults_json=json.dumps(logic.get_trade_defaults()),
+        instrument_config_json=json.dumps(logic.get_instrument_config()),
+        open_trades_json=json.dumps(open_trades),
+        closed_trades_json=json.dumps(closed_trades),
+        strength_json=json.dumps(strength_map),
     )
 
 
@@ -664,6 +831,35 @@ def api_update_context(ctx_id):
     return jsonify({"ok": True})
 
 
+# ── API: Trade Strength ──────────────────────────────────────────────────────
+
+@app.route("/api/trade-strength", methods=["POST"])
+def api_create_trade_strength():
+    body = request.get_json(silent=True) or {}
+    try:
+        strength_id = db.create_trade_strength(
+            context_id=body.get("context_id") or None,
+            account_id=body.get("account_id") or None,
+            value=body.get("value", 0),
+            volume=body.get("volume", 0),
+            trend=body.get("trend", 0),
+            mental_state=body.get("mental_state", "calm"),
+            confidence=body.get("confidence", "medium"),
+            adh=body.get("adh", 0),
+        )
+        return jsonify({"ok": True, "id": strength_id})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/trade-strength/<int:strength_id>", methods=["GET"])
+def api_get_trade_strength(strength_id):
+    row = db.get_trade_strength(strength_id)
+    if not row:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify(row)
+
+
 # ── API: Live Trades ─────────────────────────────────────────────────────────
 
 @app.route("/api/live", methods=["POST"])
@@ -688,6 +884,7 @@ def api_create_live_trade():
             notes_exit=body.get("notes_exit", ""),
             guard_json=json.dumps(body.get("guard", {})) if body.get("guard") else "",
             context_id=body.get("context_id") or None,
+            strength_id=body.get("strength_id") or None,
         )
         # Compute and save default levels
         levels = logic.compute_live_trade_plan(
@@ -698,6 +895,14 @@ def api_create_live_trade():
         return jsonify({"ok": True, "id": live_id})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/live/<int:live_id>", methods=["GET"])
+def api_get_live_trade(live_id):
+    trade = db.get_live_trade(live_id)
+    if not trade:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify(trade)
 
 
 @app.route("/api/live/<int:live_id>", methods=["PUT"])

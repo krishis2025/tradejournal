@@ -884,39 +884,144 @@ textarea.evo-edit-field { resize:vertical; min-height:40px; }
 }
 .ds-commit-btn:hover { opacity:0.85; }
 
-/* ── Date Range Filter Bar ── */
-.date-filter-bar {
-  display:flex; align-items:center; gap:8px; margin-bottom:12px;
+/* ── Basic Filters Toggle & Panel ── */
+.basic-filters-header {
+  display: flex; align-items: center; margin-bottom: 12px;
 }
-.df-btn {
-  padding:5px 14px; border:1px solid var(--border2); background:var(--surface);
-  color:var(--muted2); font-family:var(--font-mono); font-size:10px; letter-spacing:1px;
-  cursor:pointer; transition:all 0.12s; text-transform:uppercase;
+.basic-filters-toggle {
+  display: flex; align-items: center; gap: 8px;
+  background: none; border: none; cursor: pointer; padding: 6px 0;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--muted2); transition: color 0.15s;
 }
-.df-btn:hover { color:var(--text); border-color:var(--muted); background:var(--surface2); }
-.df-btn.active { color:var(--accent); border-color:var(--accent); background:rgba(79,255,176,0.06); }
+.basic-filters-toggle:hover { color: var(--text); }
+.basic-filters-toggle .bf-chevron {
+  display: inline-block; transition: transform 0.2s; font-size: 12px;
+}
+.basic-filters-toggle .bf-chevron.open { transform: rotate(90deg); }
+.bf-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 15px; height: 15px; padding: 0 4px;
+  border-radius: 50%; background: var(--text); color: var(--bg);
+  font-family: 'Inter', sans-serif; font-size: 8px; font-weight: 600;
+  margin-left: 6px; line-height: 1;
+}
+.selected-filters-bar {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.sf-label {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--muted2); white-space: nowrap;
+}
+.sf-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.sf-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border: 1px solid var(--border2); border-radius: 4px;
+  font-family: var(--font-mono); font-size: 10px; color: var(--text);
+  background: var(--surface); white-space: nowrap;
+}
+.sf-chip-x {
+  background: none; border: none; cursor: pointer; padding: 0 0 0 2px;
+  font-size: 12px; line-height: 1; color: var(--muted2); transition: color 0.15s;
+}
+.sf-chip-x:hover { color: var(--red); }
+.sf-clear-all {
+  background: none; border: none; cursor: pointer;
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.5px;
+  color: var(--accent); margin-left: auto; white-space: nowrap;
+  transition: opacity 0.15s;
+}
+.sf-clear-all:hover { opacity: 0.7; }
+.basic-filters-panel {
+  display: none;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 2px;
+  padding: 12px 20px; margin-bottom: 20px;
+}
+.basic-filters-panel.open { display: block; }
+.bf-row {
+  display: flex; align-items: center; gap: 12px;
+}
 
-.df-custom {
-  display:none; align-items:center; gap:6px; margin-left:4px;
+/* Date Range chip */
+.filter-chip {
+  position: relative;
+  padding: 6px 16px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px;
+  border: 1px solid var(--border2); background: var(--surface2); color: var(--muted2);
+  cursor: pointer; transition: all 0.12s;
+  clip-path: polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%);
 }
-.df-custom.visible { display:flex; }
-.df-custom input {
-  background:var(--bg); border:1px solid var(--border2); color:var(--text);
-  font-family:var(--font-mono); font-size:10px; padding:5px 8px; outline:none;
-  transition:border-color 0.15s;
-}
-.df-custom input:focus { border-color:var(--accent); }
-.df-custom-go {
-  padding:5px 10px; border:1px solid var(--accent); background:transparent;
-  color:var(--accent); font-family:var(--font-mono); font-size:9px; letter-spacing:1px;
-  cursor:pointer; transition:all 0.12s; text-transform:uppercase;
-}
-.df-custom-go:hover { background:var(--accent); color:var(--btn-text); }
+.filter-chip:hover { color: var(--text); border-color: var(--muted); }
+.filter-chip.active { background: rgba(79,255,176,0.1); border-color: var(--accent); color: var(--accent); }
 
-.df-label {
-  font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted);
-  margin-right:4px;
+/* Date Range dropdown */
+.date-range-dropdown {
+  display: none; position: absolute; top: 100%; left: 0; z-index: 50;
+  margin-top: 6px; background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 2px; box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+  padding: 16px; min-width: 420px;
 }
+.date-range-dropdown.open { display: flex; gap: 20px; }
+
+/* Mini calendar */
+.dr-calendar { flex: 1; min-width: 230px; }
+.dr-cal-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.dr-cal-nav button {
+  background: none; border: 1px solid var(--border2); color: var(--muted2);
+  cursor: pointer; padding: 2px 8px; font-size: 13px; font-weight: 700;
+  font-family: 'Inter', sans-serif; transition: all 0.12s;
+}
+.dr-cal-nav button:hover { color: var(--text); border-color: var(--muted); }
+.dr-cal-label {
+  font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600;
+  letter-spacing: 0.5px; color: var(--text);
+}
+.dr-cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center;
+}
+.dr-cal-grid .dr-hdr {
+  font-size: 9px; letter-spacing: 1px; color: var(--muted);
+  font-family: 'Inter', sans-serif; padding: 4px 0;
+}
+.dr-cal-grid .dr-day {
+  font-size: 11px; font-family: 'Inter', sans-serif;
+  padding: 5px 0; cursor: pointer; border-radius: 2px;
+  color: var(--muted2); transition: all 0.1s; border: 1px solid transparent;
+}
+.dr-cal-grid .dr-day:hover { background: var(--surface2); color: var(--text); }
+.dr-cal-grid .dr-day.in-range { background: rgba(79,255,176,0.08); }
+.dr-cal-grid .dr-day.range-start,
+.dr-cal-grid .dr-day.range-end {
+  background: rgba(79,255,176,0.2); color: var(--accent); border-color: var(--accent);
+}
+.dr-cal-grid .dr-day.dr-empty { visibility: hidden; cursor: default; }
+
+/* Presets list */
+.dr-presets {
+  display: flex; flex-direction: column; gap: 2px; min-width: 130px;
+  border-left: 1px solid var(--border2); padding-left: 16px;
+}
+.dr-preset-item {
+  background: none; border: none; text-align: left; cursor: pointer;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.5px;
+  color: var(--muted2); padding: 6px 10px; border-radius: 2px; transition: all 0.12s;
+}
+.dr-preset-item:hover { background: var(--surface2); color: var(--text); }
+.dr-preset-item.active { color: var(--accent); background: rgba(79,255,176,0.08); }
+
+/* Links dropdown */
+.links-menu {
+  display: none; position: absolute; top: 100%; left: 0; z-index: 50;
+  margin-top: 6px; background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 2px; box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+  padding: 6px; min-width: 180px;
+}
+.links-menu.open { display: flex; flex-direction: column; gap: 2px; }
 
 /* ── No active trade message in right panel ── */
 .rp-empty {
@@ -955,23 +1060,61 @@ textarea.evo-edit-field { resize:vertical; min-height:40px; }
 {% block content %}
 
 <!-- ═══════════════════════════════════════════════════════════
-     DATE RANGE FILTER
+     BASIC FILTERS + LINKS
      ═══════════════════════════════════════════════════════════ -->
-<div class="date-filter-bar">
-  <span class="df-label">Show:</span>
-  <button class="df-btn {{ 'active' if active_range == 'today' }}" onclick="setDateRange('today')">Today</button>
-  <button class="df-btn {{ 'active' if active_range == 'yesterday' }}" onclick="setDateRange('yesterday')">Yesterday</button>
-  <button class="df-btn {{ 'active' if active_range == 'week' }}" onclick="setDateRange('week')">Last 7 Days</button>
-  <button class="df-btn {{ 'active' if active_range == 'month' }}" onclick="setDateRange('month')">Last 30 Days</button>
-  <button class="df-btn {{ 'active' if active_range == 'custom' }}" id="df-custom-btn" onclick="toggleCustomRange()">Custom</button>
-  <div class="df-custom {{ 'visible' if active_range == 'custom' }}" id="df-custom-fields">
-    <input type="date" id="df-from" value="{{ date_from }}">
-    <span style="color:var(--muted);">→</span>
-    <input type="date" id="df-to" value="{{ date_to }}">
-    <button class="df-custom-go" onclick="applyCustomRange()">Go</button>
+<div class="basic-filters-header">
+  <button class="basic-filters-toggle" id="bf-toggle" onclick="toggleBasicFilters()">
+    <span class="bf-chevron" id="bf-chevron">&#9656;</span>
+    Basic Filters
+    <span class="bf-badge" id="bf-badge" style="display:none;">0</span>
+  </button>
+
+  <div style="position:relative;margin-left:16px;" id="links-wrap">
+    <button class="basic-filters-toggle" onclick="toggleLinksMenu()">
+      Links &#9662;
+    </button>
+    <div class="links-menu" id="links-menu">
+      <button class="dr-preset-item" onclick="openMarketInternals()">Market Internals &#8599;</button>
+    </div>
   </div>
+
   <div style="flex:1;"></div>
-  <span style="font-size:10px;color:var(--muted);" id="date-range-label"></span>
+</div>
+
+<div class="basic-filters-panel" id="bf-panel">
+  <div class="bf-row">
+    <div style="position:relative;" id="dr-wrap">
+      <button type="button" class="filter-chip {{ 'active' if active_range != 'today' }}" id="dr-chip" onclick="toggleDateRange()">
+        Date Range &#9662;
+      </button>
+      <div class="date-range-dropdown" id="dr-dropdown">
+        <div class="dr-calendar">
+          <div class="dr-cal-nav">
+            <button id="dr-prev">&#8249;</button>
+            <span class="dr-cal-label" id="dr-cal-label"></span>
+            <button id="dr-next">&#8250;</button>
+          </div>
+          <div class="dr-cal-grid" id="dr-cal-grid"></div>
+          <div style="margin-top:10px;display:flex;align-items:center;gap:8px;font-size:10px;font-family:var(--font-mono);color:var(--muted2);">
+            <span id="dr-range-display">Click a date or select a preset</span>
+            <button type="button" class="btn btn-ghost" id="dr-apply-btn" style="padding:3px 12px;font-size:9px;margin-left:auto;display:none;" onclick="applyDateRange()">Apply</button>
+          </div>
+        </div>
+        <div class="dr-presets">
+          <button class="dr-preset-item {{ 'active' if active_range == 'today' }}" onclick="setPreset('today')">Today</button>
+          <button class="dr-preset-item {{ 'active' if active_range == 'yesterday' }}" onclick="setPreset('yesterday')">Yesterday</button>
+          <div style="height:1px;background:var(--border2);margin:4px 0;"></div>
+          <button class="dr-preset-item {{ 'active' if active_range == 'week' }}" onclick="setPreset('week')">Last 7 Days</button>
+          <button class="dr-preset-item {{ 'active' if active_range == 'month' }}" onclick="setPreset('month')">Last 30 Days</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="selected-filters-bar" id="sf-bar" style="display:none;">
+    <span class="sf-label">Selected Filters:</span>
+    <div class="sf-chips" id="sf-chips"></div>
+    <button class="sf-clear-all" onclick="clearAllFilters()">&#128465; Clear all</button>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
@@ -3029,27 +3172,212 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// ── Date Range Filter ─────────────────────────────────────────────────────
-function setDateRange(range) {
+// ── Basic Filters Toggle ──────────────────────────────────────────────────
+function toggleBasicFilters() {
+  const panel = document.getElementById('bf-panel');
+  const chevron = document.getElementById('bf-chevron');
+  const isOpen = panel.classList.toggle('open');
+  chevron.classList.toggle('open', isOpen);
+  localStorage.setItem('live-basic-filters-open', isOpen ? '1' : '0');
+}
+
+(function() {
+  const saved = localStorage.getItem('live-basic-filters-open');
+  if (saved === '1') {
+    document.getElementById('bf-panel').classList.add('open');
+    document.getElementById('bf-chevron').classList.add('open');
+  }
+})();
+
+// ── Date Range Dropdown ───────────────────────────────────────────────────
+let drYear, drMonth;
+let drRangeStart = null, drRangeEnd = null;
+
+function toggleDateRange() {
+  const dd = document.getElementById('dr-dropdown');
+  const isOpen = dd.classList.toggle('open');
+  if (isOpen && !drYear) {
+    const now = new Date();
+    drYear = now.getFullYear();
+    drMonth = now.getMonth();
+    renderDRCalendar();
+    initDRNav();
+  }
+}
+
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('dr-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    document.getElementById('dr-dropdown').classList.remove('open');
+  }
+  const linksWrap = document.getElementById('links-wrap');
+  if (linksWrap && !linksWrap.contains(e.target)) {
+    document.getElementById('links-menu').classList.remove('open');
+  }
+});
+
+function initDRNav() {
+  document.getElementById('dr-prev').onclick = function(e) {
+    e.stopPropagation();
+    drMonth--;
+    if (drMonth < 0) { drMonth = 11; drYear--; }
+    renderDRCalendar();
+  };
+  document.getElementById('dr-next').onclick = function(e) {
+    e.stopPropagation();
+    drMonth++;
+    if (drMonth > 11) { drMonth = 0; drYear++; }
+    renderDRCalendar();
+  };
+}
+
+function renderDRCalendar() {
+  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('dr-cal-label').textContent = `${monthNames[drMonth]} ${drYear}`;
+  const grid = document.getElementById('dr-cal-grid');
+  const headers = ['S','M','T','W','T','F','S'];
+  let html = headers.map(h => `<span class="dr-hdr">${h}</span>`).join('');
+
+  const firstDow = new Date(drYear, drMonth, 1).getDay();
+  const daysInMonth = new Date(drYear, drMonth + 1, 0).getDate();
+
+  for (let i = 0; i < firstDow; i++) {
+    html += '<span class="dr-day dr-empty"></span>';
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${drYear}-${String(drMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    let cls = 'dr-day';
+    if (drRangeStart && drRangeEnd) {
+      const s = drRangeStart <= drRangeEnd ? drRangeStart : drRangeEnd;
+      const e = drRangeStart <= drRangeEnd ? drRangeEnd : drRangeStart;
+      if (dateStr === s) cls += ' range-start';
+      if (dateStr === e) cls += ' range-end';
+      if (dateStr > s && dateStr < e) cls += ' in-range';
+      if (s === e && dateStr === s) cls += ' range-start range-end';
+    } else if (drRangeStart && dateStr === drRangeStart) {
+      cls += ' range-start';
+    }
+    html += `<span class="${cls}" data-date="${dateStr}" onclick="pickDRDate('${dateStr}')">${d}</span>`;
+  }
+  grid.innerHTML = html;
+}
+
+function pickDRDate(dateStr) {
+  if (!drRangeStart || (drRangeStart && drRangeEnd)) {
+    drRangeStart = dateStr;
+    drRangeEnd = null;
+    document.getElementById('dr-range-display').textContent = dateStr;
+    document.getElementById('dr-apply-btn').style.display = 'inline-block';
+  } else {
+    drRangeEnd = dateStr;
+    const s = drRangeStart <= drRangeEnd ? drRangeStart : drRangeEnd;
+    const e = drRangeStart <= drRangeEnd ? drRangeEnd : drRangeStart;
+    drRangeStart = s;
+    drRangeEnd = e;
+    document.getElementById('dr-range-display').textContent = `${s} \u2192 ${e}`;
+    document.getElementById('dr-apply-btn').style.display = 'inline-block';
+  }
+  renderDRCalendar();
+}
+
+function applyDateRange() {
+  const from = drRangeStart;
+  const to = drRangeEnd || drRangeStart;
   const params = new URLSearchParams(window.location.search);
-  params.set('range', range);
+  params.set('range', 'custom');
+  params.set('from', from);
+  params.set('to', to);
+  window.location.href = '/live?' + params.toString();
+}
+
+// ── Date Presets ──────────────────────────────────────────────────────────
+const PRESET_LABELS = {
+  today: 'Today', yesterday: 'Yesterday',
+  week: 'Last 7 Days', month: 'Last 30 Days', custom: 'Custom'
+};
+
+function setPreset(p) {
+  const params = new URLSearchParams(window.location.search);
+  params.set('range', p);
   params.delete('from');
   params.delete('to');
   window.location.href = '/live?' + params.toString();
 }
 
-function toggleCustomRange() {
-  const fields = document.getElementById('df-custom-fields');
-  const btn = document.getElementById('df-custom-btn');
-  const isVisible = fields.classList.contains('visible');
-  if (isVisible) {
-    fields.classList.remove('visible');
-    btn.classList.remove('active');
-  } else {
-    fields.classList.add('visible');
-    btn.classList.add('active');
-    document.getElementById('df-from').focus();
+// ── Filter Badge & Selected Filters Bar ───────────────────────────────────
+function getActiveFilters() {
+  const activeRange = '{{ active_range }}';
+  const filters = [];
+  if (activeRange !== 'today') {
+    const label = PRESET_LABELS[activeRange] || activeRange;
+    const dateFrom = '{{ date_from }}';
+    const dateTo   = '{{ date_to }}';
+    const display = activeRange === 'custom'
+      ? `Dates: ${dateFrom} \u2013 ${dateTo}`
+      : `Dates: ${label}`;
+    filters.push({ type: 'date', display });
   }
+  return filters;
+}
+
+function updateFilterBadge() {
+  const filters = getActiveFilters();
+  const badge = document.getElementById('bf-badge');
+  if (filters.length > 0) {
+    badge.textContent = filters.length;
+    badge.style.display = '';
+  } else {
+    badge.style.display = 'none';
+  }
+  renderSelectedFilters(filters);
+}
+
+function renderSelectedFilters(filters) {
+  const bar = document.getElementById('sf-bar');
+  const chips = document.getElementById('sf-chips');
+  if (!filters.length) { bar.style.display = 'none'; return; }
+  bar.style.display = '';
+  chips.innerHTML = filters.map(f =>
+    `<span class="sf-chip">${f.display}<button class="sf-chip-x" onclick="removeFilter('${f.type}')">&times;</button></span>`
+  ).join('');
+}
+
+function removeFilter(type) {
+  if (type === 'date') clearAllFilters();
+}
+
+function clearAllFilters() {
+  const params = new URLSearchParams(window.location.search);
+  params.set('range', 'today');
+  params.delete('from');
+  params.delete('to');
+  window.location.href = '/live?' + params.toString();
+}
+
+updateFilterBadge();
+
+// ── Links Dropdown ────────────────────────────────────────────────────────
+function toggleLinksMenu() {
+  document.getElementById('links-menu').classList.toggle('open');
+}
+
+function openMarketInternals() {
+  const dateFrom = '{{ date_from }}';
+  const pid = document.getElementById('global-account-select')?.value || null;
+  fetch('/api/day/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ date: dateFrom, account_id: pid ? parseInt(pid) : null })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.day_id) {
+      window.open(`/day/${data.day_id}/internals`, '_blank');
+    } else {
+      showToast('Could not create/find day', true);
+    }
+  })
+  .catch(() => showToast('Error opening Market Internals', true));
 }
 
 // ── Risk Calculator ──────────────────────────────────────────────────────────
@@ -3145,16 +3473,5 @@ function solveForQty() {
   }
 }
 
-function applyCustomRange() {
-  const from = document.getElementById('df-from').value;
-  const to = document.getElementById('df-to').value;
-  if (!from || !to) { showToast('Select both dates', true); return; }
-  if (from > to) { showToast('From date must be before To date', true); return; }
-  const params = new URLSearchParams(window.location.search);
-  params.set('range', 'custom');
-  params.set('from', from);
-  params.set('to', to);
-  window.location.href = '/live?' + params.toString();
-}
 </script>
 {% endblock %}

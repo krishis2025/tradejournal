@@ -27,11 +27,30 @@
 .trade-detail { max-height:0;overflow:hidden;transition:max-height 0.5s cubic-bezier(0.4,0,0.2,1);border-top:0px solid var(--border); }
 .trade-row-card.expanded .trade-detail { max-height:2400px;border-top-width:1px; }
 
-.fills-mini th { padding:7px 14px;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);background:var(--surface); }
-.fills-mini td { padding:8px 14px;font-size:12px;color:var(--muted2);border-bottom:1px solid rgba(34,38,49,0.5); }
-.fills-mini tr:last-child td { border-bottom:none; }
-.fill-buy  { color:var(--green) !important; }
-.fill-sell { color:var(--red)   !important; }
+/* ── Trade Context Card ── */
+.trade-context-card {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 2px; padding: 14px 16px;
+  font-family: 'Inter', sans-serif; font-size: 11px; line-height: 1.6;
+  flex: 1; margin-right: 16px;
+}
+.tc-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 6px;
+}
+.tc-time { font-size: 10px; color: var(--muted2); }
+.tc-read { font-weight: 500; color: var(--muted2); font-size: 10px; }
+.tc-value { font-size: 10px; font-weight: 700; }
+.tc-val-red { color: #d32f2f; }
+.tc-val-blue { color: #1976d2; }
+.tc-val-green { color: #2e7d32; }
+.tc-setup { color: var(--accent2); font-weight: 700; font-size: 10px; }
+.tc-location { color: var(--muted2); font-size: 10px; margin-top: 2px; }
+.tc-nuance {
+  color: var(--muted); font-size: 10px; margin-top: 6px;
+  padding: 6px 8px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 2px; white-space: pre-wrap; line-height: 1.5;
+}
 
 /* ── Tags ── */
 .tag-panel   { padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:16px;background:var(--surface2); }
@@ -462,30 +481,35 @@
   </div>
 
   <div class="trade-detail" id="detail-{{ trade.id }}">
-    <!-- Fills -->
-    <div class="fills-mini" style="background:var(--bg);">
-      <table style="width:100%;border-collapse:collapse;">
-        <thead><tr>
-          <th>Time</th><th>Side</th><th>Qty</th><th>Price</th><th>Type</th>
-          <th style="text-align:right;padding-right:16px;">
-            <a href="/trade/{{ trade.id }}" class="trade-view-link">Trade Execution ↗</a>
-          </th>
-        </tr></thead>
-        <tbody>
-          {% for f in trade.fills %}
-          <tr>
-            <td>{{ f.fill_time }}</td>
-            <td class="{{ 'fill-buy' if f.side == 'Buy' else 'fill-sell' }}">{{ f.side }}</td>
-            <td>{{ f.qty }}</td>
-            <td>{{ '%.2f'|format(f.price) }}</td>
-            <td style="font-size:10px;letter-spacing:0.5px;{% if f.exit_type == 'tp_hit' %}color:var(--green);{% elif f.exit_type == 'stop_hit' %}color:var(--red);{% elif f.exit_type == 'manual_exit' %}color:var(--warn);{% else %}color:var(--muted);{% endif %}">
-              {% if f.exit_type == 'tp_hit' %}TP Hit{% elif f.exit_type == 'stop_hit' %}Stop Hit{% elif f.exit_type == 'manual_exit' %}Manual{% elif f.exit_type %}{{ f.exit_type }}{% else %}—{% endif %}
-            </td>
-            <td></td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <!-- Trade Execution link -->
+    <div style="padding:12px 20px;background:var(--bg);display:flex;justify-content:flex-end;">
+      <a href="/trade/{{ trade.id }}" class="trade-view-link">Trade Execution ↗</a>
+      {% if trade.execution_json %}
+        <a href="/trade/{{ trade.id }}/v2" class="trade-view-link" style="margin-left:8px">Ladder ↗</a>
+      {% endif %}
+    </div>
+
+    <!-- Daily Context / Trade Plan -->
+    <div style="padding:0 20px 16px;background:var(--bg);">
+      <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Daily Context / Trade Plan</div>
+      {% if trade.context %}
+      <div class="trade-context-card">
+        <div class="tc-header">
+          <span class="tc-time">{{ trade.context.time_12h }}</span>
+          <span class="tc-read">{{ trade.context.mkt_read }}</span>
+          <span class="tc-value tc-val-{{ trade.context.val_color }}">{{ trade.context.value_area_short }}</span>
+        </div>
+        <div class="tc-setup">{{ trade.context.setup }}</div>
+        {% if trade.context.location %}
+        <div class="tc-location">{{ trade.context.location }}</div>
+        {% endif %}
+        {% if trade.context.nuance %}
+        <div class="tc-nuance">{{ trade.context.nuance }}</div>
+        {% endif %}
+      </div>
+      {% else %}
+      <div style="color:var(--border2);font-size:10px;letter-spacing:1px;text-transform:uppercase;">No context declared</div>
+      {% endif %}
     </div>
 
     <!-- Tags 2×2 -->

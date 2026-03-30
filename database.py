@@ -495,6 +495,37 @@ def init_db():
         if "execution_score_json" not in trades_cols:
             conn.execute("ALTER TABLE trades ADD COLUMN execution_score_json TEXT DEFAULT NULL")
 
+        # Migration: add context_id to trades
+        t_cols = {r[1] for r in conn.execute("PRAGMA table_info(trades)").fetchall()}
+        if "context_id" not in t_cols:
+            conn.execute("ALTER TABLE trades ADD COLUMN context_id INTEGER")
+
+        # Migration: create trade_strength table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS trade_strength (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                context_id      INTEGER REFERENCES developing_context(id) ON DELETE SET NULL,
+                account_id      INTEGER REFERENCES accounts(id) ON DELETE SET NULL,
+                value           INTEGER NOT NULL DEFAULT 0,
+                volume          INTEGER NOT NULL DEFAULT 0,
+                trend           INTEGER NOT NULL DEFAULT 0,
+                adh             INTEGER NOT NULL DEFAULT 0,
+                mental_state    TEXT NOT NULL DEFAULT 'calm',
+                confidence      TEXT NOT NULL DEFAULT 'medium',
+                created_at      TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+            )
+        """)
+
+        # Migration: add adh column to trade_strength
+        ts_cols = [r[1] for r in conn.execute("PRAGMA table_info(trade_strength)").fetchall()]
+        if "adh" not in ts_cols:
+            conn.execute("ALTER TABLE trade_strength ADD COLUMN adh INTEGER NOT NULL DEFAULT 0")
+
+        # Migration: add strength_id to live_trades
+        lt_cols_str = [r[1] for r in conn.execute("PRAGMA table_info(live_trades)").fetchall()]
+        if "strength_id" not in lt_cols_str:
+            conn.execute("ALTER TABLE live_trades ADD COLUMN strength_id INTEGER REFERENCES trade_strength(id)")
+
 
 # ── Accounts ─────────────────────────────────────────────────────────────────
 
@@ -735,13 +766,13 @@ def get_trade_by_id(trade_id):
         return td
 
 
-def insert_trade(day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open=False, execution_json=None, execution_score_json=None):
+def insert_trade(day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open=False, execution_json=None, execution_score_json=None, context_id=None):
     with get_conn() as conn:
         cur = conn.execute("""
             INSERT INTO trades
-                (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open, execution_json, execution_score_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, 1 if is_open else 0, execution_json, execution_score_json))
+                (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open, execution_json, execution_score_json, context_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, 1 if is_open else 0, execution_json, execution_score_json, context_id))
         return cur.lastrowid
 
 
@@ -1474,15 +1505,15 @@ def clear_account_config(account_id, prefix=None):
 def create_live_trade(account_id, direction, instrument, entry_price, entry_time,
                       total_qty, mode, notes="", tags_json="{}",
                       notes_monitoring="", notes_exit="", guard_json="",
-                      context_id=None):
+                      context_id=None, strength_id=None):
     with get_conn() as conn:
         cur = conn.execute("""
             INSERT INTO live_trades
                 (account_id, direction, instrument, entry_price, entry_time,
-                 total_qty, mode, notes, tags_json, notes_monitoring, notes_exit, guard_json, context_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 total_qty, mode, notes, tags_json, notes_monitoring, notes_exit, guard_json, context_id, strength_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (account_id, direction, instrument, entry_price, entry_time,
-              total_qty, mode, notes, tags_json, notes_monitoring, notes_exit, guard_json, context_id))
+              total_qty, mode, notes, tags_json, notes_monitoring, notes_exit, guard_json, context_id, strength_id))
         return cur.lastrowid
 
 
@@ -2109,6 +2140,12 @@ def update_developing_context(ctx_id, **fields):
         )
 
 
+def get_developing_context_by_id(ctx_id):
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM developing_context WHERE id = ?", (ctx_id,)).fetchone()
+        return dict(row) if row else None
+
+
 def get_developing_contexts(date_from, date_to, account_id=None):
     with get_conn() as conn:
         conditions = ["date >= ?", "date <= ?"]
@@ -2122,3 +2159,34 @@ def get_developing_contexts(date_from, date_to, account_id=None):
             params,
         ).fetchall()
         return [dict(r) for r in rows]
+
+
+# ── Trade Strength ────────────────────────────────────────────────────────────
+
+def create_trade_strength(context_id, account_id, value, volume, trend,
+                          mental_state, confidence, adh=0):
+    with get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO trade_strength
+                (context_id, account_id, value, volume, trend, adh, mental_state, confidence)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (context_id, account_id, int(value), int(volume), int(trend),
+              int(adh), mental_state, confidence))
+        return cur.lastrowid
+
+
+def get_trade_strength(strength_id):
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM trade_strength WHERE id = ?", (strength_id,)
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def get_trade_strength_by_context(context_id):
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM trade_strength WHERE context_id = ? ORDER BY id DESC LIMIT 1",
+            (context_id,)
+        ).fetchone()
+        return dict(row) if row else None

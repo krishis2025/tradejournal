@@ -1,0 +1,1144 @@
+{% extends "base.html" %}
+{% block title %}Trade #{{ trade.id }} Ladder — Trade Journal{% endblock %}
+
+{% block extra_styles %}
+/* ── IDENTITY BAR ── */
+.identity-bar {
+  display: flex; align-items: center; gap: 1px;
+  background: var(--border); border-bottom: 1px solid var(--border);
+  height: 52px; flex-shrink: 0;
+  position: relative; z-index: 10;
+}
+.identity-bar > * {
+  background: var(--surface); height: 100%;
+  display: flex; align-items: center;
+}
+
+.phase-stepper {
+  gap: 0; padding: 0;
+}
+.phase-btn {
+  padding: 0 16px; height: 100%; border: none; cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: 11px; letter-spacing: 1.5px;
+  text-transform: uppercase; transition: all 0.12s;
+  background: var(--surface); color: var(--muted);
+  position: relative;
+}
+.phase-btn:hover { color: var(--text); background: var(--surface2); }
+.phase-btn.active {
+  color: var(--accent); background: rgba(79,255,176,0.06);
+}
+.phase-btn.active::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+  height: 2px; background: var(--accent);
+}
+
+.trade-badge {
+  padding: 0 16px; font-family: var(--font-mono); font-size: 12px;
+  letter-spacing: 1px; color: var(--muted2); gap: 8px; white-space: nowrap;
+}
+.trade-badge .dir-long { color: var(--green); }
+.trade-badge .dir-short { color: var(--red); }
+
+.trade-status {
+  padding: 0 16px; font-family: var(--font-mono); font-size: 11px;
+  color: var(--muted2); gap: 6px; white-space: nowrap;
+}
+.status-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent2); animation: pulse-dot 2s ease infinite;
+}
+.status-dot.closed { background: var(--muted); animation: none; }
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.trade-tabs {
+  margin-left: auto; gap: 0; padding: 0;
+}
+.trade-tab {
+  padding: 0 14px; height: 100%; border: none; cursor: pointer;
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: 1px;
+  background: var(--surface); color: var(--muted);
+  transition: all 0.12s; position: relative;
+}
+.trade-tab:hover { color: var(--text); background: var(--surface2); }
+.trade-tab.active {
+  color: var(--accent2);
+}
+.trade-tab.active::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+  height: 2px; background: var(--accent2);
+}
+
+/* Tab status indicators */
+.tab-dot {
+  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  margin-right: 5px; vertical-align: middle;
+}
+.tab-dot.open {
+  background: var(--accent2); animation: pulse-dot 2s ease infinite;
+}
+.tab-dot.closed {
+  background: var(--muted); animation: none;
+}
+.trade-tab.is-closed {
+  opacity: 0.55;
+}
+.tab-pnl {
+  font-size: 10px; margin-left: 4px;
+}
+.tab-pnl.win { color: var(--green); }
+.tab-pnl.loss { color: var(--red); }
+
+/* ── MAIN AREA ── */
+.main-area {
+  display: flex; flex: 1; min-height: 0;
+  position: relative; z-index: 1;
+}
+
+/* ── LEFT: CONTEXT PANEL ── */
+.context-panel {
+  width: 240px; flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  padding: 16px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.ctx-field {}
+.ctx-label {
+  font-size: 8px; text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--muted); margin-bottom: 3px;
+}
+.ctx-value {
+  font-family: var(--font-mono); font-size: 12px; color: var(--text);
+}
+.ctx-value.nuance {
+  color: var(--muted2); font-size: 11px; white-space: pre-wrap; line-height: 1.5;
+}
+.pill {
+  display: inline-block; padding: 2px 8px; border-radius: 2px;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.pill-red { background: rgba(255,77,109,0.1); color: var(--red); }
+.pill-green { background: rgba(52,211,153,0.1); color: var(--green); }
+.pill-accent2 { color: var(--accent2); }
+
+.ctx-divider {
+  height: 1px; background: var(--border); margin: 2px 0;
+}
+
+.exec-score-circle {
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 2px solid var(--warn);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-size: 22px;
+  color: var(--warn); letter-spacing: 1px; position: relative;
+}
+.exec-score-circle .sub {
+  font-family: var(--font-mono); font-size: 9px; color: var(--muted);
+  position: absolute; bottom: -2px; right: -10px;
+}
+
+/* ── CENTER: POSITION LADDER ── */
+.ladder-container {
+  flex: 1; max-width: 620px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 24px 20px; position: relative;
+  overflow-y: auto;
+}
+
+.ladder-wrapper {
+  width: 100%; max-width: 560px; position: relative;
+}
+
+/* Zone overlays */
+.zone-reward {
+  position: absolute; left: 0; right: 0;
+  background: linear-gradient(to top, rgba(52,211,153,0.01), rgba(52,211,153,0.05));
+  pointer-events: none; border-radius: 2px;
+}
+.zone-risk {
+  position: absolute; left: 0; right: 0;
+  background: linear-gradient(to bottom, rgba(255,77,109,0.01), rgba(255,77,109,0.05));
+  pointer-events: none; border-radius: 2px;
+}
+
+.ladder-row {
+  display: grid;
+  grid-template-columns: 28px 52px 80px 1fr 48px 120px;
+  align-items: center;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  position: relative;
+  transition: all 0.15s;
+  background: var(--surface);
+  z-index: 2;
+}
+.ladder-row:hover {
+  background: var(--surface2);
+}
+.ladder-row:hover .row-border-left {
+  width: 5px;
+}
+
+.row-border-left {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; border-radius: 2px 0 0 2px;
+  transition: width 0.15s;
+}
+.row-border-left.green { background: var(--green); }
+.row-border-left.red { background: var(--red); }
+.row-border-left.accent2 { background: var(--accent2); width: 4px; }
+
+/* Ladder cells */
+.row-icon {
+  font-size: 12px; text-align: center; color: var(--muted);
+}
+.row-label {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--muted2);
+}
+.row-price {
+  font-family: var(--font-mono); font-size: 14px; color: var(--text);
+  letter-spacing: 0.5px;
+}
+.row-pnl {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono); font-size: 12px;
+}
+.row-pnl.positive { color: var(--green); }
+.row-pnl.negative { color: var(--red); }
+.row-pnl.zero { color: var(--muted2); }
+
+.risk-bar {
+  height: 4px; border-radius: 1px; min-width: 2px; max-width: 80px;
+}
+.risk-bar.green { background: var(--green); }
+.risk-bar.red { background: var(--red); }
+
+.row-qty {
+  font-family: var(--font-mono); font-size: 12px; color: var(--muted2);
+  text-align: center;
+}
+.row-action {
+  text-align: right;
+}
+
+/* Entry row */
+.ladder-row.entry {
+  border: 2px solid var(--accent2);
+  background: rgba(0,207,255,0.04);
+}
+.ladder-row.entry .row-price {
+  font-size: 16px; font-weight: 600; color: var(--accent2);
+}
+.ladder-row.entry .row-label {
+  color: var(--accent2); font-weight: 500;
+}
+
+/* Executed row */
+.ladder-row.executed {
+  opacity: 0.55;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 4px,
+      rgba(52,211,153,0.04) 4px,
+      rgba(52,211,153,0.04) 8px
+    ),
+    var(--surface);
+}
+.ladder-row.executed .row-icon { color: var(--green); }
+
+/* Executed-loss row */
+.ladder-row.executed-loss {
+  opacity: 0.55;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 4px,
+      rgba(255,77,109,0.04) 4px,
+      rgba(255,77,109,0.04) 8px
+    ),
+    var(--surface);
+}
+
+/* BE badge */
+.be-badge {
+  font-family: var(--font-mono); font-size: 9px;
+  padding: 1px 6px; border-radius: 2px;
+  background: rgba(255,179,71,0.1); color: var(--warn);
+  letter-spacing: 1px;
+}
+
+/* Action buttons */
+.btn-execute {
+  padding: 3px 10px; border: 1px solid var(--green); border-radius: 2px;
+  background: rgba(52,211,153,0.06); color: var(--green);
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px;
+  cursor: pointer; transition: all 0.12s; text-transform: uppercase;
+}
+.btn-execute:hover { background: rgba(52,211,153,0.15); }
+
+.btn-hit {
+  padding: 3px 10px; border: 1px solid var(--red); border-radius: 2px;
+  background: rgba(255,77,109,0.06); color: var(--red);
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px;
+  cursor: pointer; transition: all 0.12s; text-transform: uppercase;
+}
+.btn-hit:hover { background: rgba(255,77,109,0.15); }
+
+.done-label {
+  font-family: var(--font-mono); font-size: 10px; color: var(--green);
+  letter-spacing: 0.5px;
+}
+.done-label.loss { color: var(--red); }
+
+/* ── RIGHT: HEALTH & ACTIONS ── */
+.health-panel {
+  width: 200px; flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  padding: 16px; overflow-y: auto;
+  display: flex; flex-direction: column;
+}
+
+.health-metrics {
+  display: flex; flex-direction: column; gap: 16px;
+}
+.metric-label {
+  font-size: 8px; text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--muted); margin-bottom: 2px;
+}
+.metric-value {
+  font-family: var(--font-display); font-size: 32px; letter-spacing: 2px;
+  line-height: 1;
+}
+.metric-value.text-default { color: var(--text); }
+.metric-value.text-red { color: var(--red); }
+.metric-value.text-green { color: var(--green); }
+.metric-value.text-accent2 { color: var(--accent2); }
+.metric-value.text-accent { color: var(--accent); }
+
+.health-divider {
+  height: 1px; background: var(--border); margin: 16px 0;
+}
+
+.action-buttons {
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+.btn-flatten {
+  padding: 8px; border: 1px solid var(--red); border-radius: 2px;
+  background: rgba(255,77,109,0.06); color: var(--red);
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 1px;
+  cursor: pointer; transition: all 0.12s; text-transform: uppercase;
+  text-align: center;
+}
+.btn-flatten:hover { background: rgba(255,77,109,0.15); }
+
+.btn-stops-be {
+  padding: 8px; border: 1px solid var(--warn); border-radius: 2px;
+  background: transparent; color: var(--warn);
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 1px;
+  cursor: pointer; transition: all 0.12s; text-transform: uppercase;
+  text-align: center;
+}
+.btn-stops-be:hover { background: rgba(255,179,71,0.1); }
+
+.manual-exit {
+  display: flex; flex-direction: column; gap: 6px; margin-top: 4px;
+}
+.manual-exit-row {
+  display: flex; gap: 6px;
+}
+.manual-exit input {
+  flex: 1; padding: 6px 8px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 2px; color: var(--text);
+  font-family: var(--font-mono); font-size: 12px;
+}
+.manual-exit input:focus { outline: none; border-color: var(--accent); }
+.manual-exit input::placeholder { color: var(--muted); }
+
+.btn-exit-manual {
+  padding: 6px; border: 1px solid var(--accent2); border-radius: 2px;
+  background: rgba(0,207,255,0.06); color: var(--accent2);
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px;
+  cursor: pointer; transition: all 0.12s; text-transform: uppercase;
+  text-align: center;
+}
+.btn-exit-manual:hover { background: rgba(0,207,255,0.15); }
+
+.btn-tags-notes {
+  padding: 8px; border: none; border-radius: 2px;
+  background: transparent; color: var(--muted);
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 1px;
+  cursor: pointer; transition: all 0.12s; text-align: left;
+}
+.btn-tags-notes:hover { color: var(--muted2); }
+
+.spacer { flex: 1; }
+
+/* ── BOTTOM BAR ── */
+.bottom-bar {
+  height: 36px; flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px;
+  font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+  position: relative; z-index: 10;
+  background: var(--surface);
+}
+
+/* ── EDITABLE PRICE ── */
+.row-price.editable:hover {
+  border-bottom: 1px dashed var(--accent2);
+  cursor: pointer; color: var(--accent2);
+}
+.price-edit {
+  width: 80px; padding: 2px 4px;
+  background: var(--surface2); border: 1px solid var(--accent2);
+  border-radius: 2px; color: var(--text);
+  font-family: var(--font-mono); font-size: 14px;
+  letter-spacing: 0.5px; outline: none;
+}
+
+/* ── CLOSED TRADE OVERLAY ── */
+.closed-overlay {
+  position: absolute; inset: 0; z-index: 5;
+  background: rgba(11,13,16,0.6);
+  display: flex; align-items: center; justify-content: center;
+}
+.closed-tag {
+  font-family: var(--font-display); font-size: 48px; letter-spacing: 6px;
+  color: var(--muted); opacity: 0.5;
+}
+
+/* ── NO-DATA FALLBACK ── */
+.no-data-msg {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 12px; height: 100%;
+  color: var(--muted2); font-family: var(--font-mono); font-size: 13px;
+}
+.no-data-msg a {
+  color: var(--accent2); text-decoration: none;
+  border-bottom: 1px dashed var(--accent2);
+}
+.no-data-msg a:hover { color: var(--accent); border-color: var(--accent); }
+
+/* Full-height layout for ladder page */
+.ladder-page-wrap {
+  display: flex; flex-direction: column;
+  height: calc(100vh - 48px); /* subtract nav height */
+}
+{% endblock %}
+
+{% block content %}
+<div class="ladder-page-wrap">
+  <!-- IDENTITY BAR -->
+  <div class="identity-bar">
+    <div class="phase-stepper" id="phase-stepper"></div>
+    <div class="trade-badge" id="trade-badge"></div>
+    <div class="trade-status" id="trade-status"></div>
+    <div class="trade-tabs" id="trade-tabs"></div>
+  </div>
+
+  <!-- MAIN AREA -->
+  <div class="main-area">
+    <!-- LEFT: Context -->
+    <div class="context-panel" id="context-panel"></div>
+
+    <!-- CENTER: Position Ladder -->
+    <div class="ladder-container">
+      <div class="ladder-wrapper" id="ladder"></div>
+    </div>
+
+    <!-- RIGHT: Health & Actions -->
+    <div class="health-panel" id="health-panel"></div>
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div class="bottom-bar">
+    <span id="bottom-left"></span>
+    <span id="bottom-clock"></span>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ── DATA INITIALIZATION ── */
+const SIBLINGS = {{ siblings_json | safe }};
+const CONTEXTS = {{ contexts_json | safe }};
+const CURRENT_TRADE_ID = {{ trade.id }};
+
+// Build TRADES dict (keyed T1, T2, T3...)
+const TRADES = {};
+SIBLINGS.forEach((st, i) => {
+  const key = 'T' + (i + 1);
+  const ed = st.exec_detail;
+  if (!ed) { TRADES[key] = { noData: true, id: st.id, direction: st.direction, qty: st.qty, pnl: st.pnl, entry_time: st.entry_time }; return; }
+
+  // Build partials from levels + executions
+  const portionMap = {};
+  for (const lv of (ed.levels || [])) {
+    if (!portionMap[lv.portion]) portionMap[lv.portion] = { portion: lv.portion, qty: lv.qty };
+    if (lv.level_type === 'stop') portionMap[lv.portion].stop = lv.price;
+    if (lv.level_type === 'tp') portionMap[lv.portion].tp = lv.price;
+  }
+  const execMap = {};
+  for (const ex of (ed.executions || [])) execMap[ex.portion] = ex;
+
+  const partials = Object.values(portionMap).map(p => {
+    const ex = execMap[p.portion];
+    return {
+      portion: p.portion, qty: p.qty, stop: p.stop, tp: p.tp,
+      status: ex ? 'executed' : 'open',
+      pnl: ex ? ex.pnl : undefined,
+      exitTime: ex ? ex.exec_time : undefined,
+      exitType: ex ? ex.exec_type : undefined,
+      exitPrice: ex ? ex.price : undefined
+    };
+  });
+
+  const ctx = CONTEXTS[st.context_id] || {};
+  const execScore = st.exec_score ? st.exec_score.score : null;
+
+  TRADES[key] = {
+    id: st.id,
+    direction: st.direction === 'Long' ? 'Long' : 'Short',
+    instrument: ed.instrument || 'MES',
+    qty: st.qty,
+    entry: ed.entry_price || st.avg_entry,
+    time: st.entry_time,
+    tickValue: 5,  // MES default
+    partials: partials,
+    status: partials.every(p => p.status === 'executed') ? 'closed' : undefined,
+    pnl: st.pnl,
+    context: {
+      mktRead: ctx.mkt_read || '\u2014',
+      valueArea: ctx.value_area || '\u2014',
+      setup: ctx.setup || '\u2014',
+      location: ctx.location || '\u2014',
+      nuance: ctx.nuance || ''
+    },
+    mentalState: ctx.mental_state || 'calm',
+    execScore: execScore
+  };
+});
+
+// Set active trade to the one matching CURRENT_TRADE_ID
+let activeTrade = Object.keys(TRADES).find(k => TRADES[k].id === CURRENT_TRADE_ID) || 'T1';
+let activePhase = 'MANAGE';
+
+const PHASES = ['CONTEXT', 'ENTRY', 'MANAGE', 'EXIT', 'REVIEW'];
+
+/* ── RENDER: PHASE STEPPER ── */
+function renderPhases() {
+  const el = document.getElementById('phase-stepper');
+  el.innerHTML = PHASES.map(p =>
+    `<button class="phase-btn${p === activePhase ? ' active' : ''}"
+            onclick="setPhase('${p}')">${p}</button>`
+  ).join('');
+}
+
+/* ── RENDER: TRADE BADGE ── */
+function renderBadge(trade, id) {
+  const el = document.getElementById('trade-badge');
+  if (trade.noData) {
+    el.innerHTML = `${id} · <span class="dir-${(trade.direction||'').toLowerCase()}">${(trade.direction||'').toUpperCase()}</span> · ${trade.qty || '?'}`;
+    return;
+  }
+  const dirClass = trade.direction === 'Long' ? 'dir-long' : 'dir-short';
+  el.innerHTML = `${id} · <span class="${dirClass}">${trade.direction.toUpperCase()}</span> · ${trade.qty}\u00d7${trade.instrument} @ ${trade.entry} · ${trade.time}`;
+}
+
+/* ── RENDER: TRADE STATUS ── */
+function renderStatus(trade) {
+  const el = document.getElementById('trade-status');
+  if (trade.noData) {
+    el.innerHTML = `<span style="color:var(--muted)">NO LADDER DATA</span>`;
+    return;
+  }
+  if (trade.status === 'closed') {
+    const pnlColor = trade.pnl >= 0 ? 'var(--green)' : 'var(--red)';
+    const sign = trade.pnl >= 0 ? '+' : '';
+    el.innerHTML = `<span style="color:${pnlColor}">CLOSED ${sign}$${trade.pnl}</span> <div class="status-dot closed"></div>`;
+    return;
+  }
+  const open = trade.partials.filter(p => p.status === 'open');
+  const remaining = open.reduce((s, p) => s + p.qty, 0);
+  if (remaining === 0) {
+    el.innerHTML = `CLOSED <div class="status-dot closed"></div>`;
+  } else {
+    el.innerHTML = `PARTIAL (${remaining} remaining) <div class="status-dot"></div>`;
+  }
+}
+
+/* ── UTILITIES ── */
+function isTradeClosed(trade) {
+  if (trade.noData) return true;
+  if (trade.status === 'closed') return true;
+  return trade.partials.every(p => p.status === 'executed');
+}
+
+function getTradePnl(trade) {
+  if (trade.noData) return trade.pnl || 0;
+  if (trade.status === 'closed' && trade.pnl !== undefined) return trade.pnl;
+  return trade.partials.reduce((sum, p) => {
+    if (p.status === 'executed' && p.pnl !== undefined) return sum + p.pnl;
+    return sum;
+  }, 0);
+}
+
+/* ── RENDER: TRADE TABS ── */
+function renderTabs() {
+  const el = document.getElementById('trade-tabs');
+  el.innerHTML = Object.keys(TRADES).map(id => {
+    const trade = TRADES[id];
+    const closed = isTradeClosed(trade);
+    const dotClass = closed ? 'tab-dot closed' : 'tab-dot open';
+    const tabClass = 'trade-tab' + (id === activeTrade ? ' active' : '') + (closed ? ' is-closed' : '');
+    let pnlHtml = '';
+    if (closed) {
+      const pnl = getTradePnl(trade);
+      const sign = pnl >= 0 ? '+' : '';
+      const cls = pnl >= 0 ? 'win' : 'loss';
+      pnlHtml = `<span class="tab-pnl ${cls}">${sign}$${pnl}</span>`;
+    }
+    return `<button class="${tabClass}" onclick="switchTrade('${id}')"><span class="${dotClass}"></span>${id}${pnlHtml}</button>`;
+  }).join('');
+}
+
+/* ── RENDER: CONTEXT PANEL ── */
+function renderContext(trade) {
+  const el = document.getElementById('context-panel');
+  if (trade.noData) {
+    el.innerHTML = `<div class="no-data-msg"><span>No context data</span></div>`;
+    return;
+  }
+  const ctx = trade.context;
+
+  const vaClass = ctx.valueArea === 'Lower' ? 'pill pill-red'
+    : ctx.valueArea === 'Upper' ? 'pill pill-red' : 'pill pill-green';
+
+  const mentalMap = {
+    patient: { label: 'PATIENT', cls: 'pill pill-green' },
+    focused: { label: 'FOCUSED', cls: 'pill pill-green' },
+    rushed:  { label: 'RUSHED',  cls: 'pill pill-red' },
+    anxious: { label: 'ANXIOUS', cls: 'pill pill-red' },
+    calm:    { label: 'CALM',    cls: 'pill pill-green' }
+  };
+  const mental = mentalMap[trade.mentalState] || { label: (trade.mentalState || '').toUpperCase(), cls: 'pill' };
+
+  let execScoreHtml = '';
+  if (trade.execScore !== null && trade.execScore !== undefined) {
+    execScoreHtml = `
+    <div class="ctx-field" style="display:flex;gap:12px;align-items:center;">
+      <div>
+        <div class="ctx-label">EXECUTION SCORE</div>
+      </div>
+      <div class="exec-score-circle">
+        ${trade.execScore}<span class="sub">/5</span>
+      </div>
+    </div>`;
+  }
+
+  el.innerHTML = `
+    <div class="ctx-field">
+      <div class="ctx-label">MKT READ</div>
+      <div class="ctx-value">${ctx.mktRead}</div>
+    </div>
+    <div class="ctx-field">
+      <div class="ctx-label">VALUE AREA</div>
+      <div><span class="${vaClass}">${ctx.valueArea}</span></div>
+    </div>
+    <div class="ctx-field">
+      <div class="ctx-label">SETUP</div>
+      <div class="ctx-value pill-accent2">${ctx.setup}</div>
+    </div>
+    <div class="ctx-field">
+      <div class="ctx-label">LOCATION</div>
+      <div class="ctx-value">${ctx.location}</div>
+    </div>
+    <div class="ctx-field">
+      <div class="ctx-label">NUANCE</div>
+      <div class="ctx-value nuance">${ctx.nuance}</div>
+    </div>
+    <div class="ctx-divider"></div>
+    <div class="ctx-field">
+      <div class="ctx-label">MENTAL STATE</div>
+      <div><span class="${mental.cls}">${mental.label}</span></div>
+    </div>
+    ${execScoreHtml}
+  `;
+}
+
+/* ── RENDER: POSITION LADDER ── */
+function renderLadder(trade) {
+  const el = document.getElementById('ladder');
+
+  if (trade.noData) {
+    el.innerHTML = `<div class="no-data-msg">
+      <span>No ladder data \u2014 this trade was imported from CSV</span>
+      <a href="/trade/${trade.id}">Open Trade Execution view \u2192</a>
+    </div>`;
+    return;
+  }
+
+  const isLong = trade.direction === 'Long';
+
+  if (isTradeClosed(trade)) {
+    el.innerHTML = buildLadderHTML(trade, isLong) +
+      `<div class="closed-overlay"><div class="closed-tag">CLOSED</div></div>`;
+    return;
+  }
+
+  el.innerHTML = buildLadderHTML(trade, isLong);
+}
+
+function buildLadderHTML(trade, isLong) {
+  const rows = [];
+  const entry = trade.entry;
+  const maxPnl = Math.max(...trade.partials.map(p => {
+    const tpDist = Math.abs((p.tp || entry) - entry);
+    const stDist = Math.abs((p.stop || entry) - entry);
+    return Math.max(tpDist * p.qty * trade.tickValue, stDist * p.qty * trade.tickValue);
+  }), 1);
+
+  const tpRows = [];
+  const stopRows = [];
+
+  trade.partials.forEach((p, i) => {
+    const tp = p.tp || entry;
+    const stop = p.stop || entry;
+    const tpPts = isLong ? tp - entry : entry - tp;
+    const stPts = isLong ? entry - stop : stop - entry;
+    const tpPnl = tpPts * p.qty * trade.tickValue;
+    const stPnl = -(stPts * p.qty * trade.tickValue);
+    const isBE = stop === entry;
+
+    if (p.tp) {
+      tpRows.push({
+        type: 'tp', portion: p.portion, price: tp, pts: tpPts,
+        pnl: tpPnl, qty: p.qty, status: p.status,
+        exitTime: p.exitTime, exitType: p.exitType,
+        realPnl: p.pnl, exitPrice: p.exitPrice
+      });
+    }
+
+    if (p.stop !== undefined) {
+      stopRows.push({
+        type: 'stop', portion: p.portion, price: stop, pts: stPts,
+        pnl: isBE ? 0 : stPnl, qty: p.qty, status: p.status,
+        isBE: isBE, exitTime: p.exitTime, exitType: p.exitType,
+        realPnl: p.pnl, exitPrice: p.exitPrice
+      });
+    }
+  });
+
+  // Sort TPs: furthest from entry first (top)
+  if (isLong) {
+    tpRows.sort((a, b) => b.price - a.price);
+    stopRows.sort((a, b) => b.price - a.price);
+  } else {
+    tpRows.sort((a, b) => a.price - b.price);
+    stopRows.sort((a, b) => a.price - b.price);
+  }
+
+  // Calculate proportional gaps
+  const allPrices = [...tpRows.map(r => r.price), entry, ...stopRows.map(r => r.price)];
+  const maxDist = Math.max(...allPrices) - Math.min(...allPrices);
+  const baseUnit = maxDist > 0 ? 48 / maxDist : 4;
+
+  let html = '';
+  let currentOffset = 0;
+
+  // TP rows
+  tpRows.forEach((row, i) => {
+    const gap = i > 0
+      ? Math.max(2, Math.abs(tpRows[i-1].price - row.price) * baseUnit)
+      : 0;
+    if (gap > 0) {
+      html += `<div style="height:${gap}px"></div>`;
+      currentOffset += gap;
+    }
+    html += renderRow(row, maxPnl);
+    currentOffset += 38;
+  });
+
+  // Gap to entry
+  const lastTp = tpRows[tpRows.length - 1];
+  const tpToEntry = lastTp
+    ? Math.max(4, Math.abs(lastTp.price - entry) * baseUnit)
+    : 8;
+  html += `<div style="height:${tpToEntry}px"></div>`;
+  currentOffset += tpToEntry;
+
+  // Entry row
+  html += `<div class="ladder-row entry">
+    <div class="row-border-left accent2"></div>
+    <div class="row-icon">\u25b8</div>
+    <div class="row-label">ENTRY</div>
+    <div class="row-price">${entry}</div>
+    <div class="row-pnl" style="font-size:11px;color:var(--muted2)">${trade.qty}\u00d7 ${trade.instrument}</div>
+    <div class="row-qty"></div>
+    <div class="row-action" style="font-size:10px;color:var(--muted)">${trade.time}</div>
+  </div>`;
+  currentOffset += 38;
+
+  // Gap to first stop
+  const firstStop = stopRows[0];
+  const entryToStop = firstStop
+    ? Math.max(2, Math.abs(entry - firstStop.price) * baseUnit)
+    : 8;
+  html += `<div style="height:${entryToStop}px"></div>`;
+  currentOffset += entryToStop;
+
+  // Stop rows
+  stopRows.forEach((row, i) => {
+    const gap = i > 0
+      ? Math.max(2, Math.abs(stopRows[i-1].price - row.price) * baseUnit)
+      : 0;
+    if (gap > 0) {
+      html += `<div style="height:${gap}px"></div>`;
+      currentOffset += gap;
+    }
+    html += renderRow(row, maxPnl);
+    currentOffset += 38;
+  });
+
+  return html;
+}
+
+function renderRow(row, maxPnl) {
+  const isTP = row.type === 'tp';
+  const isExecuted = row.status === 'executed';
+
+  let rowClass = 'ladder-row';
+  if (isExecuted) {
+    if (row.exitType === 'stop_hit') {
+      rowClass += ' executed-loss';
+    } else {
+      rowClass += ' executed';
+    }
+  }
+
+  const borderClass = isTP ? 'green' : 'red';
+
+  let icon = '';
+  if (isExecuted && row.exitType !== 'stop_hit') icon = '\u2713';
+  else if (isExecuted && row.exitType === 'stop_hit') icon = '\u2717';
+  else if (row.isBE) icon = '\u2192';
+
+  const label = isTP ? `TP${row.portion}` : `S${row.portion}`;
+
+  const pnlVal = isExecuted ? (row.realPnl !== undefined ? row.realPnl : row.pnl) : row.pnl;
+  const pnlSign = pnlVal >= 0 ? '+' : '';
+  const pnlClass = pnlVal > 0 ? 'positive' : pnlVal < 0 ? 'negative' : 'zero';
+
+  const barWidth = Math.max(2, (Math.abs(pnlVal) / maxPnl) * 80);
+  const barClass = pnlVal >= 0 ? 'green' : 'red';
+
+  let action = '';
+  if (isExecuted) {
+    const exitLabel = row.exitType === 'stop_hit' ? 'STOP' : 'DONE';
+    const labelClass = row.exitType === 'stop_hit' ? 'done-label loss' : 'done-label';
+    const pnlDisp = row.realPnl !== undefined ? row.realPnl : pnlVal;
+    const s = pnlDisp >= 0 ? '+' : '';
+    action = `<span class="${labelClass}">${exitLabel} ${s}$${pnlDisp}${row.exitTime ? ' \u00b7 ' + row.exitTime : ''}</span>`;
+  } else if (row.isBE) {
+    action = `<span class="be-badge">\u2192 BE</span>`;
+  } else if (isTP) {
+    action = `<button class="btn-execute" onclick="executeLevel(${row.portion},'tp')">EXECUTE</button>`;
+  } else {
+    action = `<button class="btn-hit" onclick="executeLevel(${row.portion},'stop')">HIT</button>`;
+  }
+
+  return `<div class="${rowClass}">
+    <div class="row-border-left ${isExecuted ? '' : (row.isBE ? '' : borderClass)}"></div>
+    <div class="row-icon">${icon}</div>
+    <div class="row-label">${label}</div>
+    <div class="row-price${!isExecuted ? ' editable' : ''}"${!isExecuted ? ` onclick="editPrice(this,'${row.type}',${row.portion})"` : ''}>${row.price}</div>
+    <div class="row-pnl ${pnlClass}">
+      ${pnlSign}$${Math.abs(pnlVal)}
+      <div class="risk-bar ${barClass}" style="width:${barWidth}px"></div>
+    </div>
+    <div class="row-qty">${row.qty}\u00d7</div>
+    <div class="row-action">${action}</div>
+  </div>`;
+}
+
+/* ── RENDER: HEALTH PANEL ── */
+function renderHealth(trade) {
+  const el = document.getElementById('health-panel');
+  if (trade.noData) {
+    el.innerHTML = `<div class="no-data-msg"><span>No health data</span></div>`;
+    return;
+  }
+  const h = computeHealth(trade);
+
+  el.innerHTML = `
+    <div class="health-metrics">
+      <div class="metric">
+        <div class="metric-label">REMAINING</div>
+        <div class="metric-value text-default">${h.remaining} / ${h.total}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">NET RISK</div>
+        <div class="metric-value text-red">${h.netRisk >= 0 ? '+' : '-'}$${Math.abs(h.netRisk)}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">REALIZED</div>
+        <div class="metric-value ${h.realized >= 0 ? 'text-green' : 'text-red'}">${h.realized >= 0 ? '+' : '-'}$${Math.abs(h.realized)}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">POTENTIAL</div>
+        <div class="metric-value text-accent2">+$${h.potential}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">R-MULTIPLE</div>
+        <div class="metric-value text-accent">${h.rMultiple}R</div>
+      </div>
+    </div>
+    <div class="health-divider"></div>
+    <div class="action-buttons">
+      <button class="btn-flatten" onclick="flattenAll()">FLATTEN ALL</button>
+      <button class="btn-stops-be" onclick="moveStopsToBE()">STOPS \u2192 BE</button>
+      <div class="manual-exit">
+        <div class="manual-exit-row">
+          <input type="number" id="manual-price" placeholder="Price">
+          <input type="number" id="manual-qty" placeholder="Qty" style="max-width:60px">
+        </div>
+        <button class="btn-exit-manual" onclick="manualExit()">EXIT</button>
+      </div>
+    </div>
+    <div class="health-divider"></div>
+    <button class="btn-tags-notes">TAGS & NOTES \u25b8</button>
+    <div class="spacer"></div>
+  `;
+}
+
+function computeHealth(trade) {
+  const isLong = trade.direction === 'Long';
+  const entry = trade.entry;
+  let remaining = 0, total = 0, realized = 0, netRisk = 0, potential = 0;
+
+  if (trade.status === 'closed') {
+    total = trade.qty;
+    realized = trade.pnl || 0;
+    return { remaining: 0, total, netRisk: 0, realized, potential: 0, rMultiple: '\u2014' };
+  }
+
+  trade.partials.forEach(p => {
+    total += p.qty;
+    if (p.status === 'executed') {
+      realized += (p.pnl !== undefined ? p.pnl : 0);
+    } else {
+      remaining += p.qty;
+      const stop = p.stop || entry;
+      const tp = p.tp || entry;
+      const stPts = isLong ? entry - stop : stop - entry;
+      const stLoss = stPts * p.qty * trade.tickValue;
+      netRisk -= stLoss;
+      const tpPts = isLong ? tp - entry : entry - tp;
+      potential += tpPts * p.qty * trade.tickValue;
+    }
+  });
+
+  const initialRisk = Math.abs(
+    (isLong ? entry - (trade.partials[0].stop || entry) : (trade.partials[0].stop || entry) - entry)
+    * trade.partials[0].qty * trade.tickValue
+  ) || 1;
+
+  const rMult = (realized / initialRisk).toFixed(1);
+
+  return { remaining, total, netRisk, realized, potential, rMultiple: rMult };
+}
+
+/* ── ACTIONS ── */
+function executeLevel(portion, type) {
+  const trade = TRADES[activeTrade];
+  if (!trade || trade.noData) return;
+  const partial = trade.partials.find(p => p.portion === portion);
+  if (!partial || partial.status !== 'open') return;
+
+  const isLong = trade.direction === 'Long';
+  const entry = trade.entry;
+
+  if (type === 'tp') {
+    const pts = isLong ? partial.tp - entry : entry - partial.tp;
+    partial.pnl = pts * partial.qty * trade.tickValue;
+    partial.exitType = 'tp_hit';
+  } else {
+    const pts = isLong ? partial.stop - entry : entry - partial.stop;
+    partial.pnl = pts * partial.qty * trade.tickValue;
+    partial.exitType = 'stop_hit';
+  }
+  partial.status = 'executed';
+  partial.exitTime = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+  renderAll();
+}
+
+function moveStopsToBE() {
+  const trade = TRADES[activeTrade];
+  if (!trade || trade.noData) return;
+  trade.partials.forEach(p => {
+    if (p.status === 'open') {
+      p.stop = trade.entry;
+    }
+  });
+  renderAll();
+}
+
+function flattenAll() {
+  const trade = TRADES[activeTrade];
+  if (!trade || trade.noData) return;
+  const exitPrice = prompt('Exit price for all remaining:');
+  if (!exitPrice) return;
+  const price = parseFloat(exitPrice);
+  const isLong = trade.direction === 'Long';
+
+  trade.partials.forEach(p => {
+    if (p.status === 'open') {
+      const pts = isLong ? price - trade.entry : trade.entry - price;
+      p.pnl = pts * p.qty * trade.tickValue;
+      p.status = 'executed';
+      p.exitType = 'manual_exit';
+      p.exitPrice = price;
+      p.exitTime = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    }
+  });
+  renderAll();
+}
+
+function manualExit() {
+  const trade = TRADES[activeTrade];
+  if (!trade || trade.noData) return;
+  const price = parseFloat(document.getElementById('manual-price').value);
+  const qty = parseInt(document.getElementById('manual-qty').value);
+  if (!price || !qty) { alert('Enter price and qty'); return; }
+
+  const isLong = trade.direction === 'Long';
+  const partial = trade.partials.find(p => p.status === 'open' && p.qty === qty);
+  if (!partial) { alert('No matching open partial'); return; }
+
+  const pts = isLong ? price - trade.entry : trade.entry - price;
+  partial.pnl = pts * partial.qty * trade.tickValue;
+  partial.status = 'executed';
+  partial.exitType = 'manual_exit';
+  partial.exitPrice = price;
+  partial.exitTime = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+  renderAll();
+}
+
+function editPrice(el, type, portion) {
+  if (el.querySelector('.price-edit')) return;
+  const currentPrice = parseFloat(el.textContent);
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.className = 'price-edit';
+  input.value = currentPrice;
+  el.textContent = '';
+  el.appendChild(input);
+  input.focus();
+  input.select();
+
+  function commit() {
+    const newPrice = parseFloat(input.value);
+    if (isNaN(newPrice) || newPrice <= 0) {
+      renderAll(); return;
+    }
+    const trade = TRADES[activeTrade];
+    if (!trade || trade.noData) { renderAll(); return; }
+    const partial = trade.partials.find(p => p.portion === portion);
+    if (!partial) { renderAll(); return; }
+    if (type === 'tp') partial.tp = newPrice;
+    else partial.stop = newPrice;
+    renderAll();
+  }
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') { renderAll(); }
+  });
+  input.addEventListener('blur', commit);
+}
+
+function renderSessionSummary() {
+  const ids = Object.keys(TRADES);
+  const totalTrades = ids.length;
+  let realized = 0, openCount = 0, closedCount = 0, openRisk = 0;
+
+  ids.forEach(id => {
+    const trade = TRADES[id];
+    const closed = isTradeClosed(trade);
+    if (closed) {
+      closedCount++;
+      realized += getTradePnl(trade);
+    } else {
+      openCount++;
+      if (!trade.noData) {
+        const isLong = trade.direction === 'Long';
+        trade.partials.forEach(p => {
+          if (p.status === 'executed' && p.pnl !== undefined) realized += p.pnl;
+          if (p.status === 'open') {
+            const stPts = isLong ? trade.entry - (p.stop || trade.entry) : (p.stop || trade.entry) - trade.entry;
+            openRisk += stPts * p.qty * trade.tickValue;
+          }
+        });
+      }
+    }
+  });
+
+  const rSign = realized >= 0 ? '+' : '';
+  const rColor = realized >= 0 ? 'var(--green)' : 'var(--red)';
+  const el = document.getElementById('bottom-left');
+  el.innerHTML = `Today: ${totalTrades} trades \u00b7 <span style="color:${rColor}">${rSign}$${realized} realized</span> \u00b7 ${openCount} open \u00b7 ${closedCount} closed \u00b7 <span style="color:var(--red)">-$${openRisk} at risk</span>`;
+}
+
+function switchTrade(id) {
+  activeTrade = id;
+  renderAll();
+}
+
+function setPhase(name) {
+  activePhase = name;
+  renderPhases();
+}
+
+/* ── CLOCK ── */
+function updateClock() {
+  document.getElementById('bottom-clock').textContent =
+    new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+}
+
+/* ── RENDER ALL ── */
+function renderAll() {
+  const trade = TRADES[activeTrade];
+  if (!trade) return;
+  renderPhases();
+  renderBadge(trade, activeTrade);
+  renderStatus(trade);
+  renderTabs();
+  renderContext(trade);
+  renderLadder(trade);
+  renderHealth(trade);
+  renderSessionSummary();
+}
+
+// Init
+renderAll();
+updateClock();
+setInterval(updateClock, 1000);
+</script>
+{% endblock %}

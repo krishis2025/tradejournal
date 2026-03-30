@@ -2,34 +2,141 @@
 {% block title %}Trade Journal — Dashboard{% endblock %}
 
 {% block extra_styles %}
-.filter-bar {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 2px;
-  padding: 12px 20px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 20px;
+/* ── Basic Filters Toggle & Panel ─────────────────────────────────────── */
+.basic-filters-header {
+  display: flex; align-items: center; margin-bottom: 12px;
 }
-.filter-label { font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);white-space:nowrap; }
-.filter-presets { display:flex;gap:4px; }
-.preset-btn {
-  padding: 4px 12px;
-  font-family: var(--font-mono); font-size:10px; letter-spacing:1px;
+.basic-filters-toggle {
+  display: flex; align-items: center; gap: 8px;
+  background: none; border: none; cursor: pointer; padding: 6px 0;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--muted2); transition: color 0.15s;
+}
+.basic-filters-toggle:hover { color: var(--text); }
+.basic-filters-toggle .bf-chevron {
+  display: inline-block; transition: transform 0.2s; font-size: 12px;
+}
+.basic-filters-toggle .bf-chevron.open { transform: rotate(90deg); }
+.bf-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 15px; height: 15px; padding: 0 4px;
+  border-radius: 50%; background: var(--text); color: var(--bg);
+  font-family: 'Inter', sans-serif; font-size: 8px; font-weight: 600;
+  margin-left: 6px; line-height: 1;
+}
+.selected-filters-bar {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.sf-label {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--muted2); white-space: nowrap;
+}
+.sf-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.sf-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border: 1px solid var(--border2); border-radius: 4px;
+  font-family: var(--font-mono); font-size: 10px; color: var(--text);
+  background: var(--surface); white-space: nowrap;
+}
+.sf-chip-x {
+  background: none; border: none; cursor: pointer; padding: 0 0 0 2px;
+  font-size: 12px; line-height: 1; color: var(--muted2); transition: color 0.15s;
+}
+.sf-chip-x:hover { color: var(--red); }
+.sf-clear-all {
+  background: none; border: none; cursor: pointer;
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.5px;
+  color: var(--accent); margin-left: auto; white-space: nowrap;
+  transition: opacity 0.15s;
+}
+.sf-clear-all:hover { opacity: 0.7; }
+.basic-filters-panel {
+  display: none;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 2px;
+  padding: 12px 20px; margin-bottom: 20px;
+}
+.basic-filters-panel.open { display: block; }
+.bf-row {
+  display: flex; align-items: center; gap: 12px;
+}
+
+/* Date Range chip */
+.filter-chip {
+  position: relative;
+  padding: 6px 16px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px;
   border: 1px solid var(--border2); background: var(--surface2); color: var(--muted2);
   cursor: pointer; transition: all 0.12s;
   clip-path: polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%);
 }
-.preset-btn:hover  { color:var(--text); border-color:var(--muted); }
-.preset-btn.active { background:rgba(79,255,176,0.1); border-color:var(--accent); color:var(--accent); }
+.filter-chip:hover { color: var(--text); border-color: var(--muted); }
+.filter-chip.active { background: rgba(79,255,176,0.1); border-color: var(--accent); color: var(--accent); }
+
+/* Date Range dropdown */
+.date-range-dropdown {
+  display: none; position: absolute; top: 100%; left: 0; z-index: 50;
+  margin-top: 6px; background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 2px; box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+  padding: 16px; min-width: 420px;
+}
+.date-range-dropdown.open { display: flex; gap: 20px; }
+
+/* Mini calendar */
+.dr-calendar { flex: 1; min-width: 230px; }
+.dr-cal-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.dr-cal-nav button {
+  background: none; border: 1px solid var(--border2); color: var(--muted2);
+  cursor: pointer; padding: 2px 8px; font-size: 13px; font-weight: 700;
+  font-family: 'Inter', sans-serif; transition: all 0.12s;
+}
+.dr-cal-nav button:hover { color: var(--text); border-color: var(--muted); }
+.dr-cal-label {
+  font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600;
+  letter-spacing: 0.5px; color: var(--text);
+}
+.dr-cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center;
+}
+.dr-cal-grid .dr-hdr {
+  font-size: 9px; letter-spacing: 1px; color: var(--muted);
+  font-family: 'Inter', sans-serif; padding: 4px 0;
+}
+.dr-cal-grid .dr-day {
+  font-size: 11px; font-family: 'Inter', sans-serif;
+  padding: 5px 0; cursor: pointer; border-radius: 2px;
+  color: var(--muted2); transition: all 0.1s; border: 1px solid transparent;
+}
+.dr-cal-grid .dr-day:hover { background: var(--surface2); color: var(--text); }
+.dr-cal-grid .dr-day.in-range { background: rgba(79,255,176,0.08); }
+.dr-cal-grid .dr-day.range-start,
+.dr-cal-grid .dr-day.range-end {
+  background: rgba(79,255,176,0.2); color: var(--accent); border-color: var(--accent);
+}
+.dr-cal-grid .dr-day.dr-empty { visibility: hidden; cursor: default; }
+
+/* Presets list */
+.dr-presets {
+  display: flex; flex-direction: column; gap: 2px; min-width: 130px;
+  border-left: 1px solid var(--border2); padding-left: 16px;
+}
+.dr-preset-item {
+  background: none; border: none; text-align: left; cursor: pointer;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.5px;
+  color: var(--muted2); padding: 6px 10px; border-radius: 2px; transition: all 0.12s;
+}
+.dr-preset-item:hover { background: var(--surface2); color: var(--text); }
+.dr-preset-item.active { color: var(--accent); background: rgba(79,255,176,0.08); }
+
 .date-input {
   background: var(--surface2); border: 1px solid var(--border2); color: var(--text);
   padding: 5px 10px; font-family: var(--font-mono); font-size:11px; border-radius:1px; cursor:pointer;
 }
 .date-input:focus { outline:none; border-color:var(--accent); }
-.filter-sep { width:1px;height:20px;background:var(--border2);flex-shrink:0; }
 
 .win-bar { display:inline-block;height:4px;background:var(--border2);width:56px;vertical-align:middle;border-radius:2px;position:relative;overflow:hidden; }
 .win-bar-fill { position:absolute;left:0;top:0;bottom:0;background:var(--green);border-radius:2px; }
@@ -50,138 +157,351 @@
 .modal h3 { font-family:var(--font-display);font-size:22px;letter-spacing:2px;color:var(--red);margin-bottom:8px; }
 .modal p  { color:var(--muted2);font-size:12px;line-height:1.6;margin-bottom:24px; }
 .modal-actions { display:flex;gap:8px;justify-content:flex-end; }
+
+/* ── View Toggle (segmented control) ──────────────────────────────────────── */
+.view-toggle-bar {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+}
+.seg-control {
+  display: inline-flex; position: relative;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 2px;
+  padding: 0; gap: 0; overflow: hidden;
+}
+.seg-btn {
+  position: relative; z-index: 1;
+  padding: 7px 22px; border: none; background: transparent; cursor: pointer;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--muted2);
+  transition: all 0.15s; white-space: nowrap;
+}
+.seg-btn:hover { color: var(--text); background: var(--surface2); }
+.seg-btn.active {
+  background: rgba(79,255,176,0.1); color: var(--accent);
+}
+[data-theme="paper"] .seg-btn.active {
+  background: rgba(13,124,62,0.08); color: var(--accent);
+}
+
+/* ── Calendar Styles (from analytics) ─────────────────────────────────────── */
+.cal-top-kpis {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px;
+}
+.cal-kpi-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 2px;
+  padding: 16px 20px; display: flex; flex-direction: column; gap: 4px;
+  min-height: 0; overflow: hidden;
+}
+.cal-kpi-label {
+  font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); font-family: 'Inter', sans-serif; font-weight: 500;
+}
+.cal-kpi-value {
+  font-size: 22px; font-weight: 700; font-family: 'Inter', sans-serif;
+  letter-spacing: -0.5px; line-height: 1.2;
+}
+.cal-kpi-sub {
+  font-size: 10px; color: var(--muted); font-family: 'Inter', sans-serif;
+  letter-spacing: 0.3px;
+}
+.cal-kpi-spark { height: 32px; max-height: 32px; margin-top: 4px; display: block; }
+.cal-kpi-gauge { width: 56px; height: 56px; margin: 4px auto 0; position: relative; }
+.cal-kpi-gauge-label {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  font-size: 13px; font-weight: 700; font-family: 'Inter', sans-serif;
+}
+.cal-kpi-bar-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.cal-kpi-bar-track {
+  flex: 1; height: 8px; border-radius: 2px; overflow: hidden;
+  display: flex; background: var(--surface2);
+}
+.cal-kpi-bar-fill { height: 100%; }
+.cal-kpi-bar-label { font-size: 9px; font-family: 'Inter', sans-serif; color: var(--muted); white-space: nowrap; }
+
+.cal-layout {
+  display: grid; grid-template-columns: 1fr 260px; gap: 12px;
+}
+.cal-main {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 2px;
+  padding: 16px 20px; overflow-x: auto;
+}
+.cal-nav {
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  margin-bottom: 16px;
+}
+.cal-nav button {
+  padding: 5px 14px; font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700;
+  border: 1px solid var(--border2); background: var(--surface2); color: var(--muted2);
+  cursor: pointer; transition: all 0.12s;
+  clip-path: polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%);
+}
+.cal-nav button:hover { color: var(--text); border-color: var(--muted); }
+#cal-month-label {
+  font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 1px;
+  color: var(--text); min-width: 160px; text-align: center;
+}
+.cal-table {
+  width: 100%; border-collapse: collapse; table-layout: fixed;
+}
+.cal-table th {
+  font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--muted); padding: 6px 4px; text-align: center;
+  font-family: 'Inter', sans-serif; font-weight: 500; border-bottom: 1px solid var(--border);
+}
+.cal-table th:last-child { background: var(--surface2); }
+.cal-table { border-spacing: 6px; border-collapse: separate; }
+.cal-table td {
+  height: 90px; vertical-align: top; padding: 6px 8px;
+  border: none; border-radius: 10px; font-family: 'Inter', sans-serif;
+  transition: background 0.12s, filter 0.12s;
+  background: var(--surface);
+}
+.cal-table td.cal-empty { background: transparent; }
+[data-theme="paper"] .cal-table td.cal-day:not(.has-data) { background: #F8F9FB; }
+.cal-table td.cal-day { cursor: default; }
+.cal-table td.cal-day.has-data { cursor: pointer; }
+.cal-table td.cal-day.has-data:hover { filter: brightness(1.2); }
+.cal-table td.cal-week-total {
+  background: var(--surface2); vertical-align: middle; text-align: center;
+  font-weight: 600; font-size: 12px;
+}
+.cal-day-num { font-size: 10px; color: var(--muted); margin-bottom: 6px; display: block; }
+.cal-day-pnl { font-size: 13px; font-weight: 600; letter-spacing: 0.3px; text-align: center; }
+.cal-day-count { font-size: 9px; color: var(--muted); letter-spacing: 0.5px; margin-top: 2px; text-align: center; }
+
+.cal-eval-panel {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 2px;
+  padding: 20px; display: flex; flex-direction: column; gap: 0;
+}
+.cal-eval-title {
+  font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 16px;
+}
+.cal-eval-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+  font-size: 11px;
+}
+.cal-eval-row:last-child { border-bottom: none; }
+.cal-eval-label { color: var(--muted2); font-family: 'Inter', sans-serif; font-weight: 500; }
+.cal-eval-value { font-family: 'Inter', sans-serif; font-weight: 600; color: var(--text); }
+
+/* ── Calendar light-theme overrides ───────────────────────────────────────── */
+[data-theme="paper"] .cal-kpi-label { font-weight: 600; }
+[data-theme="paper"] .cal-kpi-value { font-weight: 800; }
+[data-theme="paper"] .cal-kpi-sub { font-weight: 500; }
+[data-theme="paper"] #cal-month-label { font-weight: 800; }
+[data-theme="paper"] .cal-table th { font-weight: 600; }
+[data-theme="paper"] .cal-table td { font-weight: 500; }
+[data-theme="paper"] .cal-day-pnl { font-weight: 700; }
+[data-theme="paper"] .cal-eval-title { font-weight: 800; }
+[data-theme="paper"] .cal-eval-label { font-weight: 600; }
+[data-theme="paper"] .cal-eval-value { font-weight: 700; }
+[data-theme="paper"] .cal-kpi-gauge-label { font-weight: 800; }
+[data-theme="paper"] .cal-kpi-bar-label { font-weight: 500; }
+
+@media (max-width: 900px) {
+  .cal-top-kpis { grid-template-columns: repeat(2, 1fr); }
+  .cal-layout { grid-template-columns: 1fr; }
+}
 {% endblock %}
 
 {% block content %}
-<!-- Header -->
-<div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:24px;">
-  <div>
-    <div class="page-title">Trade Journal</div>
-    <div class="page-sub">ES Futures · Discretionary · Market Profile
-      {% if account_id %}<span id="port-label-header" style="margin-left:8px;"></span>{% endif %}
+<!-- Basic Filters -->
+<form id="filter-form" method="get" action="/">
+  <input type="hidden" name="account" id="f-account" value="{{ account_id or '' }}">
+  <input type="hidden" name="preset"  id="f-preset"  value="{{ preset }}">
+  <input type="hidden" name="from"    id="f-from"    value="{{ date_from }}">
+  <input type="hidden" name="to"      id="f-to"      value="{{ date_to }}">
+</form>
+
+<div class="basic-filters-header">
+  <button class="basic-filters-toggle" id="bf-toggle" onclick="toggleBasicFilters()">
+    <span class="bf-chevron" id="bf-chevron">&#9656;</span>
+    Basic Filters
+    <span class="bf-badge" id="bf-badge" style="display:none;">0</span>
+  </button>
+  <div style="flex:1;"></div>
+  <button class="btn btn-ghost" title="Add day"
+    style="padding:4px 10px;font-size:14px;" onclick="document.getElementById('add-day-modal').classList.add('show')">+</button>
+</div>
+
+<div class="basic-filters-panel" id="bf-panel">
+  <div class="bf-row">
+    <div class="seg-control" id="seg-control">
+      <button class="seg-btn active" id="seg-calendar" onclick="setView('calendar')">Calendar</button>
+      <button class="seg-btn" id="seg-report" onclick="setView('report')">Report</button>
     </div>
-  </div>
-  {% if days %}
-  <div class="stat-grid">
-    <div class="stat-block">
-      <div class="stat-label">Days Shown</div>
-      <div class="stat-value">{{ days|length }}</div>
-    </div>
-    <div class="stat-block">
-      <div class="stat-label">Trades</div>
-      <div class="stat-value">{{ days|sum(attribute='trade_count') }}</div>
-    </div>
-    <div class="stat-block">
-      <div class="stat-label">Net P&L</div>
-      {% set total = days|sum(attribute='total_pnl') %}
-      <div class="stat-value {{ 'pnl-pos' if total >= 0 else 'pnl-neg' }}">
-        {{ '+' if total >= 0 else '' }}${{ '%.2f'|format(total or 0) }}
+    <div style="position:relative;" id="dr-wrap">
+      <button type="button" class="filter-chip {{ 'active' if preset and preset != 'all' }}" id="dr-chip" onclick="toggleDateRange()">
+        Date Range ▾
+      </button>
+      <div class="date-range-dropdown" id="dr-dropdown">
+        <div class="dr-calendar">
+          <div class="dr-cal-nav">
+            <button id="dr-prev">&#8249;</button>
+            <span class="dr-cal-label" id="dr-cal-label"></span>
+            <button id="dr-next">&#8250;</button>
+          </div>
+          <div class="dr-cal-grid" id="dr-cal-grid"></div>
+          <div style="margin-top:10px;display:flex;align-items:center;gap:8px;font-size:10px;font-family:var(--font-mono);color:var(--muted2);">
+            <span id="dr-range-display">Click a date or select a preset</span>
+            <button type="button" class="btn btn-ghost" id="dr-apply-btn" style="padding:3px 12px;font-size:9px;margin-left:auto;display:none;" onclick="applyDateRange()">Apply</button>
+          </div>
+        </div>
+        <div class="dr-presets">
+          <button class="dr-preset-item {{ 'active' if preset=='today' }}" onclick="setPreset('today')">Today</button>
+          <button class="dr-preset-item {{ 'active' if preset=='week' }}" onclick="setPreset('week')">Current Week</button>
+          <button class="dr-preset-item {{ 'active' if preset=='month' }}" onclick="setPreset('month')">Current Month</button>
+          <button class="dr-preset-item {{ 'active' if preset=='year' }}" onclick="setPreset('year')">Current Year</button>
+          <div style="height:1px;background:var(--border2);margin:4px 0;"></div>
+          <button class="dr-preset-item {{ 'active' if preset=='yesterday' }}" onclick="setPreset('yesterday')">Yesterday</button>
+          <button class="dr-preset-item {{ 'active' if preset=='lastweek' }}" onclick="setPreset('lastweek')">Last Week</button>
+          <button class="dr-preset-item {{ 'active' if preset=='lastmonth' }}" onclick="setPreset('lastmonth')">Last Month</button>
+          <button class="dr-preset-item {{ 'active' if preset=='lastyear' }}" onclick="setPreset('lastyear')">Last Year</button>
+        </div>
       </div>
     </div>
   </div>
+  <div class="selected-filters-bar" id="sf-bar" style="display:none;">
+    <span class="sf-label">Selected Filters:</span>
+    <div class="sf-chips" id="sf-chips"></div>
+    <button class="sf-clear-all" onclick="clearAllFilters()">🗑 Clear all</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!--  CALENDAR VIEW                                                            -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div id="view-calendar">
+  <!-- Top KPI Cards -->
+  <div class="cal-top-kpis">
+    <div class="cal-kpi-card" id="cal-kpi-net">
+      <div class="cal-kpi-label">Net Return</div>
+      <div class="cal-kpi-value" id="cal-kpi-net-val">—</div>
+      <div class="cal-kpi-sub" id="cal-kpi-net-sub"></div>
+      <canvas class="cal-kpi-spark" id="cal-kpi-spark"></canvas>
+    </div>
+    <div class="cal-kpi-card" id="cal-kpi-winrate">
+      <div class="cal-kpi-label">Winrate</div>
+      <div class="cal-kpi-gauge" id="cal-gauge-wrap">
+        <svg viewBox="0 0 56 56" id="cal-gauge-svg"></svg>
+        <div class="cal-kpi-gauge-label" id="cal-gauge-label">—</div>
+      </div>
+      <div class="cal-kpi-sub" id="cal-kpi-wr-sub" style="text-align:center;"></div>
+    </div>
+    <div class="cal-kpi-card" id="cal-kpi-avgpnl">
+      <div class="cal-kpi-label">Avg P&L</div>
+      <div class="cal-kpi-value" id="cal-kpi-avg-val">—</div>
+      <div class="cal-kpi-bar-row">
+        <div class="cal-kpi-bar-track" id="cal-kpi-bar-track">
+          <div class="cal-kpi-bar-fill" id="cal-bar-win" style="background:var(--green);"></div>
+          <div class="cal-kpi-bar-fill" id="cal-bar-loss" style="background:var(--red);"></div>
+        </div>
+        <div class="cal-kpi-bar-label" id="cal-bar-label"></div>
+      </div>
+      <div class="cal-kpi-sub" id="cal-kpi-avg-sub"></div>
+    </div>
+    <div class="cal-kpi-card" id="cal-kpi-pf">
+      <div class="cal-kpi-label">Profit Factor</div>
+      <div class="cal-kpi-value" id="cal-kpi-pf-val">—</div>
+      <div class="cal-kpi-sub" id="cal-kpi-pf-sub"></div>
+    </div>
+  </div>
+
+  <!-- Calendar + Evaluation layout -->
+  <div class="cal-layout">
+    <div class="cal-main">
+      <div class="cal-nav">
+        <button id="cal-prev">&#8249;</button>
+        <span id="cal-month-label">—</span>
+        <button id="cal-next">&#8250;</button>
+      </div>
+      <table class="cal-table">
+        <thead><tr><th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Total</th></tr></thead>
+        <tbody id="cal-body"></tbody>
+      </table>
+    </div>
+    <div class="cal-eval-panel" id="cal-eval"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!--  REPORT VIEW (table)                                                      -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div id="view-report" style="display:none;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+    <h2>Trading Days</h2>
+    <span style="color:var(--muted);font-size:10px;letter-spacing:1.5px;">{% if days %}{{ days|length }} DAYS{% endif %}</span>
+  </div>
+
+  {% if days %}
+  <div class="card" style="overflow-x:auto;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Trades</th>
+          <th>Score</th>
+          <th>Net P&L</th>
+          <th>Win Rate</th>
+          <th>Record</th>
+          <th style="text-align:right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for day in days %}
+        {% set wr  = (day.wins / day.trade_count * 100)|round|int if day.trade_count else 0 %}
+        {% set pnl = day.total_pnl or 0 %}
+        <tr id="row-{{ day.id }}">
+          <td>
+            <a href="/day/{{ day.id }}" class="link" style="font-size:14px;font-weight:500;">{{ day.date }}</a>
+          </td>
+          <td style="color:var(--text);">{{ day.trade_count }}</td>
+          <td>
+            {% set gpct = day.grade_pct %}
+            {% if gpct is not none %}
+            {% set gcolor = '#00e676' if gpct >= 85 else '#ffaa00' if gpct >= 70 else '#ff4d4d' %}
+            <span style="display:inline-block;padding:2px 8px;border-radius:2px;font-size:10px;font-weight:600;
+              background:{{ gcolor }}22;color:{{ gcolor }};border:1px solid {{ gcolor }}40;font-family:'Inter',sans-serif;">
+              {{ gpct }}%
+            </span>
+            {% else %}
+            <span style="color:var(--border2);font-size:11px;">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="{{ 'pnl-pos' if pnl >= 0 else 'pnl-neg' }}" style="font-size:14px;">
+              {{ '+' if pnl >= 0 else '' }}${{ '%.2f'|format(pnl) }}
+            </span>
+          </td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="{{ 'pnl-pos' if wr >= 50 else 'pnl-neg' }}">{{ wr }}%</span>
+              <span class="win-bar"><span class="win-bar-fill" style="width:{{ wr }}%"></span></span>
+            </div>
+          </td>
+          <td style="color:var(--muted);">{{ day.wins }}/{{ day.trade_count }} W</td>
+          <td style="text-align:right;">
+            <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end;">
+              <a href="/day/{{ day.id }}" class="btn btn-ghost" style="padding:5px 12px;font-size:10px;">View →</a>
+              <button class="del-btn" onclick="confirmDelete({{ day.id }}, '{{ day.date }}')" title="Delete day">🗑</button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">📊</div>
+    <div class="empty-title">No trading days in this range</div>
+    <p style="font-size:12px;margin-bottom:20px;">
+      Import a fills CSV above, add a day with the + button, or widen your date range.
+    </p>
+  </div>
   {% endif %}
 </div>
-
-<!-- Date Filter Bar -->
-<form id="filter-form" method="get" action="/">
-  <input type="hidden" name="account" id="f-account" value="{{ account_id or '' }}">
-  <input type="hidden" name="preset"    id="f-preset"    value="{{ preset }}">
-  <div class="filter-bar">
-    <span class="filter-label">Period</span>
-    <div class="filter-presets">
-      <button type="button" class="preset-btn {{ 'active' if preset=='7d'  }}" onclick="setPreset('7d')">7D</button>
-      <button type="button" class="preset-btn {{ 'active' if preset=='30d' }}" onclick="setPreset('30d')">30D</button>
-      <button type="button" class="preset-btn {{ 'active' if preset=='90d' }}" onclick="setPreset('90d')">90D</button>
-      <button type="button" class="preset-btn {{ 'active' if preset=='ytd' }}" onclick="setPreset('ytd')">YTD</button>
-      <button type="button" class="preset-btn {{ 'active' if preset=='all' }}" onclick="setPreset('all')">All</button>
-    </div>
-    <div class="filter-sep"></div>
-    <span class="filter-label">Custom</span>
-    <input type="date" class="date-input" id="f-from" name="from" value="{{ date_from }}" onchange="setPreset('custom')">
-    <span style="color:var(--muted);font-size:11px;">to</span>
-    <input type="date" class="date-input" id="f-to"   name="to"   value="{{ date_to }}"   onchange="setPreset('custom')">
-    <button type="submit" class="btn btn-ghost" style="padding:5px 14px;font-size:10px;margin-left:auto;">Apply</button>
-  </div>
-</form>
-
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-  <div style="display:flex;align-items:center;gap:10px;">
-    <h2>Trading Days</h2>
-    <button class="btn btn-ghost" id="add-day-btn" title="Add day"
-      style="padding:4px 10px;font-size:14px;" onclick="document.getElementById('add-day-modal').classList.add('show')">+</button>
-  </div>
-  <span style="color:var(--muted);font-size:10px;letter-spacing:1.5px;">{% if days %}{{ days|length }} DAYS{% endif %}</span>
-</div>
-
-{% if days %}
-
-<div class="card" style="overflow-x:auto;">
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th>Date</th>
-        <th>Trades</th>
-        <th>Score</th>
-        <th>Net P&L</th>
-        <th>Win Rate</th>
-        <th>Record</th>
-        <th style="text-align:right;">Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for day in days %}
-      {% set wr  = (day.wins / day.trade_count * 100)|round|int if day.trade_count else 0 %}
-      {% set pnl = day.total_pnl or 0 %}
-      <tr id="row-{{ day.id }}">
-        <td>
-          <a href="/day/{{ day.id }}" class="link" style="font-size:14px;font-weight:500;">{{ day.date }}</a>
-        </td>
-        <td style="color:var(--text);">{{ day.trade_count }}</td>
-        <td>
-          {% set gpct = day.grade_pct %}
-          {% if gpct is not none %}
-          {% set gcolor = '#00e676' if gpct >= 85 else '#ffaa00' if gpct >= 70 else '#ff4d4d' %}
-          <span style="display:inline-block;padding:2px 8px;border-radius:2px;font-size:10px;font-weight:600;
-            background:{{ gcolor }}22;color:{{ gcolor }};border:1px solid {{ gcolor }}40;font-family:'Inter',sans-serif;">
-            {{ gpct }}%
-          </span>
-          {% else %}
-          <span style="color:var(--border2);font-size:11px;">—</span>
-          {% endif %}
-        </td>
-        <td>
-          <span class="{{ 'pnl-pos' if pnl >= 0 else 'pnl-neg' }}" style="font-size:14px;">
-            {{ '+' if pnl >= 0 else '' }}${{ '%.2f'|format(pnl) }}
-          </span>
-        </td>
-        <td>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span class="{{ 'pnl-pos' if wr >= 50 else 'pnl-neg' }}">{{ wr }}%</span>
-            <span class="win-bar"><span class="win-bar-fill" style="width:{{ wr }}%"></span></span>
-          </div>
-        </td>
-        <td style="color:var(--muted);">{{ day.wins }}/{{ day.trade_count }} W</td>
-        <td style="text-align:right;">
-          <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end;">
-            <a href="/day/{{ day.id }}" class="btn btn-ghost" style="padding:5px 12px;font-size:10px;">View →</a>
-            <button class="del-btn" onclick="confirmDelete({{ day.id }}, '{{ day.date }}')" title="Delete day">🗑</button>
-          </div>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-
-{% else %}
-<div class="empty-state">
-  <div class="empty-icon">📊</div>
-  <div class="empty-title">No trading days in this range</div>
-  <p style="font-size:12px;margin-bottom:20px;">
-    Import a fills CSV above, add a day with the + button, or widen your date range.
-  </p>
-</div>
-{% endif %}
 
 <!-- Add Day Modal -->
 <div class="modal-overlay" id="add-day-modal">
@@ -219,10 +539,14 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
   const TODAY = '{{ today }}';
+  const CAL_DATA = {{ calendar_json|safe }};
 
-  // Keep the f-account hidden input in sync with nav selector
+  // ══════════════════════════════════════════════════════════════════════════
+  //  ACCOUNT SYNC
+  // ══════════════════════════════════════════════════════════════════════════
   document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
       const active = getActiveAccount();
@@ -230,36 +554,509 @@
     }, 150);
   });
 
-  // Also update when account changes via nav
   const _base = window.setGlobalAccount;
   window.setGlobalAccount = function(id) {
     if (_base) _base(id);
     document.getElementById('f-account').value = id;
   };
 
-  // Date presets
+  // ══════════════════════════════════════════════════════════════════════════
+  //  VIEW TOGGLE (segmented control)
+  // ══════════════════════════════════════════════════════════════════════════
+  function setView(view) {
+    const isReport = view === 'report';
+    document.getElementById('view-calendar').style.display = isReport ? 'none' : '';
+    document.getElementById('view-report').style.display   = isReport ? '' : 'none';
+    document.getElementById('seg-calendar').classList.toggle('active', !isReport);
+    document.getElementById('seg-report').classList.toggle('active', isReport);
+    localStorage.setItem('index-view', view);
+  }
+
+  // Restore saved preference
+  (function() {
+    const saved = localStorage.getItem('index-view');
+    if (saved === 'report') {
+      setView('report');
+    }
+  })();
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  BASIC FILTERS TOGGLE
+  // ══════════════════════════════════════════════════════════════════════════
+  function toggleBasicFilters() {
+    const panel = document.getElementById('bf-panel');
+    const chevron = document.getElementById('bf-chevron');
+    const isOpen = panel.classList.toggle('open');
+    chevron.classList.toggle('open', isOpen);
+    localStorage.setItem('basic-filters-open', isOpen ? '1' : '0');
+  }
+
+  // Restore saved state
+  (function() {
+    const saved = localStorage.getItem('basic-filters-open');
+    if (saved === '1') {
+      document.getElementById('bf-panel').classList.add('open');
+      document.getElementById('bf-chevron').classList.add('open');
+    }
+  })();
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  DATE RANGE DROPDOWN
+  // ══════════════════════════════════════════════════════════════════════════
+  let drYear, drMonth; // mini calendar state
+  let drRangeStart = null, drRangeEnd = null; // selected range
+
+  function toggleDateRange() {
+    const dd = document.getElementById('dr-dropdown');
+    const isOpen = dd.classList.toggle('open');
+    if (isOpen && !drYear) {
+      const now = new Date(TODAY);
+      drYear = now.getFullYear();
+      drMonth = now.getMonth();
+      renderDRCalendar();
+      initDRNav();
+    }
+  }
+
+  // Close dropdown on outside click
+  document.addEventListener('click', function(e) {
+    const wrap = document.getElementById('dr-wrap');
+    if (wrap && !wrap.contains(e.target)) {
+      document.getElementById('dr-dropdown').classList.remove('open');
+    }
+  });
+
+  function initDRNav() {
+    document.getElementById('dr-prev').onclick = function(e) {
+      e.stopPropagation();
+      drMonth--;
+      if (drMonth < 0) { drMonth = 11; drYear--; }
+      renderDRCalendar();
+    };
+    document.getElementById('dr-next').onclick = function(e) {
+      e.stopPropagation();
+      drMonth++;
+      if (drMonth > 11) { drMonth = 0; drYear++; }
+      renderDRCalendar();
+    };
+  }
+
+  function renderDRCalendar() {
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    document.getElementById('dr-cal-label').textContent = `${monthNames[drMonth]} ${drYear}`;
+    const grid = document.getElementById('dr-cal-grid');
+    const headers = ['S','M','T','W','T','F','S'];
+    let html = headers.map(h => `<span class="dr-hdr">${h}</span>`).join('');
+
+    const firstDow = new Date(drYear, drMonth, 1).getDay();
+    const daysInMonth = new Date(drYear, drMonth + 1, 0).getDate();
+
+    for (let i = 0; i < firstDow; i++) {
+      html += '<span class="dr-day dr-empty"></span>';
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${drYear}-${String(drMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      let cls = 'dr-day';
+      if (drRangeStart && drRangeEnd) {
+        const s = drRangeStart <= drRangeEnd ? drRangeStart : drRangeEnd;
+        const e = drRangeStart <= drRangeEnd ? drRangeEnd : drRangeStart;
+        if (dateStr === s) cls += ' range-start';
+        if (dateStr === e) cls += ' range-end';
+        if (dateStr > s && dateStr < e) cls += ' in-range';
+        if (s === e && dateStr === s) cls += ' range-start range-end';
+      } else if (drRangeStart && dateStr === drRangeStart) {
+        cls += ' range-start';
+      }
+      html += `<span class="${cls}" data-date="${dateStr}" onclick="pickDRDate('${dateStr}')">${d}</span>`;
+    }
+    grid.innerHTML = html;
+  }
+
+  function pickDRDate(dateStr) {
+    if (!drRangeStart || (drRangeStart && drRangeEnd)) {
+      // Start new selection
+      drRangeStart = dateStr;
+      drRangeEnd = null;
+      document.getElementById('dr-range-display').textContent = dateStr;
+      document.getElementById('dr-apply-btn').style.display = 'inline-block';
+    } else {
+      // Complete the range
+      drRangeEnd = dateStr;
+      const s = drRangeStart <= drRangeEnd ? drRangeStart : drRangeEnd;
+      const e = drRangeStart <= drRangeEnd ? drRangeEnd : drRangeStart;
+      drRangeStart = s;
+      drRangeEnd = e;
+      document.getElementById('dr-range-display').textContent = `${s} → ${e}`;
+      document.getElementById('dr-apply-btn').style.display = 'inline-block';
+    }
+    renderDRCalendar();
+  }
+
+  function applyDateRange() {
+    const from = drRangeStart;
+    const to = drRangeEnd || drRangeStart;
+    document.getElementById('f-preset').value = 'custom';
+    document.getElementById('f-from').value = from;
+    document.getElementById('f-to').value = to;
+    document.getElementById('filter-form').submit();
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  DATE PRESETS
+  // ══════════════════════════════════════════════════════════════════════════
   function setPreset(p) {
     document.getElementById('f-preset').value = p;
     const now = new Date(TODAY);
     let from, to = TODAY;
-    if      (p === '7d')  { from = off(now, -7); }
-    else if (p === '30d') { from = off(now, -30); }
-    else if (p === '90d') { from = off(now, -90); }
-    else if (p === 'ytd') { from = `${now.getFullYear()}-01-01`; }
-    else if (p === 'all') { from = '2000-01-01'; to = '2099-12-31'; }
-    else                  { return; }
+    if      (p === 'all')       { from = '2000-01-01'; to = '2099-12-31'; }
+    else if (p === 'today')     { from = TODAY; }
+    else if (p === 'yesterday') { from = off(now, -1); to = off(now, -1); }
+    else if (p === 'week')      { const d = new Date(now); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); from = d.toISOString().slice(0,10); }
+    else if (p === 'month')     { from = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`; }
+    else if (p === 'year')      { from = `${now.getFullYear()}-01-01`; }
+    else if (p === 'lastweek')  {
+      const d = new Date(now);
+      d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - 7);
+      from = d.toISOString().slice(0,10);
+      const e = new Date(d); e.setDate(e.getDate() + 6);
+      to = e.toISOString().slice(0,10);
+    }
+    else if (p === 'lastmonth') {
+      const y = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+      const m = now.getMonth() === 0 ? 12 : now.getMonth();
+      from = `${y}-${String(m).padStart(2,'0')}-01`;
+      to = `${y}-${String(m).padStart(2,'0')}-${new Date(y, m, 0).getDate()}`;
+    }
+    else if (p === 'lastyear')  {
+      const y = now.getFullYear() - 1;
+      from = `${y}-01-01`;
+      to = `${y}-12-31`;
+    }
+    else { return; }
     document.getElementById('f-from').value = from;
     document.getElementById('f-to').value   = to;
-    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-    const btn = document.querySelector(`.preset-btn[onclick="setPreset('${p}')"]`);
-    if (btn) btn.classList.add('active');
     document.getElementById('filter-form').submit();
   }
   function off(d, days) {
     const n = new Date(d); n.setDate(n.getDate() + days); return n.toISOString().slice(0,10);
   }
 
-  // Delete
+  // ══════════════════════════════════════════════════════════════════════════
+  //  FILTER BADGE & SELECTED FILTERS BAR
+  // ══════════════════════════════════════════════════════════════════════════
+  const PRESET_LABELS = {
+    today: 'Today', yesterday: 'Yesterday',
+    week: 'Current Week', month: 'Current Month', year: 'Current Year',
+    lastweek: 'Last Week', lastmonth: 'Last Month', lastyear: 'Last Year',
+    '30d': 'Last 30 Days', '90d': 'Last 90 Days', custom: 'Custom'
+  };
+
+  function getActiveFilters() {
+    const preset = '{{ preset }}';
+    const filters = [];
+    if (preset !== 'all') {
+      const label = PRESET_LABELS[preset] || preset;
+      const dateFrom = '{{ date_from }}';
+      const dateTo   = '{{ date_to }}';
+      const display = preset === 'custom'
+        ? `Dates: ${dateFrom} – ${dateTo}`
+        : `Dates: ${label}`;
+      filters.push({ type: 'date', display });
+    }
+    return filters;
+  }
+
+  function updateFilterBadge() {
+    const filters = getActiveFilters();
+    const badge = document.getElementById('bf-badge');
+    if (filters.length > 0) {
+      badge.textContent = filters.length;
+      badge.style.display = '';
+    } else {
+      badge.style.display = 'none';
+    }
+    renderSelectedFilters(filters);
+  }
+
+  function renderSelectedFilters(filters) {
+    const bar = document.getElementById('sf-bar');
+    const chips = document.getElementById('sf-chips');
+    if (!filters.length) { bar.style.display = 'none'; return; }
+    bar.style.display = '';
+    chips.innerHTML = filters.map(f =>
+      `<span class="sf-chip">${f.display}<button class="sf-chip-x" onclick="removeFilter('${f.type}')">&times;</button></span>`
+    ).join('');
+  }
+
+  function removeFilter(type) {
+    if (type === 'date') clearAllFilters();
+  }
+
+  function clearAllFilters() {
+    document.getElementById('f-preset').value = 'all';
+    document.getElementById('f-from').value = '2000-01-01';
+    document.getElementById('f-to').value = '2099-12-31';
+    document.getElementById('filter-form').submit();
+  }
+
+  updateFilterBadge();
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  CALENDAR
+  // ══════════════════════════════════════════════════════════════════════════
+  function initCalendar() {
+    const body = document.getElementById('cal-body');
+    if (!body || !CAL_DATA || !CAL_DATA.length) return;
+
+    const monthNames = ['January','February','March','April','May','June',
+      'July','August','September','October','November','December'];
+    const pnlMap = {};
+    CAL_DATA.forEach(d => { pnlMap[d.date] = d; });
+
+    // Determine initial month: latest month with data
+    const dates = CAL_DATA.map(d => d.date).sort();
+    const lastDate = new Date(dates[dates.length-1]+'T00:00:00');
+    let calYear = lastDate.getFullYear(), calMonth = lastDate.getMonth();
+
+    let sparkChart = null;
+
+    function fmtDollar(v) {
+      const sign = v >= 0 ? '+' : '-';
+      return `${sign}$${Math.abs(v).toFixed(2)}`;
+    }
+    function fmtDollarShort(v) {
+      const sign = v >= 0 ? '+' : '-';
+      return `${sign}$${Math.abs(v).toFixed(0)}`;
+    }
+
+    function renderMonth() {
+      const label = document.getElementById('cal-month-label');
+      label.textContent = `${monthNames[calMonth]} ${calYear}`;
+
+      const prefix = `${calYear}-${String(calMonth+1).padStart(2,'0')}`;
+      const monthData = CAL_DATA.filter(d => d.date.startsWith(prefix));
+
+      // KPIs use full dataset (all data in selected timeframe), not just the visible month
+      const kpiData = CAL_DATA;
+
+      // Compute KPIs from full timeframe
+      const netPnl = kpiData.reduce((s,d) => s + d.pnl, 0);
+      const totalTrades = kpiData.reduce((s,d) => s + d.trades, 0);
+      const totalWins = kpiData.reduce((s,d) => s + d.wins, 0);
+      const winRate = totalTrades ? (totalWins / totalTrades * 100) : 0;
+      const avgPnl = totalTrades ? netPnl / totalTrades : 0;
+      const grossProfit = kpiData.reduce((s,d) => s + (d.pnl > 0 ? d.pnl : 0), 0);
+      const grossLoss = kpiData.reduce((s,d) => s + (d.pnl < 0 ? d.pnl : 0), 0);
+      const profitFactor = grossLoss !== 0 ? grossProfit / Math.abs(grossLoss) : grossProfit > 0 ? Infinity : 0;
+      const tradingDays = kpiData.filter(d => d.trades > 0).length;
+      const avgPerDay = tradingDays ? netPnl / tradingDays : 0;
+
+      const winDays = kpiData.filter(d => d.pnl > 0);
+      const lossDays = kpiData.filter(d => d.pnl < 0);
+      const avgWin = winDays.length ? winDays.reduce((s,d) => s + d.pnl, 0) / winDays.length : 0;
+      const avgLoss = lossDays.length ? lossDays.reduce((s,d) => s + d.pnl, 0) / lossDays.length : 0;
+
+      // ── Top KPI Cards ──
+      const netEl = document.getElementById('cal-kpi-net-val');
+      netEl.textContent = fmtDollar(netPnl);
+      netEl.style.color = netPnl >= 0 ? 'var(--green)' : 'var(--red)';
+      document.getElementById('cal-kpi-net-sub').textContent = `${tradingDays} trading day${tradingDays!==1?'s':''} · ${totalTrades} trades`;
+
+      // Sparkline
+      const sparkCanvas = document.getElementById('cal-kpi-spark');
+      const sortedDays = kpiData.slice().sort((a,b) => a.date.localeCompare(b.date));
+      let cumPnl = 0;
+      const cumData = sortedDays.map(d => { cumPnl += d.pnl; return cumPnl; });
+      if (sparkChart) sparkChart.destroy();
+      if (cumData.length > 1) {
+        sparkChart = new Chart(sparkCanvas, {
+          type: 'line',
+          data: {
+            labels: sortedDays.map(d => d.date.slice(8)),
+            datasets: [{
+              data: cumData,
+              borderColor: netPnl >= 0 ? '#34d399' : '#ff4d6d',
+              backgroundColor: netPnl >= 0 ? 'rgba(52,211,153,0.1)' : 'rgba(255,77,109,0.1)',
+              borderWidth: 1.5, pointRadius: 0, fill: true, tension: 0.3
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: { x: { display: false }, y: { display: false } }
+          }
+        });
+      } else {
+        sparkCanvas.getContext('2d').clearRect(0,0,sparkCanvas.width,sparkCanvas.height);
+      }
+
+      // Winrate gauge
+      const svg = document.getElementById('cal-gauge-svg');
+      const wr = Math.min(winRate, 100);
+      const r = 22, cx = 28, cy = 28, strokeW = 6;
+      const circumference = 2 * Math.PI * r;
+      const winArc = circumference * (wr / 100);
+      svg.innerHTML = `
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
+          stroke="rgba(255,77,109,0.35)" stroke-width="${strokeW}" />
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
+          stroke="#34d399" stroke-width="${strokeW}"
+          stroke-dasharray="${winArc} ${circumference - winArc}"
+          stroke-dashoffset="${circumference * 0.25}"
+          stroke-linecap="round" transform="rotate(-90 ${cx} ${cy})" />
+      `;
+      document.getElementById('cal-gauge-label').textContent = totalTrades ? `${wr.toFixed(0)}%` : '—';
+      document.getElementById('cal-kpi-wr-sub').textContent = totalTrades ? `${totalWins}W / ${totalTrades - totalWins}L` : '';
+
+      // Avg P&L + bar
+      const avgEl = document.getElementById('cal-kpi-avg-val');
+      avgEl.textContent = totalTrades ? fmtDollar(avgPnl) : '—';
+      avgEl.style.color = avgPnl >= 0 ? 'var(--green)' : 'var(--red)';
+      const totalAbsAvg = Math.abs(avgWin) + Math.abs(avgLoss);
+      const winPct = totalAbsAvg ? (Math.abs(avgWin) / totalAbsAvg * 100) : 50;
+      document.getElementById('cal-bar-win').style.width = winPct + '%';
+      document.getElementById('cal-bar-loss').style.width = (100 - winPct) + '%';
+      const ratio = avgLoss !== 0 ? (Math.abs(avgWin) / Math.abs(avgLoss)).toFixed(1) : '—';
+      document.getElementById('cal-bar-label').textContent = `${ratio}:1`;
+      document.getElementById('cal-kpi-avg-sub').textContent =
+        totalTrades ? `${fmtDollarShort(avgWin)} / ${fmtDollarShort(avgLoss)}` : '';
+
+      // Profit Factor
+      const pfEl = document.getElementById('cal-kpi-pf-val');
+      pfEl.textContent = profitFactor === Infinity ? '∞' : profitFactor.toFixed(2);
+      pfEl.style.color = profitFactor >= 1 ? 'var(--green)' : 'var(--red)';
+      document.getElementById('cal-kpi-pf-sub').textContent =
+        tradingDays ? `${fmtDollar(avgPerDay)} avg/day` : '';
+
+      // ── Calendar Table ──
+      const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+      const firstDow = new Date(calYear, calMonth, 1).getDay();
+      let maxAbsPnl = 0;
+      monthData.forEach(d => { const a = Math.abs(d.pnl); if (a > maxAbsPnl) maxAbsPnl = a; });
+
+      body.innerHTML = '';
+      let weekPnl = 0;
+      const totalWeeks = Math.ceil((firstDow + daysInMonth) / 7);
+
+      for (let w = 0; w < totalWeeks; w++) {
+        const tr = document.createElement('tr');
+        weekPnl = 0;
+        let weekTrades = 0;
+        let weekHasData = false;
+        for (let dow = 0; dow < 7; dow++) {
+          const td = document.createElement('td');
+          const cellDay = w * 7 + dow - firstDow + 1;
+          if (cellDay < 1 || cellDay > daysInMonth) {
+            td.className = 'cal-empty';
+            tr.appendChild(td);
+            continue;
+          }
+          td.className = 'cal-day';
+          const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(cellDay).padStart(2,'0')}`;
+          const data = pnlMap[dateStr];
+
+          const numSpan = document.createElement('span');
+          numSpan.className = 'cal-day-num';
+          numSpan.textContent = cellDay;
+          td.appendChild(numSpan);
+
+          if (data && data.trades > 0) {
+            td.classList.add('has-data');
+            weekHasData = true;
+            weekPnl += data.pnl;
+            weekTrades += data.trades;
+
+            const intensity = maxAbsPnl ? Math.min(Math.abs(data.pnl) / maxAbsPnl, 1) : 0;
+            const alpha = 0.08 + intensity * 0.22;
+            if (data.pnl > 0) {
+              td.style.background = `rgba(52,211,153,${alpha})`;
+            } else if (data.pnl < 0) {
+              td.style.background = `rgba(255,77,109,${alpha})`;
+            }
+
+            const pnlDiv = document.createElement('div');
+            pnlDiv.className = 'cal-day-pnl';
+            pnlDiv.textContent = fmtDollarShort(data.pnl);
+            pnlDiv.style.color = data.pnl > 0 ? '#34d399' : data.pnl < 0 ? '#ff4d6d' : 'var(--muted2)';
+            td.appendChild(pnlDiv);
+
+            const cntDiv = document.createElement('div');
+            cntDiv.className = 'cal-day-count';
+            cntDiv.textContent = `${data.trades} trade${data.trades !== 1 ? 's' : ''}`;
+            td.appendChild(cntDiv);
+
+            td.onclick = () => { window.location.href = `/day/${dateStr}`; };
+          }
+          tr.appendChild(td);
+        }
+        // Weekly total column
+        const totalTd = document.createElement('td');
+        totalTd.className = 'cal-week-total';
+        if (weekHasData) {
+          const pnlSpan = document.createElement('div');
+          pnlSpan.textContent = fmtDollarShort(weekPnl);
+          pnlSpan.style.color = weekPnl > 0 ? '#34d399' : weekPnl < 0 ? '#ff4d6d' : 'var(--muted2)';
+          totalTd.appendChild(pnlSpan);
+          const cntSpan = document.createElement('div');
+          cntSpan.className = 'cal-day-count';
+          cntSpan.textContent = `${weekTrades} trade${weekTrades !== 1 ? 's' : ''}`;
+          totalTd.appendChild(cntSpan);
+        }
+        tr.appendChild(totalTd);
+        body.appendChild(tr);
+      }
+
+      // ── Evaluation Sidebar ──
+      const evalPanel = document.getElementById('cal-eval');
+      const bestDay = monthData.length ? Math.max(...monthData.map(d => d.pnl)) : 0;
+      const worstDay = monthData.length ? Math.min(...monthData.map(d => d.pnl)) : 0;
+
+      const weeksWithTrades = new Set();
+      monthData.forEach(d => {
+        const dt = new Date(d.date+'T00:00:00');
+        const weekNum = Math.ceil((dt.getDate() + new Date(dt.getFullYear(), dt.getMonth(), 1).getDay()) / 7);
+        if (d.trades > 0) weeksWithTrades.add(weekNum);
+      });
+      const tradesPerWeek = weeksWithTrades.size ? (totalTrades / weeksWithTrades.size).toFixed(1) : '—';
+      const tradesPerDay = tradingDays ? (totalTrades / tradingDays).toFixed(1) : '—';
+
+      const rows = [
+        ['Total Trades', totalTrades],
+        ['Winning Days', winDays.length],
+        ['Losing Days', lossDays.length],
+        ['Best Day', bestDay !== 0 ? fmtDollar(bestDay) : '—'],
+        ['Worst Day', worstDay !== 0 ? fmtDollar(worstDay) : '—'],
+        ['Avg Hold Time', '—'],
+        ['Trades / Day', tradesPerDay],
+        ['Trades / Week', tradesPerWeek],
+      ];
+      evalPanel.innerHTML = `<div class="cal-eval-title">Monthly Evaluation</div>` +
+        rows.map(([lbl, val]) => {
+          let color = 'var(--text)';
+          if (lbl === 'Best Day' && typeof val === 'string' && val.startsWith('+')) color = 'var(--green)';
+          if (lbl === 'Worst Day' && typeof val === 'string' && val.startsWith('-')) color = 'var(--red)';
+          return `<div class="cal-eval-row"><span class="cal-eval-label">${lbl}</span><span class="cal-eval-value" style="color:${color}">${val}</span></div>`;
+        }).join('');
+    }
+
+    // Nav buttons
+    document.getElementById('cal-prev').onclick = () => {
+      calMonth--;
+      if (calMonth < 0) { calMonth = 11; calYear--; }
+      renderMonth();
+    };
+    document.getElementById('cal-next').onclick = () => {
+      calMonth++;
+      if (calMonth > 11) { calMonth = 0; calYear++; }
+      renderMonth();
+    };
+
+    renderMonth();
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  DELETE / CREATE DAY
+  // ══════════════════════════════════════════════════════════════════════════
   let pendingDeleteId = null;
   function confirmDelete(id, dateStr) {
     pendingDeleteId = id;
@@ -314,5 +1111,12 @@
       showToast('Network error', true);
     }
   }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  INIT
+  // ══════════════════════════════════════════════════════════════════════════
+  document.addEventListener('DOMContentLoaded', () => {
+    initCalendar();
+  });
 </script>
 {% endblock %}
