@@ -98,13 +98,13 @@
 
 /* ── MAIN AREA ── */
 .main-area {
-  display: flex; flex: 1; min-height: 0;
+  display: grid; grid-template-columns: 1.2fr 3fr 1fr;
+  width: 100vw; height: calc(100vh - 52px); min-height: 0;
   position: relative; z-index: 1;
 }
 
 /* ── LEFT: CONTEXT PANEL ── */
 .context-panel {
-  width: 260px; flex-shrink: 0;
   border-right: 1px solid var(--border);
   padding: 16px; overflow-y: auto;
   display: flex; flex-direction: column; gap: 14px;
@@ -147,7 +147,6 @@
 
 /* ── CENTER: POSITION LADDER ── */
 .ladder-container {
-  flex: 1; max-width: 620px;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   padding: 24px 20px; position: relative;
@@ -155,7 +154,7 @@
 }
 
 .ladder-wrapper {
-  width: 100%; max-width: 560px; position: relative;
+  width: 100%; position: relative;
 }
 
 /* Zone overlays */
@@ -306,7 +305,6 @@
 
 /* ── RIGHT: HEALTH & ACTIONS ── */
 .health-panel {
-  width: 220px; flex-shrink: 0;
   border-left: 1px solid var(--border);
   padding: 16px; overflow-y: auto;
   display: flex; flex-direction: column;
@@ -780,22 +778,33 @@
 
 /* ── Prominent Context Display (left panel) ── */
 .ctx-prom-card {
-  border-radius: 10px; padding: 14px 16px;
-  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px 8px;
+  margin-bottom: 0;
+}
+.ctx-prom-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
   margin-bottom: 8px;
 }
+.ctx-card-daytype { background: #FFF5F5; }
+.ctx-card-value   { background: #EBF8FF; }
+.ctx-card-trend   { background: #F0FFF4; }
+.ctx-card-volume  { background: #F7FAFC; }
 .ctx-prom-label {
-  font-family: 'Inter', sans-serif; font-size: 8px; font-weight: 700;
+  font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 2px; color: var(--muted);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 .ctx-prom-value {
-  font-family: 'Inter', sans-serif; font-size: 18px; font-weight: 700;
+  font-family: 'Inter', sans-serif; font-size: 0.9rem; font-weight: 700;
 }
 .val-red { color: var(--red); }
 .val-green { color: var(--green); }
 .val-blue { color: var(--accent2); }
 .val-default { color: var(--text); }
+.val-daytype { color: #C53030; }
+.val-value   { color: #2B6CB0; }
+.val-trend   { color: #2F855A; }
+.val-volume  { color: #4A5568; }
 .ctx-prom-plan {
   border-top: 1px solid var(--border); padding-top: 10px; margin-top: 8px;
 }
@@ -1561,30 +1570,12 @@ function buildProminentContextHtml(ctx) {
 
   let html = `<div class="ctx-prom-section-label">WHAT THE MARKET IS OFFERING</div>`;
 
-  if (dayType) {
-    html += `<div class="ctx-prom-card">
-      <div class="ctx-prom-label">DAY TYPE</div>
-      <div class="ctx-prom-value val-default">${escHtml(dayType)}</div>
-    </div>`;
-  }
-  if (valueArea) {
-    html += `<div class="ctx-prom-card">
-      <div class="ctx-prom-label">VALUE</div>
-      <div class="ctx-prom-value val-${valueColor(valueArea)}">${escHtml(valueArea)}</div>
-    </div>`;
-  }
-  if (trendStr) {
-    html += `<div class="ctx-prom-card">
-      <div class="ctx-prom-label">TREND</div>
-      <div class="ctx-prom-value val-${trendColor(trendStr)}">${escHtml(trendStr)}</div>
-    </div>`;
-  }
-  if (volumeRead) {
-    html += `<div class="ctx-prom-card">
-      <div class="ctx-prom-label">VOLUME</div>
-      <div class="ctx-prom-value val-${volumeColor(volumeRead)}">${escHtml(volumeRead)}</div>
-    </div>`;
-  }
+  html += `<div class="ctx-prom-grid">`;
+  if (dayType)    html += `<div class="ctx-prom-card ctx-card-daytype"><div class="ctx-prom-label">DAY TYPE</div><div class="ctx-prom-value val-daytype">${escHtml(dayType)}</div></div>`;
+  if (valueArea)  html += `<div class="ctx-prom-card ctx-card-value"><div class="ctx-prom-label">VALUE</div><div class="ctx-prom-value val-value">${escHtml(valueArea)}</div></div>`;
+  if (trendStr)   html += `<div class="ctx-prom-card ctx-card-trend"><div class="ctx-prom-label">TREND</div><div class="ctx-prom-value val-trend">${escHtml(trendStr)}</div></div>`;
+  if (volumeRead) html += `<div class="ctx-prom-card ctx-card-volume"><div class="ctx-prom-label">VOLUME</div><div class="ctx-prom-value val-volume">${escHtml(volumeRead)}</div></div>`;
+  html += `</div>`;
 
   // Nuance pills
   if (nuances.length > 0) {
