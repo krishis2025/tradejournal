@@ -526,6 +526,17 @@ def init_db():
         if "strength_id" not in lt_cols_str:
             conn.execute("ALTER TABLE live_trades ADD COLUMN strength_id INTEGER REFERENCES trade_strength(id)")
 
+        # Migration: add new context fields to developing_context
+        ctx_cols = [r[1] for r in conn.execute("PRAGMA table_info(developing_context)").fetchall()]
+        for col, default in [
+            ("day_type", "''"), ("volume_read", "''"), ("trend", "''"),
+            ("observation", "''"), ("plan_text", "''"),
+            ("plan_location", "''"), ("plan_trigger", "''"),
+            ("nuances_json", "'[]'"), ("notes", "''"),
+        ]:
+            if col not in ctx_cols:
+                conn.execute(f"ALTER TABLE developing_context ADD COLUMN {col} TEXT NOT NULL DEFAULT {default}")
+
 
 # ── Accounts ─────────────────────────────────────────────────────────────────
 
@@ -2117,18 +2128,28 @@ def get_internals_session(day_id, session):
 # ── Developing Context ───────────────────────────────────────────────────────
 
 def create_developing_context(account_id, date, time, mkt_read, value_area,
-                               setup, location, nuance, mental_state):
+                               setup, location, nuance, mental_state,
+                               day_type="", volume_read="", trend="",
+                               observation="", plan_text="", plan_location="",
+                               plan_trigger="", nuances_json="[]", notes=""):
     with get_conn() as conn:
         cur = conn.execute("""
             INSERT INTO developing_context
-                (account_id, date, time, mkt_read, value_area, setup, location, nuance, mental_state)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (account_id, date, time, mkt_read, value_area, setup, location, nuance, mental_state))
+                (account_id, date, time, mkt_read, value_area, setup, location, nuance, mental_state,
+                 day_type, volume_read, trend, observation, plan_text, plan_location, plan_trigger,
+                 nuances_json, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (account_id, date, time, mkt_read, value_area, setup, location, nuance, mental_state,
+              day_type, volume_read, trend, observation, plan_text, plan_location, plan_trigger,
+              nuances_json, notes))
         return cur.lastrowid
 
 
 def update_developing_context(ctx_id, **fields):
-    allowed = {"mkt_read", "value_area", "setup", "location", "nuance"}
+    allowed = {"mkt_read", "value_area", "setup", "location", "nuance",
+               "day_type", "volume_read", "trend", "observation",
+               "plan_text", "plan_location", "plan_trigger",
+               "nuances_json", "notes"}
     updates = {k: v for k, v in fields.items() if k in allowed}
     if not updates:
         return

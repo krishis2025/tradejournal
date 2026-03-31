@@ -711,6 +711,188 @@
   border-radius: 2px; white-space: pre-wrap; line-height: 1.5;
 }
 
+/* ── SPLIT-CARD FORM (Context + Plan) ── */
+.ctx-form-card {
+  border-radius: 10px; padding: 20px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.ctx-form-card.market {
+  border: 1px solid var(--accent2);
+  background: rgba(0,207,255,0.03);
+}
+.ctx-form-card.plan {
+  border: 1px solid var(--accent);
+  background: rgba(79,255,176,0.03);
+}
+.ctx-form-card-header {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase;
+}
+.ctx-form-card.market .ctx-form-card-header { color: var(--accent2); }
+.ctx-form-card.plan .ctx-form-card-header { color: var(--accent); }
+
+.derives-connector {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 0; color: var(--muted);
+}
+.derives-connector::before, .derives-connector::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+.derives-label {
+  font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); font-family: 'Inter', sans-serif;
+}
+
+/* Trend toggle pills */
+.trend-pills { display: flex; gap: 6px; }
+.trend-pill {
+  padding: 6px 14px; border-radius: 4px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--muted); cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase; transition: all 0.15s;
+}
+.trend-pill:hover { background: var(--surface3); }
+.trend-pill.active { background: rgba(0,207,255,0.1); border-color: var(--accent2); color: var(--accent2); }
+
+/* ── Nuance pills ── */
+.ds-add-nuance-btn {
+  padding: 6px 14px; border-radius: 4px; border: 1px solid var(--accent2);
+  background: rgba(0,207,255,0.08); color: var(--accent2); cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase; transition: all 0.15s;
+}
+.ds-add-nuance-btn:hover { background: rgba(0,207,255,0.15); }
+.nuance-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.nuance-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 20px;
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.nuance-pill .nuance-x { cursor: pointer; font-size: 13px; opacity: 0.7; }
+.nuance-pill .nuance-x:hover { opacity: 1; }
+.nuance-pill-0 { background: rgba(255,152,0,0.10); color: #c77600; border-left: 3px solid #c77600; }
+.nuance-pill-1 { background: rgba(0,140,200,0.10); color: #006d9e; border-left: 3px solid #006d9e; }
+.nuance-pill-2 { background: rgba(200,30,60,0.10); color: #a3192a; border-left: 3px solid #a3192a; }
+.nuance-pill-3 { background: rgba(30,130,76,0.10); color: #1a7a3a; border-left: 3px solid #1a7a3a; }
+.nuance-pill-4 { background: rgba(120,70,200,0.10); color: #5c35a3; border-left: 3px solid #5c35a3; }
+
+/* ── Prominent Context Display (left panel) ── */
+.ctx-prom-card {
+  border-radius: 10px; padding: 14px 16px;
+  background: var(--surface2); border: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+.ctx-prom-label {
+  font-family: 'Inter', sans-serif; font-size: 8px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 2px; color: var(--muted);
+  margin-bottom: 4px;
+}
+.ctx-prom-value {
+  font-family: 'Inter', sans-serif; font-size: 18px; font-weight: 700;
+}
+.val-red { color: var(--red); }
+.val-green { color: var(--green); }
+.val-blue { color: var(--accent2); }
+.val-default { color: var(--text); }
+.ctx-prom-plan {
+  border-top: 1px solid var(--border); padding-top: 10px; margin-top: 8px;
+}
+.ctx-prom-plan-title {
+  font-family: 'Inter', sans-serif; font-size: 8px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 2px; color: var(--accent);
+  margin-bottom: 4px;
+}
+.ctx-prom-plan-text {
+  font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 700;
+  color: var(--accent);
+}
+.ctx-prom-plan-detail {
+  font-family: 'Inter', sans-serif; font-size: 11px; color: var(--muted);
+  margin-top: 2px;
+}
+.ctx-prom-notes {
+  font-family: 'Inter', sans-serif; font-size: 11px; color: var(--muted);
+  margin-top: 4px; white-space: pre-wrap; line-height: 1.5;
+}
+.ctx-prom-section-label {
+  font-family: 'Inter', sans-serif; font-size: 8px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 2px; color: var(--muted);
+  margin-bottom: 6px; margin-top: 4px;
+}
+
+/* ── Evo History Tray ── */
+.evo-tray-toggle {
+  width: 100%; padding: 8px; border: 1px solid var(--border);
+  border-radius: 6px; background: transparent; color: var(--muted);
+  font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer;
+  transition: all 0.2s; margin-top: 8px; text-align: left;
+}
+.evo-tray-toggle:hover { background: var(--surface2); }
+.evo-tray-content {
+  display: none; margin-top: 8px;
+}
+.evo-tray-content.open { display: block; }
+
+/* ── AT ENTRY / LIVE NOW snapshots ── */
+.ctx-snapshot { padding: 12px; border-radius: 8px; }
+.ctx-snapshot.at-entry { /* full opacity — no dimming */ }
+.ctx-snapshot.live-now {
+  border-left: 3px solid var(--accent);
+  background: rgba(79,255,176,0.02);
+}
+.ctx-snapshot-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 8px;
+}
+.ctx-snapshot.live-now .ctx-snapshot-label { color: var(--accent); }
+.ctx-snapshot-divider {
+  border: none; border-top: 2px dashed var(--border); margin: 12px 0;
+}
+
+/* ── Mini display cards within snapshots ── */
+.ctx-mini-card {
+  border-radius: 6px; padding: 10px; margin-bottom: 6px;
+  font-family: 'Inter', sans-serif; font-size: 10px; line-height: 1.6;
+}
+.ctx-mini-card.market {
+  border: 1px solid rgba(0,207,255,0.2);
+  background: rgba(0,207,255,0.02);
+}
+.ctx-mini-card.plan {
+  border: 1px solid rgba(79,255,176,0.2);
+  background: rgba(79,255,176,0.02);
+}
+.ctx-mini-card .mini-label {
+  font-size: 8px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; margin-bottom: 2px;
+}
+.ctx-mini-card.market .mini-label { color: var(--accent2); }
+.ctx-mini-card.plan .mini-label { color: var(--accent); }
+
+/* ── Update context button ── */
+.ctx-update-btn {
+  width: 100%; padding: 10px; border: 1px dashed var(--accent);
+  border-radius: 6px; background: transparent; color: var(--accent);
+  font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer;
+  transition: all 0.2s; margin-top: 12px;
+}
+.ctx-update-btn:hover { background: rgba(79,255,176,0.05); }
+
+/* ── Compact inline update form ── */
+.ctx-inline-form {
+  margin-top: 12px; padding: 12px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--surface2);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.ctx-inline-form .ds-field-label { font-size: 8px; margin-bottom: 2px; }
+.ctx-inline-form .ds-input, .ctx-inline-form .ds-select, .ctx-inline-form .ds-textarea {
+  font-size: 11px; padding: 6px 8px;
+}
+
 /* ── STRENGTH BANNER ── */
 .strength-banner {
   padding: 12px 16px; border-radius: 6px; text-align: center;
@@ -1015,7 +1197,13 @@ function buildTradeModel(liveTrade, contexts, instrumentConfig) {
     pushed: liveTrade.status === 'closed',
     context: {
       mktRead: ctx.mkt_read || '\u2014', valueArea: ctx.value_area || '\u2014',
-      setup: ctx.setup || '\u2014', location: ctx.location || '\u2014', nuance: ctx.nuance || ''
+      setup: ctx.setup || '\u2014', location: ctx.location || '\u2014', nuance: ctx.nuance || '',
+      dayType: ctx.day_type || '', volumeRead: ctx.volume_read || '',
+      trend: ctx.trend || '', observation: ctx.observation || '',
+      planText: ctx.plan_text || '', planLocation: ctx.plan_location || '',
+      planTrigger: ctx.plan_trigger || '',
+      nuancesJson: ctx.nuances_json || '[]', notes: ctx.notes || '',
+      nuances: (() => { try { return ctx.nuances_json ? (typeof ctx.nuances_json === 'string' ? JSON.parse(ctx.nuances_json) : ctx.nuances_json) : []; } catch(e) { return []; } })()
     },
     strength_id: liveTrade.strength_id || null,
     strength: liveTrade.strength_id && STRENGTH_MAP[liveTrade.strength_id] ? STRENGTH_MAP[liveTrade.strength_id] : null,
@@ -1095,35 +1283,53 @@ function updateRibbon() {
   const setback = document.getElementById('ribbon-setback');
 
   const hasOpenTrades = Object.values(TRADES).some(t => !isTradeClosed(t) && !t.pushed);
+  const latestCtx = getLatestContext();
 
-  if (activeContextId) {
-    // YELLOW — new context committed, ready for next trade
+  if (latestCtx && !hasOpenTrades) {
+    // YELLOW — context committed, no open trades yet
     ribbon.className = 'context-ribbon ctx-ready';
     setback.style.display = 'none';
-    updateRibbonValues(content, lastCommittedContext);
-  } else if (hasOpenTrades) {
-    // BLUE — managing open trades on previous plan
+    updateRibbonValues(content, latestCtx);
+  } else if (latestCtx && hasOpenTrades) {
+    // BLUE — trade entered on this plan
     ribbon.className = 'context-ribbon ctx-managing';
     setback.style.display = 'none';
-    const trade = TRADES[activeTrade];
-    const ctx = trade?.context || {};
-    updateRibbonValues(content, ctx);
+    updateRibbonValues(content, latestCtx);
   } else {
-    // RED — no context, no open trades
+    // RED — no context committed
     ribbon.className = 'context-ribbon ctx-locked';
     content.innerHTML = '<span>⚠️ MONITORING: CONTEXT UNCONFIRMED. DO NOT TRADE THE CHOP.</span>';
     setback.style.display = '';
   }
 }
 
+function getLatestContext() {
+  if (Object.keys(lastCommittedContext).length > 0) return lastCommittedContext;
+  if (SERVER_CONTEXTS && SERVER_CONTEXTS.length > 0) return SERVER_CONTEXTS[0];
+  return null;
+}
+
 function updateRibbonValues(el, ctx) {
-  const valColor = getValueAreaColor(ctx.valueArea || ctx.value_area || '');
-  el.innerHTML = `
-    <div class="ribbon-item"><span class="ribbon-label">TIME:</span> <span class="ribbon-value">${formatTime12h(ctx.time || ctx.entry_time || '')}</span></div>
-    <div class="ribbon-item"><span class="ribbon-label">VALUE:</span> <span class="ribbon-value ribbon-val-${valColor}">${(ctx.valueArea || ctx.value_area || '\u2014').toUpperCase()}</span></div>
-    <div class="ribbon-item"><span class="ribbon-label">SETUP:</span> <span class="ribbon-value" style="color:#1976d2">${(ctx.setup || '\u2014').toUpperCase()}</span></div>
-    <div class="ribbon-item"><span class="ribbon-label">LOCATION:</span> <span class="ribbon-value">${ctx.location || '\u2014'}</span></div>
-  `;
+  const planText = ctx.plan_text || ctx.planText || ctx.setup || '';
+  const planLoc = ctx.plan_location || ctx.planLocation || ctx.location || '';
+  const planTrigger = ctx.plan_trigger || ctx.planTrigger || '';
+
+  // Show plan-only ribbon
+  if (planText) {
+    let ribbonParts = [`<span style="color:var(--accent)">★ ${escHtml(planText).toUpperCase()}</span>`];
+    if (planLoc) ribbonParts.push(escHtml(planLoc));
+    if (planTrigger) ribbonParts.push(escHtml(planTrigger));
+    el.innerHTML = `<div class="ribbon-item"><span class="ribbon-value">${ribbonParts.join(' · ')}</span></div>`;
+  } else {
+    // Fallback for old records without plan fields
+    const setup = ctx.setup || '';
+    const loc = ctx.location || '';
+    if (setup) {
+      el.innerHTML = `<div class="ribbon-item"><span class="ribbon-value"><span style="color:var(--accent)">★ ${escHtml(setup).toUpperCase()}</span>${loc ? ' · ' + escHtml(loc) : ''}</span></div>`;
+    } else {
+      el.innerHTML = `<div class="ribbon-item"><span class="ribbon-value" style="color:var(--muted)">No plan set</span></div>`;
+    }
+  }
 }
 
 function detectPhase(trade) {
@@ -1197,147 +1403,373 @@ function renderTabs() {
 }
 
 /* ── RENDER: CONTEXT PANEL (left) ── */
+let liveNowContext = null;  // Updated context during MANAGE
+let inlineUpdateOpen = false;
+
 function renderContextPanel(trade) {
   const el = document.getElementById('context-panel');
 
-  if (activePhase === 'CONTEXT') {
-    // Show declare setup form inline
-    renderContextForm(el);
-    return;
+  // Always show latest committed context prominently
+  const latestCtx = getLatestContext();
+  let html = '';
+
+  if (latestCtx) {
+    html += buildProminentContextHtml(latestCtx);
+  } else {
+    html += '<div style="color:var(--muted);font-size:11px;text-align:center;padding:20px 0;">No context committed yet.</div>';
   }
 
-  // If ENTRY phase with a freshly committed context, show that context (not the old trade's)
-  if (activePhase === 'ENTRY' && activeContextId && Object.keys(lastCommittedContext).length > 0) {
-    const lc = lastCommittedContext;
-    const vaClass = (lc.value_area === 'Lower' || lc.value_area === 'Upper') ? 'pill pill-red' : 'pill pill-green';
-    el.innerHTML = `
-      <div class="ctx-field"><div class="ctx-label">MKT READ</div><div class="ctx-value">${escHtml(lc.mkt_read || '')}</div></div>
-      <div class="ctx-field"><div class="ctx-label">VALUE AREA</div><div><span class="${vaClass}">${escHtml(lc.value_area || '')}</span></div></div>
-      <div class="ctx-field"><div class="ctx-label">SETUP</div><div class="ctx-value pill-accent2">${escHtml(lc.setup || '')}</div></div>
-      <div class="ctx-field"><div class="ctx-label">LOCATION</div><div class="ctx-value">${escHtml(lc.location || '')}</div></div>
-      <div class="ctx-field"><div class="ctx-label">NUANCE</div><div class="ctx-value nuance">${escHtml(lc.nuance || '')}</div></div>
-      ${buildStrengthPillsHtml(activeStrength)}
+  // Trade-specific info: strength, exec score, fills
+  if (trade) {
+    const strength = (activePhase === 'ENTRY') ? activeStrength : trade.strength;
+    html += buildStrengthPillsHtml(strength);
+
+    if (trade.execScore !== null && trade.execScore !== undefined) {
+      html += `
+      <div class="ctx-field" style="display:flex;gap:12px;align-items:center;">
+        <div><div class="ctx-label">EXECUTION SCORE</div></div>
+        <div class="exec-score-circle">${trade.execScore}<span class="sub">/5</span></div>
+      </div>`;
+    }
+
+    // Fill list for REVIEW
+    if (activePhase === 'REVIEW') {
+      const executed = trade.partials.filter(p => p.status === 'executed');
+      if (executed.length > 0) {
+        html += '<div class="ctx-divider"></div><div class="ctx-field"><div class="ctx-label">FILLS</div><div class="fill-list">';
+        executed.forEach(p => {
+          const pnlStr = p.pnl !== undefined ? (p.pnl >= 0 ? `<span style="color:var(--green)">+$${p.pnl}</span>` : `<span style="color:var(--red)">-$${Math.abs(p.pnl)}</span>`) : '';
+          const typeLabel = p.exitType === 'tp_hit' ? 'TP' : p.exitType === 'stop_hit' ? 'Stop' : 'Manual';
+          html += `<div class="fill-row"><span style="color:var(--muted2)">P${p.portion} ${p.qty}× ${typeLabel} @ ${p.exitPrice || ''}</span><span>${pnlStr} ${p.exitTime ? '· ' + p.exitTime : ''}</span></div>`;
+        });
+        html += '</div></div>';
+      }
+    }
+  } else if (activePhase === 'ENTRY') {
+    html += buildStrengthPillsHtml(activeStrength);
+  }
+
+  // Evo History collapsible tray
+  const evoHtml = buildEvoCardsHtml();
+  if (evoHtml) {
+    const evoCount = SERVER_CONTEXTS ? SERVER_CONTEXTS.length : 0;
+    html += `
+      <button class="evo-tray-toggle" onclick="toggleEvoTray()">
+        <span id="evo-tray-arrow">▸</span> EVOLUTION HISTORY (${evoCount})
+      </button>
+      <div class="evo-tray-content" id="evo-tray">${evoHtml}</div>
     `;
-    return;
   }
 
-  if (!trade) { el.innerHTML = '<div class="phase-empty"><span>No trade selected</span></div>'; return; }
+  el.innerHTML = html;
+}
 
-  const ctx = trade.context;
-  const vaClass = ctx.valueArea === 'Lower' || ctx.valueArea === 'Upper' ? 'pill pill-red' : 'pill pill-green';
-  const mentalMap = {
-    patient: { label: 'PATIENT', cls: 'pill pill-green' },
-    focused: { label: 'FOCUSED', cls: 'pill pill-green' },
-    calm: { label: 'CALM', cls: 'pill pill-green' },
-    rushed: { label: 'RUSHED', cls: 'pill pill-red' },
-    anxious: { label: 'ANXIOUS', cls: 'pill pill-red' },
-    eager: { label: 'EAGER', cls: 'pill pill-red' },
-    fomo: { label: 'FOMO', cls: 'pill pill-red' },
-  };
-  const mental = mentalMap[trade.mentalState] || { label: (trade.mentalState || '').toUpperCase(), cls: 'pill' };
+function toggleEvoTray() {
+  const tray = document.getElementById('evo-tray');
+  const arrow = document.getElementById('evo-tray-arrow');
+  if (!tray) return;
+  tray.classList.toggle('open');
+  if (arrow) arrow.textContent = tray.classList.contains('open') ? '▾' : '▸';
+}
 
-  let execScoreHtml = '';
-  if (trade.execScore !== null && trade.execScore !== undefined) {
-    execScoreHtml = `
-    <div class="ctx-field" style="display:flex;gap:12px;align-items:center;">
-      <div><div class="ctx-label">EXECUTION SCORE</div></div>
-      <div class="exec-score-circle">${trade.execScore}<span class="sub">/5</span></div>
+/* ── Build evo cards HTML (shared helper) ── */
+function buildEvoCardsHtml() {
+  if (!SERVER_CONTEXTS || SERVER_CONTEXTS.length === 0) return '';
+  let html = '';
+  SERVER_CONTEXTS.forEach(ctx => {
+    const valColor = getValueAreaColor(ctx.value_area);
+    const dayType = ctx.day_type || ctx.mkt_read || '';
+    const trendStr = ctx.trend ? ` · ${ctx.trend === 'Up' ? '▲' : ctx.trend === 'Down' ? '▼' : '◆'}${ctx.trend}` : '';
+    const planText = ctx.plan_text || ctx.setup || '';
+    const planLoc = ctx.plan_location || ctx.location || '';
+    const planLocHtml = planLoc ? `<div class="evo-card-location">@ ${escHtml(planLoc)}</div>` : '';
+
+    // Parse nuances from nuances_json if available
+    let nuances = [];
+    if (ctx.nuances_json) {
+      try { nuances = typeof ctx.nuances_json === 'string' ? JSON.parse(ctx.nuances_json) : ctx.nuances_json; } catch(e) {}
+    }
+    let nuanceHtml = '';
+    if (nuances.length > 0) {
+      nuanceHtml = `<div class="nuance-pills" style="margin-top:4px;">${buildNuancePillsHtml(nuances)}</div>`;
+    } else {
+      // Fall back to observation/nuance for old records
+      const obs = ctx.observation || ctx.nuance || '';
+      if (obs) nuanceHtml = `<div class="evo-card-nuance">${escHtml(obs.substring(0, 80))}</div>`;
+    }
+
+    html += `<div class="evo-card">
+      <div class="evo-card-header">
+        <span class="evo-card-time">${formatTime12h(ctx.time)}</span>
+        <span class="evo-card-read">${escHtml(dayType)}</span>
+        <span class="evo-card-value evo-val-${valColor}">${shortValue(ctx.value_area)}${trendStr}</span>
+      </div>
+      ${planText ? `<div class="evo-card-setup" style="color:var(--accent)">★ ${escHtml(planText)}</div>` : ''}
+      ${planLocHtml}
+      ${nuanceHtml}
+    </div>`;
+  });
+  return html;
+}
+
+/* ── Build context mini-card HTML (for snapshots — legacy fallback) ── */
+function buildMiniCardsHtml(ctx) {
+  return buildProminentContextHtml(ctx);
+}
+
+/* ── Prominent Context Display (left panel — bold, scannable) ── */
+function buildProminentContextHtml(ctx) {
+  const dayType = ctx.day_type || ctx.dayType || ctx.mkt_read || ctx.mktRead || '';
+  const valueArea = ctx.value_area || ctx.valueArea || '';
+  const trendStr = ctx.trend || '';
+  const volumeRead = ctx.volume_read || ctx.volumeRead || '';
+  const planText = ctx.plan_text || ctx.planText || ctx.setup || '';
+  const planLoc = ctx.plan_location || ctx.planLocation || ctx.location || '';
+  const planTrigger = ctx.plan_trigger || ctx.planTrigger || '';
+  const notes = ctx.notes || '';
+
+  // Parse nuances
+  let nuances = ctx.nuances || [];
+  if (!nuances.length && ctx.nuances_json) {
+    try { nuances = typeof ctx.nuances_json === 'string' ? JSON.parse(ctx.nuances_json) : ctx.nuances_json; } catch(e) { nuances = []; }
+  }
+  // Fall back to observation/nuance for old records
+  const fallbackObs = (!nuances.length && !notes) ? (ctx.observation || ctx.nuance || '') : '';
+
+  // Color helpers
+  function valueColor(v) {
+    if (!v) return 'default';
+    const vl = v.toLowerCase();
+    if (vl.includes('lower') || vl === 'ol') return 'red';
+    if (vl.includes('higher') || vl === 'oh') return 'green';
+    if (vl.includes('overlapping')) return 'blue';
+    return 'default';
+  }
+  function trendColor(t) {
+    if (!t) return 'default';
+    if (t === 'Down') return 'red';
+    if (t === 'Up') return 'green';
+    return 'blue';
+  }
+  function volumeColor(v) {
+    if (!v) return 'default';
+    if (v === 'Low') return 'red';
+    if (v === 'Avg') return 'blue';
+    if (v === 'High') return 'green';
+    return 'default';
+  }
+
+  let html = `<div class="ctx-prom-section-label">WHAT THE MARKET IS OFFERING</div>`;
+
+  if (dayType) {
+    html += `<div class="ctx-prom-card">
+      <div class="ctx-prom-label">DAY TYPE</div>
+      <div class="ctx-prom-value val-default">${escHtml(dayType)}</div>
+    </div>`;
+  }
+  if (valueArea) {
+    html += `<div class="ctx-prom-card">
+      <div class="ctx-prom-label">VALUE</div>
+      <div class="ctx-prom-value val-${valueColor(valueArea)}">${escHtml(valueArea)}</div>
+    </div>`;
+  }
+  if (trendStr) {
+    html += `<div class="ctx-prom-card">
+      <div class="ctx-prom-label">TREND</div>
+      <div class="ctx-prom-value val-${trendColor(trendStr)}">${escHtml(trendStr)}</div>
+    </div>`;
+  }
+  if (volumeRead) {
+    html += `<div class="ctx-prom-card">
+      <div class="ctx-prom-label">VOLUME</div>
+      <div class="ctx-prom-value val-${volumeColor(volumeRead)}">${escHtml(volumeRead)}</div>
     </div>`;
   }
 
-  // If REVIEW phase, also show fill list
-  let fillListHtml = '';
-  if (activePhase === 'REVIEW') {
-    const executed = trade.partials.filter(p => p.status === 'executed');
-    if (executed.length > 0) {
-      fillListHtml = '<div class="ctx-divider"></div><div class="ctx-field"><div class="ctx-label">FILLS</div><div class="fill-list">';
-      executed.forEach(p => {
-        const pnlStr = p.pnl !== undefined ? (p.pnl >= 0 ? `<span style="color:var(--green)">+$${p.pnl}</span>` : `<span style="color:var(--red)">-$${Math.abs(p.pnl)}</span>`) : '';
-        const typeLabel = p.exitType === 'tp_hit' ? 'TP' : p.exitType === 'stop_hit' ? 'Stop' : 'Manual';
-        fillListHtml += `<div class="fill-row"><span style="color:var(--muted2)">P${p.portion} ${p.qty}\u00d7 ${typeLabel} @ ${p.exitPrice || ''}</span><span>${pnlStr} ${p.exitTime ? '\u00b7 ' + p.exitTime : ''}</span></div>`;
-      });
-      fillListHtml += '</div></div>';
-    }
+  // Nuance pills
+  if (nuances.length > 0) {
+    html += `<div class="ctx-prom-section-label">NUANCES</div>
+      <div class="nuance-pills" style="margin-bottom:8px;">${buildNuancePillsHtml(nuances)}</div>`;
   }
 
-  el.innerHTML = `
-    <div class="ctx-field">
-      <div class="ctx-label">MKT READ</div>
-      <div class="ctx-value">${escHtml(ctx.mktRead)}</div>
-    </div>
-    <div class="ctx-field">
-      <div class="ctx-label">VALUE AREA</div>
-      <div><span class="${vaClass}">${escHtml(ctx.valueArea)}</span></div>
-    </div>
-    <div class="ctx-field">
-      <div class="ctx-label">SETUP</div>
-      <div class="ctx-value pill-accent2">${escHtml(ctx.setup)}</div>
-    </div>
-    <div class="ctx-field">
-      <div class="ctx-label">LOCATION</div>
-      <div class="ctx-value">${escHtml(ctx.location)}</div>
-    </div>
-    <div class="ctx-field">
-      <div class="ctx-label">NUANCE</div>
-      <div class="ctx-value nuance">${escHtml(ctx.nuance)}</div>
-    </div>
-    <div class="ctx-divider"></div>
-    <div class="ctx-field">
-      <div class="ctx-label">MENTAL STATE</div>
-      <div><span class="${mental.cls}">${mental.label}</span></div>
-    </div>
-    ${execScoreHtml}
-    ${buildStrengthPillsHtml(trade.strength)}
-    ${fillListHtml}
-  `;
+  // Fallback observation for old records
+  if (fallbackObs) {
+    html += `<div class="ctx-prom-notes">${escHtml(fallbackObs)}</div>`;
+  }
+
+  // Notes
+  if (notes) {
+    html += `<div class="ctx-prom-notes">${escHtml(notes)}</div>`;
+  }
+
+  // Trade Plan section
+  if (planText) {
+    html += `<div class="ctx-prom-plan">
+      <div class="ctx-prom-plan-title">★ TRADE PLAN</div>
+      <div class="ctx-prom-plan-text">${escHtml(planText)}</div>
+      ${planLoc ? `<div class="ctx-prom-plan-detail">@ ${escHtml(planLoc)}</div>` : ''}
+      ${planTrigger ? `<div class="ctx-prom-plan-detail">Trigger: ${escHtml(planTrigger)}</div>` : ''}
+    </div>`;
+  }
+
+  return html;
 }
 
-/* ── CONTEXT FORM (inline in left panel) ── */
-function renderContextForm(el) {
-  // Show evo cards + form
-  let evoHtml = '';
-  if (SERVER_CONTEXTS && SERVER_CONTEXTS.length > 0) {
-    SERVER_CONTEXTS.forEach(ctx => {
-      const valColor = getValueAreaColor(ctx.value_area);
-      const nuanceHtml = ctx.nuance ? `<div class="evo-card-nuance">${escHtml(ctx.nuance)}</div>` : '';
-      const locationHtml = ctx.location ? `<div class="evo-card-location">${escHtml(ctx.location)}</div>` : '';
-      evoHtml += `<div class="evo-card">
-        <div class="evo-card-header">
-          <span class="evo-card-time">${formatTime12h(ctx.time)}</span>
-          <span class="evo-card-read">${escHtml(ctx.mkt_read || '')}</span>
-          <span class="evo-card-value evo-val-${valColor}">${shortValue(ctx.value_area)}</span>
-        </div>
-        <div class="evo-card-setup">${escHtml(ctx.setup)}</div>
-        ${locationHtml}
-        ${nuanceHtml}
-      </div>`;
-    });
-  }
+/* ── SPLIT-CARD FORM (center panel during CONTEXT) ── */
+let selectedTrend = '';
+let pendingNuances = [];
+let formState = { dayType: '', valueArea: 'Overlapping', volumeRead: '', notes: '', planText: '', planLocation: '', planTrigger: '' };
+
+function saveFormState() {
+  formState.dayType = document.getElementById('ds-day-type')?.value || '';
+  formState.valueArea = document.getElementById('ds-value-area')?.value || 'Overlapping';
+  formState.volumeRead = document.getElementById('ds-volume-read')?.value || '';
+  formState.notes = document.getElementById('ds-notes')?.value || '';
+  formState.planText = document.getElementById('ds-plan-text')?.value || '';
+  formState.planLocation = document.getElementById('ds-plan-location')?.value || '';
+  formState.planTrigger = document.getElementById('ds-plan-trigger')?.value || '';
+}
+function restoreFormState() {
+  const dt = document.getElementById('ds-day-type');
+  const va = document.getElementById('ds-value-area');
+  const vr = document.getElementById('ds-volume-read');
+  const nt = document.getElementById('ds-notes');
+  const pt = document.getElementById('ds-plan-text');
+  const pl = document.getElementById('ds-plan-location');
+  const ptr = document.getElementById('ds-plan-trigger');
+  if (dt) dt.value = formState.dayType;
+  if (va) va.value = formState.valueArea;
+  if (vr) vr.value = formState.volumeRead;
+  if (nt) nt.value = formState.notes;
+  if (pt) pt.value = formState.planText;
+  if (pl) pl.value = formState.planLocation;
+  if (ptr) ptr.value = formState.planTrigger;
+  renderNuancePills('ds-nuance-pills', pendingNuances, true);
+}
+
+function addNuance() {
+  const input = document.getElementById('ds-nuance-input');
+  const val = input.value.trim();
+  if (!val) return;
+  pendingNuances.push(val);
+  input.value = '';
+  renderNuancePills('ds-nuance-pills', pendingNuances, true);
+}
+function removeNuance(i) {
+  pendingNuances.splice(i, 1);
+  renderNuancePills('ds-nuance-pills', pendingNuances, true);
+}
+function renderNuancePills(containerId, nuances, removable) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const COLORS = 5;
+  el.innerHTML = nuances.map((n, i) => {
+    const x = removable ? `<span class="nuance-x" onclick="removeNuance(${i})">×</span>` : '';
+    return `<span class="nuance-pill nuance-pill-${i % COLORS}">${escHtml(n)}${x}</span>`;
+  }).join('');
+}
+function buildNuancePillsHtml(nuances) {
+  const COLORS = 5;
+  return nuances.map((n, i) =>
+    `<span class="nuance-pill nuance-pill-${i % COLORS}">${escHtml(n)}</span>`
+  ).join('');
+}
+
+/* Inline update nuances state */
+let inlineNuances = [];
+function addInlineNuance() {
+  const input = document.getElementById('ds-upd-nuance-input');
+  const val = input.value.trim();
+  if (!val) return;
+  inlineNuances.push(val);
+  input.value = '';
+  renderInlineNuancePills();
+}
+function removeInlineNuance(i) {
+  inlineNuances.splice(i, 1);
+  renderInlineNuancePills();
+}
+function renderInlineNuancePills() {
+  const el = document.getElementById('ds-upd-nuance-pills');
+  if (!el) return;
+  const COLORS = 5;
+  el.innerHTML = inlineNuances.map((n, i) => {
+    return `<span class="nuance-pill nuance-pill-${i % COLORS}">${escHtml(n)}<span class="nuance-x" onclick="removeInlineNuance(${i})">×</span></span>`;
+  }).join('');
+}
+function renderContextSplitCard(el) {
+  const now = new Date();
+  const timeLabel = formatTime12h(String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0'));
 
   el.innerHTML = `
-    <div class="ds-inline">
-      <div class="ds-field-label">Mkt Read</div>
-      <input type="text" class="ds-input" id="ds-mkt-read" placeholder="e.g. Balancing, Initiative...">
-      <div class="ds-field-label">Value Area</div>
-      <select class="ds-select" id="ds-value-area">
-        <option value="Lower">Lower</option>
-        <option value="Overlapping Lower">Overlapping Lower (OL)</option>
-        <option value="Overlapping" selected>Overlapping</option>
-        <option value="Overlapping Higher">Overlapping Higher (OH)</option>
-        <option value="Higher">Higher</option>
-      </select>
-      <div class="ds-field-label">Setup</div>
-      <input type="text" class="ds-input" id="ds-setup" placeholder="Setup name">
-      <div class="ds-field-label">Location</div>
-      <input type="text" class="ds-input" id="ds-location" placeholder="e.g. Fade balance high @ 6630 LVN">
-      <div class="ds-field-label">Nuance</div>
-      <textarea class="ds-textarea" id="ds-nuance" rows="2" placeholder="Additional context..."></textarea>
-      <button class="ds-commit-btn" onclick="commitContext()">COMMIT</button>
+    <div style="max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:0;">
+      <div class="ctx-form-card market">
+        <div class="ctx-form-card-header">
+          <span>MARKET CONTEXT</span>
+          <span style="color:var(--muted);font-weight:400;">${timeLabel}</span>
+        </div>
+        <div class="ds-field-label">Day Type</div>
+        <input type="text" class="ds-input" id="ds-day-type" placeholder="e.g. Liquidation break, Balancing...">
+        <div class="ds-field-label">Value Area</div>
+        <select class="ds-select" id="ds-value-area">
+          <option value="Lower">Lower</option>
+          <option value="Overlapping Lower">Overlapping Lower (OL)</option>
+          <option value="Overlapping" selected>Overlapping</option>
+          <option value="Overlapping Higher">Overlapping Higher (OH)</option>
+          <option value="Higher">Higher</option>
+        </select>
+        <div class="ds-field-label">Volume</div>
+        <select class="ds-select" id="ds-volume-read">
+          <option value="" selected>—</option>
+          <option value="Low">Low</option>
+          <option value="Avg">Avg</option>
+          <option value="High">High</option>
+        </select>
+        <div class="ds-field-label">Trend</div>
+        <div class="trend-pills">
+          <button type="button" class="trend-pill${selectedTrend==='Up'?' active':''}" onclick="setTrend('Up')">UP</button>
+          <button type="button" class="trend-pill${selectedTrend==='Neutral'?' active':''}" onclick="setTrend('Neutral')">NEUTRAL</button>
+          <button type="button" class="trend-pill${selectedTrend==='Down'?' active':''}" onclick="setTrend('Down')">DOWN</button>
+        </div>
+        <div class="ds-field-label">Nuances</div>
+        <div style="display:flex;gap:6px;">
+          <input type="text" class="ds-input" id="ds-nuance-input"
+                 placeholder="e.g. Buyers failed at ONH" style="flex:1;"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();addNuance();}">
+          <button type="button" class="ds-add-nuance-btn" onclick="addNuance()">ADD</button>
+        </div>
+        <div class="nuance-pills" id="ds-nuance-pills"></div>
+        <div class="ds-field-label">Notes</div>
+        <textarea class="ds-textarea" id="ds-notes" rows="2" placeholder="Longer narrative..."></textarea>
+      </div>
+
+      <div class="derives-connector">
+        <span class="derives-label">\u2193 derives</span>
+      </div>
+
+      <div class="ctx-form-card plan">
+        <div class="ctx-form-card-header">
+          <span>\u2605 TRADE PLAN</span>
+        </div>
+        <div class="ds-field-label">Plan</div>
+        <input type="text" class="ds-input" id="ds-plan-text" placeholder="e.g. Fade liquidation break back to value">
+        <div class="ds-field-label">Location</div>
+        <input type="text" class="ds-input" id="ds-plan-location" placeholder="e.g. Balance low / LVN @ 6630">
+        <div class="ds-field-label">Trigger</div>
+        <input type="text" class="ds-input" id="ds-plan-trigger" placeholder="e.g. Reclaim of balance low with volume">
+      </div>
+
+      <button class="ds-commit-btn" style="margin-top:16px;" onclick="commitContext()">COMMIT CONTEXT & PLAN</button>
     </div>
-    <div class="ctx-divider" style="margin:8px 0;"></div>
-    <div class="ctx-label">EVOLUTION HISTORY</div>
-    ${evoHtml || '<div style="color:var(--muted);font-size:11px;text-align:center;padding:20px 0;">No context declared yet.</div>'}
   `;
+  restoreFormState();
+}
+
+function setTrend(val) {
+  saveFormState();
+  selectedTrend = selectedTrend === val ? '' : val;
+  const trade = TRADES[activeTrade];
+  renderCenter(trade);
 }
 
 /* ── RENDER: CENTER PANEL ── */
@@ -1348,7 +1780,7 @@ function renderCenter(trade) {
     if (activeContextId) {
       el.innerHTML = '<div class="phase-empty"><div class="phase-empty-icon">\u2713</div><span>Context committed</span><span style="font-size:11px;color:var(--muted2);text-transform:none;letter-spacing:0;">Click ENTRY to set up your trade</span></div>';
     } else {
-      el.innerHTML = '<div class="phase-empty"><div class="phase-empty-icon">\u25c9</div><span>Declare context to begin</span></div>';
+      renderContextSplitCard(el);
     }
     return;
   }
@@ -1462,6 +1894,10 @@ function cancelEntry() {
   activeStrength = {};
   activeContextId = null;
   lastCommittedContext = {};
+  pendingNuances = [];
+  formState = { dayType: '', valueArea: 'Overlapping', volumeRead: '', notes: '', planText: '', planLocation: '', planTrigger: '' };
+  liveNowContext = null;
+  inlineUpdateOpen = false;
   setPhase('CONTEXT');
 }
 
@@ -2137,13 +2573,17 @@ async function refreshTradeFromServer(tradeId) {
    ══════════════════════════════════════════════════════════════════════════════ */
 
 async function commitContext() {
-  const mktRead = document.getElementById('ds-mkt-read')?.value.trim();
-  const valueArea = document.getElementById('ds-value-area')?.value;
-  const setup = document.getElementById('ds-setup')?.value.trim();
-  const location = document.getElementById('ds-location')?.value.trim();
-  const nuance = document.getElementById('ds-nuance')?.value.trim();
+  const dayType = document.getElementById('ds-day-type')?.value.trim() || '';
+  const valueArea = document.getElementById('ds-value-area')?.value || '';
+  const volumeRead = document.getElementById('ds-volume-read')?.value || '';
+  const trend = selectedTrend || '';
+  const nuancesJson = JSON.stringify(pendingNuances);
+  const notes = document.getElementById('ds-notes')?.value.trim() || '';
+  const planText = document.getElementById('ds-plan-text')?.value.trim() || '';
+  const planLocation = document.getElementById('ds-plan-location')?.value.trim() || '';
+  const planTrigger = document.getElementById('ds-plan-trigger')?.value.trim() || '';
 
-  if (!mktRead && !setup) { showToast('Fill at least Mkt Read or Setup', true); return; }
+  if (!dayType && !planText) { showToast('Fill at least Day Type or Plan', true); return; }
 
   const now = new Date();
   const timeStr = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
@@ -2153,9 +2593,11 @@ async function commitContext() {
   const res = await fetch('/api/context', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      date: dateStr, time: timeStr,
-      mkt_read: mktRead, value_area: valueArea,
-      setup: setup, location: location, nuance: nuance,
+      date: dateStr, time: timeStr, value_area: valueArea,
+      day_type: dayType, volume_read: volumeRead, trend: trend,
+      nuances_json: nuancesJson, notes: notes,
+      plan_text: planText,
+      plan_location: planLocation, plan_trigger: planTrigger,
       mental_state: guardState.mental_state || 'calm',
       account_id: pid ? parseInt(pid) : null,
     })
@@ -2164,17 +2606,153 @@ async function commitContext() {
   if (!data.ok) { showToast(data.error || 'Failed', true); return; }
 
   activeContextId = data.id;
-  lastCommittedContext = { time: timeStr, mkt_read: mktRead, value_area: valueArea, setup, location, nuance };
+  lastCommittedContext = {
+    time: timeStr, value_area: valueArea,
+    day_type: dayType, volume_read: volumeRead, trend: trend,
+    nuances_json: nuancesJson, notes: notes, nuances: [...pendingNuances],
+    plan_text: planText,
+    plan_location: planLocation, plan_trigger: planTrigger,
+    // backfill old fields
+    mkt_read: dayType, setup: planText, location: planLocation, nuance: notes
+  };
+  pendingNuances = [];
   // Add to SERVER_CONTEXTS for reference
-  SERVER_CONTEXTS.unshift({ id: data.id, time: timeStr, mkt_read: mktRead, value_area: valueArea, setup, location, nuance, mental_state: guardState.mental_state || 'calm' });
+  SERVER_CONTEXTS.unshift({
+    id: data.id, time: timeStr, value_area: valueArea,
+    day_type: dayType, volume_read: volumeRead, trend: trend,
+    nuances_json: nuancesJson, notes: notes,
+    plan_text: planText,
+    plan_location: planLocation, plan_trigger: planTrigger,
+    mkt_read: dayType, setup: planText, location: planLocation, nuance: notes,
+    mental_state: guardState.mental_state || 'calm'
+  });
 
   showToast('Context committed \u2014 assess trade strength');
+  selectedTrend = '';
+  liveNowContext = null;
   updateRibbon();
   // Reset strength form state
   strengthValue = 0; strengthVolume = 0; strengthTrend = 0; strengthAdh = 0;
   strengthMental = 'calm'; strengthConfidence = 'medium';
   strengthSubmitted = false;
   setPhase('ENTRY');
+}
+
+/* ── INLINE UPDATE CONTEXT (MANAGE phase) ── */
+function toggleInlineUpdate() {
+  inlineUpdateOpen = !inlineUpdateOpen;
+  const trade = TRADES[activeTrade];
+  renderContextPanel(trade);
+}
+
+function renderInlineUpdateForm() {
+  inlineNuances = [];
+  return `
+    <div class="ctx-inline-form">
+      <div class="ds-field-label">Day Type</div>
+      <input type="text" class="ds-input" id="ds-upd-day-type" placeholder="e.g. Balancing...">
+      <div class="ds-field-label">Value Area</div>
+      <select class="ds-select" id="ds-upd-value-area">
+        <option value="Lower">Lower</option>
+        <option value="Overlapping Lower">Overlapping Lower</option>
+        <option value="Overlapping" selected>Overlapping</option>
+        <option value="Overlapping Higher">Overlapping Higher</option>
+        <option value="Higher">Higher</option>
+      </select>
+      <div class="ds-field-label">Volume</div>
+      <select class="ds-select" id="ds-upd-volume-read">
+        <option value="" selected>—</option>
+        <option value="Low">Low</option>
+        <option value="Avg">Avg</option>
+        <option value="High">High</option>
+      </select>
+      <div class="ds-field-label">Trend</div>
+      <div class="trend-pills" id="ds-upd-trend-pills">
+        <button type="button" class="trend-pill" data-val="Up" onclick="selectUpdateTrend(this)">UP</button>
+        <button type="button" class="trend-pill" data-val="Neutral" onclick="selectUpdateTrend(this)">NEUTRAL</button>
+        <button type="button" class="trend-pill" data-val="Down" onclick="selectUpdateTrend(this)">DOWN</button>
+      </div>
+      <div class="ds-field-label">Nuances</div>
+      <div style="display:flex;gap:6px;">
+        <input type="text" class="ds-input" id="ds-upd-nuance-input"
+               placeholder="e.g. Buyers failed at ONH" style="flex:1;"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();addInlineNuance();}">
+        <button type="button" class="ds-add-nuance-btn" onclick="addInlineNuance()">ADD</button>
+      </div>
+      <div class="nuance-pills" id="ds-upd-nuance-pills"></div>
+      <div class="ds-field-label">Notes</div>
+      <textarea class="ds-textarea" id="ds-upd-notes" rows="2" placeholder="Longer narrative..."></textarea>
+      <div class="ds-field-label">Plan</div>
+      <input type="text" class="ds-input" id="ds-upd-plan-text" placeholder="Updated plan...">
+      <div class="ds-field-label">Location</div>
+      <input type="text" class="ds-input" id="ds-upd-plan-location" placeholder="Updated location...">
+      <div class="ds-field-label">Trigger</div>
+      <input type="text" class="ds-input" id="ds-upd-plan-trigger" placeholder="Updated trigger...">
+      <button class="ds-commit-btn" onclick="updateContextInline()">UPDATE CONTEXT</button>
+    </div>
+  `;
+}
+
+function selectUpdateTrend(btn) {
+  btn.parentElement.querySelectorAll('.trend-pill').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+async function updateContextInline() {
+  const dayType = document.getElementById('ds-upd-day-type')?.value.trim() || '';
+  const valueArea = document.getElementById('ds-upd-value-area')?.value || '';
+  const volumeRead = document.getElementById('ds-upd-volume-read')?.value || '';
+  const nuancesJson = JSON.stringify(inlineNuances);
+  const notes = document.getElementById('ds-upd-notes')?.value.trim() || '';
+  const planText = document.getElementById('ds-upd-plan-text')?.value.trim() || '';
+  const planLocation = document.getElementById('ds-upd-plan-location')?.value.trim() || '';
+  const planTrigger = document.getElementById('ds-upd-plan-trigger')?.value.trim() || '';
+
+  // Get trend from active pill
+  const activePill = document.querySelector('#ds-upd-trend-pills .trend-pill.active');
+  const trend = activePill?.dataset.val || '';
+
+  if (!dayType && !planText) { showToast('Fill at least Day Type or Plan', true); return; }
+
+  const now = new Date();
+  const timeStr = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  const pid = document.getElementById('global-account-select')?.value || null;
+
+  const res = await fetch('/api/context', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      date: dateStr, time: timeStr, value_area: valueArea,
+      day_type: dayType, volume_read: volumeRead, trend: trend,
+      nuances_json: nuancesJson, notes: notes,
+      plan_text: planText,
+      plan_location: planLocation, plan_trigger: planTrigger,
+      mental_state: 'calm',
+      account_id: pid ? parseInt(pid) : null,
+    })
+  });
+  const data = await res.json();
+  if (!data.ok) { showToast(data.error || 'Failed', true); return; }
+
+  liveNowContext = {
+    time: timeStr, value_area: valueArea,
+    day_type: dayType, volume_read: volumeRead, trend: trend,
+    nuances_json: nuancesJson, notes: notes, nuances: [...inlineNuances],
+    plan_text: planText,
+    plan_location: planLocation, plan_trigger: planTrigger,
+    mkt_read: dayType, setup: planText, location: planLocation, nuance: notes
+  };
+  inlineNuances = [];
+
+  SERVER_CONTEXTS.unshift({
+    id: data.id, ...liveNowContext, mental_state: 'calm'
+  });
+
+  inlineUpdateOpen = false;
+  showToast('Context updated');
+  updateRibbon();
+  const trade = TRADES[activeTrade];
+  renderContextPanel(trade);
 }
 
 function showGuardOverlay() {
@@ -2387,6 +2965,8 @@ async function createTradeFromForm() {
 
   activeContextId = null;   // Context consumed by this trade
   lastCommittedContext = {}; // Clear ribbon cache
+  liveNowContext = null;    // Reset live-now for new trade
+  inlineUpdateOpen = false;
   activeStrengthId = null;  // Strength consumed by this trade
   activeStrength = {};      // Clear strength cache
   strengthSubmitted = false;

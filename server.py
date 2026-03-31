@@ -810,16 +810,43 @@ def api_save_instrument_config():
 @app.route("/api/context", methods=["POST"])
 def api_create_context():
     body = request.get_json(silent=True) or {}
+
+    # New fields
+    day_type = body.get("day_type", "")
+    volume_read = body.get("volume_read", "")
+    trend = body.get("trend", "")
+    observation = body.get("observation", "")
+    plan_text = body.get("plan_text", "")
+    plan_location = body.get("plan_location", "")
+    plan_trigger = body.get("plan_trigger", "")
+    nuances_json = body.get("nuances_json", "[]")
+    notes = body.get("notes", "")
+
+    # Backfill old fields from new fields for backward compat
+    mkt_read = body.get("mkt_read", "") or day_type
+    setup = body.get("setup", "") or plan_text
+    location = body.get("location", "") or plan_location
+    nuance = body.get("nuance", "") or notes or observation
+
     ctx_id = db.create_developing_context(
         account_id=body.get("account_id") or None,
         date=body.get("date", ""),
         time=body.get("time", ""),
-        mkt_read=body.get("mkt_read", ""),
+        mkt_read=mkt_read,
         value_area=body.get("value_area", ""),
-        setup=body.get("setup", ""),
-        location=body.get("location", ""),
-        nuance=body.get("nuance", ""),
+        setup=setup,
+        location=location,
+        nuance=nuance,
         mental_state=body.get("mental_state", "calm"),
+        day_type=day_type,
+        volume_read=volume_read,
+        trend=trend,
+        observation=observation,
+        plan_text=plan_text,
+        plan_location=plan_location,
+        plan_trigger=plan_trigger,
+        nuances_json=nuances_json,
+        notes=notes,
     )
     return jsonify({"ok": True, "id": ctx_id})
 

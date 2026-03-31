@@ -384,9 +384,29 @@ Pre-trade context declarations for the Declare Setup flow.
 | nuance       | TEXT    | NOT NULL DEFAULT ''                    |
 | mental_state | TEXT    | NOT NULL DEFAULT 'calm'                |
 | created_at   | TEXT    | NOT NULL DEFAULT datetime('now','localtime') |
+| day_type     | TEXT    | NOT NULL DEFAULT ''                    |
+| volume_read  | TEXT    | NOT NULL DEFAULT ''                    |
+| trend        | TEXT    | NOT NULL DEFAULT ''                    |
+| observation  | TEXT    | NOT NULL DEFAULT ''                    |
+| plan_text    | TEXT    | NOT NULL DEFAULT ''                    |
+| plan_location| TEXT    | NOT NULL DEFAULT ''                    |
+| plan_trigger | TEXT    | NOT NULL DEFAULT ''                    |
+| nuances_json | TEXT    | NOT NULL DEFAULT '[]'                  |
+| notes        | TEXT    | NOT NULL DEFAULT ''                    |
 
 `value_area` values: Lower, Overlapping Lower, Overlapping, Overlapping Higher, Higher.
 `mental_state` values: calm (passed mental state check).
+`day_type`: Free text describing market day type (e.g. "Liquidation break", "Balancing").
+`volume_read`: Free text describing volume conditions (e.g. "Low selling volume").
+`trend`: Market trend — typically "Up", "Down", or "Neutral".
+`observation`: Narrative context/reasoning (supplements `nuance`).
+`plan_text`: Actionable trade plan (supplements `setup`).
+`plan_location`: Where to execute the plan (supplements `location`).
+`plan_trigger`: Condition that triggers entry.
+`nuances_json`: JSON array of short nuance observations (e.g. `["Buyers failed at ONH","Volume drying up"]`).
+`notes`: Longer narrative notes/context.
+
+Old fields (`mkt_read`, `setup`, `location`, `nuance`) are backfilled from new fields for backward compatibility.
 
 ---
 
