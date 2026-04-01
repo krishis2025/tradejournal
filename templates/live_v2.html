@@ -458,6 +458,13 @@
   transition: all 0.2s; font-family: 'Inter', sans-serif;
 }
 .ds-commit-btn:hover { background: var(--btn-hover); }
+.ds-dont-know-btn {
+  width: 100%; padding: 10px; margin-top: 8px; border: 1px solid var(--border);
+  border-radius: 6px; background: transparent; color: var(--muted); font-weight: 600;
+  font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer;
+  transition: all 0.2s; font-family: 'Inter', sans-serif;
+}
+.ds-dont-know-btn:hover { background: var(--surface2); color: var(--text); }
 
 /* ── ENTRY PHASE: Trade Entry Form ── */
 .entry-form {
@@ -913,6 +920,174 @@
 .strength-banner.confidence-high { background: rgba(52,211,153,0.08); border: 1px solid var(--green); color: var(--green); }
 .strength-banner.fomo { background: rgba(255,77,109,0.08); border: 1px solid var(--red); color: var(--red); }
 
+/* ── Manage Cards Layout ── */
+.manage-cards {
+  display: flex; flex-direction: column; gap: 6px;
+  max-width: 520px; width: 100%; margin: 0 auto;
+}
+
+/* Trade Entry Header */
+.trade-header-card {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 18px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.thc-title { font-family: var(--font-mono); font-size: 13px; letter-spacing: 1px; color: var(--text); }
+.thc-dir { font-weight: 700; }
+.thc-dir.long { color: var(--green); }
+.thc-dir.short { color: var(--red); }
+.thc-time {
+  font-family: var(--font-mono); font-size: 11px; color: var(--muted2);
+  padding: 2px 8px; border: 1px solid var(--border); border-radius: 4px;
+}
+
+/* Strength Confidence Chip */
+.mc-strength-chip {
+  background: var(--surface2); border-radius: 6px; padding: 6px 14px;
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 600;
+  letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted);
+  border: 1px solid var(--border);
+}
+.mc-strength-chip .sc-factors { display: flex; gap: 10px; }
+.mc-strength-chip .sc-factor { white-space: nowrap; }
+.mc-strength-chip .sc-factor.on { color: #b89a3e; }
+.mc-strength-chip .sc-factor.off { color: var(--muted); opacity: 0.45; }
+.mc-strength-chip .sc-conf { white-space: nowrap; }
+.mc-strength-chip .sc-conf.conf-low { color: var(--red); }
+.mc-strength-chip .sc-conf.conf-medium { color: #b89a3e; }
+.mc-strength-chip .sc-conf.conf-high { color: var(--green); }
+
+/* Health Strip — 4-col grid */
+.mc-health-strip {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 1px; background: var(--border); border-radius: 8px; overflow: hidden;
+}
+.mc-hs-card { background: var(--surface2); padding: 10px 12px; text-align: center; }
+.mc-hs-label {
+  font-family: 'Inter', sans-serif; font-size: 8px; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 3px;
+}
+.mc-hs-value {
+  font-family: var(--font-display); font-size: 18px; letter-spacing: 1px; line-height: 1;
+}
+.mc-hs-value.text-red { color: var(--red); }
+.mc-hs-value.text-green { color: var(--green); }
+
+/* Execution Card Grid */
+.mc-qe-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;
+}
+.mc-qe-section-label {
+  grid-column: 1 / -1; font-size: 8px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); padding: 6px 0 2px; border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.mc-qe-section-label:first-child { border-top: none; padding-top: 0; }
+.mc-qe-btn {
+  padding: 12px 8px; border: 1px solid var(--border2); background: var(--surface2);
+  cursor: pointer; text-align: center; transition: all 0.12s;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.mc-qe-btn:hover { border-color: var(--muted); background: var(--surface3); }
+.mc-qe-btn:active { transform: scale(0.97); }
+.mc-qe-btn.qe-tp { border-left: 2px solid var(--green); }
+.mc-qe-btn.qe-tp:hover { border-color: var(--green); background: rgba(79,255,176,0.06); }
+.mc-qe-btn.qe-stop { border-left: 2px solid var(--red); }
+.mc-qe-btn.qe-stop:hover { border-color: var(--red); background: rgba(255,77,109,0.06); }
+.mc-qe-btn.executed { opacity: 0.3; cursor: default; }
+.mc-qe-btn.executed:hover { border-color: var(--border2); background: var(--surface2); transform: none; }
+.mc-qe-btn-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted2); }
+.mc-qe-btn-price { font-family: var(--font-mono); font-size: 13px; color: var(--text); }
+.mc-qe-btn.executed .mc-qe-btn-price { text-decoration: line-through; }
+.mc-qe-btn-pnl { font-size: 10px; }
+.mc-qe-btn-undo {
+  background: none; border: none; cursor: pointer; color: var(--warn);
+  font-size: 11px; padding: 0; transition: color 0.12s;
+}
+.mc-qe-btn-undo:hover { color: var(--red); }
+
+/* Section Labels (kept for GSA) */
+.mc-section-label {
+  font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 2px; color: var(--green);
+  margin-bottom: 2px;
+}
+.mc-section-label.risk { color: var(--red); }
+
+/* Edit mode for section labels */
+.mc-qe-edit-btn {
+  background: none; border: none; cursor: pointer; color: var(--muted);
+  font-size: 11px; padding: 2px 4px; transition: color 0.12s;
+}
+.mc-qe-edit-btn:hover { color: var(--text); }
+.mc-qe-save-btn {
+  background: none; border: none; cursor: pointer; color: var(--accent);
+  font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+  font-family: var(--font-mono); padding: 2px 4px; transition: color 0.12s;
+}
+.mc-qe-save-btn:hover { color: var(--green); }
+.mc-qe-btn.editing {
+  cursor: default; padding: 16px 8px;
+  border-color: var(--accent2); background: var(--surface);
+}
+.mc-qe-btn.editing:hover { transform: none; border-color: var(--accent2); background: var(--surface); }
+.mc-qe-price-input {
+  width: 80px; background: var(--bg); border: 1.5px solid var(--accent2);
+  border-radius: 5px; padding: 6px 8px; text-align: center;
+  font-family: var(--font-mono); font-size: 16px; font-weight: 600; color: var(--text);
+  outline: none; transition: border-color 0.12s;
+}
+.mc-qe-price-input:focus { border-color: var(--accent); }
+
+/* Global Stop Adjust */
+.gsa-card {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 18px; margin-top: 10px;
+}
+.gsa-label {
+  font-size: 8px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 8px;
+}
+.gsa-row {
+  display: flex; gap: 8px; align-items: center;
+}
+.gsa-input {
+  flex: 1; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 12px 14px; text-align: left;
+  font-family: var(--font-mono); font-size: 14px; color: var(--text);
+}
+.gsa-btn {
+  padding: 12px 20px; border: none; border-radius: 6px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer;
+  transition: all 0.12s;
+}
+.gsa-btn-update {
+  background: var(--text); color: var(--bg);
+}
+.gsa-btn-update:hover { opacity: 0.85; }
+
+/* Trade Plan in manage panel */
+.mc-plan {
+  border-left: 3px solid #b8860b; padding: 12px 16px; margin-top: 10px;
+  border-radius: 0;
+}
+.mc-plan-title {
+  font-size: 0.6rem; font-weight: 900; letter-spacing: 2px; text-transform: uppercase;
+  color: #b8860b; margin-bottom: 4px;
+}
+.mc-plan-body {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 16px;
+}
+.mc-plan-text {
+  font-family: 'Inter', sans-serif; font-size: 1.2rem; font-weight: 900;
+  color: #1A1A1B;
+}
+.mc-plan-detail {
+  font-family: 'Inter', sans-serif; font-size: 11px; color: #697077;
+}
+
 /* ── STRENGTH AUDIT CARD ── */
 .sa-card { max-width: 420px; width: 100%; margin: auto; display: flex; flex-direction: column; gap: 16px; }
 .sa-header { display: flex; justify-content: space-between; align-items: baseline; }
@@ -1142,6 +1317,7 @@ const STRENGTH_MAP = {{ strength_json|safe }};
 
 /* ── State ─────────────────────────────────────────────────────────────────── */
 let activeTrade = null;       // key like 'T1'
+let editingSection = null;   // null | 'tp' | 'stop'
 let activePhase = 'CONTEXT';
 let activeContextId = null;
 let TRADES = {};              // Trade models keyed by tab name
@@ -1150,6 +1326,7 @@ let guardLocked = false;
 let activeTags = {};
 let noteTimer = null;
 let lastCommittedContext = {};
+let contextDontKnow = false;  // true after user clicks "Don't Know"
 let activeStrengthId = null;
 let activeStrength = {};  // { value, volume, trend, mental_state, confidence }
 
@@ -1313,6 +1490,7 @@ function updateRibbon() {
 }
 
 function getLatestContext() {
+  if (contextDontKnow) return null;
   if (Object.keys(lastCommittedContext).length > 0) return lastCommittedContext;
   if (SERVER_CONTEXTS && SERVER_CONTEXTS.length > 0) return SERVER_CONTEXTS[0];
   return null;
@@ -1751,6 +1929,7 @@ function renderContextSplitCard(el) {
       </div>
 
       <button class="ds-commit-btn" style="margin-top:16px;" onclick="commitContext()">COMMIT CONTEXT & PLAN</button>
+      <button class="ds-dont-know-btn" onclick="dontKnowContext()">DON'T KNOW</button>
     </div>
   `;
   restoreFormState();
@@ -1792,27 +1971,14 @@ function renderCenter(trade) {
     return;
   }
 
-  // Strength banner for MANAGE/EXIT
-  let manageBanner = '';
-  const str = trade.strength || activeStrength;
-  if (str && str.mental_state) {
-    const strScore = (str.value || 0) + (str.volume || 0) + (str.trend || 0) + (str.adh || 0);
-    if (str.mental_state === 'fomo') {
-      manageBanner = '<div class="strength-banner fomo">Trade is Live \u2014 FOMO trade</div>';
-    } else {
-      const conf = (str.confidence || 'medium').toUpperCase();
-      manageBanner = `<div class="strength-banner confidence-${str.confidence || 'medium'}">Trade is Live \u2014 ${conf} CONFIDENCE \u00b7 ${strScore}/4</div>`;
-    }
-  }
-
   const isLong = trade.direction === 'Long';
   if (isTradeClosed(trade) && activePhase !== 'EXIT') {
-    el.innerHTML = manageBanner + buildLadderHTML(trade, isLong) +
+    el.innerHTML = buildManageCardsHTML(trade, isLong) +
       `<div class="closed-overlay"><div class="closed-tag">CLOSED</div></div>`;
     return;
   }
 
-  el.innerHTML = manageBanner + buildLadderHTML(trade, isLong);
+  el.innerHTML = buildManageCardsHTML(trade, isLong);
 }
 
 /* ── STRENGTH PILLS (for context panel) ── */
@@ -1889,6 +2055,54 @@ function cancelEntry() {
   formState = { dayType: '', valueArea: 'Overlapping', volumeRead: '', notes: '', planText: '', planLocation: '', planTrigger: '' };
   liveNowContext = null;
   inlineUpdateOpen = false;
+  setPhase('CONTEXT');
+}
+
+async function dontKnowContext() {
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10);
+  const timeStr = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  const pid = new URLSearchParams(window.location.search).get('account');
+
+  const res = await fetch('/api/context', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      date: dateStr, time: timeStr,
+      day_type: "Don't Know", value_area: '', volume_read: '', trend: '',
+      nuances_json: '[]', notes: '',
+      plan_text: '', plan_location: '', plan_trigger: '',
+      mental_state: 'calm',
+      account_id: pid ? parseInt(pid) : null,
+    })
+  });
+  const data = await res.json();
+  if (!data.ok) { showToast(data.error || 'Failed', true); return; }
+
+  // Add to evolution history
+  SERVER_CONTEXTS.unshift({
+    id: data.id, time: timeStr, value_area: '',
+    day_type: "Don't Know", volume_read: '', trend: '',
+    nuances_json: '[]', notes: '',
+    plan_text: '', plan_location: '', plan_trigger: '',
+    mkt_read: "Don't Know", setup: '', location: '', nuance: '',
+    mental_state: 'calm'
+  });
+
+  // Clear active context — return to morning state
+  contextDontKnow = true;
+  activeContextId = null;
+  lastCommittedContext = {};
+  pendingNuances = [];
+  selectedTrend = '';
+  formState = { dayType: '', valueArea: 'Overlapping', volumeRead: '', notes: '', planText: '', planLocation: '', planTrigger: '' };
+  liveNowContext = null;
+  inlineUpdateOpen = false;
+  strengthSubmitted = false;
+  activeStrengthId = null;
+  activeStrength = {};
+
+  showToast("Context reset — Don't Know logged");
+  updateRibbon();
   setPhase('CONTEXT');
 }
 
@@ -2357,6 +2571,182 @@ function renderRow(row, maxPnl) {
   </div>`;
 }
 
+function buildExecCardsHTML(trade) {
+  const isLong = trade.direction === 'Long';
+  const entry = trade.entry;
+  const isPushed = trade.pushed;
+  const levels = trade.levels || [];
+  const executions = trade.executions || [];
+
+  const tps = levels.filter(l => l.level_type === 'tp').sort((a,b) => a.portion - b.portion);
+  const stops = levels.filter(l => l.level_type === 'stop').sort((a,b) => a.portion - b.portion);
+  if (tps.length === 0 && stops.length === 0) return '';
+
+  // Map executed portions
+  const portionExited = {};
+  executions.forEach(e => { portionExited[e.portion] = (portionExited[e.portion]||0) + e.qty; });
+
+  const editingTP = editingSection === 'tp';
+  const editingStop = editingSection === 'stop';
+
+  let html = '<div class="mc-qe-grid">';
+
+  // TAKE PROFIT section
+  const tpLabelBtn = editingTP
+    ? `<button class="mc-qe-save-btn" onclick="event.stopPropagation();saveEditedPrices('tp')">SAVE</button>`
+    : `<button class="mc-qe-edit-btn" onclick="event.stopPropagation();toggleEditMode('tp')" title="Edit prices">✎</button>`;
+  html += `<div class="mc-qe-section-label"><span>Take Profit</span>${tpLabelBtn}</div>`;
+  tps.forEach(tp => {
+    const stop = stops.find(s => s.portion === tp.portion);
+    const origQty = stop ? stop.qty : tp.qty;
+    const exited = portionExited[tp.portion] || 0;
+    const rem = origQty - exited;
+
+    if (rem <= 0) {
+      const exec = executions.find(e => e.portion === tp.portion);
+      const undoBtn = (!isPushed && exec)
+        ? `<button class="mc-qe-btn-undo" onclick="event.stopPropagation();deleteExec(${trade.id},${exec.id})" title="Undo">↩</button>`
+        : '';
+      html += `<div class="mc-qe-btn qe-tp executed">
+        <div class="mc-qe-btn-label">TP${tp.portion}</div>
+        <div class="mc-qe-btn-price">${tp.price}</div>
+        <div class="mc-qe-btn-pnl pnl-pos">✓</div>${undoBtn}
+      </div>`;
+    } else if (editingTP) {
+      html += `<div class="mc-qe-btn qe-tp editing">
+        <div class="mc-qe-btn-label">TP${tp.portion}</div>
+        <input type="number" class="mc-qe-price-input" data-section="tp" data-portion="${tp.portion}" value="${tp.price}" step="0.25" onclick="event.stopPropagation()">
+      </div>`;
+    } else {
+      const pnl = isLong ? (tp.price - entry) * rem * trade.tickValue : (entry - tp.price) * rem * trade.tickValue;
+      html += `<div class="mc-qe-btn qe-tp" onclick="executeLevelAPI(${tp.portion},'tp_hit')">
+        <div class="mc-qe-btn-label">TP${tp.portion}</div>
+        <div class="mc-qe-btn-price">${tp.price}</div>
+        <div class="mc-qe-btn-pnl pnl-pos">+$${pnl.toFixed(0)} · ${rem}×</div>
+      </div>`;
+    }
+  });
+
+  // STOP HIT section
+  const stopLabelBtn = editingStop
+    ? `<button class="mc-qe-save-btn" onclick="event.stopPropagation();saveEditedPrices('stop')">SAVE</button>`
+    : `<button class="mc-qe-edit-btn" onclick="event.stopPropagation();toggleEditMode('stop')" title="Edit prices">✎</button>`;
+  html += `<div class="mc-qe-section-label"><span>Stop Hit</span>${stopLabelBtn}</div>`;
+  stops.forEach(s => {
+    const exited = portionExited[s.portion] || 0;
+    const rem = s.qty - exited;
+
+    if (rem <= 0) {
+      const exec = executions.find(e => e.portion === s.portion && e.exec_type === 'stop_hit');
+      const undoBtn = (!isPushed && exec)
+        ? `<button class="mc-qe-btn-undo" onclick="event.stopPropagation();deleteExec(${trade.id},${exec.id})" title="Undo">↩</button>`
+        : '';
+      html += `<div class="mc-qe-btn qe-stop executed">
+        <div class="mc-qe-btn-label">S${s.portion}</div>
+        <div class="mc-qe-btn-price">${s.price}</div>
+        <div class="mc-qe-btn-pnl">✓</div>${undoBtn}
+      </div>`;
+    } else if (editingStop) {
+      html += `<div class="mc-qe-btn qe-stop editing">
+        <div class="mc-qe-btn-label">S${s.portion}</div>
+        <input type="number" class="mc-qe-price-input" data-section="stop" data-portion="${s.portion}" value="${s.price}" step="0.25" onclick="event.stopPropagation()">
+      </div>`;
+    } else {
+      const pnl = isLong ? (s.price - entry) * rem * trade.tickValue : (entry - s.price) * rem * trade.tickValue;
+      const pnlCls = pnl >= 0 ? 'pnl-pos' : 'pnl-neg';
+      const pnlStr = pnl >= 0 ? `+$${pnl.toFixed(0)}` : `-$${Math.abs(pnl).toFixed(0)}`;
+      html += `<div class="mc-qe-btn qe-stop" onclick="executeLevelAPI(${s.portion},'stop_hit')">
+        <div class="mc-qe-btn-label">S${s.portion}</div>
+        <div class="mc-qe-btn-price">${s.price}</div>
+        <div class="mc-qe-btn-pnl ${pnlCls}">${pnlStr} · ${rem}×</div>
+      </div>`;
+    }
+  });
+
+  html += '</div>';
+  return html;
+}
+
+function buildManageCardsHTML(trade, isLong) {
+  const entry = trade.entry;
+  let html = '<div class="manage-cards">';
+
+  // 1. Trade Header (unchanged)
+  const dirClass = isLong ? 'long' : 'short';
+  const dirLabel = isLong ? 'LONG' : 'SHORT';
+  html += `<div class="trade-header-card">
+    <div class="thc-title">
+      <span class="thc-dir ${dirClass}">${dirLabel}</span> ${activeTrade || ''} \u00b7 ${trade.qty}\u00d7 ${trade.instrument} @ ${entry}
+    </div>
+    <div class="thc-time">${trade.time || ''}</div>
+  </div>`;
+
+  // 1b. Strength + Confidence Chip
+  const str = trade.strength;
+  if (str && str.mental_state) {
+    const factors = [
+      ['VALUE', str.value], ['VOL', str.volume], ['TREND', str.trend]
+    ];
+    if (str.adh) factors.push(['ADH', str.adh]);
+    const factorsHtml = factors.map(([label, on]) =>
+      `<span class="sc-factor ${on ? 'on' : 'off'}">${on ? '\u2713' : '\u2717'}${label}</span>`
+    ).join('');
+    const conf = (str.confidence || 'medium').toLowerCase();
+    const confLabel = conf.toUpperCase() + ' CONFIDENCE';
+    html += `<div class="mc-strength-chip">
+      <div class="sc-factors">${factorsHtml}</div>
+      <span class="sc-conf conf-${conf}">\u2713${confLabel}</span>
+    </div>`;
+  }
+
+  // 2. Health Strip
+  const h = computeHealth(trade);
+  const netRiskCls = h.netRisk < 0 ? 'text-red' : 'text-green';
+  const realCls = h.realized >= 0 ? 'text-green' : 'text-red';
+  const realStr = h.realized >= 0 ? `+$${h.realized.toFixed(0)}` : `-$${Math.abs(h.realized).toFixed(0)}`;
+  const netRiskStr = h.netRisk < 0 ? `-$${Math.abs(h.netRisk).toFixed(0)}` : `+$${h.netRisk.toFixed(0)}`;
+  const potStr = h.potential >= 0 ? `+$${h.potential.toFixed(0)}` : `-$${Math.abs(h.potential).toFixed(0)}`;
+  html += `<div class="mc-health-strip">
+    <div class="mc-hs-card"><div class="mc-hs-label">REMAINING</div><div class="mc-hs-value">${h.remaining}/${h.total}</div></div>
+    <div class="mc-hs-card"><div class="mc-hs-label">NET RISK</div><div class="mc-hs-value ${netRiskCls}">${netRiskStr}</div></div>
+    <div class="mc-hs-card"><div class="mc-hs-label">REALIZED</div><div class="mc-hs-value ${realCls}">${realStr}</div></div>
+    <div class="mc-hs-card"><div class="mc-hs-label">POTENTIAL</div><div class="mc-hs-value" style="color:var(--accent2)">${potStr}</div></div>
+  </div>`;
+
+  // 3. Execution Cards
+  html += buildExecCardsHTML(trade);
+
+  // 4. Global Stop Adjust
+  html += `<div class="gsa-card">
+    <div class="gsa-label">GLOBAL STOP ADJUST</div>
+    <div class="gsa-row">
+      <input type="number" id="gsa-price" class="gsa-input" step="0.25">
+      <button class="gsa-btn gsa-btn-update" onclick="updateAllStops()">UPDATE ALL</button>
+    </div>
+  </div>`;
+
+  // 5. Trade Plan
+  const latestCtx = getLatestContext();
+  if (latestCtx) {
+    const planText = latestCtx.plan_text || latestCtx.planText || latestCtx.setup || '';
+    const planLoc = latestCtx.plan_location || latestCtx.planLocation || latestCtx.location || '';
+    const planTrigger = latestCtx.plan_trigger || latestCtx.planTrigger || '';
+    if (planText) {
+      html += `<div class="mc-plan">
+        <div class="mc-plan-title">TRADE PLAN</div>
+        <div class="mc-plan-body">
+          <div class="mc-plan-text">${escHtml(planText)}</div>
+          ${planLoc ? `<div class="mc-plan-detail">${escHtml(planLoc)}</div>` : ''}
+          ${planTrigger ? `<div class="mc-plan-detail">${escHtml(planTrigger)}</div>` : ''}
+        </div>
+      </div>`;
+    }
+  }
+
+  html += '</div>';
+  return html;
+}
+
 function computeHealth(trade) {
   const isLong = trade.direction === 'Long';
   const entry = trade.entry;
@@ -2394,6 +2784,7 @@ function computeHealth(trade) {
   const rMult = (realized / initialRisk).toFixed(1);
   return { remaining, total, netRisk, realized, potential, rMultiple: rMult };
 }
+
 
 /* ══════════════════════════════════════════════════════════════════════════════
    API-BACKED ACTIONS
@@ -2438,7 +2829,88 @@ async function moveStopsToBE() {
   const data = await res.json();
   if (data.ok) {
     await refreshTradeFromServer(trade.id);
-    showToast('Stops moved to breakeven');
+    showToast('Stops moved to entry');
+  }
+}
+
+async function updateAllStops() {
+  const trade = TRADES[activeTrade];
+  if (!trade) return;
+  const input = document.getElementById('gsa-price');
+  if (!input) return;
+  const newPrice = parseFloat(input.value);
+  if (isNaN(newPrice) || newPrice <= 0) { showToast('Enter a valid price', true); return; }
+
+  const executions = trade.executions || [];
+  const portionExited = {};
+  executions.forEach(e => { portionExited[e.portion] = (portionExited[e.portion]||0) + e.qty; });
+
+  let skipped = [];
+  const newLevels = trade.levels.map(lv => {
+    const l = {...lv};
+    if (l.level_type !== 'stop') return l;
+    const exited = portionExited[l.portion] || 0;
+    if (l.qty - exited <= 0) { skipped.push(l.portion); return l; }
+    l.price = newPrice;
+    return l;
+  });
+
+  const res = await fetch(`/api/live/${trade.id}/levels`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ levels: newLevels })
+  });
+  const data = await res.json();
+  if (data.ok) {
+    await refreshTradeFromServer(trade.id);
+    let msg = `All stops updated to ${newPrice}`;
+    if (skipped.length > 0) msg += ` (skipped filled: ${skipped.map(p=>'S'+p).join(', ')})`;
+    showToast(msg);
+  } else {
+    showToast(data.error || 'Failed to update', true);
+  }
+}
+
+function toggleEditMode(section) {
+  editingSection = editingSection === section ? null : section;
+  renderAll();
+}
+
+async function saveEditedPrices(section) {
+  const trade = TRADES[activeTrade];
+  if (!trade) return;
+
+  const inputs = document.querySelectorAll(`.mc-qe-price-input[data-section="${section}"]`);
+  if (inputs.length === 0) { editingSection = null; renderAll(); return; }
+
+  const updates = {};
+  let hasError = false;
+  inputs.forEach(inp => {
+    const portion = parseInt(inp.dataset.portion);
+    const val = parseFloat(inp.value);
+    if (isNaN(val) || val <= 0) { hasError = true; return; }
+    updates[portion] = val;
+  });
+  if (hasError) { showToast('Enter valid prices for all levels', true); return; }
+
+  const newLevels = trade.levels.map(lv => {
+    const l = {...lv};
+    if (l.level_type !== section) return l;
+    if (updates[l.portion] !== undefined) l.price = updates[l.portion];
+    return l;
+  });
+
+  const res = await fetch(`/api/live/${trade.id}/levels`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ levels: newLevels })
+  });
+  const data = await res.json();
+  if (data.ok) {
+    editingSection = null;
+    await refreshTradeFromServer(trade.id);
+    const label = section === 'tp' ? 'targets' : 'stops';
+    showToast(`Updated ${label}`);
+  } else {
+    showToast(data.error || 'Failed to update', true);
   }
 }
 
@@ -2535,6 +3007,17 @@ function editPrice(el, type, portion) {
   input.addEventListener('blur', commit);
 }
 
+async function deleteExec(tradeId, execId) {
+  const res = await fetch(`/api/live/${tradeId}/execution/${execId}`, { method: 'DELETE' });
+  const data = await res.json();
+  if (data.ok) {
+    await refreshTradeFromServer(tradeId);
+    showToast('Execution removed');
+  } else {
+    showToast(data.error || 'Failed', true);
+  }
+}
+
 async function refreshTradeFromServer(tradeId) {
   const res = await fetch(`/api/live/${tradeId}/recalc`);
   const recalc = await res.json();
@@ -2596,6 +3079,7 @@ async function commitContext() {
   const data = await res.json();
   if (!data.ok) { showToast(data.error || 'Failed', true); return; }
 
+  contextDontKnow = false;
   activeContextId = data.id;
   lastCommittedContext = {
     time: timeStr, value_area: valueArea,
@@ -3199,6 +3683,17 @@ function renderAll() {
     const key = 'T' + (i + 1);
     TRADES[key] = buildTradeModel(t, SERVER_CONTEXTS, INST_CONFIG);
   });
+
+  // Detect "Don't Know" as latest context on reload
+  if (SERVER_CONTEXTS && SERVER_CONTEXTS.length > 0) {
+    const latest = SERVER_CONTEXTS[0];
+    const latestDT = (latest.day_type || '').toLowerCase();
+    if (latestDT === "don't know") {
+      // Check no trade uses this context
+      const usedByTrade = Object.values(TRADES).some(t => t.context_id === latest.id);
+      if (!usedByTrade) contextDontKnow = true;
+    }
+  }
 
   // Determine initial state
   const openKey = Object.keys(TRADES).find(k => !isTradeClosed(TRADES[k]));
