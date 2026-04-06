@@ -524,7 +524,7 @@ SIBLINGS.forEach((st, i) => {
     pnl: st.pnl,
     context: {
       mktRead: ctx.mkt_read || '\u2014',
-      valueArea: ctx.value_area || '\u2014',
+      valueArea: ctx.value_state || ctx.value_area || '\u2014',
       setup: ctx.setup || '\u2014',
       location: ctx.location || '\u2014',
       nuance: ctx.nuance || ''

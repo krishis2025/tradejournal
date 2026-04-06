@@ -110,7 +110,7 @@ def day_view(day_id):
                 except (ValueError, KeyError):
                     ctx["time_12h"] = ctx.get("time", "")
                 # Shortened value area + color
-                va = ctx.get("value_area", "")
+                va = ctx.get("value_state", "") or ctx.get("value_area", "")
                 va_map = {
                     "Lower": ("Lower", "red"),
                     "Overlapping Lower": ("Ovlp Lower", "blue"),
@@ -334,6 +334,8 @@ def settings_view():
         instrument_config=instrument_config,
         accounts=accounts,
         accounts_json=json.dumps(accounts),
+        signals=db.get_all_signals(),
+        signals_json=json.dumps(db.get_all_signals()),
     )
 
 
@@ -414,6 +416,11 @@ def live_trade_v2_page():
 
     contexts = db.get_developing_contexts(date_from, date_to, account_id)
 
+    # Attach signals and legs to each context
+    for ctx in contexts:
+        ctx["signals"] = db.get_market_signals_by_context(ctx["id"])
+        ctx["legs"] = db.get_trade_plan_legs_by_context(ctx["id"])
+
     # Build strength lookup for trades that have a strength_id
     strength_map = {}
     for t in open_trades + closed_trades:
@@ -422,6 +429,9 @@ def live_trade_v2_page():
             s = db.get_trade_strength(sid)
             if s:
                 strength_map[sid] = s
+
+    # Signal library for context form dropdown
+    signal_library = db.get_all_signals()
 
     return render_template("live_v2.html",
         open_trades=open_trades, closed_trades=closed_trades,
@@ -432,6 +442,7 @@ def live_trade_v2_page():
         open_trades_json=json.dumps(open_trades),
         closed_trades_json=json.dumps(closed_trades),
         strength_json=json.dumps(strength_map),
+        signal_library_json=json.dumps(signal_library),
     )
 
 
@@ -805,6 +816,44 @@ def api_save_instrument_config():
     return jsonify({"ok": True})
 
 
+# ── API: Signal Library ──────────────────────────────────────────────────────
+
+@app.route("/api/signals", methods=["GET"])
+def api_get_signals():
+    return jsonify(db.get_all_signals())
+
+
+@app.route("/api/signals", methods=["POST"])
+def api_create_signal():
+    body = request.get_json(silent=True) or {}
+    signal_key = body.get("signal_key", "").strip()
+    signal_value = body.get("signal_value", "").strip()
+    if not signal_key or not signal_value:
+        return jsonify({"ok": False, "error": "signal_key and signal_value required"}), 400
+    try:
+        sid = db.create_signal(
+            signal_key=signal_key,
+            signal_value=signal_value,
+            default_polarity=body.get("default_polarity", "neutral"),
+        )
+        return jsonify({"ok": True, "id": sid})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+
+@app.route("/api/signals/<int:signal_id>", methods=["PATCH"])
+def api_update_signal(signal_id):
+    body = request.get_json(silent=True) or {}
+    db.update_signal(signal_id, **body)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/signals/<int:signal_id>", methods=["DELETE"])
+def api_delete_signal(signal_id):
+    db.delete_signal(signal_id)
+    return jsonify({"ok": True})
+
+
 # ── API: Developing Context ───────────────────────────────────────────────────
 
 @app.route("/api/context", methods=["POST"])
@@ -813,40 +862,46 @@ def api_create_context():
 
     # New fields
     day_type = body.get("day_type", "")
-    volume_read = body.get("volume_read", "")
-    trend = body.get("trend", "")
+    volume_state = body.get("volume_state", "") or body.get("volume_read", "")
+    HTF_Trend = body.get("HTF_Trend", "") or body.get("trend", "")
     observation = body.get("observation", "")
     plan_text = body.get("plan_text", "")
     plan_location = body.get("plan_location", "")
     plan_trigger = body.get("plan_trigger", "")
     nuances_json = body.get("nuances_json", "[]")
-    notes = body.get("notes", "")
+    market_story = body.get("market_story", "") or body.get("notes", "")
+    headline_read = body.get("headline_read", "")
+    confidence_score = body.get("confidence_score", "")
+    bias_direction = body.get("bias_direction", "")
 
     # Backfill old fields from new fields for backward compat
     mkt_read = body.get("mkt_read", "") or day_type
     setup = body.get("setup", "") or plan_text
     location = body.get("location", "") or plan_location
-    nuance = body.get("nuance", "") or notes or observation
+    nuance = body.get("nuance", "") or market_story or observation
 
     ctx_id = db.create_developing_context(
         account_id=body.get("account_id") or None,
         date=body.get("date", ""),
         time=body.get("time", ""),
         mkt_read=mkt_read,
-        value_area=body.get("value_area", ""),
+        value_state=body.get("value_state", "") or body.get("value_area", ""),
         setup=setup,
         location=location,
         nuance=nuance,
         mental_state=body.get("mental_state", "calm"),
         day_type=day_type,
-        volume_read=volume_read,
-        trend=trend,
+        volume_state=volume_state,
+        HTF_Trend=HTF_Trend,
         observation=observation,
         plan_text=plan_text,
         plan_location=plan_location,
         plan_trigger=plan_trigger,
         nuances_json=nuances_json,
-        notes=notes,
+        market_story=market_story,
+        headline_read=headline_read,
+        confidence_score=confidence_score,
+        bias_direction=bias_direction,
     )
     return jsonify({"ok": True, "id": ctx_id})
 
@@ -856,6 +911,53 @@ def api_update_context(ctx_id):
     body = request.get_json(silent=True) or {}
     db.update_developing_context(ctx_id, **body)
     return jsonify({"ok": True})
+
+
+# ── API: Context Signals & Legs ──────────────────────────────────────────────
+
+@app.route("/api/context/<int:ctx_id>/signals", methods=["GET"])
+def api_get_context_signals(ctx_id):
+    rows = db.get_market_signals_by_context(ctx_id)
+    return jsonify(rows)
+
+
+@app.route("/api/context/<int:ctx_id>/signals", methods=["POST"])
+def api_create_context_signals(ctx_id):
+    body = request.get_json(silent=True) or {}
+    signals = body.get("signals", [])
+    created = []
+    for s in signals:
+        sid = db.create_market_signal(ctx_id, s.get("signal_value", ""), s.get("signal_polarity", "neutral"))
+        created.append(sid)
+    return jsonify({"ok": True, "ids": created})
+
+
+@app.route("/api/context/<int:ctx_id>/legs", methods=["GET"])
+def api_get_context_legs(ctx_id):
+    rows = db.get_trade_plan_legs_by_context(ctx_id)
+    return jsonify(rows)
+
+
+@app.route("/api/context/<int:ctx_id>/legs", methods=["POST"])
+def api_create_context_legs(ctx_id):
+    body = request.get_json(silent=True) or {}
+    legs = body.get("legs", [])
+    created = []
+    for i, leg in enumerate(legs):
+        lid = db.create_trade_plan_leg(
+            context_id=ctx_id,
+            leg_type=leg.get("leg_type", ""),
+            plan_label=leg.get("plan_label", ""),
+            execution_side=leg.get("execution_side", ""),
+            entry_zone_low=leg.get("entry_zone_low"),
+            entry_zone_high=leg.get("entry_zone_high"),
+            trigger_text=leg.get("trigger_text", ""),
+            condition_text=leg.get("condition_text", ""),
+            is_primary=leg.get("is_primary", 0),
+            sort_order=leg.get("sort_order", i),
+        )
+        created.append(lid)
+    return jsonify({"ok": True, "ids": created})
 
 
 # ── API: Trade Strength ──────────────────────────────────────────────────────

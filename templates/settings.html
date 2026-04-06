@@ -357,6 +357,9 @@
     <div class="sidebar-item" onclick="showSection('live',this)">
       <span class="sidebar-icon">⚡</span> Live Trade
     </div>
+    <div class="sidebar-item" onclick="showSection('playbook',this)">
+      <span class="sidebar-icon">📋</span> Playbook
+    </div>
     <div class="sidebar-item" onclick="showSection('theme',this)">
       <span class="sidebar-icon">🎨</span> Theme
     </div>
@@ -795,6 +798,68 @@
       </div>
     </div>
 
+    <!-- ════════════ PLAYBOOK SECTION ════════════ -->
+    <div class="settings-section" id="section-playbook">
+      <div class="settings-section-title">Playbook</div>
+      <div class="settings-section-sub">Configure your signal library and playbook components</div>
+
+      <div class="tag-config-card" style="margin-top:16px;">
+        <div class="tag-config-header">
+          <div class="tag-config-title">Signals</div>
+        </div>
+        <div class="tag-config-body" style="padding:0;">
+          <table class="config-table" style="width:100%;font-size:11px;border-collapse:collapse;">
+            <thead>
+              <tr style="text-align:left;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);">
+                <th style="padding:8px 12px;">Key</th>
+                <th style="padding:8px 12px;">Value</th>
+                <th style="padding:8px 12px;">Polarity</th>
+                <th style="padding:8px 12px;">Active</th>
+                <th style="padding:8px 12px;width:50px;"></th>
+              </tr>
+            </thead>
+            <tbody id="signal-table-body">
+              {% for sig in signals %}
+              <tr data-id="{{ sig.id }}" class="sig-row" style="border-bottom:1px solid var(--border);">
+                <td style="padding:6px 12px;font-family:var(--font-mono);font-size:10px;">{{ sig.signal_key }}</td>
+                <td style="padding:6px 12px;">{{ sig.signal_value }}</td>
+                <td style="padding:6px 12px;">{{ sig.default_polarity }}</td>
+                <td style="padding:6px 12px;">{{ '✓' if sig.is_active else '✗' }}</td>
+                <td style="padding:6px 12px;">
+                  <button class="btn btn-ghost" style="padding:2px 8px;font-size:9px;"
+                          onclick="deleteSignal({{ sig.id }}, this)">✗</button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <div id="sig-paginator" style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-top:1px solid var(--border);font-size:10px;color:var(--muted);">
+            <span id="sig-page-info"></span>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-ghost" style="padding:3px 10px;font-size:9px;" onclick="sigPage(-1)" id="sig-prev">Prev</button>
+              <button class="btn btn-ghost" style="padding:3px 10px;font-size:9px;" onclick="sigPage(1)" id="sig-next">Next</button>
+            </div>
+          </div>
+        </div>
+        <div class="tag-config-footer" style="border-top:1px solid var(--border);padding:12px;">
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;gap:8px;">
+              <input type="text" class="add-tag-input" id="sig-key" placeholder="signal_key" style="flex:1;font-family:var(--font-mono);font-size:10px;">
+              <input type="text" class="add-tag-input" id="sig-value" placeholder="Signal Value" style="flex:1;">
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <select class="add-tag-input" id="sig-polarity" style="flex:1;">
+                <option value="neutral">Neutral</option>
+                <option value="bullish">Bullish</option>
+                <option value="bearish">Bearish</option>
+              </select>
+              <button class="btn btn-ghost" style="padding:6px 14px;font-size:10px;white-space:nowrap;" onclick="addSignal()">Add Signal</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ════════════ THEME SECTION ════════════ -->
     <div class="settings-section" id="section-theme">
       <div class="settings-section-title">Theme</div>
@@ -1070,6 +1135,70 @@
     document.getElementById('section-' + id).classList.add('active');
     el.classList.add('active');
   }
+
+  // ── Signal Library ────────────────────────────────────────────────────
+  const SIG_PAGE_SIZE = 20;
+  let sigCurrentPage = 1;
+
+  function sigPaginate() {
+    const rows = document.querySelectorAll('#signal-table-body .sig-row');
+    const total = rows.length;
+    const totalPages = Math.max(1, Math.ceil(total / SIG_PAGE_SIZE));
+    if (sigCurrentPage > totalPages) sigCurrentPage = totalPages;
+    const start = (sigCurrentPage - 1) * SIG_PAGE_SIZE;
+    const end = start + SIG_PAGE_SIZE;
+    rows.forEach((r, i) => r.style.display = (i >= start && i < end) ? '' : 'none');
+    document.getElementById('sig-page-info').textContent = `${start + 1}–${Math.min(end, total)} of ${total}`;
+    document.getElementById('sig-prev').disabled = sigCurrentPage <= 1;
+    document.getElementById('sig-next').disabled = sigCurrentPage >= totalPages;
+  }
+
+  function sigPage(delta) {
+    sigCurrentPage += delta;
+    sigPaginate();
+  }
+
+  async function addSignal() {
+    const key = document.getElementById('sig-key').value.trim();
+    const value = document.getElementById('sig-value').value.trim();
+    const polarity = document.getElementById('sig-polarity').value;
+    if (!key || !value) { alert('Signal key and value are required'); return; }
+    const res = await fetch('/api/signals', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ signal_key: key, signal_value: value, default_polarity: polarity })
+    });
+    const data = await res.json();
+    if (!data.ok) { alert(data.error || 'Failed'); return; }
+    const tbody = document.getElementById('signal-table-body');
+    const tr = document.createElement('tr');
+    tr.dataset.id = data.id;
+    tr.className = 'sig-row';
+    tr.style.borderBottom = '1px solid var(--border)';
+    tr.innerHTML = `
+      <td style="padding:6px 12px;font-family:var(--font-mono);font-size:10px;">${key}</td>
+      <td style="padding:6px 12px;">${value}</td>
+      <td style="padding:6px 12px;">${polarity}</td>
+      <td style="padding:6px 12px;">✓</td>
+      <td style="padding:6px 12px;"><button class="btn btn-ghost" style="padding:2px 8px;font-size:9px;" onclick="deleteSignal(${data.id}, this)">✗</button></td>
+    `;
+    tbody.appendChild(tr);
+    document.getElementById('sig-key').value = '';
+    document.getElementById('sig-value').value = '';
+    // Jump to last page to show newly added row
+    const total = document.querySelectorAll('#signal-table-body .sig-row').length;
+    sigCurrentPage = Math.ceil(total / SIG_PAGE_SIZE);
+    sigPaginate();
+  }
+
+  async function deleteSignal(id, btn) {
+    if (!confirm('Delete this signal?')) return;
+    await fetch(`/api/signals/${id}`, { method: 'DELETE' });
+    btn.closest('tr').remove();
+    sigPaginate();
+  }
+
+  // Init pagination on load
+  document.addEventListener('DOMContentLoaded', () => sigPaginate());
 
   // ── Export ────────────────────────────────────────────────────────────
   function exportDb() {

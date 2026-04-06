@@ -371,42 +371,94 @@ Daily market internals logged per session (morning, midday, afternoon).
 ### 21. DEVELOPING_CONTEXT
 Pre-trade context declarations for the Declare Setup flow.
 
-| Column       | Type    | Constraints                            |
-|--------------|---------|----------------------------------------|
-| id           | INTEGER | PK AUTOINCREMENT                       |
-| account_id   | INTEGER | FK → accounts(id) ON DELETE SET NULL   |
-| date         | TEXT    | NOT NULL                               |
-| time         | TEXT    | NOT NULL                               |
-| mkt_read     | TEXT    | NOT NULL DEFAULT ''                    |
-| value_area   | TEXT    | NOT NULL DEFAULT ''                    |
-| setup        | TEXT    | NOT NULL DEFAULT ''                    |
-| location     | TEXT    | NOT NULL DEFAULT ''                    |
-| nuance       | TEXT    | NOT NULL DEFAULT ''                    |
-| mental_state | TEXT    | NOT NULL DEFAULT 'calm'                |
-| created_at   | TEXT    | NOT NULL DEFAULT datetime('now','localtime') |
-| day_type     | TEXT    | NOT NULL DEFAULT ''                    |
-| volume_read  | TEXT    | NOT NULL DEFAULT ''                    |
-| trend        | TEXT    | NOT NULL DEFAULT ''                    |
-| observation  | TEXT    | NOT NULL DEFAULT ''                    |
-| plan_text    | TEXT    | NOT NULL DEFAULT ''                    |
-| plan_location| TEXT    | NOT NULL DEFAULT ''                    |
-| plan_trigger | TEXT    | NOT NULL DEFAULT ''                    |
-| nuances_json | TEXT    | NOT NULL DEFAULT '[]'                  |
-| notes        | TEXT    | NOT NULL DEFAULT ''                    |
+| Column           | Type    | Constraints                            |
+|------------------|---------|----------------------------------------|
+| id               | INTEGER | PK AUTOINCREMENT                       |
+| account_id       | INTEGER | FK → accounts(id) ON DELETE SET NULL   |
+| date             | TEXT    | NOT NULL                               |
+| time             | TEXT    | NOT NULL                               |
+| mkt_read         | TEXT    | NOT NULL DEFAULT ''                    |
+| value_state      | TEXT    | NOT NULL DEFAULT '' (renamed from value_area) |
+| setup            | TEXT    | NOT NULL DEFAULT ''                    |
+| location         | TEXT    | NOT NULL DEFAULT ''                    |
+| nuance           | TEXT    | NOT NULL DEFAULT ''                    |
+| mental_state     | TEXT    | NOT NULL DEFAULT 'calm'                |
+| created_at       | TEXT    | NOT NULL DEFAULT datetime('now','localtime') |
+| day_type         | TEXT    | NOT NULL DEFAULT ''                    |
+| volume_state     | TEXT    | NOT NULL DEFAULT '' (renamed from volume_read) |
+| HTF_Trend        | TEXT    | NOT NULL DEFAULT '' (renamed from trend) |
+| observation      | TEXT    | NOT NULL DEFAULT ''                    |
+| plan_text        | TEXT    | NOT NULL DEFAULT ''                    |
+| plan_location    | TEXT    | NOT NULL DEFAULT ''                    |
+| plan_trigger     | TEXT    | NOT NULL DEFAULT ''                    |
+| nuances_json     | TEXT    | NOT NULL DEFAULT '[]'                  |
+| market_story     | TEXT    | NOT NULL DEFAULT '' (renamed from notes) |
+| headline_read    | TEXT    | NOT NULL DEFAULT ''                    |
+| confidence_score | TEXT    | NOT NULL DEFAULT ''                    |
+| bias_direction   | TEXT    | NOT NULL DEFAULT ''                    |
 
-`value_area` values: Lower, Overlapping Lower, Overlapping, Overlapping Higher, Higher.
+`value_state` values: Lower, Overlapping Lower, Overlapping, Overlapping Higher, Higher.
 `mental_state` values: calm (passed mental state check).
 `day_type`: Free text describing market day type (e.g. "Liquidation break", "Balancing").
-`volume_read`: Free text describing volume conditions (e.g. "Low selling volume").
-`trend`: Market trend — typically "Up", "Down", or "Neutral".
+`volume_state`: Free text describing volume conditions (e.g. "Low selling volume").
+`HTF_Trend`: Higher time-frame trend — typically "Up", "Down", or "Neutral".
 `observation`: Narrative context/reasoning (supplements `nuance`).
 `plan_text`: Actionable trade plan (supplements `setup`).
 `plan_location`: Where to execute the plan (supplements `location`).
 `plan_trigger`: Condition that triggers entry.
 `nuances_json`: JSON array of short nuance observations (e.g. `["Buyers failed at ONH","Volume drying up"]`).
-`notes`: Longer narrative notes/context.
+`market_story`: Longer narrative notes/context.
+`headline_read`: Quick headline summary of market read.
+`confidence_score`: Confidence level for the context assessment.
+`bias_direction`: Directional bias — long, short, or neutral.
 
 Old fields (`mkt_read`, `setup`, `location`, `nuance`) are backfilled from new fields for backward compatibility.
+
+---
+
+### 23. SIGNAL_LIBRARY
+Reference table for storing different types of market signals (key-value pairs).
+
+| Column           | Type    | Constraints            |
+|------------------|---------|------------------------|
+| id               | INTEGER | PK AUTOINCREMENT       |
+| signal_key       | TEXT    | UNIQUE NOT NULL        |
+| signal_value     | TEXT    | NOT NULL               |
+| default_polarity | TEXT    |                        |
+| is_active        | INTEGER | DEFAULT 1              |
+
+`default_polarity` values: bullish, bearish, neutral.
+
+---
+
+### 24. MARKET_SIGNALS
+Observed market signals attached to a context (child of developing_context).
+
+| Column           | Type    | Constraints                                           |
+|------------------|---------|-------------------------------------------------------|
+| id               | INTEGER | PK AUTOINCREMENT                                      |
+| context_id       | INTEGER | NOT NULL, FK → developing_context(id) ON DELETE CASCADE |
+| signal_value     | TEXT    | NOT NULL                                              |
+| signal_polarity  | TEXT    |                                                       |
+
+---
+
+### 25. TRADE_PLAN_LEGS
+Individual trade plan legs within a context, supporting multi-directional plans.
+
+| Column           | Type    | Constraints                                           |
+|------------------|---------|-------------------------------------------------------|
+| id               | INTEGER | PK AUTOINCREMENT                                      |
+| context_id       | INTEGER | NOT NULL, FK → developing_context(id) ON DELETE CASCADE |
+| leg_type         | TEXT    | e.g. long_fade, short_fade                            |
+| plan_label       | TEXT    | e.g. Fade balance highs                               |
+| execution_side   | TEXT    | long or short                                         |
+| entry_zone_low   | REAL    |                                                       |
+| entry_zone_high  | REAL    |                                                       |
+| trigger_text     | TEXT    |                                                       |
+| condition_text   | TEXT    |                                                       |
+| is_primary       | INTEGER | DEFAULT 0                                             |
+| sort_order       | INTEGER | DEFAULT 0                                             |
 
 ---
 

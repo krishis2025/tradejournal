@@ -98,7 +98,7 @@
 
 /* ── MAIN AREA ── */
 .main-area {
-  display: grid; grid-template-columns: 1.2fr 3fr 1fr;
+  display: grid; grid-template-columns: 3fr 5fr 2fr;
   width: 100vw; flex: 1; min-height: 0;
   position: relative; z-index: 1;
 }
@@ -446,6 +446,7 @@
   font-family: 'Inter', sans-serif; font-size: 12px; outline: none;
   transition: border-color 0.15s; box-sizing: border-box;
 }
+.ds-input, .ds-select { height: 38px; }
 .ds-input:focus, .ds-select:focus, .ds-textarea:focus {
   border-color: var(--accent);
 }
@@ -783,60 +784,186 @@
 .nuance-pill-3 { background: rgba(30,130,76,0.10); color: #1a7a3a; border-left: 3px solid #1a7a3a; }
 .nuance-pill-4 { background: rgba(120,70,200,0.10); color: #5c35a3; border-left: 3px solid #5c35a3; }
 
-/* ── Prominent Context Display (left panel) ── */
-.ctx-prom-card {
-  border-radius: 6px; padding: 6px 8px;
-  margin-bottom: 0;
+/* ── Prominent Context Display (left panel — redesigned) ── */
+.ctx-headline-bar {
+  padding: 18px 20px; margin-bottom: 0;
+  border-left: 6px solid #b8860b;
+  background: #1a1a1a; color: #fff;
+  border-radius: 8px 8px 0 0;
 }
-.ctx-prom-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
-  margin-bottom: 8px;
+.ctx-headline-label {
+  font-family: 'Inter', sans-serif; font-size: 0.55rem; font-weight: 900;
+  text-transform: uppercase; letter-spacing: 1.2px; color: rgba(255,255,255,0.5);
+  margin-bottom: 4px; display: block;
 }
-.ctx-card-daytype { background: #FFF5F5; }
-.ctx-card-value   { background: #EBF8FF; }
-.ctx-card-trend   { background: #F0FFF4; }
-.ctx-card-volume  { background: #F7FAFC; }
-.ctx-prom-label {
-  font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 2px; color: var(--muted);
+.ctx-headline-daytype {
+  font-family: 'Inter', sans-serif; font-size: 0.75rem; font-weight: 700;
+  color: rgba(255,255,255,0.85); margin-bottom: 4px;
+  display: flex; align-items: center; gap: 8px;
+}
+.ctx-headline-text {
+  font-family: 'Inter', sans-serif; font-size: 1.1rem; font-weight: 900;
+  color: #fff; line-height: 1.2;
+}
+/* Traffic light dot for bias direction */
+.ctx-traffic-light {
+  display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+  flex-shrink: 0;
+}
+.ctx-traffic-light.long { background: #4caf50; box-shadow: 0 0 4px rgba(76,175,80,0.5); }
+.ctx-traffic-light.short { background: #f44336; box-shadow: 0 0 4px rgba(244,67,54,0.5); }
+.ctx-traffic-light.neutral { background: #ffc107; box-shadow: 0 0 4px rgba(255,193,7,0.5); }
+
+.ctx-params-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+  margin-bottom: 0; background: white;
+  border-left: 1px solid #eee; border-right: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+}
+.ctx-params-grid .ctx-param-cell {
+  padding: 12px 20px;
+  border-right: 1px solid #eee; border-bottom: 1px solid #eee;
+}
+.ctx-params-grid .ctx-param-cell:nth-child(even) { border-right: none; }
+.ctx-params-grid .ctx-param-cell:nth-last-child(-n+2) { border-bottom: none; }
+.ctx-param-label {
+  font-family: 'Inter', sans-serif; font-size: 0.55rem; font-weight: 900;
+  text-transform: uppercase; letter-spacing: 1.2px; color: #888;
   margin-bottom: 2px;
 }
-.ctx-prom-value {
-  font-family: 'Inter', sans-serif; font-size: 0.9rem; font-weight: 700;
+.ctx-param-value {
+  font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 800;
+  color: #1A1A1B; margin-top: 2px;
 }
-.val-red { color: var(--red); }
-.val-green { color: var(--green); }
-.val-blue { color: var(--accent2); }
-.val-default { color: var(--text); }
-.val-daytype { color: #C53030; }
-.val-value   { color: #2B6CB0; }
-.val-trend   { color: #2F855A; }
-.val-volume  { color: #4A5568; }
-.ctx-prom-plan {
-  border-top: 1px solid var(--border); padding-top: 10px; margin-top: 8px;
-}
-.ctx-prom-plan-title {
-  font-family: 'Inter', sans-serif; font-size: 8px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 2px; color: var(--accent);
-  margin-bottom: 4px;
-}
-.ctx-prom-plan-text {
-  font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 700;
-  color: var(--accent);
-}
-.ctx-prom-plan-detail {
-  font-family: 'Inter', sans-serif; font-size: 11px; color: var(--muted);
-  margin-top: 2px;
-}
+.ctx-param-value.trend-up { color: #2e7d32; }
+.ctx-param-value.trend-down { color: #c62828; }
+.ctx-param-value.trend-neutral { color: var(--accent2); }
+
 .ctx-prom-notes {
-  font-family: 'Inter', sans-serif; font-size: 11px; color: var(--muted);
-  margin-top: 4px; white-space: pre-wrap; line-height: 1.5;
+  font-family: 'Inter', sans-serif; font-size: 11px; color: #555;
+  padding: 10px 20px; white-space: pre-wrap; line-height: 1.5;
+  background: white; border-left: 1px solid #eee; border-right: 1px solid #eee;
+  border-bottom: 1px solid #eee;
 }
 .ctx-prom-section-label {
-  font-family: 'Inter', sans-serif; font-size: 8px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 2px; color: var(--muted);
-  margin-bottom: 6px; margin-top: 4px;
+  font-family: 'Inter', sans-serif; font-size: 0.55rem; font-weight: 900;
+  text-transform: uppercase; letter-spacing: 1.2px; color: #555;
+  margin-bottom: 8px;
 }
+
+/* Signal area */
+.ctx-signal-area {
+  padding: 15px 20px; background: #fffcf9;
+  border-left: 1px solid #eee; border-right: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+}
+.ctx-signal-group { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ctx-signal-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: 50px;
+  font-family: 'Inter', sans-serif; font-size: 0.65rem; font-weight: 700;
+  background: white; border: 1px solid #eee;
+}
+.ctx-signal-pill.bearish { border-left: 3px solid #c62828; color: #c62828; background: #fff5f5; }
+.ctx-signal-pill.bullish { border-left: 3px solid #2e7d32; color: #2e7d32; background: #f0fff4; }
+.ctx-signal-pill.neutral { border-left: 3px solid #b8860b; color: #b8860b; }
+.ctx-signal-pill .signal-x { cursor: pointer; font-size: 12px; opacity: 0.6; margin-left: 2px; }
+.ctx-signal-pill .signal-x:hover { opacity: 1; }
+
+/* Trade plan section — context ribbon yellow background */
+.ctx-plan-section {
+  padding: 15px 20px; background: #fff9c4;
+  border-left: 1px solid #eee; border-right: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+  border-radius: 0 0 8px 8px;
+}
+.ctx-plan-playbook {
+  font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 800;
+  color: #1A1A1B; margin-bottom: 8px;
+}
+.ctx-plan-leg {
+  padding: 8px 10px; border: 1px solid rgba(0,0,0,0.08); border-radius: 6px;
+  margin-bottom: 6px; background: rgba(255,255,255,0.7);
+}
+.ctx-plan-leg.is-primary { border-left: 3px solid #b8860b; }
+.ctx-plan-leg-label {
+  font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800;
+  color: #1A1A1B; margin-bottom: 3px; display: flex; align-items: center; gap: 6px;
+}
+.ctx-plan-leg-zone {
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600;
+  color: var(--text); margin-bottom: 2px;
+}
+.ctx-plan-leg-trigger {
+  font-family: 'Inter', sans-serif; font-size: 10px; color: #555;
+}
+.ctx-plan-leg-side {
+  display: inline-block; padding: 1px 6px; border-radius: 3px;
+  font-size: 8px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;
+}
+.ctx-plan-leg-side.long { background: rgba(46,125,50,0.15); color: #2e7d32; }
+.ctx-plan-leg-side.short { background: rgba(198,40,40,0.15); color: #c62828; }
+
+.ctx-section-last { border-radius: 0 0 8px 8px; }
+
+.ctx-edit-btn {
+  display: inline-block; margin-top: 8px; padding: 4px 12px;
+  border: 1px solid var(--border); border-radius: 4px; background: transparent;
+  color: var(--muted); font-family: 'Inter', sans-serif; font-size: 9px;
+  font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  cursor: pointer; transition: all 0.15s;
+}
+.ctx-edit-btn:hover { background: var(--surface2); color: var(--text); }
+
+/* Form section styling */
+.ctx-form-section {
+  margin-bottom: 16px; padding: 16px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface);
+}
+.ctx-form-section-title {
+  font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted);
+  margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border);
+}
+.ctx-form-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ctx-form-row { display: flex; gap: 10px; align-items: flex-end; }
+
+/* Leg card in form */
+.pending-leg-card {
+  padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px;
+  margin-top: 6px; background: var(--surface2); display: flex;
+  justify-content: space-between; align-items: center;
+}
+.pending-leg-card .leg-remove {
+  cursor: pointer; color: var(--muted); font-size: 14px; opacity: 0.6;
+}
+.pending-leg-card .leg-remove:hover { opacity: 1; color: var(--red); }
+
+/* Bias direction pills */
+.bias-pills { display: flex; gap: 6px; }
+.bias-pill {
+  padding: 6px 14px; border-radius: 4px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--muted); cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase; transition: all 0.15s;
+}
+.bias-pill:hover { background: var(--surface3); }
+.bias-pill.active.long { background: rgba(79,255,176,0.1); border-color: var(--green); color: var(--green); }
+.bias-pill.active.short { background: rgba(255,80,80,0.1); border-color: var(--red); color: var(--red); }
+.bias-pill.active.neutral { background: rgba(184,134,11,0.1); border-color: #b8860b; color: #b8860b; }
+
+/* Side pills for plan legs */
+.side-pills { display: flex; gap: 6px; }
+.side-pill {
+  padding: 5px 12px; border-radius: 4px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--muted); cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase; transition: all 0.15s;
+}
+.side-pill:hover { background: var(--surface3); }
+.side-pill.active.long { background: rgba(79,255,176,0.1); border-color: var(--green); color: var(--green); }
+.side-pill.active.short { background: rgba(255,80,80,0.1); border-color: var(--red); color: var(--red); }
 
 /* ── Evo History Tray ── */
 .evo-tray-toggle {
@@ -1314,6 +1441,7 @@ const SERVER_CONTEXTS = {{ contexts_json|safe }};
 const SERVER_OPEN = {{ open_trades_json|safe }};
 const SERVER_CLOSED = {{ closed_trades_json|safe }};
 const STRENGTH_MAP = {{ strength_json|safe }};
+const SIGNAL_LIBRARY = {{ signal_library_json|safe }};
 
 /* ── State ─────────────────────────────────────────────────────────────────── */
 let activeTrade = null;       // key like 'T1'
@@ -1329,6 +1457,10 @@ let lastCommittedContext = {};
 let contextDontKnow = false;  // true after user clicks "Don't Know"
 let activeStrengthId = null;
 let activeStrength = {};  // { value, volume, trend, mental_state, confidence }
+let pendingSignals = [];      // [{signal_value, signal_polarity}]
+let pendingLegs = [];         // [{plan_label, execution_side, entry_zone_low, entry_zone_high, trigger_text, is_primary}]
+let selectedBias = '';        // 'long'|'short'|'neutral'
+let legSide = 'Long';        // current leg form side
 
 // Entry form state
 let formDir = 'Long';
@@ -1382,13 +1514,13 @@ function buildTradeModel(liveTrade, contexts, instrumentConfig) {
     execution_score_json: liveTrade.execution_score_json,
     pushed: liveTrade.status === 'closed',
     context: {
-      mktRead: ctx.mkt_read || '\u2014', valueArea: ctx.value_area || '\u2014',
+      mktRead: ctx.mkt_read || '\u2014', valueState: ctx.value_state || '\u2014',
       setup: ctx.setup || '\u2014', location: ctx.location || '\u2014', nuance: ctx.nuance || '',
-      dayType: ctx.day_type || '', volumeRead: ctx.volume_read || '',
-      trend: ctx.trend || '', observation: ctx.observation || '',
+      dayType: ctx.day_type || '', volumeState: ctx.volume_state || '',
+      HTF_Trend: ctx.HTF_Trend || ctx.trend || '', observation: ctx.observation || '',
       planText: ctx.plan_text || '', planLocation: ctx.plan_location || '',
       planTrigger: ctx.plan_trigger || '',
-      nuancesJson: ctx.nuances_json || '[]', notes: ctx.notes || '',
+      nuancesJson: ctx.nuances_json || '[]', market_story: ctx.market_story || ctx.notes || '',
       nuances: (() => { try { return ctx.nuances_json ? (typeof ctx.nuances_json === 'string' ? JSON.parse(ctx.nuances_json) : ctx.nuances_json) : []; } catch(e) { return []; } })()
     },
     strength_id: liveTrade.strength_id || null,
@@ -1606,11 +1738,8 @@ function renderContextPanel(trade) {
     html += '<div style="color:var(--muted);font-size:11px;text-align:center;padding:20px 0;">No context committed yet.</div>';
   }
 
-  // Trade-specific info: strength, exec score, fills
+  // Trade-specific info: exec score, fills
   if (trade) {
-    const strength = (activePhase === 'ENTRY') ? activeStrength : trade.strength;
-    html += buildStrengthPillsHtml(strength);
-
     if (trade.execScore !== null && trade.execScore !== undefined) {
       html += `
       <div class="ctx-field" style="display:flex;gap:12px;align-items:center;">
@@ -1632,8 +1761,6 @@ function renderContextPanel(trade) {
         html += '</div></div>';
       }
     }
-  } else if (activePhase === 'ENTRY') {
-    html += buildStrengthPillsHtml(activeStrength);
   }
 
   // Evo History collapsible tray
@@ -1664,9 +1791,9 @@ function buildEvoCardsHtml() {
   if (!SERVER_CONTEXTS || SERVER_CONTEXTS.length === 0) return '';
   let html = '';
   SERVER_CONTEXTS.forEach(ctx => {
-    const valColor = getValueAreaColor(ctx.value_area);
+    const valColor = getValueAreaColor(ctx.value_state);
     const dayType = ctx.day_type || ctx.mkt_read || '';
-    const trendStr = ctx.trend ? ` · ${ctx.trend === 'Up' ? '▲' : ctx.trend === 'Down' ? '▼' : '◆'}${ctx.trend}` : '';
+    const trendStr = (ctx.HTF_Trend || ctx.trend) ? ` · ${(ctx.HTF_Trend || ctx.trend) === 'Up' ? '▲' : (ctx.HTF_Trend || ctx.trend) === 'Down' ? '▼' : '◆'}${ctx.HTF_Trend || ctx.trend}` : '';
     const planText = ctx.plan_text || ctx.setup || '';
     const planLoc = ctx.plan_location || ctx.location || '';
     const planLocHtml = planLoc ? `<div class="evo-card-location">@ ${escHtml(planLoc)}</div>` : '';
@@ -1689,7 +1816,7 @@ function buildEvoCardsHtml() {
       <div class="evo-card-header">
         <span class="evo-card-time">${formatTime12h(ctx.time)}</span>
         <span class="evo-card-read">${escHtml(dayType)}</span>
-        <span class="evo-card-value evo-val-${valColor}">${shortValue(ctx.value_area)}${trendStr}</span>
+        <span class="evo-card-value evo-val-${valColor}">${shortValue(ctx.value_state)}${trendStr}</span>
       </div>
       ${planText ? `<div class="evo-card-setup" style="color:var(--accent)">★ ${escHtml(planText)}</div>` : ''}
       ${planLocHtml}
@@ -1707,79 +1834,95 @@ function buildMiniCardsHtml(ctx) {
 /* ── Prominent Context Display (left panel — bold, scannable) ── */
 function buildProminentContextHtml(ctx) {
   const dayType = ctx.day_type || ctx.dayType || ctx.mkt_read || ctx.mktRead || '';
-  const valueArea = ctx.value_area || ctx.valueArea || '';
-  const trendStr = ctx.trend || '';
-  const volumeRead = ctx.volume_read || ctx.volumeRead || '';
+  const valueState = ctx.value_state || ctx.valueState || '';
+  const trendStr = ctx.HTF_Trend || ctx.trend || '';
+  const volumeState = ctx.volume_state || ctx.volumeState || '';
   const planText = ctx.plan_text || ctx.planText || ctx.setup || '';
-  const planLoc = ctx.plan_location || ctx.planLocation || ctx.location || '';
-  const planTrigger = ctx.plan_trigger || ctx.planTrigger || '';
-  const notes = ctx.notes || '';
+  const notes = ctx.market_story || ctx.notes || '';
+  const headlineRead = ctx.headline_read || '';
+  const biasDirection = ctx.bias_direction || '';
+  const signals = ctx.signals || [];
+  const legs = ctx.legs || [];
 
-  // Parse nuances
-  let nuances = ctx.nuances || [];
-  if (!nuances.length && ctx.nuances_json) {
-    try { nuances = typeof ctx.nuances_json === 'string' ? JSON.parse(ctx.nuances_json) : ctx.nuances_json; } catch(e) { nuances = []; }
-  }
-  // Fall back to observation/nuance for old records
-  const fallbackObs = (!nuances.length && !notes) ? (ctx.observation || ctx.nuance || '') : '';
+  let html = '';
 
-  // Color helpers
-  function valueColor(v) {
-    if (!v) return 'default';
-    const vl = v.toLowerCase();
-    if (vl.includes('lower') || vl === 'ol') return 'red';
-    if (vl.includes('higher') || vl === 'oh') return 'green';
-    if (vl.includes('overlapping')) return 'blue';
-    return 'default';
-  }
-  function trendColor(t) {
-    if (!t) return 'default';
-    if (t === 'Down') return 'red';
-    if (t === 'Up') return 'green';
-    return 'blue';
-  }
-  function volumeColor(v) {
-    if (!v) return 'default';
-    if (v === 'Low') return 'red';
-    if (v === 'Avg') return 'blue';
-    if (v === 'High') return 'green';
-    return 'default';
-  }
+  // Determine if we have enough to show bottom sections with rounded corners
+  const hasSignals = signals.length > 0;
+  const hasPlan = planText || legs.length > 0;
+  const hasNotes = !!notes;
 
-  let html = `<div class="ctx-prom-section-label">WHAT THE MARKET IS OFFERING</div>`;
-
-  html += `<div class="ctx-prom-grid">`;
-  if (dayType)    html += `<div class="ctx-prom-card ctx-card-daytype"><div class="ctx-prom-label">DAY TYPE</div><div class="ctx-prom-value val-daytype">${escHtml(dayType)}</div></div>`;
-  if (valueArea)  html += `<div class="ctx-prom-card ctx-card-value"><div class="ctx-prom-label">VALUE</div><div class="ctx-prom-value val-value">${escHtml(valueArea)}</div></div>`;
-  if (trendStr)   html += `<div class="ctx-prom-card ctx-card-trend"><div class="ctx-prom-label">TREND</div><div class="ctx-prom-value val-trend">${escHtml(trendStr)}</div></div>`;
-  if (volumeRead) html += `<div class="ctx-prom-card ctx-card-volume"><div class="ctx-prom-label">VOLUME</div><div class="ctx-prom-value val-volume">${escHtml(volumeRead)}</div></div>`;
+  // 1. Headline bar — dark background, gold left border, day_type + headline_read
+  html += `<div class="ctx-headline-bar">`;
+  html += `<div class="ctx-headline-label">MARKET READ / HEADLINE</div>`;
+  if (dayType) {
+    html += `<div class="ctx-headline-daytype">`;
+    if (biasDirection) {
+      html += `<span class="ctx-traffic-light ${biasDirection}"></span>`;
+    }
+    html += `${escHtml(dayType)}</div>`;
+  } else if (biasDirection) {
+    html += `<div class="ctx-headline-daytype"><span class="ctx-traffic-light ${biasDirection}"></span></div>`;
+  }
+  if (headlineRead) {
+    html += `<div class="ctx-headline-text">${escHtml(headlineRead)}</div>`;
+  }
   html += `</div>`;
 
-  // Nuance pills
-  if (nuances.length > 0) {
-    html += `<div class="ctx-prom-section-label">NUANCES</div>
-      <div class="nuance-pills" style="margin-bottom:8px;">${buildNuancePillsHtml(nuances)}</div>`;
-  }
+  // 2. Context Parameters (2x2 text-only grid)
+  html += `<div class="ctx-params-grid">`;
+  html += `<div class="ctx-param-cell"><div class="ctx-param-label">DAY TYPE</div><div class="ctx-param-value">${dayType ? escHtml(dayType) : '\u2014'}</div></div>`;
+  const trendClass = trendStr === 'Up' ? 'trend-up' : trendStr === 'Down' ? 'trend-down' : 'trend-neutral';
+  html += `<div class="ctx-param-cell"><div class="ctx-param-label">HTF TREND</div><div class="ctx-param-value ${trendStr ? trendClass : ''}">${trendStr ? escHtml(trendStr) : '\u2014'}</div></div>`;
+  html += `<div class="ctx-param-cell"><div class="ctx-param-label">VALUE</div><div class="ctx-param-value">${valueState ? escHtml(valueState) : '\u2014'}</div></div>`;
+  html += `<div class="ctx-param-cell"><div class="ctx-param-label">VOLUME</div><div class="ctx-param-value">${volumeState ? escHtml(volumeState) : '\u2014'}</div></div>`;
+  html += `</div>`;
 
-  // Fallback observation for old records
-  if (fallbackObs) {
-    html += `<div class="ctx-prom-notes">${escHtml(fallbackObs)}</div>`;
-  }
-
-  // Notes
-  if (notes) {
+  // 3. Market Story
+  if (hasNotes) {
     html += `<div class="ctx-prom-notes">${escHtml(notes)}</div>`;
   }
 
-  // Trade Plan section
-  if (planText) {
-    html += `<div class="ctx-prom-plan">
-      <div class="ctx-prom-plan-title">★ TRADE PLAN</div>
-      <div class="ctx-prom-plan-text">${escHtml(planText)}</div>
-      ${planLoc ? `<div class="ctx-prom-plan-detail">@ ${escHtml(planLoc)}</div>` : ''}
-      ${planTrigger ? `<div class="ctx-prom-plan-detail">Trigger: ${escHtml(planTrigger)}</div>` : ''}
-    </div>`;
+  // 4. Active Signals (grouped by polarity)
+  if (hasSignals) {
+    html += `<div class="ctx-signal-area${!hasPlan ? ' ctx-section-last' : ''}">`;
+    html += `<div class="ctx-prom-section-label">ACTIVE SIGNALS</div>`;
+    const bearish = signals.filter(s => s.signal_polarity === 'bearish');
+    const bullish = signals.filter(s => s.signal_polarity === 'bullish');
+    const neutral = signals.filter(s => s.signal_polarity !== 'bearish' && s.signal_polarity !== 'bullish');
+    html += `<div class="ctx-signal-group">`;
+    bearish.forEach(s => { html += `<span class="ctx-signal-pill bearish">${escHtml(s.signal_value)}</span>`; });
+    bullish.forEach(s => { html += `<span class="ctx-signal-pill bullish">${escHtml(s.signal_value)}</span>`; });
+    neutral.forEach(s => { html += `<span class="ctx-signal-pill neutral">${escHtml(s.signal_value)}</span>`; });
+    html += `</div></div>`;
   }
+
+  // 5. Trade Plan — yellow background
+  if (hasPlan) {
+    html += `<div class="ctx-plan-section">`;
+    html += `<div class="ctx-prom-section-label">TRADE PLAN</div>`;
+    if (planText) {
+      html += `<div class="ctx-plan-playbook">${escHtml(planText)}</div>`;
+    }
+    legs.forEach(leg => {
+      const sideClass = (leg.execution_side || '').toLowerCase();
+      const zone = (leg.entry_zone_low != null && leg.entry_zone_high != null)
+        ? `${leg.entry_zone_low} \u2013 ${leg.entry_zone_high}` : '';
+      const primaryClass = leg.is_primary ? ' is-primary' : '';
+      html += `<div class="ctx-plan-leg${primaryClass}">
+        <div class="ctx-plan-leg-label">
+          ${escHtml(leg.plan_label || '')}
+          ${leg.execution_side ? `<span class="ctx-plan-leg-side ${sideClass}">${leg.execution_side}</span>` : ''}
+          ${leg.is_primary ? '<span style="color:#b8860b;font-size:10px;">\u2605</span>' : ''}
+        </div>
+        ${zone ? `<div class="ctx-plan-leg-zone">${zone}</div>` : ''}
+        ${leg.trigger_text ? `<div class="ctx-plan-leg-trigger">Trigger: ${escHtml(leg.trigger_text)}</div>` : ''}
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // 6. Edit button
+  html += `<button class="ctx-edit-btn" onclick="editContext()">EDIT</button>`;
 
   return html;
 }
@@ -1787,33 +1930,31 @@ function buildProminentContextHtml(ctx) {
 /* ── SPLIT-CARD FORM (center panel during CONTEXT) ── */
 let selectedTrend = '';
 let pendingNuances = [];
-let formState = { dayType: '', valueArea: 'Overlapping', volumeRead: '', notes: '', planText: '', planLocation: '', planTrigger: '' };
+let formState = { dayType: '', valueState: 'Overlapping', volumeState: '', marketStory: '', planText: '', headlineRead: '' };
 
 function saveFormState() {
   formState.dayType = document.getElementById('ds-day-type')?.value || '';
-  formState.valueArea = document.getElementById('ds-value-area')?.value || 'Overlapping';
-  formState.volumeRead = document.getElementById('ds-volume-read')?.value || '';
-  formState.notes = document.getElementById('ds-notes')?.value || '';
+  formState.valueState = document.getElementById('ds-value-state')?.value || 'Overlapping';
+  formState.volumeState = document.getElementById('ds-volume-state')?.value || '';
+  formState.marketStory = document.getElementById('ds-notes')?.value || '';
   formState.planText = document.getElementById('ds-plan-text')?.value || '';
-  formState.planLocation = document.getElementById('ds-plan-location')?.value || '';
-  formState.planTrigger = document.getElementById('ds-plan-trigger')?.value || '';
+  formState.headlineRead = document.getElementById('ds-headline-read')?.value || '';
 }
 function restoreFormState() {
   const dt = document.getElementById('ds-day-type');
-  const va = document.getElementById('ds-value-area');
-  const vr = document.getElementById('ds-volume-read');
+  const vs = document.getElementById('ds-value-state');
+  const vol = document.getElementById('ds-volume-state');
   const nt = document.getElementById('ds-notes');
   const pt = document.getElementById('ds-plan-text');
-  const pl = document.getElementById('ds-plan-location');
-  const ptr = document.getElementById('ds-plan-trigger');
+  const hr = document.getElementById('ds-headline-read');
   if (dt) dt.value = formState.dayType;
-  if (va) va.value = formState.valueArea;
-  if (vr) vr.value = formState.volumeRead;
-  if (nt) nt.value = formState.notes;
+  if (vs) vs.value = formState.valueState;
+  if (vol) vol.value = formState.volumeState;
+  if (nt) nt.value = formState.marketStory;
   if (pt) pt.value = formState.planText;
-  if (pl) pl.value = formState.planLocation;
-  if (ptr) ptr.value = formState.planTrigger;
-  renderNuancePills('ds-nuance-pills', pendingNuances, true);
+  if (hr) hr.value = formState.headlineRead;
+  renderSignalPills();
+  renderPendingLegs();
 }
 
 function addNuance() {
@@ -1871,61 +2012,119 @@ function renderContextSplitCard(el) {
   const timeLabel = formatTime12h(String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0'));
 
   el.innerHTML = `
-    <div style="max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:0;">
-      <div class="ctx-form-card market">
-        <div class="ctx-form-card-header">
-          <span>MARKET CONTEXT</span>
-          <span style="color:var(--muted);font-weight:400;">${timeLabel}</span>
+    <div style="max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:0;">
+
+      <!-- SECTION 1: Context -->
+      <div class="ctx-form-section">
+        <div class="ctx-form-section-title">CONTEXT <span style="float:right;color:var(--muted);font-weight:400;">${timeLabel}</span></div>
+        <div class="ctx-form-2col">
+          <div>
+            <div class="ds-field-label">Day Type</div>
+            <input type="text" class="ds-input" id="ds-day-type" placeholder="e.g. Liquidation break...">
+          </div>
+          <div>
+            <div class="ds-field-label">Value</div>
+            <select class="ds-select" id="ds-value-state">
+              <option value="Lower">Lower</option>
+              <option value="Overlapping Lower">Overlapping Lower (OL)</option>
+              <option value="Overlapping" selected>Overlapping</option>
+              <option value="Overlapping Higher">Overlapping Higher (OH)</option>
+              <option value="Higher">Higher</option>
+            </select>
+          </div>
+          <div>
+            <div class="ds-field-label">Volume</div>
+            <select class="ds-select" id="ds-volume-state">
+              <option value="" selected>\u2014</option>
+              <option value="Below Avg">Below Avg</option>
+              <option value="Avg">Avg</option>
+              <option value="Above Avg">Above Avg</option>
+            </select>
+          </div>
+          <div>
+            <div class="ds-field-label">HTF Trend</div>
+            <div class="trend-pills">
+              <button type="button" class="trend-pill${selectedTrend==='Up'?' active':''}" onclick="setTrend('Up')">UP</button>
+              <button type="button" class="trend-pill${selectedTrend==='Neutral'?' active':''}" onclick="setTrend('Neutral')">NEUTRAL</button>
+              <button type="button" class="trend-pill${selectedTrend==='Down'?' active':''}" onclick="setTrend('Down')">DOWN</button>
+            </div>
+          </div>
         </div>
-        <div class="ds-field-label">Day Type</div>
-        <input type="text" class="ds-input" id="ds-day-type" placeholder="e.g. Liquidation break, Balancing...">
-        <div class="ds-field-label">Value Area</div>
-        <select class="ds-select" id="ds-value-area">
-          <option value="Lower">Lower</option>
-          <option value="Overlapping Lower">Overlapping Lower (OL)</option>
-          <option value="Overlapping" selected>Overlapping</option>
-          <option value="Overlapping Higher">Overlapping Higher (OH)</option>
-          <option value="Higher">Higher</option>
-        </select>
-        <div class="ds-field-label">Volume</div>
-        <select class="ds-select" id="ds-volume-read">
-          <option value="" selected>—</option>
-          <option value="Low">Low</option>
-          <option value="Avg">Avg</option>
-          <option value="High">High</option>
-        </select>
-        <div class="ds-field-label">Trend</div>
-        <div class="trend-pills">
-          <button type="button" class="trend-pill${selectedTrend==='Up'?' active':''}" onclick="setTrend('Up')">UP</button>
-          <button type="button" class="trend-pill${selectedTrend==='Neutral'?' active':''}" onclick="setTrend('Neutral')">NEUTRAL</button>
-          <button type="button" class="trend-pill${selectedTrend==='Down'?' active':''}" onclick="setTrend('Down')">DOWN</button>
+      </div>
+
+      <!-- SECTION 2: Bias / Read -->
+      <div class="ctx-form-section">
+        <div class="ctx-form-section-title">BIAS / READ</div>
+        <div class="ds-field-label">Headline Read</div>
+        <input type="text" class="ds-input" id="ds-headline-read" placeholder="e.g. Sellers in control, testing lows..." style="margin-bottom:10px;">
+        <div class="ds-field-label">Bias Direction</div>
+        <div class="bias-pills" style="margin-bottom:10px;">
+          <button type="button" class="bias-pill${selectedBias==='long'?' active long':''}" onclick="setBias('long')">LONG</button>
+          <button type="button" class="bias-pill${selectedBias==='short'?' active short':''}" onclick="setBias('short')">SHORT</button>
+          <button type="button" class="bias-pill${selectedBias==='neutral'?' active neutral':''}" onclick="setBias('neutral')">NEUTRAL</button>
         </div>
-        <div class="ds-field-label">Nuances</div>
-        <div style="display:flex;gap:6px;">
-          <input type="text" class="ds-input" id="ds-nuance-input"
-                 placeholder="e.g. Buyers failed at ONH" style="flex:1;"
-                 onkeydown="if(event.key==='Enter'){event.preventDefault();addNuance();}">
-          <button type="button" class="ds-add-nuance-btn" onclick="addNuance()">ADD</button>
-        </div>
-        <div class="nuance-pills" id="ds-nuance-pills"></div>
-        <div class="ds-field-label">Notes</div>
+        <div class="ds-field-label">Market Story</div>
         <textarea class="ds-textarea" id="ds-notes" rows="2" placeholder="Longer narrative..."></textarea>
       </div>
 
-      <div class="derives-connector">
-        <span class="derives-label">\u2193 derives</span>
+      <!-- SECTION 3: Signals -->
+      <div class="ctx-form-section">
+        <div class="ctx-form-section-title">SIGNALS</div>
+        <div class="ctx-form-row" style="gap:6px;">
+          <input type="text" class="ds-input" id="ds-signal-input" style="flex:1;"
+                 placeholder="e.g. Buyers failed at ONH"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();addSignal();}">
+          <select class="ds-select" id="ds-signal-polarity" style="width:110px;">
+            <option value="bullish">Bullish</option>
+            <option value="bearish">Bearish</option>
+            <option value="neutral" selected>Neutral</option>
+          </select>
+          <button type="button" class="ds-add-nuance-btn" onclick="addSignal()">ADD</button>
+        </div>
+        <div id="ds-signal-pills" class="ctx-signal-group" style="margin-top:8px;"></div>
       </div>
 
-      <div class="ctx-form-card plan">
-        <div class="ctx-form-card-header">
-          <span>\u2605 TRADE PLAN</span>
-        </div>
-        <div class="ds-field-label">Plan</div>
+      <!-- SECTION 4: Plan -->
+      <div class="ctx-form-section">
+        <div class="ctx-form-section-title">\u2605 PLAN</div>
+        <div class="ds-field-label">Playbook</div>
         <input type="text" class="ds-input" id="ds-plan-text" placeholder="e.g. Fade liquidation break back to value">
-        <div class="ds-field-label">Location</div>
-        <input type="text" class="ds-input" id="ds-plan-location" placeholder="e.g. Balance low / LVN @ 6630">
-        <div class="ds-field-label">Trigger</div>
-        <input type="text" class="ds-input" id="ds-plan-trigger" placeholder="e.g. Reclaim of balance low with volume">
+
+        <div style="margin-top:12px; border-top:1px solid var(--border); padding-top:10px;">
+          <div class="ds-field-label" style="margin-bottom:8px;">Trade Plan Legs</div>
+          <div class="ctx-form-2col">
+            <div>
+              <div class="ds-field-label">Plan Label</div>
+              <input type="text" class="ds-input" id="ds-leg-label" placeholder="e.g. Primary Long">
+            </div>
+            <div>
+              <div class="ds-field-label">Side</div>
+              <div class="side-pills">
+                <button type="button" class="side-pill${legSide==='Long'?' active long':''}" onclick="setLegSide('Long')">LONG</button>
+                <button type="button" class="side-pill${legSide==='Short'?' active short':''}" onclick="setLegSide('Short')">SHORT</button>
+              </div>
+            </div>
+          </div>
+          <div class="ctx-form-2col" style="margin-top:8px;">
+            <div>
+              <div class="ds-field-label">Entry Zone Low</div>
+              <input type="number" class="ds-input" id="ds-leg-zone-low" placeholder="e.g. 6600" step="any">
+            </div>
+            <div>
+              <div class="ds-field-label">Entry Zone High</div>
+              <input type="number" class="ds-input" id="ds-leg-zone-high" placeholder="e.g. 6610" step="any">
+            </div>
+          </div>
+          <div class="ds-field-label" style="margin-top:8px;">Trigger</div>
+          <input type="text" class="ds-input" id="ds-leg-trigger" placeholder="e.g. Reclaim of balance low with volume">
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+            <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);cursor:pointer;">
+              <input type="checkbox" id="ds-leg-primary"> Primary leg
+            </label>
+            <button type="button" class="ds-add-nuance-btn" onclick="addLeg()">ADD LEG</button>
+          </div>
+          <div id="ds-pending-legs"></div>
+        </div>
       </div>
 
       <button class="ds-commit-btn" style="margin-top:16px;" onclick="commitContext()">COMMIT CONTEXT & PLAN</button>
@@ -1933,6 +2132,93 @@ function renderContextSplitCard(el) {
     </div>
   `;
   restoreFormState();
+}
+
+/* ── Signal & Leg helpers for form ── */
+function setBias(val) {
+  saveFormState();
+  selectedBias = selectedBias === val ? '' : val;
+  const trade = TRADES[activeTrade];
+  renderCenter(trade);
+}
+
+function addSignal() {
+  const input = document.getElementById('ds-signal-input');
+  const pol = document.getElementById('ds-signal-polarity');
+  const val = input?.value.trim();
+  if (!val) return;
+  const polarity = pol?.value || 'neutral';
+  pendingSignals.push({ signal_value: val, signal_polarity: polarity });
+  input.value = '';
+  renderSignalPills();
+}
+
+function removeSignal(i) {
+  pendingSignals.splice(i, 1);
+  renderSignalPills();
+}
+
+function renderSignalPills() {
+  const el = document.getElementById('ds-signal-pills');
+  if (!el) return;
+  el.innerHTML = pendingSignals.map((s, i) => {
+    const cls = s.signal_polarity || 'neutral';
+    return `<span class="ctx-signal-pill ${cls}">${escHtml(s.signal_value)}<span class="signal-x" onclick="removeSignal(${i})">\u00d7</span></span>`;
+  }).join('');
+}
+
+function setLegSide(val) {
+  saveFormState();
+  legSide = val;
+  const trade = TRADES[activeTrade];
+  renderCenter(trade);
+}
+
+function addLeg() {
+  const label = document.getElementById('ds-leg-label')?.value.trim();
+  const zoneLow = document.getElementById('ds-leg-zone-low')?.value;
+  const zoneHigh = document.getElementById('ds-leg-zone-high')?.value;
+  const trigger = document.getElementById('ds-leg-trigger')?.value.trim() || '';
+  const isPrimary = document.getElementById('ds-leg-primary')?.checked ? 1 : 0;
+  if (!label) { showToast('Plan label is required', true); return; }
+  pendingLegs.push({
+    plan_label: label, execution_side: legSide,
+    entry_zone_low: zoneLow ? parseFloat(zoneLow) : null,
+    entry_zone_high: zoneHigh ? parseFloat(zoneHigh) : null,
+    trigger_text: trigger, is_primary: isPrimary
+  });
+  // Clear leg inputs
+  document.getElementById('ds-leg-label').value = '';
+  document.getElementById('ds-leg-zone-low').value = '';
+  document.getElementById('ds-leg-zone-high').value = '';
+  document.getElementById('ds-leg-trigger').value = '';
+  document.getElementById('ds-leg-primary').checked = false;
+  renderPendingLegs();
+}
+
+function removeLeg(i) {
+  pendingLegs.splice(i, 1);
+  renderPendingLegs();
+}
+
+function renderPendingLegs() {
+  const el = document.getElementById('ds-pending-legs');
+  if (!el) return;
+  el.innerHTML = pendingLegs.map((leg, i) => {
+    const sideClass = leg.execution_side === 'Long' ? 'long' : 'short';
+    const zone = (leg.entry_zone_low != null && leg.entry_zone_high != null)
+      ? `${leg.entry_zone_low} \u2013 ${leg.entry_zone_high}` : (leg.entry_zone_low || leg.entry_zone_high || '');
+    const primary = leg.is_primary ? ' \u2605' : '';
+    return `<div class="pending-leg-card">
+      <div>
+        <span style="font-weight:800;font-size:12px;">${escHtml(leg.plan_label)}${primary}</span>
+        <span class="ctx-plan-leg-side ${sideClass}" style="margin-left:6px;">${leg.execution_side}</span>
+        ${zone ? `<span style="margin-left:8px;font-size:11px;color:var(--muted);">${zone}</span>` : ''}
+        ${leg.trigger_text ? `<span style="margin-left:8px;font-size:10px;color:var(--muted);">\u2022 ${escHtml(leg.trigger_text)}</span>` : ''}
+      </div>
+      <span class="leg-remove" onclick="removeLeg(${i})">\u00d7</span>
+    </div>`;
+  }).join('');
 }
 
 function setTrend(val) {
@@ -2052,9 +2338,36 @@ function cancelEntry() {
   activeContextId = null;
   lastCommittedContext = {};
   pendingNuances = [];
-  formState = { dayType: '', valueArea: 'Overlapping', volumeRead: '', notes: '', planText: '', planLocation: '', planTrigger: '' };
+  formState = { dayType: '', valueState: 'Overlapping', volumeState: '', marketStory: '', planText: '', headlineRead: '' };
+  pendingSignals = [];
+  pendingLegs = [];
+  selectedBias = '';
+  legSide = 'Long';
   liveNowContext = null;
   inlineUpdateOpen = false;
+  setPhase('CONTEXT');
+}
+
+function editContext() {
+  // Populate form from current context
+  const ctx = getLatestContext();
+  if (ctx) {
+    formState.dayType = ctx.day_type || ctx.dayType || ctx.mkt_read || '';
+    formState.valueState = ctx.value_state || ctx.valueState || 'Overlapping';
+    formState.volumeState = ctx.volume_state || ctx.volumeState || '';
+    formState.marketStory = ctx.market_story || ctx.notes || '';
+    formState.planText = ctx.plan_text || ctx.planText || ctx.setup || '';
+    formState.headlineRead = ctx.headline_read || '';
+    selectedTrend = ctx.HTF_Trend || ctx.trend || '';
+    selectedBias = ctx.bias_direction || '';
+    pendingSignals = (ctx.signals || []).map(s => ({ signal_value: s.signal_value, signal_polarity: s.signal_polarity }));
+    pendingLegs = (ctx.legs || []).map(l => ({
+      plan_label: l.plan_label || '', execution_side: l.execution_side || '',
+      entry_zone_low: l.entry_zone_low, entry_zone_high: l.entry_zone_high,
+      trigger_text: l.trigger_text || '', is_primary: l.is_primary || 0
+    }));
+  }
+  activeContextId = null;  // Allow form to show again
   setPhase('CONTEXT');
 }
 
@@ -2068,8 +2381,8 @@ async function dontKnowContext() {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       date: dateStr, time: timeStr,
-      day_type: "Don't Know", value_area: '', volume_read: '', trend: '',
-      nuances_json: '[]', notes: '',
+      day_type: "Don't Know", value_state: '', volume_state: '', HTF_Trend: '',
+      nuances_json: '[]', market_story: '',
       plan_text: '', plan_location: '', plan_trigger: '',
       mental_state: 'calm',
       account_id: pid ? parseInt(pid) : null,
@@ -2080,9 +2393,9 @@ async function dontKnowContext() {
 
   // Add to evolution history
   SERVER_CONTEXTS.unshift({
-    id: data.id, time: timeStr, value_area: '',
-    day_type: "Don't Know", volume_read: '', trend: '',
-    nuances_json: '[]', notes: '',
+    id: data.id, time: timeStr, value_state: '',
+    day_type: "Don't Know", volume_state: '', HTF_Trend: '',
+    nuances_json: '[]', market_story: '',
     plan_text: '', plan_location: '', plan_trigger: '',
     mkt_read: "Don't Know", setup: '', location: '', nuance: '',
     mental_state: 'calm'
@@ -2094,7 +2407,11 @@ async function dontKnowContext() {
   lastCommittedContext = {};
   pendingNuances = [];
   selectedTrend = '';
-  formState = { dayType: '', valueArea: 'Overlapping', volumeRead: '', notes: '', planText: '', planLocation: '', planTrigger: '' };
+  formState = { dayType: '', valueState: 'Overlapping', volumeState: '', marketStory: '', planText: '', headlineRead: '' };
+  pendingSignals = [];
+  pendingLegs = [];
+  selectedBias = '';
+  legSide = 'Long';
   liveNowContext = null;
   inlineUpdateOpen = false;
   strengthSubmitted = false;
@@ -3048,16 +3365,16 @@ async function refreshTradeFromServer(tradeId) {
 
 async function commitContext() {
   const dayType = document.getElementById('ds-day-type')?.value.trim() || '';
-  const valueArea = document.getElementById('ds-value-area')?.value || '';
-  const volumeRead = document.getElementById('ds-volume-read')?.value || '';
+  const valueState = document.getElementById('ds-value-state')?.value || '';
+  const volumeState = document.getElementById('ds-volume-state')?.value || '';
   const trend = selectedTrend || '';
   const nuancesJson = JSON.stringify(pendingNuances);
   const notes = document.getElementById('ds-notes')?.value.trim() || '';
   const planText = document.getElementById('ds-plan-text')?.value.trim() || '';
-  const planLocation = document.getElementById('ds-plan-location')?.value.trim() || '';
-  const planTrigger = document.getElementById('ds-plan-trigger')?.value.trim() || '';
+  const headlineRead = document.getElementById('ds-headline-read')?.value.trim() || '';
+  const biasDirection = selectedBias || '';
 
-  if (!dayType && !planText) { showToast('Fill at least Day Type or Plan', true); return; }
+  if (!dayType && !planText && !headlineRead) { showToast('Fill at least Day Type, Headline, or Plan', true); return; }
 
   const now = new Date();
   const timeStr = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
@@ -3067,11 +3384,11 @@ async function commitContext() {
   const res = await fetch('/api/context', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      date: dateStr, time: timeStr, value_area: valueArea,
-      day_type: dayType, volume_read: volumeRead, trend: trend,
-      nuances_json: nuancesJson, notes: notes,
+      date: dateStr, time: timeStr, value_state: valueState,
+      day_type: dayType, volume_state: volumeState, HTF_Trend: trend,
+      nuances_json: nuancesJson, market_story: notes,
       plan_text: planText,
-      plan_location: planLocation, plan_trigger: planTrigger,
+      headline_read: headlineRead, bias_direction: biasDirection,
       mental_state: guardState.mental_state || 'calm',
       account_id: pid ? parseInt(pid) : null,
     })
@@ -3079,31 +3396,55 @@ async function commitContext() {
   const data = await res.json();
   if (!data.ok) { showToast(data.error || 'Failed', true); return; }
 
+  const ctxId = data.id;
+
+  // POST signals if any
+  let savedSignals = [];
+  if (pendingSignals.length > 0) {
+    const sigRes = await fetch(`/api/context/${ctxId}/signals`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ signals: pendingSignals })
+    });
+    savedSignals = [...pendingSignals];
+  }
+
+  // POST legs if any
+  let savedLegs = [];
+  if (pendingLegs.length > 0) {
+    const legRes = await fetch(`/api/context/${ctxId}/legs`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ legs: pendingLegs })
+    });
+    savedLegs = [...pendingLegs];
+  }
+
   contextDontKnow = false;
-  activeContextId = data.id;
+  activeContextId = ctxId;
   lastCommittedContext = {
-    time: timeStr, value_area: valueArea,
-    day_type: dayType, volume_read: volumeRead, trend: trend,
-    nuances_json: nuancesJson, notes: notes, nuances: [...pendingNuances],
+    id: ctxId, time: timeStr, value_state: valueState,
+    day_type: dayType, volume_state: volumeState, HTF_Trend: trend,
+    nuances_json: nuancesJson, market_story: notes, nuances: [...pendingNuances],
     plan_text: planText,
-    plan_location: planLocation, plan_trigger: planTrigger,
-    // backfill old fields
-    mkt_read: dayType, setup: planText, location: planLocation, nuance: notes
+    headline_read: headlineRead, bias_direction: biasDirection,
+    signals: savedSignals, legs: savedLegs,
+    mkt_read: dayType, setup: planText, nuance: notes
   };
-  pendingNuances = [];
+
   // Add to SERVER_CONTEXTS for reference
   SERVER_CONTEXTS.unshift({
-    id: data.id, time: timeStr, value_area: valueArea,
-    day_type: dayType, volume_read: volumeRead, trend: trend,
-    nuances_json: nuancesJson, notes: notes,
-    plan_text: planText,
-    plan_location: planLocation, plan_trigger: planTrigger,
-    mkt_read: dayType, setup: planText, location: planLocation, nuance: notes,
+    ...lastCommittedContext,
     mental_state: guardState.mental_state || 'calm'
   });
 
-  showToast('Context committed \u2014 assess trade strength');
+  // Reset form state
+  pendingNuances = [];
+  pendingSignals = [];
+  pendingLegs = [];
+  selectedBias = '';
   selectedTrend = '';
+  legSide = 'Long';
+
+  showToast('Context committed');
   liveNowContext = null;
   updateRibbon();
   // Reset strength form state
@@ -3137,9 +3478,9 @@ function renderInlineUpdateForm() {
       <div class="ds-field-label">Volume</div>
       <select class="ds-select" id="ds-upd-volume-read">
         <option value="" selected>—</option>
-        <option value="Low">Low</option>
+        <option value="Below Avg">Below Avg</option>
         <option value="Avg">Avg</option>
-        <option value="High">High</option>
+        <option value="Above Avg">Above Avg</option>
       </select>
       <div class="ds-field-label">Trend</div>
       <div class="trend-pills" id="ds-upd-trend-pills">
@@ -3175,8 +3516,8 @@ function selectUpdateTrend(btn) {
 
 async function updateContextInline() {
   const dayType = document.getElementById('ds-upd-day-type')?.value.trim() || '';
-  const valueArea = document.getElementById('ds-upd-value-area')?.value || '';
-  const volumeRead = document.getElementById('ds-upd-volume-read')?.value || '';
+  const valueState = document.getElementById('ds-upd-value-area')?.value || '';
+  const volumeState = document.getElementById('ds-upd-volume-read')?.value || '';
   const nuancesJson = JSON.stringify(inlineNuances);
   const notes = document.getElementById('ds-upd-notes')?.value.trim() || '';
   const planText = document.getElementById('ds-upd-plan-text')?.value.trim() || '';
@@ -3197,9 +3538,9 @@ async function updateContextInline() {
   const res = await fetch('/api/context', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      date: dateStr, time: timeStr, value_area: valueArea,
-      day_type: dayType, volume_read: volumeRead, trend: trend,
-      nuances_json: nuancesJson, notes: notes,
+      date: dateStr, time: timeStr, value_state: valueState,
+      day_type: dayType, volume_state: volumeState, HTF_Trend: trend,
+      nuances_json: nuancesJson, market_story: notes,
       plan_text: planText,
       plan_location: planLocation, plan_trigger: planTrigger,
       mental_state: 'calm',
@@ -3210,9 +3551,9 @@ async function updateContextInline() {
   if (!data.ok) { showToast(data.error || 'Failed', true); return; }
 
   liveNowContext = {
-    time: timeStr, value_area: valueArea,
-    day_type: dayType, volume_read: volumeRead, trend: trend,
-    nuances_json: nuancesJson, notes: notes, nuances: [...inlineNuances],
+    time: timeStr, value_state: valueState,
+    day_type: dayType, volume_state: volumeState, HTF_Trend: trend,
+    nuances_json: nuancesJson, market_story: notes, nuances: [...inlineNuances],
     plan_text: planText,
     plan_location: planLocation, plan_trigger: planTrigger,
     mkt_read: dayType, setup: planText, location: planLocation, nuance: notes
@@ -3355,8 +3696,18 @@ function handleEnterClick() {
     // Context is set — go straight to trade creation (strength already captured)
     createTradeFromForm();
   } else if (hasOpenTrades) {
-    // No active context but trades exist — ask user
-    showPlanChoiceDialog();
+    // No active context but trades exist — reuse last trade's context
+    const ctxId = getLastTradeContextId();
+    if (ctxId) {
+      activeContextId = ctxId;
+      contextDontKnow = false;
+      strengthValue = 0; strengthVolume = 0; strengthTrend = 0; strengthAdh = 0;
+      strengthMental = 'calm'; strengthConfidence = 'medium';
+      strengthSubmitted = false;
+      setPhase('ENTRY');
+    } else {
+      showToast('No previous context found', true);
+    }
   } else {
     // No context, no trades — block
     showToast('Declare context first', true);
@@ -3370,7 +3721,7 @@ function showPlanChoiceDialog() {
   if (ctx) {
     preview.innerHTML = `
       <div><span class="pc-label">SETUP:</span><span class="pc-val">${escHtml(ctx.setup || ctx.mktRead || '\u2014')}</span></div>
-      <div><span class="pc-label">VALUE:</span><span class="pc-val">${escHtml(ctx.valueArea || ctx.value_area || '\u2014')}</span></div>
+      <div><span class="pc-label">VALUE:</span><span class="pc-val">${escHtml(ctx.valueState || ctx.value_state || '\u2014')}</span></div>
       <div><span class="pc-label">LOCATION:</span><span class="pc-val">${escHtml(ctx.location || '\u2014')}</span></div>
     `;
   } else {

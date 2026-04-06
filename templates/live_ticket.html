@@ -1740,7 +1740,7 @@ async function commitContext() {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
       date: dateStr, time: timeStr,
-      mkt_read: mktRead, value_area: valueArea,
+      mkt_read: mktRead, value_state: valueArea,
       setup: setup, location: location, nuance: nuance,
       mental_state: guardState.mental_state || 'calm',
       account_id: pid ? parseInt(pid) : null,
@@ -1771,7 +1771,7 @@ async function commitContext() {
   document.querySelector('.cmd-bar').classList.add('bar-patient');
 
   // Add evo card
-  addEvoCard({ id: activeContextId, time: timeStr, mkt_read: mktRead, value_area: valueArea, setup: setup, location: location, nuance: nuance });
+  addEvoCard({ id: activeContextId, time: timeStr, mkt_read: mktRead, value_state: valueArea, setup: setup, location: location, nuance: nuance });
   showToast('Context committed — ENTER unlocked');
 }
 
@@ -1788,7 +1788,7 @@ function shortValue(v) {
 }
 
 function renderEvoCardContent(card, ctx) {
-  const valColor = getValueAreaColor(ctx.value_area);
+  const valColor = getValueAreaColor(ctx.value_state);
   const nuanceHtml = ctx.nuance ? `<div class="evo-card-nuance">${ctx.nuance}</div>` : '';
   const locationHtml = ctx.location ? `<div class="evo-card-location">${ctx.location}</div>` : '';
   card.innerHTML = `
@@ -1796,7 +1796,7 @@ function renderEvoCardContent(card, ctx) {
     <div class="evo-card-header">
       <span class="evo-card-time">${formatTime12h(ctx.time)}</span>
       <span class="evo-card-read">${ctx.mkt_read || ''}</span>
-      <span class="evo-card-value evo-val-${valColor}">${shortValue(ctx.value_area)}</span>
+      <span class="evo-card-value evo-val-${valColor}">${shortValue(ctx.value_state)}</span>
     </div>
     <div class="evo-card-setup">${ctx.setup}</div>
     ${locationHtml}
@@ -1811,7 +1811,7 @@ function addEvoCard(ctx) {
   if (ctx.id) card.dataset.ctxId = ctx.id;
   card.dataset.time = ctx.time || '';
   card.dataset.mktRead = ctx.mkt_read || '';
-  card.dataset.valueArea = ctx.value_area || '';
+  card.dataset.valueArea = ctx.value_state || '';
   card.dataset.setup = ctx.setup || '';
   card.dataset.location = ctx.location || '';
   card.dataset.nuance = ctx.nuance || '';
@@ -1827,7 +1827,7 @@ function startEvoEdit(card) {
     <label style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Mkt Read</label>
     <input class="evo-edit-field" data-field="mkt_read" value="${escAttr(d.mktRead)}">
     <label style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:6px;display:block;">Value Area</label>
-    <select class="evo-edit-field" data-field="value_area">
+    <select class="evo-edit-field" data-field="value_state">
       <option value="Lower"${d.valueArea==='Lower'?' selected':''}>Lower</option>
       <option value="Overlapping Lower"${d.valueArea==='Overlapping Lower'?' selected':''}>Overlapping Lower</option>
       <option value="Overlapping"${d.valueArea==='Overlapping'?' selected':''}>Overlapping</option>
@@ -1855,7 +1855,7 @@ function cancelEvoEdit(card) {
   card.classList.remove('editing');
   const d = card.dataset;
   renderEvoCardContent(card, {
-    time: d.time, mkt_read: d.mktRead, value_area: d.valueArea,
+    time: d.time, mkt_read: d.mktRead, value_state: d.valueArea,
     setup: d.setup, location: d.location, nuance: d.nuance
   });
 }
@@ -1875,18 +1875,18 @@ async function saveEvoEdit(card) {
   if (!data.ok) { showToast(data.error || 'Save failed', true); return; }
   // Update dataset
   card.dataset.mktRead = vals.mkt_read;
-  card.dataset.valueArea = vals.value_area;
+  card.dataset.valueArea = vals.value_state;
   card.dataset.setup = vals.setup;
   card.dataset.location = vals.location;
   card.dataset.nuance = vals.nuance;
   card.classList.remove('editing');
   renderEvoCardContent(card, {
-    time: card.dataset.time, mkt_read: vals.mkt_read, value_area: vals.value_area,
+    time: card.dataset.time, mkt_read: vals.mkt_read, value_state: vals.value_state,
     setup: vals.setup, location: vals.location, nuance: vals.nuance
   });
   // If this is the active context, update the ribbon
   if (String(ctxId) === String(activeContextId)) {
-    updateRibbonFromValues(vals.setup, vals.value_area, vals.location, card.dataset.time);
+    updateRibbonFromValues(vals.setup, vals.value_state, vals.location, card.dataset.time);
   }
   showToast('Context updated');
 }
@@ -1963,7 +1963,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (ctx.id) card.dataset.ctxId = ctx.id;
       card.dataset.time = ctx.time || '';
       card.dataset.mktRead = ctx.mkt_read || '';
-      card.dataset.valueArea = ctx.value_area || '';
+      card.dataset.valueArea = ctx.value_state || '';
       card.dataset.setup = ctx.setup || '';
       card.dataset.location = ctx.location || '';
       card.dataset.nuance = ctx.nuance || '';

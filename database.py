@@ -537,6 +537,68 @@ def init_db():
             if col not in ctx_cols:
                 conn.execute(f"ALTER TABLE developing_context ADD COLUMN {col} TEXT NOT NULL DEFAULT {default}")
 
+        # Migration: rename developing_context columns
+        ctx_cols = [r[1] for r in conn.execute("PRAGMA table_info(developing_context)").fetchall()]
+        renames = [
+            ("value_area", "value_state"),
+            ("trend", "HTF_Trend"),
+            ("volume_read", "volume_state"),
+            ("notes", "market_story"),
+        ]
+        for old_name, new_name in renames:
+            if old_name in ctx_cols and new_name not in ctx_cols:
+                conn.execute(f"ALTER TABLE developing_context RENAME COLUMN {old_name} TO {new_name}")
+
+        # Migration: add new developing_context columns
+        ctx_cols = [r[1] for r in conn.execute("PRAGMA table_info(developing_context)").fetchall()]
+        for col, default in [
+            ("headline_read", "''"), ("confidence_score", "''"), ("bias_direction", "''"),
+        ]:
+            if col not in ctx_cols:
+                conn.execute(f"ALTER TABLE developing_context ADD COLUMN {col} TEXT NOT NULL DEFAULT {default}")
+
+        # Migration: create signal_library table
+        conn.execute("DROP TABLE IF EXISTS signal_library")
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS signal_library (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                signal_key       TEXT UNIQUE NOT NULL,
+                signal_value     TEXT NOT NULL,
+                default_polarity TEXT,
+                is_active        INTEGER DEFAULT 1
+            )
+        """)
+
+        # Migration: create market_signals table
+        conn.execute("DROP TABLE IF EXISTS market_signals")
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS market_signals (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                context_id       INTEGER NOT NULL,
+                signal_value     TEXT NOT NULL,
+                signal_polarity  TEXT,
+                FOREIGN KEY (context_id) REFERENCES developing_context(id) ON DELETE CASCADE
+            )
+        """)
+
+        # Migration: create trade_plan_legs table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS trade_plan_legs (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                context_id       INTEGER NOT NULL,
+                leg_type         TEXT,
+                plan_label       TEXT,
+                execution_side   TEXT,
+                entry_zone_low   REAL,
+                entry_zone_high  REAL,
+                trigger_text     TEXT,
+                condition_text   TEXT,
+                is_primary       INTEGER DEFAULT 0,
+                sort_order       INTEGER DEFAULT 0,
+                FOREIGN KEY (context_id) REFERENCES developing_context(id) ON DELETE CASCADE
+            )
+        """)
+
 
 # ── Accounts ─────────────────────────────────────────────────────────────────
 
@@ -2127,29 +2189,31 @@ def get_internals_session(day_id, session):
 
 # ── Developing Context ───────────────────────────────────────────────────────
 
-def create_developing_context(account_id, date, time, mkt_read, value_area,
+def create_developing_context(account_id, date, time, mkt_read, value_state,
                                setup, location, nuance, mental_state,
-                               day_type="", volume_read="", trend="",
+                               day_type="", volume_state="", HTF_Trend="",
                                observation="", plan_text="", plan_location="",
-                               plan_trigger="", nuances_json="[]", notes=""):
+                               plan_trigger="", nuances_json="[]", market_story="",
+                               headline_read="", confidence_score="", bias_direction=""):
     with get_conn() as conn:
         cur = conn.execute("""
             INSERT INTO developing_context
-                (account_id, date, time, mkt_read, value_area, setup, location, nuance, mental_state,
-                 day_type, volume_read, trend, observation, plan_text, plan_location, plan_trigger,
-                 nuances_json, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (account_id, date, time, mkt_read, value_area, setup, location, nuance, mental_state,
-              day_type, volume_read, trend, observation, plan_text, plan_location, plan_trigger,
-              nuances_json, notes))
+                (account_id, date, time, mkt_read, value_state, setup, location, nuance, mental_state,
+                 day_type, volume_state, HTF_Trend, observation, plan_text, plan_location, plan_trigger,
+                 nuances_json, market_story, headline_read, confidence_score, bias_direction)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (account_id, date, time, mkt_read, value_state, setup, location, nuance, mental_state,
+              day_type, volume_state, HTF_Trend, observation, plan_text, plan_location, plan_trigger,
+              nuances_json, market_story, headline_read, confidence_score, bias_direction))
         return cur.lastrowid
 
 
 def update_developing_context(ctx_id, **fields):
-    allowed = {"mkt_read", "value_area", "setup", "location", "nuance",
-               "day_type", "volume_read", "trend", "observation",
+    allowed = {"mkt_read", "value_state", "setup", "location", "nuance",
+               "day_type", "volume_state", "HTF_Trend", "observation",
                "plan_text", "plan_location", "plan_trigger",
-               "nuances_json", "notes"}
+               "nuances_json", "market_story",
+               "headline_read", "confidence_score", "bias_direction"}
     updates = {k: v for k, v in fields.items() if k in allowed}
     if not updates:
         return
@@ -2211,3 +2275,110 @@ def get_trade_strength_by_context(context_id):
             (context_id,)
         ).fetchone()
         return dict(row) if row else None
+
+
+# ── Signal Library ────────────────────────────────────────────────────────────
+
+def get_all_signals(active_only=False):
+    with get_conn() as conn:
+        if active_only:
+            rows = conn.execute("SELECT * FROM signal_library WHERE is_active = 1 ORDER BY signal_value").fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM signal_library ORDER BY signal_value").fetchall()
+        return [dict(r) for r in rows]
+
+
+def create_signal(signal_key, signal_value, default_polarity="neutral"):
+    with get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO signal_library (signal_key, signal_value, default_polarity)
+            VALUES (?, ?, ?)
+        """, (signal_key, signal_value, default_polarity))
+        return cur.lastrowid
+
+
+def update_signal(signal_id, **fields):
+    allowed = {"signal_key", "signal_value", "default_polarity", "is_active"}
+    updates = {k: v for k, v in fields.items() if k in allowed}
+    if not updates:
+        return
+    with get_conn() as conn:
+        set_clause = ", ".join(f"{k} = ?" for k in updates)
+        conn.execute(f"UPDATE signal_library SET {set_clause} WHERE id = ?",
+                     list(updates.values()) + [signal_id])
+
+
+def delete_signal(signal_id):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM signal_library WHERE id = ?", (signal_id,))
+
+
+# ── Market Signals ────────────────────────────────────────────────────────────
+
+def get_market_signals_by_context(context_id):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM market_signals WHERE context_id = ? ORDER BY id",
+            (context_id,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def create_market_signal(context_id, signal_value, signal_polarity="neutral"):
+    with get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO market_signals (context_id, signal_value, signal_polarity)
+            VALUES (?, ?, ?)
+        """, (context_id, signal_value, signal_polarity))
+        return cur.lastrowid
+
+
+def delete_market_signal(signal_id):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM market_signals WHERE id = ?", (signal_id,))
+
+
+# ── Trade Plan Legs ──────────────────────────────────────────────────────────
+
+def get_trade_plan_legs_by_context(context_id):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM trade_plan_legs WHERE context_id = ? ORDER BY sort_order, id",
+            (context_id,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def create_trade_plan_leg(context_id, leg_type="", plan_label="",
+                          execution_side="", entry_zone_low=None,
+                          entry_zone_high=None, trigger_text="",
+                          condition_text="", is_primary=0, sort_order=0):
+    with get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO trade_plan_legs
+                (context_id, leg_type, plan_label, execution_side,
+                 entry_zone_low, entry_zone_high, trigger_text, condition_text,
+                 is_primary, sort_order)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (context_id, leg_type, plan_label, execution_side,
+              entry_zone_low, entry_zone_high, trigger_text, condition_text,
+              is_primary, sort_order))
+        return cur.lastrowid
+
+
+def update_trade_plan_leg(leg_id, **fields):
+    allowed = {"leg_type", "plan_label", "execution_side",
+               "entry_zone_low", "entry_zone_high", "trigger_text",
+               "condition_text", "is_primary", "sort_order"}
+    updates = {k: v for k, v in fields.items() if k in allowed}
+    if not updates:
+        return
+    with get_conn() as conn:
+        set_clause = ", ".join(f"{k} = ?" for k in updates)
+        conn.execute(f"UPDATE trade_plan_legs SET {set_clause} WHERE id = ?",
+                     list(updates.values()) + [leg_id])
+
+
+def delete_trade_plan_leg(leg_id):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM trade_plan_legs WHERE id = ?", (leg_id,))
