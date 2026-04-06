@@ -757,9 +757,12 @@
   background: var(--surface2); color: var(--muted); cursor: pointer;
   font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 700;
   letter-spacing: 1px; text-transform: uppercase; transition: all 0.15s;
+  height: 38px; display: flex; align-items: center; justify-content: center; box-sizing: border-box;
 }
 .trend-pill:hover { background: var(--surface3); }
 .trend-pill.active { background: rgba(0,207,255,0.1); border-color: var(--accent2); color: var(--accent2); }
+.trend-pill.active-up { background: rgba(46,125,50,0.1); border-color: #2e7d32; color: #2e7d32; }
+.trend-pill.active-down { background: rgba(198,40,40,0.1); border-color: #c62828; color: #c62828; }
 
 /* ── Nuance pills ── */
 .ds-add-nuance-btn {
@@ -767,6 +770,7 @@
   background: rgba(0,207,255,0.08); color: var(--accent2); cursor: pointer;
   font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 700;
   letter-spacing: 1px; text-transform: uppercase; transition: all 0.15s;
+  height: 38px; box-sizing: border-box;
 }
 .ds-add-nuance-btn:hover { background: rgba(0,207,255,0.15); }
 .nuance-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
@@ -960,6 +964,7 @@
   background: var(--surface2); color: var(--muted); cursor: pointer;
   font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 700;
   letter-spacing: 1px; text-transform: uppercase; transition: all 0.15s;
+  height: 38px; display: flex; align-items: center; justify-content: center; box-sizing: border-box;
 }
 .side-pill:hover { background: var(--surface3); }
 .side-pill.active.long { background: rgba(79,255,176,0.1); border-color: var(--green); color: var(--green); }
@@ -2044,9 +2049,9 @@ function renderContextSplitCard(el) {
           <div>
             <div class="ds-field-label">HTF Trend</div>
             <div class="trend-pills">
-              <button type="button" class="trend-pill${selectedTrend==='Up'?' active':''}" onclick="setTrend('Up')">UP</button>
+              <button type="button" class="trend-pill${selectedTrend==='Up'?' active-up':''}" onclick="setTrend('Up')">UP</button>
               <button type="button" class="trend-pill${selectedTrend==='Neutral'?' active':''}" onclick="setTrend('Neutral')">NEUTRAL</button>
-              <button type="button" class="trend-pill${selectedTrend==='Down'?' active':''}" onclick="setTrend('Down')">DOWN</button>
+              <button type="button" class="trend-pill${selectedTrend==='Down'?' active-down':''}" onclick="setTrend('Down')">DOWN</button>
             </div>
           </div>
         </div>
@@ -2092,11 +2097,9 @@ function renderContextSplitCard(el) {
 
         <div style="margin-top:12px; border-top:1px solid var(--border); padding-top:10px;">
           <div class="ds-field-label" style="margin-bottom:8px;">Trade Plan Legs</div>
-          <div class="ctx-form-2col">
-            <div>
-              <div class="ds-field-label">Plan Label</div>
-              <input type="text" class="ds-input" id="ds-leg-label" placeholder="e.g. Primary Long">
-            </div>
+          <div class="ds-field-label">Plan Label</div>
+          <input type="text" class="ds-input" id="ds-leg-label" placeholder="e.g. Primary Long">
+          <div class="ctx-form-row" style="margin-top:8px;gap:8px;">
             <div>
               <div class="ds-field-label">Side</div>
               <div class="side-pills">
@@ -2104,15 +2107,9 @@ function renderContextSplitCard(el) {
                 <button type="button" class="side-pill${legSide==='Short'?' active short':''}" onclick="setLegSide('Short')">SHORT</button>
               </div>
             </div>
-          </div>
-          <div class="ctx-form-2col" style="margin-top:8px;">
-            <div>
-              <div class="ds-field-label">Entry Zone Low</div>
-              <input type="number" class="ds-input" id="ds-leg-zone-low" placeholder="e.g. 6600" step="any">
-            </div>
-            <div>
-              <div class="ds-field-label">Entry Zone High</div>
-              <input type="number" class="ds-input" id="ds-leg-zone-high" placeholder="e.g. 6610" step="any">
+            <div style="flex:1;">
+              <div class="ds-field-label">Entry Zone</div>
+              <input type="text" class="ds-input" id="ds-leg-zone" placeholder="e.g. 6600 - 6610">
             </div>
           </div>
           <div class="ds-field-label" style="margin-top:8px;">Trigger</div>
@@ -2168,29 +2165,38 @@ function renderSignalPills() {
 }
 
 function setLegSide(val) {
-  saveFormState();
   legSide = val;
-  const trade = TRADES[activeTrade];
-  renderCenter(trade);
+  // Update pill styles in-place without re-rendering
+  document.querySelectorAll('.side-pill').forEach(btn => {
+    const btnVal = btn.textContent.trim().toUpperCase() === 'LONG' ? 'Long' : 'Short';
+    btn.className = 'side-pill' + (btnVal === val ? ` active ${val.toLowerCase()}` : '');
+  });
+}
+
+function parseEntryZone(text) {
+  if (!text) return { low: null, high: null };
+  // Split on dash/hyphen variants: " - ", " – ", "-", "–"
+  const parts = text.split(/\s*[-–]\s*/);
+  const low = parts[0] ? parseFloat(parts[0].trim()) : null;
+  const high = parts[1] ? parseFloat(parts[1].trim()) : null;
+  return { low: isNaN(low) ? null : low, high: isNaN(high) ? null : high };
 }
 
 function addLeg() {
   const label = document.getElementById('ds-leg-label')?.value.trim();
-  const zoneLow = document.getElementById('ds-leg-zone-low')?.value;
-  const zoneHigh = document.getElementById('ds-leg-zone-high')?.value;
+  const zoneText = document.getElementById('ds-leg-zone')?.value.trim() || '';
+  const { low: zoneLow, high: zoneHigh } = parseEntryZone(zoneText);
   const trigger = document.getElementById('ds-leg-trigger')?.value.trim() || '';
   const isPrimary = document.getElementById('ds-leg-primary')?.checked ? 1 : 0;
   if (!label) { showToast('Plan label is required', true); return; }
   pendingLegs.push({
     plan_label: label, execution_side: legSide,
-    entry_zone_low: zoneLow ? parseFloat(zoneLow) : null,
-    entry_zone_high: zoneHigh ? parseFloat(zoneHigh) : null,
+    entry_zone_low: zoneLow, entry_zone_high: zoneHigh,
     trigger_text: trigger, is_primary: isPrimary
   });
   // Clear leg inputs
   document.getElementById('ds-leg-label').value = '';
-  document.getElementById('ds-leg-zone-low').value = '';
-  document.getElementById('ds-leg-zone-high').value = '';
+  document.getElementById('ds-leg-zone').value = '';
   document.getElementById('ds-leg-trigger').value = '';
   document.getElementById('ds-leg-primary').checked = false;
   renderPendingLegs();
