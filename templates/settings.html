@@ -858,6 +858,76 @@
           </div>
         </div>
       </div>
+
+      <!-- Headline Helper Library -->
+      <div class="tag-config-card" style="margin-top:16px;">
+        <div class="tag-config-header">
+          <div class="tag-config-title">Headline Helper</div>
+        </div>
+        <div class="tag-config-body" style="padding:0;">
+          <table class="config-table" style="width:100%;font-size:11px;border-collapse:collapse;">
+            <thead>
+              <tr style="text-align:left;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);">
+                <th style="padding:8px 10px;">Day Type</th>
+                <th style="padding:8px 10px;">Value</th>
+                <th style="padding:8px 10px;">Volume</th>
+                <th style="padding:8px 10px;">HTF Trend</th>
+                <th style="padding:8px 10px;">Headline Read</th>
+                <th style="padding:8px 10px;">Exec Headline</th>
+                <th style="padding:8px 10px;width:40px;"></th>
+              </tr>
+            </thead>
+            <tbody id="hh-table-body">
+              {% for h in headline_helpers %}
+              <tr data-id="{{ h.id }}" class="hh-row" style="border-bottom:1px solid var(--border);">
+                <td style="padding:6px 10px;">{{ h.day_type }}</td>
+                <td style="padding:6px 10px;">{{ h.value_state }}</td>
+                <td style="padding:6px 10px;">{{ h.volume_state }}</td>
+                <td style="padding:6px 10px;">{{ h.htf_trend }}</td>
+                <td style="padding:6px 10px;">{{ h.headline_read }}</td>
+                <td style="padding:6px 10px;">{{ h.execution_headline }}</td>
+                <td style="padding:6px 10px;">
+                  <button class="btn btn-ghost" style="padding:2px 8px;font-size:9px;"
+                          onclick="deleteHeadlineHelper({{ h.id }}, this)">✗</button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="tag-config-footer" style="border-top:1px solid var(--border);padding:12px;">
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;gap:8px;">
+              <input type="text" class="add-tag-input" id="hh-day-type" placeholder="Day Type" style="flex:1;">
+              <select class="add-tag-input" id="hh-value" style="flex:1;">
+                <option value="">—</option>
+                <option value="Lower">Lower</option>
+                <option value="Overlapping Lower">OL</option>
+                <option value="Overlapping">Overlapping</option>
+                <option value="Overlapping Higher">OH</option>
+                <option value="Higher">Higher</option>
+              </select>
+              <select class="add-tag-input" id="hh-volume" style="flex:1;">
+                <option value="">—</option>
+                <option value="Below Avg">Below Avg</option>
+                <option value="Avg">Avg</option>
+                <option value="Above Avg">Above Avg</option>
+              </select>
+              <select class="add-tag-input" id="hh-trend" style="flex:1;">
+                <option value="">—</option>
+                <option value="Up">Up</option>
+                <option value="Neutral">Neutral</option>
+                <option value="Down">Down</option>
+              </select>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="text" class="add-tag-input" id="hh-headline" placeholder="Headline Read" style="flex:1;">
+              <input type="text" class="add-tag-input" id="hh-exec" placeholder="Exec Headline" style="flex:1;">
+              <button class="btn btn-ghost" style="padding:6px 14px;font-size:10px;white-space:nowrap;" onclick="addHeadlineHelper()">Add</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ════════════ THEME SECTION ════════════ -->
@@ -1199,6 +1269,44 @@
 
   // Init pagination on load
   document.addEventListener('DOMContentLoaded', () => sigPaginate());
+
+  // ── Headline Helper ────────────────────────────────────────────────────
+  async function addHeadlineHelper() {
+    const dayType = document.getElementById('hh-day-type').value.trim();
+    const value = document.getElementById('hh-value').value;
+    const volume = document.getElementById('hh-volume').value;
+    const trend = document.getElementById('hh-trend').value;
+    const headline = document.getElementById('hh-headline').value.trim();
+    const exec = document.getElementById('hh-exec').value.trim();
+    if (!headline) { showToast('Headline Read is required', true); return; }
+    const res = await fetch('/api/headline-helpers', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ day_type: dayType, value_state: value, volume_state: volume, htf_trend: trend, headline_read: headline, execution_headline: exec })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      const tbody = document.getElementById('hh-table-body');
+      const tr = document.createElement('tr');
+      tr.dataset.id = data.id;
+      tr.className = 'hh-row';
+      tr.style.borderBottom = '1px solid var(--border)';
+      tr.innerHTML = `<td style="padding:6px 10px;">${dayType}</td><td style="padding:6px 10px;">${value}</td><td style="padding:6px 10px;">${volume}</td><td style="padding:6px 10px;">${trend}</td><td style="padding:6px 10px;">${headline}</td><td style="padding:6px 10px;">${exec}</td><td style="padding:6px 10px;"><button class="btn btn-ghost" style="padding:2px 8px;font-size:9px;" onclick="deleteHeadlineHelper(${data.id}, this)">✗</button></td>`;
+      tbody.prepend(tr);
+      document.getElementById('hh-day-type').value = '';
+      document.getElementById('hh-value').value = '';
+      document.getElementById('hh-volume').value = '';
+      document.getElementById('hh-trend').value = '';
+      document.getElementById('hh-headline').value = '';
+      document.getElementById('hh-exec').value = '';
+      showToast('Headline helper added');
+    }
+  }
+
+  async function deleteHeadlineHelper(id, btn) {
+    if (!confirm('Delete this headline helper?')) return;
+    await fetch(`/api/headline-helpers/${id}`, { method: 'DELETE' });
+    btn.closest('tr').remove();
+  }
 
   // ── Export ────────────────────────────────────────────────────────────
   function exportDb() {

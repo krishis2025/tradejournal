@@ -466,6 +466,15 @@
   transition: all 0.2s; font-family: 'Inter', sans-serif;
 }
 .ds-dont-know-btn:hover { background: var(--surface2); color: var(--text); }
+.ds-create-new-btn {
+  width: 100%; padding: 10px; margin-bottom: 12px;
+  border: 1px dashed var(--accent2); border-radius: 6px;
+  background: transparent; color: var(--accent2);
+  font-family: 'Inter', sans-serif; font-weight: 700; font-size: 10px;
+  letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer;
+  transition: all 0.2s;
+}
+.ds-create-new-btn:hover { background: rgba(0,207,255,0.06); }
 
 /* ── ENTRY PHASE: Trade Entry Form ── */
 .entry-form {
@@ -773,6 +782,12 @@
   height: 38px; box-sizing: border-box;
 }
 .ds-add-nuance-btn:hover { background: rgba(0,207,255,0.15); }
+.ds-helper-btn {
+  flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px;
+  background: transparent; color: var(--muted); font-size: 9px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase; cursor: pointer;
+}
+.ds-helper-btn:hover { border-color: var(--accent2); color: var(--accent2); }
 .nuance-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .nuance-pill {
   display: inline-flex; align-items: center; gap: 6px;
@@ -798,16 +813,21 @@
 .ctx-headline-label {
   font-family: 'Inter', sans-serif; font-size: 0.55rem; font-weight: 900;
   text-transform: uppercase; letter-spacing: 1.2px; color: rgba(255,255,255,0.5);
-  margin-bottom: 4px; display: block;
+  margin-bottom: 4px; display: none;
 }
+.ctx-headline-bar:hover .ctx-headline-label { display: block; }
 .ctx-headline-daytype {
-  font-family: 'Inter', sans-serif; font-size: 0.75rem; font-weight: 700;
+  font-family: 'Inter', sans-serif; font-size: 0.75rem; font-weight: 800;
   color: rgba(255,255,255,0.85); margin-bottom: 4px;
   display: flex; align-items: center; gap: 8px;
 }
 .ctx-headline-text {
   font-family: 'Inter', sans-serif; font-size: 1.1rem; font-weight: 900;
   color: #fff; line-height: 1.2;
+}
+.ctx-execution-headline {
+  font-family: 'Inter', sans-serif; font-size: 0.8rem; font-weight: 600;
+  color: rgba(255,255,255,0.65); line-height: 1.3; margin-top: 6px;
 }
 /* Traffic light dot for bias direction */
 .ctx-traffic-light {
@@ -907,6 +927,13 @@
 }
 .ctx-plan-leg-side.long { background: rgba(46,125,50,0.15); color: #2e7d32; }
 .ctx-plan-leg-side.short { background: rgba(198,40,40,0.15); color: #c62828; }
+.ctx-leg-edit-icon {
+  cursor: pointer; font-size: 12px; opacity: 0.3; margin-left: auto;
+  transition: opacity 0.15s;
+}
+.ctx-plan-leg:hover .ctx-leg-edit-icon { opacity: 0.7; }
+.ctx-leg-edit-icon:hover { opacity: 1 !important; }
+.ctx-leg-input { height: 30px; font-size: 11px; padding: 4px 8px; }
 
 .ctx-section-last { border-radius: 0 0 8px 8px; }
 
@@ -1466,6 +1493,7 @@ let pendingSignals = [];      // [{signal_value, signal_polarity}]
 let pendingLegs = [];         // [{plan_label, execution_side, entry_zone_low, entry_zone_high, trigger_text, is_primary}]
 let selectedBias = '';        // 'long'|'short'|'neutral'
 let legSide = 'Long';        // current leg form side
+let contextFormMode = 'create'; // 'create' | 'modify'
 
 // Entry form state
 let formDir = 'Long';
@@ -1845,6 +1873,7 @@ function buildProminentContextHtml(ctx) {
   const planText = ctx.plan_text || ctx.planText || ctx.setup || '';
   const notes = ctx.market_story || ctx.notes || '';
   const headlineRead = ctx.headline_read || '';
+  const executionHeadline = ctx.execution_headline || '';
   const biasDirection = ctx.bias_direction || '';
   const signals = ctx.signals || [];
   const legs = ctx.legs || [];
@@ -1864,12 +1893,15 @@ function buildProminentContextHtml(ctx) {
     if (biasDirection) {
       html += `<span class="ctx-traffic-light ${biasDirection}"></span>`;
     }
-    html += `${escHtml(dayType)}</div>`;
+    html += `${escHtml(dayType)} Day</div>`;
   } else if (biasDirection) {
     html += `<div class="ctx-headline-daytype"><span class="ctx-traffic-light ${biasDirection}"></span></div>`;
   }
   if (headlineRead) {
     html += `<div class="ctx-headline-text">${escHtml(headlineRead)}</div>`;
+  }
+  if (executionHeadline) {
+    html += `<div class="ctx-execution-headline">${escHtml(executionHeadline)}</div>`;
   }
   html += `</div>`;
 
@@ -1908,26 +1940,48 @@ function buildProminentContextHtml(ctx) {
     if (planText) {
       html += `<div class="ctx-plan-playbook">${escHtml(planText)}</div>`;
     }
-    legs.forEach(leg => {
+    legs.forEach((leg, i) => {
       const sideClass = (leg.execution_side || '').toLowerCase();
       const zone = (leg.entry_zone_low != null && leg.entry_zone_high != null)
-        ? `${leg.entry_zone_low} \u2013 ${leg.entry_zone_high}` : '';
+        ? `${leg.entry_zone_low} \u2013 ${leg.entry_zone_high}`
+        : (leg.entry_zone_low != null ? `${leg.entry_zone_low}` : '');
       const primaryClass = leg.is_primary ? ' is-primary' : '';
-      html += `<div class="ctx-plan-leg${primaryClass}">
-        <div class="ctx-plan-leg-label">
-          ${escHtml(leg.plan_label || '')}
-          ${leg.execution_side ? `<span class="ctx-plan-leg-side ${sideClass}">${leg.execution_side}</span>` : ''}
-          ${leg.is_primary ? '<span style="color:#b8860b;font-size:10px;">\u2605</span>' : ''}
+      const legId = leg.id || '';
+      html += `<div class="ctx-plan-leg${primaryClass}" id="ctx-leg-${legId}">
+        <div class="ctx-plan-leg-display" id="ctx-leg-display-${legId}">
+          <div class="ctx-plan-leg-label">
+            ${escHtml(leg.plan_label || '')}
+            ${leg.execution_side ? `<span class="ctx-plan-leg-side ${sideClass}">${leg.execution_side}</span>` : ''}
+            ${leg.is_primary ? '<span style="color:#b8860b;font-size:10px;">\u2605</span>' : ''}
+            <span class="ctx-leg-edit-icon" onclick="toggleLegEdit(${legId})" title="Edit">\u270e</span>
+          </div>
+          ${zone ? `<div class="ctx-plan-leg-zone">${zone}</div>` : ''}
+          ${leg.trigger_text ? `<div class="ctx-plan-leg-trigger">Trigger: ${escHtml(leg.trigger_text)}</div>` : ''}
         </div>
-        ${zone ? `<div class="ctx-plan-leg-zone">${zone}</div>` : ''}
-        ${leg.trigger_text ? `<div class="ctx-plan-leg-trigger">Trigger: ${escHtml(leg.trigger_text)}</div>` : ''}
+        <div class="ctx-plan-leg-edit" id="ctx-leg-edit-${legId}" style="display:none;">
+          <input type="text" class="ds-input ctx-leg-input" id="ctx-leg-label-${legId}" value="${escHtml(leg.plan_label || '')}" placeholder="Label">
+          <div style="display:flex;gap:6px;margin-top:4px;">
+            <select class="ds-select ctx-leg-input" id="ctx-leg-side-${legId}" style="width:90px;">
+              <option value="Long"${leg.execution_side === 'Long' ? ' selected' : ''}>Long</option>
+              <option value="Short"${leg.execution_side === 'Short' ? ' selected' : ''}>Short</option>
+            </select>
+            <input type="text" class="ds-input ctx-leg-input" id="ctx-leg-zone-${legId}" style="flex:1;"
+              value="${zone}" placeholder="Entry zone">
+          </div>
+          <input type="text" class="ds-input ctx-leg-input" id="ctx-leg-trigger-${legId}" style="margin-top:4px;"
+            value="${escHtml(leg.trigger_text || '')}" placeholder="Trigger">
+          <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
+            <label style="font-size:10px;color:#555;display:flex;align-items:center;gap:3px;cursor:pointer;">
+              <input type="checkbox" id="ctx-leg-primary-${legId}"${leg.is_primary ? ' checked' : ''}> Primary
+            </label>
+            <button class="ds-add-nuance-btn" style="margin-left:auto;height:28px;font-size:9px;padding:4px 10px;" onclick="saveLegEdit(${legId})">SAVE</button>
+            <button class="ds-dont-know-btn" style="width:auto;margin:0;height:28px;font-size:9px;padding:4px 10px;" onclick="cancelLegEdit(${legId})">CANCEL</button>
+          </div>
+        </div>
       </div>`;
     });
     html += `</div>`;
   }
-
-  // 6. Edit button
-  html += `<button class="ctx-edit-btn" onclick="editContext()">EDIT</button>`;
 
   return html;
 }
@@ -1935,7 +1989,7 @@ function buildProminentContextHtml(ctx) {
 /* ── SPLIT-CARD FORM (center panel during CONTEXT) ── */
 let selectedTrend = '';
 let pendingNuances = [];
-let formState = { dayType: '', valueState: 'Overlapping', volumeState: '', marketStory: '', planText: '', headlineRead: '' };
+let formState = { dayType: '', valueState: 'Overlapping', volumeState: '', marketStory: '', planText: '', headlineRead: '', executionHeadline: '' };
 
 function saveFormState() {
   formState.dayType = document.getElementById('ds-day-type')?.value || '';
@@ -1944,6 +1998,7 @@ function saveFormState() {
   formState.marketStory = document.getElementById('ds-notes')?.value || '';
   formState.planText = document.getElementById('ds-plan-text')?.value || '';
   formState.headlineRead = document.getElementById('ds-headline-read')?.value || '';
+  formState.executionHeadline = document.getElementById('ds-execution-headline')?.value || '';
 }
 function restoreFormState() {
   const dt = document.getElementById('ds-day-type');
@@ -1958,6 +2013,8 @@ function restoreFormState() {
   if (nt) nt.value = formState.marketStory;
   if (pt) pt.value = formState.planText;
   if (hr) hr.value = formState.headlineRead;
+  const eh = document.getElementById('ds-execution-headline');
+  if (eh) eh.value = formState.executionHeadline;
   renderSignalPills();
   renderPendingLegs();
 }
@@ -2016,8 +2073,26 @@ function renderContextSplitCard(el) {
   const now = new Date();
   const timeLabel = formatTime12h(String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0'));
 
+  // Mode-aware top button and bottom buttons
+  const isModify = contextFormMode === 'modify';
+  const hasExistingContext = !!activeContextId;
+  const topBtn = isModify ? `<button class="ds-create-new-btn" onclick="startNewContext()">+ CREATE NEW CONTEXT</button>` : '';
+  let bottomBtns = '';
+  if (isModify) {
+    bottomBtns = `<button class="ds-commit-btn" style="margin-top:16px;" onclick="updateExistingContext()">UPDATE CONTEXT</button>`;
+  } else if (hasExistingContext) {
+    // Create mode but context exists — show cancel
+    bottomBtns = `<button class="ds-commit-btn" style="margin-top:16px;" onclick="commitContext()">COMMIT CONTEXT & PLAN</button>
+      <button class="ds-dont-know-btn" onclick="cancelNewContext()">CANCEL</button>`;
+  } else {
+    // First time — no context yet
+    bottomBtns = `<button class="ds-commit-btn" style="margin-top:16px;" onclick="commitContext()">COMMIT CONTEXT & PLAN</button>
+      <button class="ds-dont-know-btn" onclick="dontKnowContext()">DON'T KNOW</button>`;
+  }
+
   el.innerHTML = `
     <div style="max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:0;">
+      ${topBtn}
 
       <!-- SECTION 1: Context -->
       <div class="ctx-form-section">
@@ -2070,6 +2145,12 @@ function renderContextSplitCard(el) {
         </div>
         <div class="ds-field-label">Market Story</div>
         <textarea class="ds-textarea" id="ds-notes" rows="2" placeholder="Longer narrative..."></textarea>
+        <div class="ds-field-label" style="margin-top:10px;">Execution Headline</div>
+        <input type="text" class="ds-input" id="ds-execution-headline" placeholder="e.g. Fade sellers into support, wait for reclaim">
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button type="button" class="ds-helper-btn" onclick="getHeadlineRead()">GET READ</button>
+          <button type="button" class="ds-helper-btn" onclick="saveHeadlineRead()">SAVE READ</button>
+        </div>
       </div>
 
       <!-- SECTION 3: Signals -->
@@ -2124,8 +2205,7 @@ function renderContextSplitCard(el) {
         </div>
       </div>
 
-      <button class="ds-commit-btn" style="margin-top:16px;" onclick="commitContext()">COMMIT CONTEXT & PLAN</button>
-      <button class="ds-dont-know-btn" onclick="dontKnowContext()">DON'T KNOW</button>
+      ${bottomBtns}
     </div>
   `;
   restoreFormState();
@@ -2162,6 +2242,42 @@ function renderSignalPills() {
     const cls = s.signal_polarity || 'neutral';
     return `<span class="ctx-signal-pill ${cls}">${escHtml(s.signal_value)}<span class="signal-x" onclick="removeSignal(${i})">\u00d7</span></span>`;
   }).join('');
+}
+
+async function getHeadlineRead() {
+  const dayType = document.getElementById('ds-day-type')?.value.trim() || '';
+  const valueState = document.getElementById('ds-value-state')?.value || '';
+  const volumeState = document.getElementById('ds-volume-state')?.value || '';
+  const htfTrend = selectedTrend || '';
+  const params = new URLSearchParams({ day_type: dayType, value_state: valueState, volume_state: volumeState, htf_trend: htfTrend });
+  const res = await fetch(`/api/headline-helpers/lookup?${params}`);
+  const data = await res.json();
+  if (data.ok && data.match) {
+    const hr = document.getElementById('ds-headline-read');
+    const eh = document.getElementById('ds-execution-headline');
+    if (hr) hr.value = data.match.headline_read || '';
+    if (eh) eh.value = data.match.execution_headline || '';
+    formState.headlineRead = data.match.headline_read || '';
+    formState.executionHeadline = data.match.execution_headline || '';
+    showToast('Read loaded from library');
+  } else {
+    showToast('No saved read for this scenario', true);
+  }
+}
+
+async function saveHeadlineRead() {
+  const dayType = document.getElementById('ds-day-type')?.value.trim() || '';
+  const valueState = document.getElementById('ds-value-state')?.value || '';
+  const volumeState = document.getElementById('ds-volume-state')?.value || '';
+  const htfTrend = selectedTrend || '';
+  const headlineRead = document.getElementById('ds-headline-read')?.value.trim() || '';
+  const executionHeadline = document.getElementById('ds-execution-headline')?.value.trim() || '';
+  if (!headlineRead) { showToast('Headline Read is empty', true); return; }
+  await fetch('/api/headline-helpers', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ day_type: dayType, value_state: valueState, volume_state: volumeState, htf_trend: htfTrend, headline_read: headlineRead, execution_headline: executionHeadline })
+  });
+  showToast('Read saved to library');
 }
 
 function setLegSide(val) {
@@ -2227,6 +2343,90 @@ function renderPendingLegs() {
   }).join('');
 }
 
+/* ── Inline leg editing (left panel) ── */
+function toggleLegEdit(legId) {
+  const display = document.getElementById(`ctx-leg-display-${legId}`);
+  const edit = document.getElementById(`ctx-leg-edit-${legId}`);
+  if (!display || !edit) return;
+  display.style.display = 'none';
+  edit.style.display = 'block';
+}
+
+function cancelLegEdit(legId) {
+  const display = document.getElementById(`ctx-leg-display-${legId}`);
+  const edit = document.getElementById(`ctx-leg-edit-${legId}`);
+  if (!display || !edit) return;
+  display.style.display = '';
+  edit.style.display = 'none';
+}
+
+async function saveLegEdit(legId) {
+  const label = document.getElementById(`ctx-leg-label-${legId}`)?.value.trim() || '';
+  const side = document.getElementById(`ctx-leg-side-${legId}`)?.value || '';
+  const zoneText = document.getElementById(`ctx-leg-zone-${legId}`)?.value.trim() || '';
+  const trigger = document.getElementById(`ctx-leg-trigger-${legId}`)?.value.trim() || '';
+  const isPrimary = document.getElementById(`ctx-leg-primary-${legId}`)?.checked ? 1 : 0;
+
+  const { low: zoneLow, high: zoneHigh } = parseEntryZone(zoneText);
+
+  const res = await fetch(`/api/leg/${legId}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      plan_label: label, execution_side: side,
+      entry_zone_low: zoneLow, entry_zone_high: zoneHigh,
+      trigger_text: trigger, is_primary: isPrimary,
+    })
+  });
+  const data = await res.json();
+  if (!data.ok) { showToast('Failed to update leg', true); return; }
+
+  // Update local state
+  const ctx = getLatestContext();
+  if (ctx && ctx.legs) {
+    const leg = ctx.legs.find(l => l.id === legId);
+    if (leg) {
+      leg.plan_label = label; leg.execution_side = side;
+      leg.entry_zone_low = zoneLow; leg.entry_zone_high = zoneHigh;
+      leg.trigger_text = trigger; leg.is_primary = isPrimary;
+    }
+  }
+  // Also update SERVER_CONTEXTS
+  if (activeContextId) {
+    const sc = SERVER_CONTEXTS.find(c => c.id === activeContextId);
+    if (sc && sc.legs) {
+      const sLeg = sc.legs.find(l => l.id === legId);
+      if (sLeg) {
+        sLeg.plan_label = label; sLeg.execution_side = side;
+        sLeg.entry_zone_low = zoneLow; sLeg.entry_zone_high = zoneHigh;
+        sLeg.trigger_text = trigger; sLeg.is_primary = isPrimary;
+      }
+    }
+  }
+  if (lastCommittedContext && lastCommittedContext.legs) {
+    const lLeg = lastCommittedContext.legs.find(l => l.id === legId);
+    if (lLeg) {
+      lLeg.plan_label = label; lLeg.execution_side = side;
+      lLeg.entry_zone_low = zoneLow; lLeg.entry_zone_high = zoneHigh;
+      lLeg.trigger_text = trigger; lLeg.is_primary = isPrimary;
+    }
+  }
+
+  // Sync pendingLegs from updated context so center panel reflects changes
+  const updatedCtx = getLatestContext();
+  if (updatedCtx && updatedCtx.legs) {
+    pendingLegs = updatedCtx.legs.map(l => ({
+      plan_label: l.plan_label || '', execution_side: l.execution_side || '',
+      entry_zone_low: l.entry_zone_low, entry_zone_high: l.entry_zone_high,
+      trigger_text: l.trigger_text || '', is_primary: l.is_primary || 0
+    }));
+  }
+
+  showToast('Leg updated');
+  const trade = TRADES[activeTrade];
+  renderContextPanel(trade);
+  renderCenter(trade);
+}
+
 function setTrend(val) {
   saveFormState();
   selectedTrend = selectedTrend === val ? '' : val;
@@ -2239,11 +2439,12 @@ function renderCenter(trade) {
   const el = document.getElementById('ladder');
 
   if (activePhase === 'CONTEXT') {
-    if (activeContextId) {
-      el.innerHTML = '<div class="phase-empty"><div class="phase-empty-icon">\u2713</div><span>Context committed</span><span style="font-size:11px;color:var(--muted2);text-transform:none;letter-spacing:0;">Click ENTRY to set up your trade</span></div>';
-    } else {
-      renderContextSplitCard(el);
+    if (activeContextId && contextFormMode !== 'create') {
+      // Modify mode: populate form with current context
+      contextFormMode = 'modify';
+      populateFormFromContext(getLatestContext());
     }
+    renderContextSplitCard(el);
     return;
   }
 
@@ -2344,37 +2545,118 @@ function cancelEntry() {
   activeContextId = null;
   lastCommittedContext = {};
   pendingNuances = [];
-  formState = { dayType: '', valueState: 'Overlapping', volumeState: '', marketStory: '', planText: '', headlineRead: '' };
+  formState = { dayType: '', valueState: 'Overlapping', volumeState: '', marketStory: '', planText: '', headlineRead: '', executionHeadline: '' };
   pendingSignals = [];
   pendingLegs = [];
   selectedBias = '';
   legSide = 'Long';
+  contextFormMode = 'create';
   liveNowContext = null;
   inlineUpdateOpen = false;
   setPhase('CONTEXT');
 }
 
-function editContext() {
-  // Populate form from current context
-  const ctx = getLatestContext();
-  if (ctx) {
-    formState.dayType = ctx.day_type || ctx.dayType || ctx.mkt_read || '';
-    formState.valueState = ctx.value_state || ctx.valueState || 'Overlapping';
-    formState.volumeState = ctx.volume_state || ctx.volumeState || '';
-    formState.marketStory = ctx.market_story || ctx.notes || '';
-    formState.planText = ctx.plan_text || ctx.planText || ctx.setup || '';
-    formState.headlineRead = ctx.headline_read || '';
-    selectedTrend = ctx.HTF_Trend || ctx.trend || '';
-    selectedBias = ctx.bias_direction || '';
-    pendingSignals = (ctx.signals || []).map(s => ({ signal_value: s.signal_value, signal_polarity: s.signal_polarity }));
-    pendingLegs = (ctx.legs || []).map(l => ({
-      plan_label: l.plan_label || '', execution_side: l.execution_side || '',
-      entry_zone_low: l.entry_zone_low, entry_zone_high: l.entry_zone_high,
-      trigger_text: l.trigger_text || '', is_primary: l.is_primary || 0
-    }));
+function populateFormFromContext(ctx) {
+  if (!ctx) return;
+  formState.dayType = ctx.day_type || ctx.dayType || ctx.mkt_read || '';
+  formState.valueState = ctx.value_state || ctx.valueState || 'Overlapping';
+  formState.volumeState = ctx.volume_state || ctx.volumeState || '';
+  formState.marketStory = ctx.market_story || ctx.notes || '';
+  formState.planText = ctx.plan_text || ctx.planText || ctx.setup || '';
+  formState.headlineRead = ctx.headline_read || '';
+  formState.executionHeadline = ctx.execution_headline || '';
+  selectedTrend = ctx.HTF_Trend || ctx.trend || '';
+  selectedBias = ctx.bias_direction || '';
+  pendingSignals = (ctx.signals || []).map(s => ({ signal_value: s.signal_value, signal_polarity: s.signal_polarity }));
+  pendingLegs = (ctx.legs || []).map(l => ({
+    plan_label: l.plan_label || '', execution_side: l.execution_side || '',
+    entry_zone_low: l.entry_zone_low, entry_zone_high: l.entry_zone_high,
+    trigger_text: l.trigger_text || '', is_primary: l.is_primary || 0
+  }));
+}
+
+function startNewContext() {
+  saveFormState();
+  contextFormMode = 'create';
+  formState = { dayType: '', valueState: 'Overlapping', volumeState: '', marketStory: '', planText: '', headlineRead: '', executionHeadline: '' };
+  pendingSignals = [];
+  pendingLegs = [];
+  selectedTrend = '';
+  selectedBias = '';
+  legSide = 'Long';
+  const trade = TRADES[activeTrade];
+  renderCenter(trade);
+}
+
+function cancelNewContext() {
+  contextFormMode = 'modify';
+  populateFormFromContext(getLatestContext());
+  const trade = TRADES[activeTrade];
+  renderCenter(trade);
+}
+
+async function updateExistingContext() {
+  const dayType = document.getElementById('ds-day-type')?.value.trim() || '';
+  const valueState = document.getElementById('ds-value-state')?.value || '';
+  const volumeState = document.getElementById('ds-volume-state')?.value || '';
+  const trend = selectedTrend || '';
+  const notes = document.getElementById('ds-notes')?.value.trim() || '';
+  const planText = document.getElementById('ds-plan-text')?.value.trim() || '';
+  const headlineRead = document.getElementById('ds-headline-read')?.value.trim() || '';
+  const executionHeadline = document.getElementById('ds-execution-headline')?.value.trim() || '';
+  const biasDirection = selectedBias || '';
+
+  // PATCH the existing context
+  await fetch(`/api/context/${activeContextId}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      day_type: dayType, value_state: valueState, volume_state: volumeState,
+      HTF_Trend: trend, market_story: notes, plan_text: planText,
+      headline_read: headlineRead, bias_direction: biasDirection,
+      execution_headline: executionHeadline,
+    })
+  });
+
+  // Replace signals: delete old, post new
+  await fetch(`/api/context/${activeContextId}/signals`, { method: 'DELETE' });
+  if (pendingSignals.length > 0) {
+    await fetch(`/api/context/${activeContextId}/signals`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ signals: pendingSignals })
+    });
   }
-  activeContextId = null;  // Allow form to show again
-  setPhase('CONTEXT');
+
+  // Replace legs: delete old, post new
+  await fetch(`/api/context/${activeContextId}/legs`, { method: 'DELETE' });
+  if (pendingLegs.length > 0) {
+    await fetch(`/api/context/${activeContextId}/legs`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ legs: pendingLegs })
+    });
+  }
+
+  // Update local state
+  const updatedCtx = {
+    id: activeContextId, day_type: dayType, value_state: valueState,
+    volume_state: volumeState, HTF_Trend: trend, market_story: notes,
+    plan_text: planText, headline_read: headlineRead, bias_direction: biasDirection,
+    execution_headline: executionHeadline,
+    signals: [...pendingSignals], legs: [...pendingLegs],
+    mkt_read: dayType, setup: planText, nuance: notes,
+    time: lastCommittedContext.time || '',
+  };
+  lastCommittedContext = updatedCtx;
+
+  // Update SERVER_CONTEXTS entry
+  const scIdx = SERVER_CONTEXTS.findIndex(c => c.id === activeContextId);
+  if (scIdx >= 0) {
+    SERVER_CONTEXTS[scIdx] = { ...SERVER_CONTEXTS[scIdx], ...updatedCtx };
+  }
+
+  showToast('Context updated');
+  contextFormMode = 'modify';
+  updateRibbon();
+  renderAll();
 }
 
 async function dontKnowContext() {
@@ -2413,11 +2695,12 @@ async function dontKnowContext() {
   lastCommittedContext = {};
   pendingNuances = [];
   selectedTrend = '';
-  formState = { dayType: '', valueState: 'Overlapping', volumeState: '', marketStory: '', planText: '', headlineRead: '' };
+  formState = { dayType: '', valueState: 'Overlapping', volumeState: '', marketStory: '', planText: '', headlineRead: '', executionHeadline: '' };
   pendingSignals = [];
   pendingLegs = [];
   selectedBias = '';
   legSide = 'Long';
+  contextFormMode = 'create';
   liveNowContext = null;
   inlineUpdateOpen = false;
   strengthSubmitted = false;
@@ -3378,6 +3661,7 @@ async function commitContext() {
   const notes = document.getElementById('ds-notes')?.value.trim() || '';
   const planText = document.getElementById('ds-plan-text')?.value.trim() || '';
   const headlineRead = document.getElementById('ds-headline-read')?.value.trim() || '';
+  const executionHeadline = document.getElementById('ds-execution-headline')?.value.trim() || '';
   const biasDirection = selectedBias || '';
 
   if (!dayType && !planText && !headlineRead) { showToast('Fill at least Day Type, Headline, or Plan', true); return; }
@@ -3395,6 +3679,7 @@ async function commitContext() {
       nuances_json: nuancesJson, market_story: notes,
       plan_text: planText,
       headline_read: headlineRead, bias_direction: biasDirection,
+      execution_headline: executionHeadline,
       mental_state: guardState.mental_state || 'calm',
       account_id: pid ? parseInt(pid) : null,
     })
@@ -3432,6 +3717,7 @@ async function commitContext() {
     nuances_json: nuancesJson, market_story: notes, nuances: [...pendingNuances],
     plan_text: planText,
     headline_read: headlineRead, bias_direction: biasDirection,
+    execution_headline: executionHeadline,
     signals: savedSignals, legs: savedLegs,
     mkt_read: dayType, setup: planText, nuance: notes
   };
@@ -3450,6 +3736,7 @@ async function commitContext() {
   selectedTrend = '';
   legSide = 'Long';
 
+  contextFormMode = 'modify';
   showToast('Context committed');
   liveNowContext = null;
   updateRibbon();
@@ -3698,26 +3985,15 @@ function handleEnterClick() {
 
   const hasOpenTrades = Object.values(TRADES).some(t => !isTradeClosed(t) && !t.pushed);
 
-  if (activeContextId) {
-    // Context is set — go straight to trade creation (strength already captured)
-    createTradeFromForm();
-  } else if (hasOpenTrades) {
-    // No active context but trades exist — reuse last trade's context
+  // Auto-reuse last trade's context if none set
+  if (!activeContextId && hasOpenTrades) {
     const ctxId = getLastTradeContextId();
     if (ctxId) {
       activeContextId = ctxId;
       contextDontKnow = false;
-      strengthValue = 0; strengthVolume = 0; strengthTrend = 0; strengthAdh = 0;
-      strengthMental = 'calm'; strengthConfidence = 'medium';
-      strengthSubmitted = false;
-      setPhase('ENTRY');
-    } else {
-      showToast('No previous context found', true);
     }
-  } else {
-    // No context, no trades — block
-    showToast('Declare context first', true);
   }
+  createTradeFromForm();
 }
 
 /* ── PLAN CHOICE DIALOG ── */
@@ -4050,6 +4326,14 @@ function renderAll() {
       const usedByTrade = Object.values(TRADES).some(t => t.context_id === latest.id);
       if (!usedByTrade) contextDontKnow = true;
     }
+  }
+
+  // Set contextFormMode based on whether a context exists
+  if (SERVER_CONTEXTS && SERVER_CONTEXTS.length > 0 && !contextDontKnow) {
+    const latest = SERVER_CONTEXTS[0];
+    activeContextId = latest.id;
+    lastCommittedContext = latest;
+    contextFormMode = 'modify';
   }
 
   // Determine initial state

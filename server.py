@@ -336,6 +336,7 @@ def settings_view():
         accounts_json=json.dumps(accounts),
         signals=db.get_all_signals(),
         signals_json=json.dumps(db.get_all_signals()),
+        headline_helpers=db.get_all_headline_helpers(),
     )
 
 
@@ -873,6 +874,7 @@ def api_create_context():
     headline_read = body.get("headline_read", "")
     confidence_score = body.get("confidence_score", "")
     bias_direction = body.get("bias_direction", "")
+    execution_headline = body.get("execution_headline", "")
 
     # Backfill old fields from new fields for backward compat
     mkt_read = body.get("mkt_read", "") or day_type
@@ -902,6 +904,7 @@ def api_create_context():
         headline_read=headline_read,
         confidence_score=confidence_score,
         bias_direction=bias_direction,
+        execution_headline=execution_headline,
     )
     return jsonify({"ok": True, "id": ctx_id})
 
@@ -958,6 +961,65 @@ def api_create_context_legs(ctx_id):
         )
         created.append(lid)
     return jsonify({"ok": True, "ids": created})
+
+
+@app.route("/api/context/<int:ctx_id>/signals", methods=["DELETE"])
+def api_delete_context_signals(ctx_id):
+    db.delete_market_signals_by_context(ctx_id)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/context/<int:ctx_id>/legs", methods=["DELETE"])
+def api_delete_context_legs(ctx_id):
+    db.delete_trade_plan_legs_by_context(ctx_id)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/leg/<int:leg_id>", methods=["PATCH"])
+def api_update_leg(leg_id):
+    body = request.get_json(silent=True) or {}
+    db.update_trade_plan_leg(leg_id, **body)
+    return jsonify({"ok": True})
+
+
+# ── API: Headline Helper ─────────────────────────────────────────────────────
+
+@app.route("/api/headline-helpers", methods=["GET"])
+def api_get_headline_helpers():
+    rows = db.get_all_headline_helpers()
+    return jsonify(rows)
+
+
+@app.route("/api/headline-helpers/lookup", methods=["GET"])
+def api_lookup_headline_helper():
+    day_type = request.args.get("day_type", "")
+    value_state = request.args.get("value_state", "")
+    volume_state = request.args.get("volume_state", "")
+    htf_trend = request.args.get("htf_trend", "")
+    match = db.lookup_headline_helper(day_type, value_state, volume_state, htf_trend)
+    if match:
+        return jsonify({"ok": True, "match": match})
+    return jsonify({"ok": False, "message": "No saved read for this scenario"})
+
+
+@app.route("/api/headline-helpers", methods=["POST"])
+def api_create_headline_helper():
+    body = request.get_json(silent=True) or {}
+    hid = db.create_headline_helper(
+        day_type=body.get("day_type", ""),
+        value_state=body.get("value_state", ""),
+        volume_state=body.get("volume_state", ""),
+        htf_trend=body.get("htf_trend", ""),
+        headline_read=body.get("headline_read", ""),
+        execution_headline=body.get("execution_headline", ""),
+    )
+    return jsonify({"ok": True, "id": hid})
+
+
+@app.route("/api/headline-helpers/<int:hid>", methods=["DELETE"])
+def api_delete_headline_helper(hid):
+    db.delete_headline_helper(hid)
+    return jsonify({"ok": True})
 
 
 # ── API: Trade Strength ──────────────────────────────────────────────────────

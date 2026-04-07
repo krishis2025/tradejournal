@@ -553,6 +553,7 @@ def init_db():
         ctx_cols = [r[1] for r in conn.execute("PRAGMA table_info(developing_context)").fetchall()]
         for col, default in [
             ("headline_read", "''"), ("confidence_score", "''"), ("bias_direction", "''"),
+            ("execution_headline", "''"),
         ]:
             if col not in ctx_cols:
                 conn.execute(f"ALTER TABLE developing_context ADD COLUMN {col} TEXT NOT NULL DEFAULT {default}")
@@ -570,7 +571,6 @@ def init_db():
         """)
 
         # Migration: create market_signals table
-        conn.execute("DROP TABLE IF EXISTS market_signals")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS market_signals (
                 id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -596,6 +596,20 @@ def init_db():
                 is_primary       INTEGER DEFAULT 0,
                 sort_order       INTEGER DEFAULT 0,
                 FOREIGN KEY (context_id) REFERENCES developing_context(id) ON DELETE CASCADE
+            )
+        """)
+
+        # Migration: create headline_helper table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS headline_helper (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                day_type            TEXT NOT NULL DEFAULT '',
+                value_state         TEXT NOT NULL DEFAULT '',
+                volume_state        TEXT NOT NULL DEFAULT '',
+                htf_trend           TEXT NOT NULL DEFAULT '',
+                headline_read       TEXT NOT NULL DEFAULT '',
+                execution_headline  TEXT NOT NULL DEFAULT '',
+                created_at          TEXT NOT NULL DEFAULT (datetime('now','localtime'))
             )
         """)
 
@@ -2194,17 +2208,20 @@ def create_developing_context(account_id, date, time, mkt_read, value_state,
                                day_type="", volume_state="", HTF_Trend="",
                                observation="", plan_text="", plan_location="",
                                plan_trigger="", nuances_json="[]", market_story="",
-                               headline_read="", confidence_score="", bias_direction=""):
+                               headline_read="", confidence_score="", bias_direction="",
+                               execution_headline=""):
     with get_conn() as conn:
         cur = conn.execute("""
             INSERT INTO developing_context
                 (account_id, date, time, mkt_read, value_state, setup, location, nuance, mental_state,
                  day_type, volume_state, HTF_Trend, observation, plan_text, plan_location, plan_trigger,
-                 nuances_json, market_story, headline_read, confidence_score, bias_direction)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 nuances_json, market_story, headline_read, confidence_score, bias_direction,
+                 execution_headline)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (account_id, date, time, mkt_read, value_state, setup, location, nuance, mental_state,
               day_type, volume_state, HTF_Trend, observation, plan_text, plan_location, plan_trigger,
-              nuances_json, market_story, headline_read, confidence_score, bias_direction))
+              nuances_json, market_story, headline_read, confidence_score, bias_direction,
+              execution_headline))
         return cur.lastrowid
 
 
@@ -2213,7 +2230,8 @@ def update_developing_context(ctx_id, **fields):
                "day_type", "volume_state", "HTF_Trend", "observation",
                "plan_text", "plan_location", "plan_trigger",
                "nuances_json", "market_story",
-               "headline_read", "confidence_score", "bias_direction"}
+               "headline_read", "confidence_score", "bias_direction",
+               "execution_headline"}
     updates = {k: v for k, v in fields.items() if k in allowed}
     if not updates:
         return
@@ -2338,6 +2356,11 @@ def delete_market_signal(signal_id):
         conn.execute("DELETE FROM market_signals WHERE id = ?", (signal_id,))
 
 
+def delete_market_signals_by_context(context_id):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM market_signals WHERE context_id = ?", (context_id,))
+
+
 # ── Trade Plan Legs ──────────────────────────────────────────────────────────
 
 def get_trade_plan_legs_by_context(context_id):
@@ -2382,3 +2405,49 @@ def update_trade_plan_leg(leg_id, **fields):
 def delete_trade_plan_leg(leg_id):
     with get_conn() as conn:
         conn.execute("DELETE FROM trade_plan_legs WHERE id = ?", (leg_id,))
+
+
+def delete_trade_plan_legs_by_context(context_id):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM trade_plan_legs WHERE context_id = ?", (context_id,))
+
+
+# ── Headline Helper ─────────────────────────────────────────────────────────
+
+def get_all_headline_helpers():
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM headline_helper ORDER BY created_at DESC"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def lookup_headline_helper(day_type, value_state, volume_state, htf_trend):
+    with get_conn() as conn:
+        row = conn.execute("""
+            SELECT * FROM headline_helper
+            WHERE LOWER(day_type) = LOWER(?)
+              AND LOWER(value_state) = LOWER(?)
+              AND LOWER(volume_state) = LOWER(?)
+              AND LOWER(htf_trend) = LOWER(?)
+            ORDER BY created_at DESC LIMIT 1
+        """, (day_type, value_state, volume_state, htf_trend)).fetchone()
+        return dict(row) if row else None
+
+
+def create_headline_helper(day_type, value_state, volume_state, htf_trend,
+                           headline_read, execution_headline):
+    with get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO headline_helper
+                (day_type, value_state, volume_state, htf_trend,
+                 headline_read, execution_headline)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (day_type, value_state, volume_state, htf_trend,
+              headline_read, execution_headline))
+        return cur.lastrowid
+
+
+def delete_headline_helper(helper_id):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM headline_helper WHERE id = ?", (helper_id,))
