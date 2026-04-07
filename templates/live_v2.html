@@ -782,12 +782,13 @@
   height: 38px; box-sizing: border-box;
 }
 .ds-add-nuance-btn:hover { background: rgba(0,207,255,0.15); }
-.ds-helper-btn {
-  flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px;
-  background: transparent; color: var(--muted); font-size: 9px; font-weight: 700;
-  letter-spacing: 1px; text-transform: uppercase; cursor: pointer;
+.ds-helper-links {
+  font-size: 9px; color: var(--muted); letter-spacing: 0.5px;
 }
-.ds-helper-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+.ds-helper-links span {
+  cursor: pointer; opacity: 0.6;
+}
+.ds-helper-links span:hover { opacity: 1; color: var(--accent2); }
 .nuance-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .nuance-pill {
   display: inline-flex; align-items: center; gap: 6px;
@@ -2135,21 +2136,20 @@ function renderContextSplitCard(el) {
       <!-- SECTION 2: Bias / Read -->
       <div class="ctx-form-section">
         <div class="ctx-form-section-title">BIAS / READ</div>
-        <div class="ds-field-label">Headline Read</div>
-        <input type="text" class="ds-input" id="ds-headline-read" placeholder="e.g. Sellers in control, testing lows..." style="margin-bottom:10px;">
-        <div class="ds-field-label">Bias Direction</div>
+        <div class="ds-field-label" style="margin-top:10px;">Market Story</div>
+        <textarea class="ds-textarea" id="ds-notes" rows="2" placeholder="Longer narrative..."></textarea>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;">
+          <div class="ds-field-label" style="margin:0;">Headline Read</div>
+          <div class="ds-helper-links"><span onclick="getHeadlineRead()">↓ load</span> · <span onclick="saveHeadlineRead()">↑ save</span></div>
+        </div>
+        <input type="text" class="ds-input" id="ds-headline-read" placeholder="e.g. Sellers in control, testing lows...">
+        <div class="ds-field-label" style="margin-top:10px;">Execution Headline</div>
+        <input type="text" class="ds-input" id="ds-execution-headline" placeholder="e.g. Fade sellers into support, wait for reclaim">
+        <div class="ds-field-label" style="margin-top:10px;">Bias Direction</div>
         <div class="bias-pills" style="margin-bottom:10px;">
           <button type="button" class="bias-pill${selectedBias==='long'?' active long':''}" onclick="setBias('long')">LONG</button>
           <button type="button" class="bias-pill${selectedBias==='short'?' active short':''}" onclick="setBias('short')">SHORT</button>
           <button type="button" class="bias-pill${selectedBias==='neutral'?' active neutral':''}" onclick="setBias('neutral')">NEUTRAL</button>
-        </div>
-        <div class="ds-field-label">Market Story</div>
-        <textarea class="ds-textarea" id="ds-notes" rows="2" placeholder="Longer narrative..."></textarea>
-        <div class="ds-field-label" style="margin-top:10px;">Execution Headline</div>
-        <input type="text" class="ds-input" id="ds-execution-headline" placeholder="e.g. Fade sellers into support, wait for reclaim">
-        <div style="display:flex;gap:8px;margin-top:10px;">
-          <button type="button" class="ds-helper-btn" onclick="getHeadlineRead()">GET READ</button>
-          <button type="button" class="ds-helper-btn" onclick="saveHeadlineRead()">SAVE READ</button>
         </div>
       </div>
 
