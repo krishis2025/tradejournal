@@ -809,7 +809,7 @@
   padding: 18px 20px; margin-bottom: 0;
   border-left: 6px solid #b8860b;
   background: #1a1a1a; color: #fff;
-  border-radius: 8px 8px 0 0;
+  border-radius: 8px;
 }
 .ctx-headline-label {
   font-family: 'Inter', sans-serif; font-size: 0.55rem; font-weight: 900;
@@ -830,6 +830,23 @@
   font-family: 'Inter', sans-serif; font-size: 0.8rem; font-weight: 600;
   color: rgba(255,255,255,0.65); line-height: 1.3; margin-top: 6px;
 }
+.ctx-headline-kpis {
+  display: flex; align-items: center; gap: 0; margin-top: 10px;
+  font-family: 'Inter', sans-serif; font-size: 0.7rem; font-weight: 700;
+  color: rgba(255,255,255,0.55); letter-spacing: 0.3px;
+}
+.ctx-headline-kpi {
+  display: flex; align-items: center; gap: 4px;
+}
+.ctx-headline-kpi + .ctx-headline-kpi::before {
+  content: '·'; margin: 0 8px; color: rgba(255,255,255,0.25); font-weight: 400;
+}
+.ctx-headline-kpi-val {
+  color: rgba(255,255,255,0.85); font-weight: 800;
+}
+.ctx-headline-kpi-val.trend-up { color: #66bb6a; }
+.ctx-headline-kpi-val.trend-down { color: #ef5350; }
+.ctx-headline-kpi-val.trend-neutral { color: var(--accent2); }
 /* Traffic light dot for bias direction */
 .ctx-traffic-light {
   display: inline-block; width: 10px; height: 10px; border-radius: 50%;
@@ -2003,15 +2020,16 @@ function buildProminentContextHtml(ctx) {
   if (executionHeadline) {
     html += `<div class="ctx-execution-headline">${escHtml(executionHeadline)}</div>`;
   }
-  html += `</div>`;
-
-  // 2. Context Parameters (2x2 text-only grid)
-  html += `<div class="ctx-params-grid">`;
-  html += `<div class="ctx-param-cell"><div class="ctx-param-label">DAY TYPE</div><div class="ctx-param-value">${dayType ? escHtml(dayType) : '\u2014'}</div></div>`;
+  // KPI strip inside headline bar: Value · Volume · HTF Trend
   const trendClass = trendStr === 'Up' ? 'trend-up' : trendStr === 'Down' ? 'trend-down' : 'trend-neutral';
-  html += `<div class="ctx-param-cell"><div class="ctx-param-label">HTF TREND</div><div class="ctx-param-value ${trendStr ? trendClass : ''}">${trendStr ? escHtml(trendStr) : '\u2014'}</div></div>`;
-  html += `<div class="ctx-param-cell"><div class="ctx-param-label">VALUE</div><div class="ctx-param-value">${valueState ? escHtml(valueState) : '\u2014'}</div></div>`;
-  html += `<div class="ctx-param-cell"><div class="ctx-param-label">VOLUME</div><div class="ctx-param-value">${volumeState ? escHtml(volumeState) : '\u2014'}</div></div>`;
+  const trendArrow = trendStr === 'Up' ? '\u25B2' : trendStr === 'Down' ? '\u25BC' : '\u25C6';
+  if (valueState || volumeState || trendStr) {
+    html += `<div class="ctx-headline-kpis">`;
+    if (valueState) html += `<span class="ctx-headline-kpi">Value <span class="ctx-headline-kpi-val">${escHtml(valueState)}</span></span>`;
+    if (volumeState) html += `<span class="ctx-headline-kpi">Vol <span class="ctx-headline-kpi-val">${escHtml(volumeState)}</span></span>`;
+    if (trendStr) html += `<span class="ctx-headline-kpi">Trend <span class="ctx-headline-kpi-val ${trendClass}">${trendArrow}${escHtml(trendStr)}</span></span>`;
+    html += `</div>`;
+  }
   html += `</div>`;
 
   // 3. Market Story
