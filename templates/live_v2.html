@@ -902,6 +902,106 @@
   border-bottom: 1px solid #eee;
   border-radius: 0 0 8px 8px;
 }
+
+/* Right panel in CONTEXT phase */
+.health-panel.ctx-plan-mode {
+  background: var(--bg); padding: 10px 10px;
+}
+/* Plan form card (right panel, edit-mode style) */
+.ctx-plan-form-card {
+  padding: 8px 10px; background: var(--bg);
+}
+.ctx-plan-form-card .ctx-plan-form-header {
+  font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.5px; color: #b8860b;
+  margin-bottom: 12px;
+}
+.ctx-plan-form-card .ctx-plan-form-playbook-input {
+  width: 100%; padding: 10px; border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 4px; background: rgba(255,255,255,0.7); color: #1A1A1B;
+  font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 800;
+  outline: none; box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+.ctx-plan-form-card .ctx-plan-form-playbook-input::placeholder {
+  font-weight: 400; color: #999;
+}
+.ctx-plan-form-card .ctx-plan-form-playbook-input:focus {
+  border-color: #b8860b;
+}
+/* Leg area sub-card with golden border */
+.ctx-plan-form-card .ctx-plan-form-leg-area {
+  border-left: 4px solid #b8860b; padding: 10px 14px; margin-top: 14px;
+  border-radius: 8px; background: rgba(255,255,255,0.7);
+}
+.ctx-plan-form-card .ctx-plan-form-leg-input {
+  width: 100%; height: 30px; padding: 4px 8px;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 4px; background: rgba(255,255,255,0.7); color: #1A1A1B;
+  font-family: 'Inter', sans-serif; font-size: 11px;
+  outline: none; box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+.ctx-plan-form-card .ctx-plan-form-leg-input:focus {
+  border-color: #b8860b;
+}
+.ctx-plan-form-card .ctx-plan-form-leg-input::placeholder {
+  color: #999; font-weight: 400;
+}
+.ctx-plan-form-card .ctx-plan-form-side-select {
+  height: 30px; width: 90px; padding: 4px 8px;
+  border: 1px solid rgba(0,0,0,0.08); border-radius: 4px;
+  background: rgba(255,255,255,0.7); color: #1A1A1B;
+  font-family: 'Inter', sans-serif; font-size: 11px;
+  outline: none; appearance: auto; cursor: pointer;
+  transition: border-color 0.15s;
+}
+.ctx-plan-form-card .ctx-plan-form-side-select:focus {
+  border-color: #b8860b;
+}
+.ctx-plan-form-card .ctx-plan-form-actions {
+  display: flex; align-items: center; gap: 10px; margin-top: 10px;
+}
+.ctx-plan-form-card .ctx-plan-form-add-btn {
+  height: 28px; padding: 4px 10px; border: 1px solid #2e7d32; border-radius: 4px;
+  background: transparent; color: #2e7d32; cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase; transition: all 0.15s;
+  box-sizing: border-box;
+}
+.ctx-plan-form-card .ctx-plan-form-add-btn:hover { background: rgba(46,125,50,0.08); }
+.ctx-plan-form-card .ctx-plan-form-cancel-btn {
+  height: 28px; padding: 4px 10px; border: 1px solid rgba(0,0,0,0.12); border-radius: 4px;
+  background: transparent; color: #888; cursor: pointer;
+  font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 600;
+  letter-spacing: 1.5px; text-transform: uppercase; transition: all 0.15s;
+  box-sizing: border-box;
+}
+.ctx-plan-form-card .ctx-plan-form-cancel-btn:hover { background: rgba(0,0,0,0.04); }
+/* Pending leg cards in plan form (edit-mode style) */
+.ctx-plan-form-card .ctx-plan-form-leg-card {
+  padding: 10px 12px; border: 1px solid rgba(0,0,0,0.08); border-radius: 8px;
+  margin-top: 8px; background: rgba(255,255,255,0.7);
+  display: flex; justify-content: space-between; align-items: flex-start;
+}
+.ctx-plan-form-card .ctx-plan-form-leg-card .leg-card-label {
+  font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800;
+  color: #1A1A1B; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.ctx-plan-form-card .ctx-plan-form-leg-card .leg-card-zone {
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600; color: #1A1A1B;
+  margin-top: 2px;
+}
+.ctx-plan-form-card .ctx-plan-form-leg-card .leg-card-trigger {
+  font-family: 'Inter', sans-serif; font-size: 10px; color: #555; margin-top: 2px;
+}
+.ctx-plan-form-card .ctx-plan-form-leg-card .leg-card-remove {
+  cursor: pointer; color: #888; font-size: 16px; opacity: 0.5;
+  transition: opacity 0.15s; flex-shrink: 0; margin-left: 8px;
+}
+.ctx-plan-form-card .ctx-plan-form-leg-card .leg-card-remove:hover {
+  opacity: 1; color: #c62828;
+}
 .ctx-plan-playbook {
   font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 800;
   color: #1A1A1B; margin-bottom: 8px;
@@ -1487,7 +1587,7 @@ let guardLocked = false;
 let activeTags = {};
 let noteTimer = null;
 let lastCommittedContext = {};
-let contextDontKnow = false;  // true after user clicks "Don't Know"
+let contextDontKnow = false;  // legacy — kept for backward compat with existing "Don't Know" contexts
 let activeStrengthId = null;
 let activeStrength = {};  // { value, volume, trend, mental_state, confidence }
 let pendingSignals = [];      // [{signal_value, signal_polarity}]
@@ -1656,7 +1756,6 @@ function updateRibbon() {
 }
 
 function getLatestContext() {
-  if (contextDontKnow) return null;
   if (Object.keys(lastCommittedContext).length > 0) return lastCommittedContext;
   if (SERVER_CONTEXTS && SERVER_CONTEXTS.length > 0) return SERVER_CONTEXTS[0];
   return null;
@@ -2080,19 +2179,16 @@ function renderContextSplitCard(el) {
   const topBtn = isModify ? `<button class="ds-create-new-btn" onclick="startNewContext()">+ CREATE NEW CONTEXT</button>` : '';
   let bottomBtns = '';
   if (isModify) {
-    bottomBtns = `<button class="ds-commit-btn" style="margin-top:16px;" onclick="updateExistingContext()">UPDATE CONTEXT</button>`;
+    bottomBtns = `<button class="ds-commit-btn" style="margin-top:16px;" onclick="updateExistingContext()">UPDATE CONTEXT & PLAN</button>`;
   } else if (hasExistingContext) {
-    // Create mode but context exists — show cancel
     bottomBtns = `<button class="ds-commit-btn" style="margin-top:16px;" onclick="commitContext()">COMMIT CONTEXT & PLAN</button>
       <button class="ds-dont-know-btn" onclick="cancelNewContext()">CANCEL</button>`;
   } else {
-    // First time — no context yet
-    bottomBtns = `<button class="ds-commit-btn" style="margin-top:16px;" onclick="commitContext()">COMMIT CONTEXT & PLAN</button>
-      <button class="ds-dont-know-btn" onclick="dontKnowContext()">DON'T KNOW</button>`;
+    bottomBtns = `<button class="ds-commit-btn" style="margin-top:16px;" onclick="commitContext()">COMMIT CONTEXT & PLAN</button>`;
   }
 
   el.innerHTML = `
-    <div style="max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:0;">
+    <div style="max-width:600px;margin:0 auto;display:flex;flex-direction:column;gap:0;">
       ${topBtn}
 
       <!-- SECTION 1: Context -->
@@ -2170,45 +2266,45 @@ function renderContextSplitCard(el) {
         <div id="ds-signal-pills" class="ctx-signal-group" style="margin-top:8px;"></div>
       </div>
 
-      <!-- SECTION 4: Plan -->
-      <div class="ctx-form-section">
-        <div class="ctx-form-section-title">\u2605 PLAN</div>
-        <div class="ds-field-label">Playbook</div>
-        <input type="text" class="ds-input" id="ds-plan-text" placeholder="e.g. Fade liquidation break back to value">
-
-        <div style="margin-top:12px; border-top:1px solid var(--border); padding-top:10px;">
-          <div class="ds-field-label" style="margin-bottom:8px;">Trade Plan Legs</div>
-          <div class="ds-field-label">Plan Label</div>
-          <input type="text" class="ds-input" id="ds-leg-label" placeholder="e.g. Primary Long">
-          <div class="ctx-form-row" style="margin-top:8px;gap:8px;">
-            <div>
-              <div class="ds-field-label">Side</div>
-              <div class="side-pills">
-                <button type="button" class="side-pill${legSide==='Long'?' active long':''}" onclick="setLegSide('Long')">LONG</button>
-                <button type="button" class="side-pill${legSide==='Short'?' active short':''}" onclick="setLegSide('Short')">SHORT</button>
-              </div>
-            </div>
-            <div style="flex:1;">
-              <div class="ds-field-label">Entry Zone</div>
-              <input type="text" class="ds-input" id="ds-leg-zone" placeholder="e.g. 6600 - 6610">
-            </div>
-          </div>
-          <div class="ds-field-label" style="margin-top:8px;">Trigger</div>
-          <input type="text" class="ds-input" id="ds-leg-trigger" placeholder="e.g. Reclaim of balance low with volume">
-          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
-            <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);cursor:pointer;">
-              <input type="checkbox" id="ds-leg-primary"> Primary leg
-            </label>
-            <button type="button" class="ds-add-nuance-btn" onclick="addLeg()">ADD LEG</button>
-          </div>
-          <div id="ds-pending-legs"></div>
-        </div>
-      </div>
-
       ${bottomBtns}
     </div>
   `;
   restoreFormState();
+}
+
+/* ── RENDER: Plan panel (right side, CONTEXT phase only) ── */
+function renderContextPlanPanel(el) {
+  const isModify = contextFormMode === 'modify';
+  el.innerHTML = `
+    <div class="ctx-plan-form-card">
+      <div class="ctx-plan-form-header">TRADE PLAN</div>
+      <input type="text" class="ctx-plan-form-playbook-input" id="ds-plan-text" placeholder="Playbook">
+
+      <div class="ctx-plan-form-leg-area">
+        <input type="text" class="ctx-plan-form-leg-input" id="ds-leg-label" placeholder="e.g. Primary Long">
+        <div style="display:flex;gap:6px;margin-top:4px;">
+          <select class="ctx-plan-form-side-select" id="ds-leg-side">
+            <option value="Long"${legSide==='Long'?' selected':''}>Long</option>
+            <option value="Short"${legSide==='Short'?' selected':''}>Short</option>
+          </select>
+          <input type="text" class="ctx-plan-form-leg-input" id="ds-leg-zone" style="flex:1;" placeholder="e.g. 6600 – 6610">
+        </div>
+        <input type="text" class="ctx-plan-form-leg-input" id="ds-leg-trigger" style="margin-top:4px;" placeholder="e.g. Confirmation - Be patient">
+        <div class="ctx-plan-form-actions">
+          <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:#555;cursor:pointer;">
+            <input type="checkbox" id="ds-leg-primary"> Primary
+          </label>
+          <button type="button" class="ctx-plan-form-add-btn" onclick="addLeg()">ADD LEG</button>
+          <button type="button" class="ctx-plan-form-cancel-btn" onclick="clearLegFields()">CANCEL</button>
+        </div>
+      </div>
+      <div id="ds-pending-legs"></div>
+    </div>
+  `;
+  // Restore plan-specific form state
+  const pt = document.getElementById('ds-plan-text');
+  if (pt) pt.value = formState.planText;
+  renderPendingLegs();
 }
 
 /* ── Signal & Leg helpers for form ── */
@@ -2300,13 +2396,15 @@ function parseEntryZone(text) {
 
 function addLeg() {
   const label = document.getElementById('ds-leg-label')?.value.trim();
+  const sideSelect = document.getElementById('ds-leg-side');
+  const side = sideSelect?.value || legSide;
   const zoneText = document.getElementById('ds-leg-zone')?.value.trim() || '';
   const { low: zoneLow, high: zoneHigh } = parseEntryZone(zoneText);
   const trigger = document.getElementById('ds-leg-trigger')?.value.trim() || '';
   const isPrimary = document.getElementById('ds-leg-primary')?.checked ? 1 : 0;
   if (!label) { showToast('Plan label is required', true); return; }
   pendingLegs.push({
-    plan_label: label, execution_side: legSide,
+    plan_label: label, execution_side: side,
     entry_zone_low: zoneLow, entry_zone_high: zoneHigh,
     trigger_text: trigger, is_primary: isPrimary
   });
@@ -2315,6 +2413,7 @@ function addLeg() {
   document.getElementById('ds-leg-zone').value = '';
   document.getElementById('ds-leg-trigger').value = '';
   document.getElementById('ds-leg-primary').checked = false;
+  if (sideSelect) sideSelect.value = 'Long';
   renderPendingLegs();
 }
 
@@ -2330,17 +2429,33 @@ function renderPendingLegs() {
     const sideClass = leg.execution_side === 'Long' ? 'long' : 'short';
     const zone = (leg.entry_zone_low != null && leg.entry_zone_high != null)
       ? `${leg.entry_zone_low} \u2013 ${leg.entry_zone_high}` : (leg.entry_zone_low || leg.entry_zone_high || '');
-    const primary = leg.is_primary ? ' \u2605' : '';
-    return `<div class="pending-leg-card">
+    const primaryStar = leg.is_primary ? ' <span style="color:#b8860b;font-size:10px;">\u2605</span>' : '';
+    return `<div class="ctx-plan-form-leg-card">
       <div>
-        <span style="font-weight:800;font-size:12px;">${escHtml(leg.plan_label)}${primary}</span>
-        <span class="ctx-plan-leg-side ${sideClass}" style="margin-left:6px;">${leg.execution_side}</span>
-        ${zone ? `<span style="margin-left:8px;font-size:11px;color:var(--muted);">${zone}</span>` : ''}
-        ${leg.trigger_text ? `<span style="margin-left:8px;font-size:10px;color:var(--muted);">\u2022 ${escHtml(leg.trigger_text)}</span>` : ''}
+        <div class="leg-card-label">
+          ${escHtml(leg.plan_label)}${primaryStar}
+          <span class="ctx-plan-leg-side ${sideClass}">${leg.execution_side}</span>
+          ${zone ? `<span style="font-size:11px;font-weight:600;color:#1A1A1B;">${zone}</span>` : ''}
+        </div>
+        ${leg.trigger_text ? `<div class="leg-card-trigger">\u2022 ${escHtml(leg.trigger_text)}</div>` : ''}
       </div>
-      <span class="leg-remove" onclick="removeLeg(${i})">\u00d7</span>
+      <span class="leg-card-remove" onclick="removeLeg(${i})">\u00d7</span>
     </div>`;
   }).join('');
+}
+
+function clearLegFields() {
+  const label = document.getElementById('ds-leg-label');
+  const zone = document.getElementById('ds-leg-zone');
+  const trigger = document.getElementById('ds-leg-trigger');
+  const primary = document.getElementById('ds-leg-primary');
+  const sideSelect = document.getElementById('ds-leg-side');
+  if (label) label.value = '';
+  if (zone) zone.value = '';
+  if (trigger) trigger.value = '';
+  if (primary) primary.checked = false;
+  if (sideSelect) sideSelect.value = 'Long';
+  legSide = 'Long';
 }
 
 /* ── Inline leg editing (left panel) ── */
@@ -2628,11 +2743,14 @@ async function updateExistingContext() {
 
   // Replace legs: delete old, post new
   await fetch(`/api/context/${activeContextId}/legs`, { method: 'DELETE' });
+  let savedLegs = [];
   if (pendingLegs.length > 0) {
-    await fetch(`/api/context/${activeContextId}/legs`, {
+    const legRes = await fetch(`/api/context/${activeContextId}/legs`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ legs: pendingLegs })
     });
+    const legData = await legRes.json();
+    savedLegs = pendingLegs.map((l, i) => ({ ...l, id: legData.ids[i] }));
   }
 
   // Update local state
@@ -2641,7 +2759,7 @@ async function updateExistingContext() {
     volume_state: volumeState, HTF_Trend: trend, market_story: notes,
     plan_text: planText, headline_read: headlineRead, bias_direction: biasDirection,
     execution_headline: executionHeadline,
-    signals: [...pendingSignals], legs: [...pendingLegs],
+    signals: [...pendingSignals], legs: savedLegs,
     mkt_read: dayType, setup: planText, nuance: notes,
     time: lastCommittedContext.time || '',
   };
@@ -2659,58 +2777,6 @@ async function updateExistingContext() {
   renderAll();
 }
 
-async function dontKnowContext() {
-  const now = new Date();
-  const dateStr = now.toISOString().slice(0, 10);
-  const timeStr = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
-  const pid = new URLSearchParams(window.location.search).get('account');
-
-  const res = await fetch('/api/context', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      date: dateStr, time: timeStr,
-      day_type: "Don't Know", value_state: '', volume_state: '', HTF_Trend: '',
-      nuances_json: '[]', market_story: '',
-      plan_text: '', plan_location: '', plan_trigger: '',
-      mental_state: 'calm',
-      account_id: pid ? parseInt(pid) : null,
-    })
-  });
-  const data = await res.json();
-  if (!data.ok) { showToast(data.error || 'Failed', true); return; }
-
-  // Add to evolution history
-  SERVER_CONTEXTS.unshift({
-    id: data.id, time: timeStr, value_state: '',
-    day_type: "Don't Know", volume_state: '', HTF_Trend: '',
-    nuances_json: '[]', market_story: '',
-    plan_text: '', plan_location: '', plan_trigger: '',
-    mkt_read: "Don't Know", setup: '', location: '', nuance: '',
-    mental_state: 'calm'
-  });
-
-  // Clear active context — return to morning state
-  contextDontKnow = true;
-  activeContextId = null;
-  lastCommittedContext = {};
-  pendingNuances = [];
-  selectedTrend = '';
-  formState = { dayType: '', valueState: 'Overlapping', volumeState: '', marketStory: '', planText: '', headlineRead: '', executionHeadline: '' };
-  pendingSignals = [];
-  pendingLegs = [];
-  selectedBias = '';
-  legSide = 'Long';
-  contextFormMode = 'create';
-  liveNowContext = null;
-  inlineUpdateOpen = false;
-  strengthSubmitted = false;
-  activeStrengthId = null;
-  activeStrength = {};
-
-  showToast("Context reset — Don't Know logged");
-  updateRibbon();
-  setPhase('CONTEXT');
-}
 
 /* ── STRENGTH AUDIT CARD (step 1 of ENTRY) ── */
 function renderStrengthAudit(el) {
@@ -2906,9 +2972,11 @@ function renderHealthPanel(trade) {
 
   // Expand panel in REVIEW phase
   el.classList.toggle('review-expanded', activePhase === 'REVIEW');
+  // Yellow background only in CONTEXT phase
+  el.classList.toggle('ctx-plan-mode', activePhase === 'CONTEXT');
 
   if (activePhase === 'CONTEXT') {
-    el.innerHTML = '<div class="phase-empty"><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;">Ready when you are</span></div>';
+    renderContextPlanPanel(el);
     return;
   }
 
@@ -3706,7 +3774,8 @@ async function commitContext() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ legs: pendingLegs })
     });
-    savedLegs = [...pendingLegs];
+    const legData = await legRes.json();
+    savedLegs = pendingLegs.map((l, i) => ({ ...l, id: legData.ids[i] }));
   }
 
   contextDontKnow = false;
