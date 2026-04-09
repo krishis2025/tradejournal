@@ -1492,6 +1492,11 @@
 .ribbon-label { font-size:0.55rem; font-weight:400; color:#888; letter-spacing:1.5px; }
 .ctx-locked .ribbon-label { color:#888; }
 .ribbon-value { font-size:0.8rem; font-weight:700; color:#1a1d23; letter-spacing:1.5px; }
+.ribbon-leg-chip {
+  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.3px; text-transform: none;
+}
+.ribbon-leg-chip.long { color: #2e7d32; }
+.ribbon-leg-chip.short { color: #c62828; }
 .ribbon-val-red { color:#d32f2f; }
 .ribbon-val-blue { color:#1976d2; }
 .ribbon-val-green { color:#2e7d32; }
@@ -1821,6 +1826,25 @@ function updateRibbonValues(el, ctx) {
     let ribbonParts = [`<span style="color:var(--accent)">★ ${escHtml(planText).toUpperCase()}</span>`];
     if (planLoc) ribbonParts.push(escHtml(planLoc));
     if (planTrigger) ribbonParts.push(escHtml(planTrigger));
+    // Append compact leg summaries
+    const legs = ctx.legs || [];
+    legs.forEach(leg => {
+      const side = (leg.execution_side || '');
+      if (!side) return;
+      let zone = '';
+      if (leg.entry_zone_low != null && leg.entry_zone_high != null) {
+        const lo = String(leg.entry_zone_low), hi = String(leg.entry_zone_high);
+        // Abbreviate high if same leading digits (e.g. 6827-30 instead of 6827-6830)
+        const prefix = lo.length >= 2 && hi.length >= 2 && lo.slice(0, -2) === hi.slice(0, -2)
+          ? hi.slice(-2) : hi;
+        zone = `${lo}-${prefix}`;
+      } else if (leg.entry_zone_low != null) {
+        zone = String(leg.entry_zone_low);
+      }
+      const sideClass = side.toLowerCase();
+      const text = zone ? `${side} @ ${zone}` : side;
+      ribbonParts.push(`<span class="ribbon-leg-chip ${sideClass}">${text}</span>`);
+    });
     el.innerHTML = `<div class="ribbon-item"><span class="ribbon-value">${ribbonParts.join(' · ')}</span></div>`;
   } else {
     // Fallback for old records without plan fields
