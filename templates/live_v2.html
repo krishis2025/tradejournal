@@ -1823,7 +1823,7 @@ function updateRibbonValues(el, ctx) {
 
   // Show plan-only ribbon
   if (planText) {
-    let ribbonParts = [`<span style="color:var(--accent)">★ ${escHtml(planText).toUpperCase()}</span>`];
+    let ribbonParts = [`<span style="color:#8B6914">★ ${escHtml(planText).toUpperCase()}</span>`];
     if (planLoc) ribbonParts.push(escHtml(planLoc));
     if (planTrigger) ribbonParts.push(escHtml(planTrigger));
     // Append compact leg summaries
@@ -1851,7 +1851,7 @@ function updateRibbonValues(el, ctx) {
     const setup = ctx.setup || '';
     const loc = ctx.location || '';
     if (setup) {
-      el.innerHTML = `<div class="ribbon-item"><span class="ribbon-value"><span style="color:var(--accent)">★ ${escHtml(setup).toUpperCase()}</span>${loc ? ' · ' + escHtml(loc) : ''}</span></div>`;
+      el.innerHTML = `<div class="ribbon-item"><span class="ribbon-value"><span style="color:#8B6914">★ ${escHtml(setup).toUpperCase()}</span>${loc ? ' · ' + escHtml(loc) : ''}</span></div>`;
     } else {
       el.innerHTML = `<div class="ribbon-item"><span class="ribbon-value" style="color:var(--muted)">No plan set</span></div>`;
     }
