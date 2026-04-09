@@ -822,7 +822,7 @@
 /* ── Prominent Context Display (left panel — redesigned) ── */
 .ctx-headline-bar {
   padding: 18px 20px; margin-bottom: 0;
-  background: #F9F7F1; color: #1A1A1B;
+  background: #1a1a1a; color: #fff;
   border-radius: 10px;
   border-left: 5px solid #b8860b;
 }
@@ -834,30 +834,30 @@
 .ctx-headline-bar:hover .ctx-headline-label { display: block; }
 .ctx-headline-daytype {
   font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 700;
-  letter-spacing: 0.04em; color: #4F4A43; margin-bottom: 4px;
+  letter-spacing: 0.04em; color: rgba(255,255,255,0.55); margin-bottom: 4px;
   display: flex; align-items: center; gap: 8px;
 }
 .ctx-headline-text {
   font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 800;
-  letter-spacing: -0.02em; line-height: 1.15; color: #222222;
+  letter-spacing: -0.02em; line-height: 1.15; color: #fff;
 }
 .ctx-execution-headline {
   font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500;
-  line-height: 1.45; color: #6B665E; margin-top: 6px;
+  line-height: 1.45; color: rgba(255,255,255,0.45); margin-top: 6px;
 }
 .ctx-headline-kpis {
   display: flex; align-items: center; gap: 0; margin-top: 10px;
   font-family: 'Inter', sans-serif; font-size: 0.7rem; font-weight: 700;
-  color: #888; letter-spacing: 0.3px;
+  color: rgba(255,255,255,0.45); letter-spacing: 0.3px;
 }
 .ctx-headline-kpi {
   display: flex; align-items: center; gap: 4px;
 }
 .ctx-headline-kpi + .ctx-headline-kpi::before {
-  content: '·'; margin: 0 8px; color: #ccc; font-weight: 400;
+  content: '·'; margin: 0 8px; color: rgba(255,255,255,0.3); font-weight: 400;
 }
 .ctx-headline-kpi-val {
-  color: #1A1A1B; font-weight: 800;
+  color: #fff; font-weight: 800;
 }
 .ctx-headline-kpi-val.trend-up { color: #2e7d32; }
 .ctx-headline-kpi-val.trend-down { color: #c62828; }
@@ -944,13 +944,7 @@
 .health-panel.entry-plan-mode .ctx-plan-section {
   background: #FDFCF8;
 }
-/* Side-colored background for read-only plan leg cards */
-.ctx-plan-leg.side-long {
-  background: rgba(46,125,50,0.08); border-color: rgba(46,125,50,0.15);
-}
-.ctx-plan-leg.side-short {
-  background: rgba(198,40,40,0.08); border-color: rgba(198,40,40,0.15);
-}
+/* Side-colored backgrounds moved after .ctx-plan-leg base rule */
 /* Plan form card (right panel, edit-mode style) */
 .ctx-plan-form-card {
   padding: 8px 10px; background: var(--bg);
@@ -1061,6 +1055,12 @@
   margin-bottom: 6px; background: rgba(255,255,255,0.7);
 }
 .ctx-plan-leg.is-primary { border-left: 3px solid #b8860b; }
+.ctx-plan-leg.side-long {
+  border-left: 3px solid #2e7d32;
+}
+.ctx-plan-leg.side-short {
+  border-left: 3px solid #c62828;
+}
 .ctx-plan-leg-label {
   font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800;
   color: #1A1A1B; margin-bottom: 3px; display: flex; align-items: center; gap: 6px;
@@ -2126,7 +2126,7 @@ function buildProminentContextHtml(ctx) {
         : (leg.entry_zone_low != null ? `${leg.entry_zone_low}` : '');
       const primaryClass = leg.is_primary ? ' is-primary' : '';
       const legId = leg.id || '';
-      html += `<div class="ctx-plan-leg${primaryClass}" id="ctx-leg-${legId}">
+      html += `<div class="ctx-plan-leg${primaryClass} side-${sideClass}" id="ctx-leg-${legId}">
         <div class="ctx-plan-leg-display" id="ctx-leg-display-${legId}">
           <div class="ctx-plan-leg-label">
             ${escHtml(leg.plan_label || '')}
