@@ -1305,7 +1305,7 @@
 .mc-qe-btn.qe-tp:hover { border-color: var(--green); background: rgba(79,255,176,0.06); }
 .mc-qe-btn.qe-stop { border-left: 2px solid var(--red); }
 .mc-qe-btn.qe-stop:hover { border-color: var(--red); background: rgba(255,77,109,0.06); }
-.mc-qe-btn.executed { opacity: 0.3; cursor: default; }
+.mc-qe-btn.executed { opacity: 0.45; cursor: default; }
 .mc-qe-btn.executed:hover { border-color: var(--border2); background: var(--surface2); transform: none; }
 .mc-qe-btn-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted2); }
 .mc-qe-btn-price { font-family: var(--font-mono); font-size: 13px; color: var(--text); }
@@ -3407,10 +3407,14 @@ function buildExecCardsHTML(trade) {
       const undoBtn = (!isPushed && exec)
         ? `<button class="mc-qe-btn-undo" onclick="event.stopPropagation();deleteExec(${trade.id},${exec.id})" title="Undo">↩</button>`
         : '';
+      const execPnl = exec && exec.pnl != null ? exec.pnl : null;
+      const execPnlStr = execPnl != null ? (execPnl >= 0 ? `+$${Math.abs(execPnl).toFixed(0)}` : `-$${Math.abs(execPnl).toFixed(0)}`) : '';
+      const execPnlCls = execPnl != null ? (execPnl >= 0 ? 'pnl-pos' : 'pnl-neg') : '';
+      const execIcon = exec && exec.exec_type === 'stop_hit' ? '✗' : '✓';
       html += `<div class="mc-qe-btn qe-tp executed">
         <div class="mc-qe-btn-label">TP${tp.portion}</div>
         <div class="mc-qe-btn-price">${tp.price}</div>
-        <div class="mc-qe-btn-pnl pnl-pos">✓</div>${undoBtn}
+        <div class="mc-qe-btn-pnl ${execPnlCls}">${execPnlStr} ${execIcon}</div>${undoBtn}
       </div>`;
     } else if (editingTP) {
       html += `<div class="mc-qe-btn qe-tp editing">
@@ -3437,14 +3441,18 @@ function buildExecCardsHTML(trade) {
     const rem = s.qty - exited;
 
     if (rem <= 0) {
-      const exec = executions.find(e => e.portion === s.portion && e.exec_type === 'stop_hit');
+      const exec = executions.find(e => e.portion === s.portion);
       const undoBtn = (!isPushed && exec)
         ? `<button class="mc-qe-btn-undo" onclick="event.stopPropagation();deleteExec(${trade.id},${exec.id})" title="Undo">↩</button>`
         : '';
+      const execPnl = exec && exec.pnl != null ? exec.pnl : null;
+      const execPnlStr = execPnl != null ? (execPnl >= 0 ? `+$${Math.abs(execPnl).toFixed(0)}` : `-$${Math.abs(execPnl).toFixed(0)}`) : '';
+      const execPnlCls = execPnl != null ? (execPnl >= 0 ? 'pnl-pos' : 'pnl-neg') : '';
+      const execIcon = exec && exec.exec_type === 'tp_hit' ? '✓' : '✗';
       html += `<div class="mc-qe-btn qe-stop executed">
         <div class="mc-qe-btn-label">S${s.portion}</div>
         <div class="mc-qe-btn-price">${s.price}</div>
-        <div class="mc-qe-btn-pnl">✓</div>${undoBtn}
+        <div class="mc-qe-btn-pnl ${execPnlCls}">${execPnlStr} ${execIcon}</div>${undoBtn}
       </div>`;
     } else if (editingStop) {
       html += `<div class="mc-qe-btn qe-stop editing">
