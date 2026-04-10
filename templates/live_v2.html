@@ -2110,7 +2110,7 @@ function buildProminentContextHtml(ctx) {
   const trendArrow = trendStr === 'Up' ? '\u25B2' : trendStr === 'Down' ? '\u25BC' : '\u25C6';
   if (valueState || volumeState || trendStr) {
     html += `<div class="ctx-headline-kpis">`;
-    if (valueState) html += `<span class="ctx-headline-kpi">Value <span class="ctx-headline-kpi-val">${escHtml(valueState)}</span></span>`;
+    if (valueState) html += `<span class="ctx-headline-kpi">Value <span class="ctx-headline-kpi-val">${escHtml(shortValue(valueState))}</span></span>`;
     if (volumeState) html += `<span class="ctx-headline-kpi">Vol <span class="ctx-headline-kpi-val">${escHtml(volumeState)}</span></span>`;
     if (trendStr) html += `<span class="ctx-headline-kpi">Trend <span class="ctx-headline-kpi-val ${trendClass}">${trendArrow}${escHtml(trendStr)}</span></span>`;
     html += `</div>`;
