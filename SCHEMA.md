@@ -187,10 +187,13 @@ Active live trades during trading sessions.
 | created_at       | TEXT    | NOT NULL DEFAULT datetime('now')       |
 | closed_at        | TEXT    |                                        |
 | realized_pnl     | REAL    | NOT NULL DEFAULT 0                     |
+| initial_risk     | REAL    | NOT NULL DEFAULT 0                     |
 | journal_trade_id | INTEGER |                                        |
 | notes_monitoring | TEXT    | NOT NULL DEFAULT ''                    |
 | notes_exit       | TEXT    | NOT NULL DEFAULT ''                    |
 | guard_json       | TEXT    | NOT NULL DEFAULT ''                    |
+
+`initial_risk` is the dollar risk of the original stop plan, pinned at trade creation. It stays stable even when stops are later tightened — used by the Review tab risk-left bar as the reference extent so the fill shrinks against a fixed ghost.
 
 `guard_json` stores the pre-trade execution guard data as JSON: `{"tech":["developing_value","volume_tempo",...],"repeatable":true,"entry_mode":"strength","mental_state":"patient","score":20}`. Mental states: `patient` (+5), `intuition` (+3), `eager` (-5). Max score: 20.
 

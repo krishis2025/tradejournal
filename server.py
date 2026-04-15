@@ -1083,6 +1083,20 @@ def api_create_live_trade():
             float(body["entry_price"]), int(body["total_qty"]), body["mode"]
         )
         db.set_live_trade_levels(live_id, levels)
+
+        # Pin initial_risk at creation so the risk-left bar has a stable reference
+        # (tightening a stop later must shrink the fill without shrinking the ghost).
+        inst_cfg = logic.get_instrument_config().get(
+            body["instrument"], logic.INSTRUMENT_CONFIG["MES"]
+        )
+        dpp = inst_cfg["dollars_per_point"]
+        entry_price = float(body["entry_price"])
+        initial_risk = 0.0
+        for lv in levels:
+            if lv.get("level_type") == "stop":
+                initial_risk += abs(entry_price - lv["price"]) * lv["qty"] * dpp
+        db.update_live_trade(live_id, initial_risk=round(initial_risk, 2))
+
         return jsonify({"ok": True, "id": live_id})
     except Exception as e:
         return jsonify({"error": str(e)}), 500

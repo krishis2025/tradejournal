@@ -245,6 +245,7 @@ def init_db():
                 created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
                 closed_at     TEXT,
                 realized_pnl  REAL    NOT NULL DEFAULT 0,
+                initial_risk  REAL    NOT NULL DEFAULT 0,      -- pinned at creation; $ risk of starting plan
                 journal_trade_id INTEGER                       -- links to trades.id after auto-save
             );
 
@@ -323,6 +324,11 @@ def init_db():
         lt_cols4 = [r[1] for r in conn.execute("PRAGMA table_info(live_trades)").fetchall()]
         if "execution_score_json" not in lt_cols4:
             conn.execute("ALTER TABLE live_trades ADD COLUMN execution_score_json TEXT DEFAULT NULL")
+
+        # Migration: add initial_risk to live_trades (pinned at creation for risk-left bar reference)
+        lt_cols5 = [r[1] for r in conn.execute("PRAGMA table_info(live_trades)").fetchall()]
+        if "initial_risk" not in lt_cols5:
+            conn.execute("ALTER TABLE live_trades ADD COLUMN initial_risk REAL NOT NULL DEFAULT 0")
 
         # Migration: add account profile columns to accounts
         acct_cols = [r[1] for r in conn.execute("PRAGMA table_info(accounts)").fetchall()]

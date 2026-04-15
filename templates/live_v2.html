@@ -1467,14 +1467,27 @@
 }
 .fill-row:last-child { border-bottom: none; }
 
-/* ── PNL SUMMARY ── */
-.pnl-summary {
-  text-align: center; padding: 16px 0;
-  border: 1px solid var(--border); border-radius: 4px;
+/* ── REVIEW STATUS STACK ── */
+.review-status-stack {
+  padding: 14px 16px;
+  border: 1px solid var(--border); border-radius: 8px;
   background: var(--surface2);
+  display: flex; flex-direction: column; gap: 10px;
 }
-.pnl-summary-label { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
-.pnl-summary-value { font-family: var(--font-display); font-size: 36px; letter-spacing: 2px; }
+.rss-header { display: flex; justify-content: space-between; align-items: center; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+.rss-h-right { font-family: var(--font-mono, 'JetBrains Mono', monospace); color: var(--text); }
+.rss-boxes { display: flex; gap: 3px; }
+.rss-box { flex: 1; height: 12px; border-radius: 2px; background: var(--border); }
+.rss-box-filled { background: var(--green); }
+.rss-risk-header { margin-top: 4px; }
+.rss-riskbar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.rss-riskbar-fill { height: 100%; transition: width .3s, background .3s; }
+.rss-riskbar-red   { background: var(--red); }
+.rss-riskbar-grey  { background: var(--muted); }
+.rss-riskbar-green { background: var(--green); }
+.rss-risk-red   { color: var(--red); }
+.rss-risk-grey  { color: var(--muted); }
+.rss-risk-green { color: var(--green); }
 
 /* ── CONTEXT RIBBON ── */
 .context-ribbon {
@@ -1695,6 +1708,7 @@ function buildTradeModel(liveTrade, contexts, instrumentConfig) {
     entry: liveTrade.entry_price, time: liveTrade.entry_time, tickValue,
     partials, status: liveTrade.status === 'closed' ? 'closed' : undefined,
     pnl: liveTrade.calc?.realized_pnl || 0, context_id: liveTrade.context_id,
+    initialRisk: liveTrade.initial_risk || 0,
     levels: levels, executions: executions,
     mode: liveTrade.mode || 'partials',
     notes: liveTrade.notes || '', notes_monitoring: liveTrade.notes_monitoring || '',
@@ -3055,11 +3069,73 @@ function renderReviewCenter(el, trade) {
   const pnlSign = pnl >= 0 ? '+' : '';
   const pnlColor = pnl >= 0 ? 'var(--green)' : 'var(--red)';
 
+  const h = computeHealth(trade);
+  const partials = trade.partials || [];
+  const closedContracts = partials
+    .filter(p => p.status === 'executed')
+    .reduce((s, p) => s + (p.qty || 0), 0);
+  const totalContracts = partials.reduce((s, p) => s + (p.qty || 0), 0) || (trade.qty || 0);
+
+  // Per-contract filled/empty squares: build a flat list of segments weighted by qty.
+  // Executed partials are filled; open partials are empty. Partials render in portion order.
+  const sortedPartials = [...partials].sort((a, b) => (a.portion || 0) - (b.portion || 0));
+  const contractCells = [];
+  for (const p of sortedPartials) {
+    const filled = p.status === 'executed';
+    for (let i = 0; i < (p.qty || 0); i++) contractCells.push(filled);
+  }
+
+  const isLong = trade.direction === 'Long';
+  const remainingStops = partials
+    .filter(p => p.status !== 'executed')
+    .map(p => p.stop)
+    .filter(s => s != null);
+  const worstStop = remainingStops.length
+    ? (isLong ? Math.min(...remainingStops) : Math.max(...remainingStops))
+    : null;
+
+  let riskState = 'red';
+  if (h.netRisk >= -0.5 && h.netRisk <= 0.5) riskState = 'grey';
+  else if (h.netRisk > 0) riskState = 'green';
+
+  // Pinned initial risk (persisted at creation). Fall back to derivation for legacy trades.
+  const firstStop = partials[0]?.stop ?? trade.entry;
+  const firstQty  = partials[0]?.qty ?? 1;
+  const fallbackInitial = Math.abs(
+    (isLong ? trade.entry - firstStop : firstStop - trade.entry)
+    * firstQty * (trade.tickValue || 1)
+  );
+  const initialRiskAbs = (trade.initialRisk > 0 ? trade.initialRisk : fallbackInitial) || 1;
+
+  // Fill width = how much of the original risk is still live (shrinks as stops tighten).
+  const riskFillPct = Math.max(0, Math.min(100,
+    (Math.abs(Math.min(0, h.netRisk)) / initialRiskAbs) * 100
+  ));
+
+  const netRiskSign = h.netRisk >= 0 ? '+' : '-';
+  const netRiskAbs = Math.abs(h.netRisk).toFixed(2);
+
   el.innerHTML = `
     <div class="review-center" style="margin:auto;">
-      <div class="pnl-summary">
-        <div class="pnl-summary-label">REALIZED P&L</div>
-        <div class="pnl-summary-value" style="color:${pnlColor}">${pnlSign}$${pnl}</div>
+      <div class="review-status-stack">
+        <div class="rss-header">
+          <span class="rss-h-left">CLOSED / REALIZED P&L</span>
+          <span class="rss-h-right">${closedContracts}/${totalContracts} · <span style="color:${pnlColor}">${pnlSign}$${pnl}</span></span>
+        </div>
+        <div class="rss-boxes">
+          ${contractCells.map(filled =>
+            `<div class="rss-box${filled ? ' rss-box-filled' : ''}"></div>`
+          ).join('')}
+        </div>
+        ${worstStop != null ? `
+          <div class="rss-header rss-risk-header">
+            <span class="rss-h-left">RISK LEFT (STOP @ ${worstStop})</span>
+            <span class="rss-h-right rss-risk-${riskState}">${netRiskSign}$${netRiskAbs}</span>
+          </div>
+          <div class="rss-riskbar">
+            <div class="rss-riskbar-fill rss-riskbar-${riskState}" style="width:${riskFillPct}%"></div>
+          </div>
+        ` : ''}
       </div>
       <div class="es-header">
         <h2>Execution Score</h2>
@@ -3125,8 +3201,8 @@ function renderHealthPanel(trade) {
   el.innerHTML = `
     <div class="health-metrics">
       <div class="metric">
-        <div class="metric-label">REMAINING</div>
-        <div class="metric-value text-default">${h.remaining} / ${h.total}</div>
+        <div class="metric-label">CLOSED</div>
+        <div class="metric-value text-default">${h.total - h.remaining} / ${h.total}</div>
       </div>
       <div class="metric">
         <div class="metric-label">NET RISK</div>
@@ -3515,7 +3591,7 @@ function buildManageCardsHTML(trade, isLong) {
   const netRiskStr = h.netRisk < 0 ? `-$${Math.abs(h.netRisk).toFixed(0)}` : `+$${h.netRisk.toFixed(0)}`;
   const potStr = h.potential >= 0 ? `+$${h.potential.toFixed(0)}` : `-$${Math.abs(h.potential).toFixed(0)}`;
   html += `<div class="mc-health-strip">
-    <div class="mc-hs-card"><div class="mc-hs-label">REMAINING</div><div class="mc-hs-value">${h.remaining}/${h.total}</div></div>
+    <div class="mc-hs-card"><div class="mc-hs-label">CLOSED</div><div class="mc-hs-value">${h.total - h.remaining}/${h.total}</div></div>
     <div class="mc-hs-card"><div class="mc-hs-label">NET RISK</div><div class="mc-hs-value ${netRiskCls}">${netRiskStr}</div></div>
     <div class="mc-hs-card"><div class="mc-hs-label">REALIZED</div><div class="mc-hs-value ${realCls}">${realStr}</div></div>
     <div class="mc-hs-card"><div class="mc-hs-label">POTENTIAL</div><div class="mc-hs-value" style="color:var(--accent2)">${potStr}</div></div>
