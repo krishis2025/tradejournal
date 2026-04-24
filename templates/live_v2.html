@@ -1826,6 +1826,10 @@ function updateRibbon() {
 
 function getLatestContext() {
   if (Object.keys(lastCommittedContext).length > 0) return lastCommittedContext;
+  if (activeContextId && SERVER_CONTEXTS) {
+    const match = SERVER_CONTEXTS.find(c => c.id === activeContextId);
+    if (match) return match;
+  }
   if (SERVER_CONTEXTS && SERVER_CONTEXTS.length > 0) return SERVER_CONTEXTS[0];
   return null;
 }
@@ -4350,8 +4354,6 @@ async function createTradeFromForm() {
   activePhase = 'MANAGE';
   activeTags = {};
 
-  activeContextId = null;   // Context consumed by this trade
-  lastCommittedContext = {}; // Clear ribbon cache
   liveNowContext = null;    // Reset live-now for new trade
   inlineUpdateOpen = false;
   activeStrengthId = null;  // Strength consumed by this trade
