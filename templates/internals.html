@@ -184,7 +184,32 @@
 .mi-pos { background: rgba(79,255,176,0.1) !important; color: var(--green) !important; border-color: rgba(79,255,176,0.3) !important; }
 .mi-neutral { background: var(--surface3) !important; color: var(--muted2) !important; border-color: var(--border2) !important; }
 
-/* Sector buckets */
+/* Sector quadrants */
+.sector-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 6px;
+  flex: 1;
+}
+.sector-quadrant {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 6px 8px;
+  min-height: 32px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: flex-start;
+  align-content: flex-start;
+}
+.sector-quadrant-label {
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 8px; letter-spacing: 1px; text-transform: uppercase;
+  width: 100%; margin-bottom: 1px;
+}
 .sector-add-row {
   display: flex; gap: 6px; margin-top: auto; padding-top: 8px;
   border-top: 1px solid var(--border);
@@ -202,36 +227,27 @@
 }
 .sector-add-btn:hover { background: var(--surface2); color: var(--text); border-color: var(--muted); }
 
-.sector-bucket {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 2px;
-  padding: 8px;
-  min-height: 36px;
-  margin-top: 6px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: flex-start;
-}
-.sector-bucket-label {
-  font-family: 'Inter', sans-serif;
-  font-weight: 500;
-  font-size: 9px; letter-spacing: 1px; text-transform: uppercase;
-  width: 100%; margin-bottom: 2px;
-}
 .sector-tag {
   display: inline-flex; align-items: center; gap: 4px;
-  padding: 3px 8px; border-radius: 2px;
+  padding: 4px 10px; border-radius: 2px;
   font-size: 11px; font-weight: 700;
   font-family: 'JetBrains Mono', monospace;
+  border: none;
 }
-.sector-tag.pos { background: rgba(79,255,176,0.1); color: var(--green); border: 1px solid rgba(79,255,176,0.25); }
-.sector-tag.neg { background: rgba(255,77,109,0.1); color: var(--red); border: 1px solid rgba(255,77,109,0.25); }
+.sector-tag.pos        { background: #d6e8d0; color: #3a5a34; }
+.sector-tag.pos-strong { background: #1a5c2e; color: #ffffff; }
+.sector-tag.neg        { background: #ECCBC7; color: #7a1a2a; }
+.sector-tag.neg-strong { background: #7a1a2a; color: #ffffff; }
 .sector-tag .sector-rm {
-  cursor: pointer; opacity: 0.5; font-size: 9px; margin-left: 2px;
+  cursor: pointer; opacity: 0.6; font-size: 9px; margin-left: 2px;
 }
 .sector-tag .sector-rm:hover { opacity: 1; }
+
+/* Paper theme overrides */
+[data-internals-theme="paper"] .sector-tag.pos        { background: #d6e8d0; color: #3a5a34; }
+[data-internals-theme="paper"] .sector-tag.pos-strong { background: #2e7d32; color: #ffffff; }
+[data-internals-theme="paper"] .sector-tag.neg        { background: #ECCBC7; color: #7a1a2a; }
+[data-internals-theme="paper"] .sector-tag.neg-strong { background: #8b1a2b; color: #ffffff; }
 
 /* Theme toggle */
 .theme-toggle-mi {
@@ -371,9 +387,20 @@ const SPY_SECTORS = [
   { ticker:'XLU', short:'Utils',   label:'XLU - Utilities (2.0%)' },
 ];
 
+const HEAVY_TICKERS = new Set(['XLK', 'XLV', 'XLF', 'XLY', 'XLC', 'XLI']);
+
 function sectorShortName(ticker) {
   const s = SPY_SECTORS.find(x => x.ticker === ticker);
   return s ? s.short : ticker;
+}
+
+function sectorTagClass(value) {
+  const num = parseFloat(value);
+  if (isNaN(num)) return 'pos';
+  if (num >= 0.50) return 'pos-strong';
+  if (num >= 0)    return 'pos';
+  if (num <= -0.50) return 'neg-strong';
+  return 'neg';
 }
 
 // State: one object per session
@@ -496,17 +523,24 @@ function removeSector(session, ticker) {
 
 function renderSectors(session) {
   const sectors = parseSectors(session);
-  const posEl = document.getElementById(`sec-pos-${session}`);
-  const negEl = document.getElementById(`sec-neg-${session}`);
-  if (!posEl || !negEl) return;
+  const quadrants = {
+    weakPos:  sectors.filter(s => parseFloat(s.value) >= 0 && !HEAVY_TICKERS.has(s.ticker)),
+    heavyPos: sectors.filter(s => parseFloat(s.value) >= 0 && HEAVY_TICKERS.has(s.ticker)),
+    weakNeg:  sectors.filter(s => parseFloat(s.value) < 0 && !HEAVY_TICKERS.has(s.ticker)),
+    heavyNeg: sectors.filter(s => parseFloat(s.value) < 0 && HEAVY_TICKERS.has(s.ticker)),
+  };
+  const ids = ['sec-wp','sec-hp','sec-wn','sec-hn'];
+  const labels = ['Weak +','Heavy +','Weak −','Heavy −'];
+  const colors = ['var(--green)','var(--green)','var(--red)','var(--red)'];
+  const keys = ['weakPos','heavyPos','weakNeg','heavyNeg'];
 
-  const pos = sectors.filter(s => parseFloat(s.value) >= 0);
-  const neg = sectors.filter(s => parseFloat(s.value) < 0);
-
-  posEl.innerHTML = '<span class="sector-bucket-label" style="color:var(--green);">Positive</span>' +
-    pos.map(s => `<span class="sector-tag pos">${sectorShortName(s.ticker)} ${s.value}<span class="sector-rm" onclick="removeSector('${session}','${s.ticker}')">x</span></span>`).join('');
-  negEl.innerHTML = '<span class="sector-bucket-label" style="color:var(--red);">Negative</span>' +
-    neg.map(s => `<span class="sector-tag neg">${sectorShortName(s.ticker)} ${s.value}<span class="sector-rm" onclick="removeSector('${session}','${s.ticker}')">x</span></span>`).join('');
+  ids.forEach((prefix, i) => {
+    const el = document.getElementById(`${prefix}-${session}`);
+    if (!el) return;
+    const list = quadrants[keys[i]];
+    el.innerHTML = `<span class="sector-quadrant-label" style="color:${colors[i]}">${labels[i]}</span>` +
+      list.map(s => `<span class="sector-tag ${sectorTagClass(s.value)}">${sectorShortName(s.ticker)} ${s.value}<span class="sector-rm" onclick="removeSector('${session}','${s.ticker}')">x</span></span>`).join('');
+  });
 }
 
 // ── Render sessions ──
@@ -659,9 +693,13 @@ function renderSession(s) {
 
       <!-- Sectors -->
       <div class="module">
-        <div class="module-header"><h4>Sectors</h4></div>
-        <div id="sec-pos-${s}" class="sector-bucket" style="border-color:rgba(79,255,176,0.2);flex:1;"></div>
-        <div id="sec-neg-${s}" class="sector-bucket" style="border-color:rgba(255,77,109,0.2);flex:1;"></div>
+        <div class="module-header"><h4>Sectors</h4><span style="font-family:'Inter',sans-serif;font-size:8px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;">Weak ← → Heavy</span></div>
+        <div class="sector-grid">
+          <div id="sec-wp-${s}" class="sector-quadrant" style="border-color:rgba(79,255,176,0.2);"></div>
+          <div id="sec-hp-${s}" class="sector-quadrant" style="border-color:rgba(79,255,176,0.2);"></div>
+          <div id="sec-wn-${s}" class="sector-quadrant" style="border-color:rgba(255,77,109,0.2);"></div>
+          <div id="sec-hn-${s}" class="sector-quadrant" style="border-color:rgba(255,77,109,0.2);"></div>
+        </div>
         <div class="sector-add-row">
           <select id="sec-sel-${s}" class="mi-select">${sectorOptions()}</select>
           <input id="sec-val-${s}" class="mi-input" placeholder="+0.50"
