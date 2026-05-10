@@ -2,6 +2,7 @@
 {% block title %}Trade V2 — Trade Journal{% endblock %}
 
 {% block extra_styles %}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 /* Override page padding for full-height layout */
 .page { padding: 0; max-width: 100%; }
 
@@ -109,6 +110,125 @@
   padding: 16px; overflow-y: auto;
   display: flex; flex-direction: column; gap: 14px;
 }
+.context-panel.sp-mode { padding: 0; gap: 0; }
+
+/* ── Side Panel — Manage/Exit/Review zones ── */
+.sp-zone { padding: 10px 12px; border-bottom: 0.5px solid rgba(255,255,255,0.08); }
+.sp-zone-label { font-size: 8px; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.3); margin-bottom: 4px; font-family: 'Inter', sans-serif; }
+.sp-daytype { font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.85); margin-bottom: 4px; }
+.sp-headline { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.9); line-height: 1.3; margin-top: 4px; }
+.sp-exec-headline { font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 400; color: rgba(255,255,255,0.38); line-height: 1.4; margin-top: 4px; }
+.sp-pills { display: flex; gap: 5px; flex-wrap: wrap; }
+.sp-pill { font-size: 9px; padding: 2px 6px; border-radius: 3px; font-family: 'Inter', sans-serif; }
+.sp-pill-neutral { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.5); }
+.sp-pill-up { background: rgba(0,208,132,0.08); color: #00d084; }
+.sp-pill-down { background: rgba(255,77,77,0.08); color: #ff4d4d; }
+.sp-pill-flat { background: rgba(245,166,35,0.08); color: #f5a623; }
+
+.sp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.sp-card { background: #161b24; border-radius: 4px; padding: 6px 8px; }
+.sp-card-val { font-size: 13px; font-weight: 600; font-family: 'Inter', sans-serif; letter-spacing: -0.01em; }
+.sp-card-val.clr-green { color: #00d084; }
+.sp-card-val.clr-red { color: #ff4d4d; }
+.sp-card-val.clr-default { color: #f0f0f0; }
+.sp-card-lbl { font-size: 8px; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(255,255,255,0.32); margin-top: 2px; font-family: 'Inter', sans-serif; }
+.sp-card-sub { font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.85); }
+.sp-card-sub-line { font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.38); font-family: 'Inter', sans-serif; letter-spacing: -0.01em; }
+
+.sp-trades-zone { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+.sp-trades-zone .sp-zone-label { padding: 8px 12px 4px; }
+.sp-trades-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 4px 0; }
+.sp-trade-row { padding: 11px 12px; border-bottom: 0.5px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 8px; cursor: pointer; transition: opacity 0.12s, background 0.12s; }
+.sp-trade-row.inactive { opacity: 0.45; }
+.sp-trade-row.inactive:hover { opacity: 0.7; background: rgba(255,255,255,0.02); }
+.sp-trade-row.active { opacity: 1; border-left: 2px solid #00c8ff; padding-left: 10px; background: rgba(0,200,255,0.04); }
+.sp-tid { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.4); min-width: 18px; display: flex; align-items: center; gap: 4px; }
+.sp-status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.sp-status-dot.open { background: #00d084; animation: sp-pulse 1.8s ease-in-out infinite; }
+.sp-status-dot.closed { background: rgba(255,255,255,0.2); }
+@keyframes sp-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.sp-trade-row.active .sp-tid { color: #00c8ff; }
+.sp-dir { font-size: 8px; font-weight: 600; padding: 2px 5px; border-radius: 3px; text-transform: uppercase; }
+.sp-dir-long { background: rgba(0,208,132,0.15); color: #00d084; }
+.sp-dir-short { background: rgba(255,77,77,0.15); color: #ff4d4d; }
+.sp-trade-info { flex: 1; min-width: 0; }
+.sp-trade-closed { font-size: 9px; color: rgba(255,255,255,0.35); }
+.sp-mini-dots { display: flex; gap: 2px; margin-top: 4px; }
+.sp-mini-dot { width: 8px; height: 5px; border-radius: 2px; }
+.sp-mini-dot.dot-tp { background: #00d084; }
+.sp-mini-dot.dot-stop { background: #ff4d4d; }
+.sp-mini-dot.empty { background: rgba(255,255,255,0.1); }
+.sp-trade-nums { text-align: right; }
+.sp-trade-realized { font-size: 10px; font-weight: 600; font-family: 'Inter', sans-serif; letter-spacing: -0.01em; }
+.sp-trade-risk { font-size: 8px; color: #ff4d4d; font-family: 'Inter', sans-serif; font-weight: 600; letter-spacing: -0.01em; }
+
+/* Paper overrides for side panel zones */
+[data-theme="paper"] .sp-zone { border-bottom-color: rgba(0,0,0,0.08); }
+[data-theme="paper"] .sp-zone-label { color: rgba(0,0,0,0.32); }
+[data-theme="paper"] .sp-daytype { color: rgba(0,0,0,0.8); }
+[data-theme="paper"] .sp-headline { color: rgba(0,0,0,0.82); }
+[data-theme="paper"] .sp-exec-headline { color: rgba(0,0,0,0.42); }
+[data-theme="paper"] .sp-pill-neutral { background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.5); }
+[data-theme="paper"] .sp-pill-up { color: #2d7a52; }
+[data-theme="paper"] .sp-pill-down { color: #a63030; }
+[data-theme="paper"] .sp-card { background: #e8e0d0; }
+[data-theme="paper"] .sp-card-val.clr-green { color: #2d7a52; }
+[data-theme="paper"] .sp-card-val.clr-red { color: #a63030; }
+[data-theme="paper"] .sp-card-val.clr-default { color: rgba(0,0,0,0.75); }
+[data-theme="paper"] .sp-card-lbl { color: rgba(0,0,0,0.35); }
+[data-theme="paper"] .sp-card-sub { color: rgba(0,0,0,0.75); }
+[data-theme="paper"] .sp-card-sub-line { color: rgba(0,0,0,0.38); }
+[data-theme="paper"] .sp-trade-row { border-bottom-color: rgba(0,0,0,0.05); }
+[data-theme="paper"] .sp-trade-row.inactive:hover { background: rgba(0,0,0,0.02); }
+[data-theme="paper"] .sp-trade-row.active { border-left-color: #2d6e8a; background: rgba(0,80,120,0.04); }
+[data-theme="paper"] .sp-tid { color: rgba(0,0,0,0.4); }
+[data-theme="paper"] .sp-status-dot.open { background: #2d7a52; }
+[data-theme="paper"] .sp-status-dot.closed { background: rgba(0,0,0,0.15); }
+[data-theme="paper"] .sp-trade-row.active .sp-tid { color: #2d6e8a; }
+[data-theme="paper"] .sp-dir-long { background: rgba(0,100,60,0.1); color: #2d7a52; }
+[data-theme="paper"] .sp-dir-short { background: rgba(163,48,48,0.12); color: #a63030; }
+[data-theme="paper"] .sp-trade-closed { color: rgba(0,0,0,0.45); }
+[data-theme="paper"] .sp-mini-dot.dot-tp { background: #2d7a52; }
+[data-theme="paper"] .sp-mini-dot.dot-stop { background: #a63030; }
+[data-theme="paper"] .sp-mini-dot.empty { background: rgba(0,0,0,0.1); }
+[data-theme="paper"] .sp-trade-risk { color: #a63030; }
+
+/* Paper overrides for trade plan + leg cards */
+[data-theme="paper"] .ctx-plan-section { background: #FCFAF5; border: none; border-radius: 10px; }
+[data-theme="paper"] .ctx-prom-section-label { color: #555; }
+[data-theme="paper"] .ctx-plan-playbook { color: #1A1A1B; font-weight: 800; }
+[data-theme="paper"] .ctx-plan-leg { background: rgba(255,255,255,0.7); border: 1px solid rgba(0,0,0,0.08); }
+[data-theme="paper"] .ctx-plan-leg.side-long { border-left: 3px solid #2e7d32; }
+[data-theme="paper"] .ctx-plan-leg.side-short { border-left: 3px solid #c62828; }
+[data-theme="paper"] .ctx-plan-leg.is-primary { border-left: 3px solid #b8860b; }
+[data-theme="paper"] .ctx-plan-leg-label { color: #1A1A1B; font-size: 12px; font-weight: 800; }
+[data-theme="paper"] .ctx-plan-leg-zone { color: rgba(0,0,0,0.7); font-size: 11px; }
+[data-theme="paper"] .ctx-plan-leg-trigger { color: rgba(0,0,0,0.42); font-size: 9px; }
+[data-theme="paper"] .ctx-plan-leg-side.long { background: rgba(46,125,50,0.15); color: #2e7d32; }
+[data-theme="paper"] .ctx-plan-leg-side.short { background: rgba(198,40,40,0.15); color: #c62828; }
+[data-theme="paper"] .ctx-leg-edit-icon { color: #888; opacity: 0.5; }
+[data-theme="paper"] .ctx-plan-leg:hover .ctx-leg-edit-icon { opacity: 0.7; }
+[data-theme="paper"] .ctx-plan-form-card .ctx-plan-form-playbook-input { background: rgba(255,255,255,0.7); color: #1A1A1B; border-color: rgba(0,0,0,0.08); }
+[data-theme="paper"] .ctx-plan-form-card .ctx-plan-form-playbook-input::placeholder { color: #999; }
+[data-theme="paper"] .ctx-plan-form-card .ctx-plan-form-playbook-input:focus { border-color: #b8860b; }
+[data-theme="paper"] .ctx-plan-form-card .ctx-plan-form-leg-area { background: rgba(255,255,255,0.7); border-color: #b8860b; border-left: 4px solid #b8860b; }
+[data-theme="paper"] .ctx-plan-form-card .ctx-plan-form-leg-input { background: rgba(255,255,255,0.7); color: #1A1A1B; border-color: rgba(0,0,0,0.08); }
+[data-theme="paper"] .ctx-plan-form-card .ctx-plan-form-leg-input::placeholder { color: #999; }
+[data-theme="paper"] .ctx-plan-form-card .ctx-plan-form-leg-input:focus { border-color: #b8860b; }
+[data-theme="paper"] .ctx-plan-form-card .ctx-plan-form-side-select { background: rgba(255,255,255,0.7); color: #1A1A1B; border-color: rgba(0,0,0,0.08); }
+[data-theme="paper"] .ctx-plan-form-card .ctx-plan-form-side-select:focus { border-color: #b8860b; }
+[data-theme="paper"] .ctx-plan-form-card .ctx-plan-form-add-btn { background: transparent; color: #2e7d32; border-color: #2e7d32; }
+[data-theme="paper"] .ctx-plan-form-card .ctx-plan-form-add-btn:hover { background: rgba(46,125,50,0.08); }
+[data-theme="paper"] .ctx-plan-form-card .ctx-plan-form-cancel-btn { color: #888; border: 1px solid rgba(0,0,0,0.12); }
+[data-theme="paper"] .ctx-plan-form-card .ctx-plan-form-cancel-btn:hover { background: rgba(0,0,0,0.04); }
+[data-theme="paper"] .ctx-plan-form-card .ctx-plan-form-leg-card { background: rgba(255,255,255,0.7); border-color: rgba(0,0,0,0.08); }
+[data-theme="paper"] .ctx-plan-form-card .ctx-plan-form-leg-card.side-long { background: rgba(46,125,50,0.08); border-color: rgba(46,125,50,0.15); }
+[data-theme="paper"] .ctx-plan-form-card .ctx-plan-form-leg-card.side-short { background: rgba(198,40,40,0.08); border-color: rgba(198,40,40,0.15); }
+[data-theme="paper"] .ctx-plan-form-card .ctx-plan-form-leg-card .leg-card-label { color: #1A1A1B; font-size: 12px; font-weight: 800; }
+[data-theme="paper"] .ctx-plan-form-card .ctx-plan-form-leg-card .leg-card-zone { color: rgba(0,0,0,0.7); font-size: 11px; }
+[data-theme="paper"] .ctx-plan-form-card .ctx-plan-form-leg-card .leg-card-trigger { color: rgba(0,0,0,0.42); font-size: 9px; }
+[data-theme="paper"] .ctx-plan-form-card .ctx-plan-form-leg-card .leg-card-remove { color: #888; opacity: 0.5; }
+[data-theme="paper"] .ctx-plan-form-card .ctx-plan-form-leg-card .leg-card-remove:hover { color: #c62828; opacity: 1; }
 .ctx-field {}
 .ctx-label {
   font-size: 8px; text-transform: uppercase; letter-spacing: 1.5px;
@@ -155,6 +275,7 @@
 
 .ladder-wrapper {
   width: 100%; position: relative;
+  display: flex; flex-direction: column; flex: 1; min-height: 0;
 }
 
 /* Zone overlays */
@@ -311,14 +432,14 @@
 }
 
 .health-metrics {
-  display: flex; flex-direction: column; gap: 16px;
+  display: flex; flex-direction: column; gap: 14px;
 }
 .metric-label {
   font-size: 8px; text-transform: uppercase; letter-spacing: 1.5px;
   color: var(--muted); margin-bottom: 2px;
 }
 .metric-value {
-  font-family: var(--font-display); font-size: 32px; letter-spacing: 2px;
+  font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 600; letter-spacing: -0.01em;
   line-height: 1;
 }
 .metric-value.text-default { color: var(--text); }
@@ -326,6 +447,31 @@
 .metric-value.text-green { color: var(--green); }
 .metric-value.text-accent2 { color: var(--accent2); }
 .metric-value.text-accent { color: var(--accent); }
+.hp-hero-risk { font-size: 40px; }
+.metric-sub { font-size: 9px; color: rgba(255,255,255,0.45); margin-top: 4px; letter-spacing: 0.5px; white-space: nowrap; }
+.metric-sub .stop-val { color: rgba(255,255,255,0.82); }
+.metric-pair {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.metric-pair .metric { background: #1c2230; border-radius: 6px; padding: 7px 9px; }
+.metric-pair .metric-label { font-size: 9px; }
+.metric-pair .metric-value { font-size: 22px; }
+.hp-closed-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
+.hp-closed-fraction { font-size: 13px; color: var(--muted); font-family: 'Inter', sans-serif; font-weight: 600; letter-spacing: -0.01em; }
+.hp-dots { display: flex; gap: 3px; margin-top: 6px; }
+.hp-dot { width: 10px; height: 10px; border-radius: 2px; background: var(--border); }
+.hp-dot.dot-tp { background: var(--green); }
+.hp-dot.dot-stop { background: var(--red); }
+.hp-info-row { display: flex; justify-content: space-between; align-items: center; }
+.hp-info-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); opacity: 0.6; }
+.hp-info-value { font-size: 11px; font-family: 'Inter', sans-serif; font-weight: 600; letter-spacing: -0.01em; color: var(--text); opacity: 0.8; }
+.hp-stop-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 2px;
+  font-size: 9px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+.hp-stop-badge.pending-be { background: rgba(184,154,62,0.15); color: #b89a3e; }
+.hp-stop-badge.be-active { background: rgba(79,255,176,0.1); color: var(--green); }
 
 .health-divider {
   height: 1px; background: var(--border); margin: 16px 0;
@@ -380,15 +526,7 @@
 .spacer { flex: 1; }
 
 /* ── BOTTOM BAR ── */
-.bottom-bar {
-  height: 36px; flex-shrink: 0;
-  border-top: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 16px;
-  font-family: var(--font-mono); font-size: 11px; color: var(--muted);
-  position: relative; z-index: 10;
-  background: var(--surface);
-}
+
 
 /* ── EDITABLE PRICE ── */
 .row-price.editable:hover {
@@ -904,8 +1042,8 @@
   margin-top: 8px;
 }
 .ctx-prom-section-label {
-  font-family: 'Inter', sans-serif; font-size: 0.55rem; font-weight: 900;
-  text-transform: uppercase; letter-spacing: 1.2px; color: #555;
+  font-family: 'Inter', sans-serif; font-size: 8px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.35);
   margin-bottom: 8px;
 }
 
@@ -929,8 +1067,8 @@
 
 /* Trade plan section — context ribbon yellow background */
 .ctx-plan-section {
-  padding: 15px 20px; background: #FCFAF5;
-  border-radius: 10px; margin-top: 8px;
+  padding: 15px 20px; background: #1c2230;
+  border-radius: 6px; margin-top: 8px; border: 0.5px solid rgba(255,255,255,0.08);
 }
 
 /* Right panel in CONTEXT phase */
@@ -939,11 +1077,12 @@
 }
 /* Right panel in ENTRY phase — eggshell */
 .health-panel.entry-plan-mode {
-  background: #FDFCF8; padding: 10px 10px;
+  background: var(--bg); padding: 10px 10px;
 }
 .health-panel.entry-plan-mode .ctx-plan-section {
-  background: #FDFCF8;
+  background: var(--bg);
 }
+
 /* Side-colored backgrounds moved after .ctx-plan-leg base rule */
 /* Plan form card (right panel, edit-mode style) */
 .ctx-plan-form-card {
@@ -955,135 +1094,136 @@
   margin-bottom: 12px;
 }
 .ctx-plan-form-card .ctx-plan-form-playbook-input {
-  width: 100%; padding: 10px; border: 1px solid rgba(0,0,0,0.08);
-  border-radius: 4px; background: rgba(255,255,255,0.7); color: #1A1A1B;
+  width: 100%; padding: 10px; border: 0.5px solid rgba(255,255,255,0.1);
+  border-radius: 4px; background: #161b24; color: rgba(255,255,255,0.8);
   font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 800;
   outline: none; box-sizing: border-box;
   transition: border-color 0.15s;
 }
 .ctx-plan-form-card .ctx-plan-form-playbook-input::placeholder {
-  font-weight: 400; color: #999;
+  font-weight: 400; color: rgba(255,255,255,0.2);
 }
 .ctx-plan-form-card .ctx-plan-form-playbook-input:focus {
-  border-color: #b8860b;
+  border-color: rgba(0,208,132,0.5);
 }
-/* Leg area sub-card with golden border */
 .ctx-plan-form-card .ctx-plan-form-leg-area {
-  border-left: 4px solid #b8860b; padding: 10px 14px; margin-top: 14px;
-  border-radius: 8px; background: rgba(255,255,255,0.7);
+  padding: 10px; margin-top: 14px;
+  border-radius: 6px; background: #1a2035; border: 1px solid rgba(0,200,255,0.2);
 }
 .ctx-plan-form-card .ctx-plan-form-leg-input {
-  width: 100%; height: 30px; padding: 4px 8px;
-  border: 1px solid rgba(0,0,0,0.08);
-  border-radius: 4px; background: rgba(255,255,255,0.7); color: #1A1A1B;
-  font-family: 'Inter', sans-serif; font-size: 11px;
+  width: 100%; height: 30px; padding: 6px 8px;
+  border: 0.5px solid rgba(255,255,255,0.1);
+  border-radius: 4px; background: #161b24; color: rgba(255,255,255,0.75);
+  font-family: 'Inter', sans-serif; font-size: 10px;
   outline: none; box-sizing: border-box;
   transition: border-color 0.15s;
 }
 .ctx-plan-form-card .ctx-plan-form-leg-input:focus {
-  border-color: #b8860b;
+  border-color: rgba(0,208,132,0.5);
 }
 .ctx-plan-form-card .ctx-plan-form-leg-input::placeholder {
-  color: #999; font-weight: 400;
+  color: rgba(255,255,255,0.2); font-weight: 400;
 }
 .ctx-plan-form-card .ctx-plan-form-side-select {
-  height: 30px; width: 90px; padding: 4px 8px;
-  border: 1px solid rgba(0,0,0,0.08); border-radius: 4px;
-  background: rgba(255,255,255,0.7); color: #1A1A1B;
-  font-family: 'Inter', sans-serif; font-size: 11px;
+  height: 30px; width: 90px; padding: 6px 8px;
+  border: 0.5px solid rgba(255,255,255,0.1); border-radius: 4px;
+  background: #161b24; color: rgba(255,255,255,0.75);
+  font-family: 'Inter', sans-serif; font-size: 10px;
   outline: none; appearance: auto; cursor: pointer;
   transition: border-color 0.15s;
 }
 .ctx-plan-form-card .ctx-plan-form-side-select:focus {
-  border-color: #b8860b;
+  border-color: rgba(0,208,132,0.5);
 }
 .ctx-plan-form-card .ctx-plan-form-actions {
   display: flex; align-items: center; gap: 10px; margin-top: 10px;
 }
 .ctx-plan-form-card .ctx-plan-form-add-btn {
-  height: 28px; padding: 4px 10px; border: 1px solid #2e7d32; border-radius: 4px;
-  background: transparent; color: #2e7d32; cursor: pointer;
+  height: 28px; padding: 4px 10px; border: 0.5px solid rgba(0,208,132,0.25); border-radius: 4px;
+  background: rgba(0,208,132,0.15); color: #00d084; cursor: pointer;
   font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 700;
   letter-spacing: 1px; text-transform: uppercase; transition: all 0.15s;
   box-sizing: border-box;
 }
-.ctx-plan-form-card .ctx-plan-form-add-btn:hover { background: rgba(46,125,50,0.08); }
+.ctx-plan-form-card .ctx-plan-form-add-btn:hover { background: rgba(0,208,132,0.25); }
 .ctx-plan-form-card .ctx-plan-form-cancel-btn {
-  height: 28px; padding: 4px 10px; border: 1px solid rgba(0,0,0,0.12); border-radius: 4px;
-  background: transparent; color: #888; cursor: pointer;
+  height: 28px; padding: 4px 10px; border: none; border-radius: 4px;
+  background: transparent; color: rgba(255,255,255,0.35); cursor: pointer;
   font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 600;
   letter-spacing: 1.5px; text-transform: uppercase; transition: all 0.15s;
   box-sizing: border-box;
 }
-.ctx-plan-form-card .ctx-plan-form-cancel-btn:hover { background: rgba(0,0,0,0.04); }
+.ctx-plan-form-card .ctx-plan-form-cancel-btn:hover { color: rgba(255,255,255,0.6); }
 /* Pending leg cards in plan form (edit-mode style) */
 .ctx-plan-form-card .ctx-plan-form-leg-card {
-  padding: 10px 12px; border: 1px solid rgba(0,0,0,0.08); border-radius: 8px;
-  margin-top: 8px; background: rgba(255,255,255,0.7);
+  padding: 10px 12px; border: 0.5px solid rgba(255,255,255,0.08); border-radius: 8px;
+  margin-top: 8px; background: #161b24;
   display: flex; justify-content: space-between; align-items: flex-start;
 }
 .ctx-plan-form-card .ctx-plan-form-leg-card.side-long {
-  background: rgba(46,125,50,0.08); border-color: rgba(46,125,50,0.15);
+  background: rgba(0,208,132,0.06); border-color: rgba(0,208,132,0.15);
 }
 .ctx-plan-form-card .ctx-plan-form-leg-card.side-short {
-  background: rgba(198,40,40,0.08); border-color: rgba(198,40,40,0.15);
+  background: rgba(255,77,77,0.06); border-color: rgba(255,77,77,0.15);
 }
 .ctx-plan-form-card .ctx-plan-form-leg-card .leg-card-label {
-  font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800;
-  color: #1A1A1B; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600;
+  color: rgba(255,255,255,0.85); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
 }
 .ctx-plan-form-card .ctx-plan-form-leg-card .leg-card-zone {
-  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600; color: #1A1A1B;
-  margin-top: 2px;
+  display: block; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.75);
+  margin-top: 4px;
 }
 .ctx-plan-form-card .ctx-plan-form-leg-card .leg-card-trigger {
-  font-family: 'Inter', sans-serif; font-size: 10px; color: #555; margin-top: 2px;
+  display: block; font-family: 'Inter', sans-serif; font-size: 9px; color: rgba(255,255,255,0.38); margin-top: 3px;
 }
 .ctx-plan-form-card .ctx-plan-form-leg-card .leg-card-remove {
-  cursor: pointer; color: #888; font-size: 16px; opacity: 0.5;
-  transition: opacity 0.15s; flex-shrink: 0; margin-left: 8px;
+  cursor: pointer; color: rgba(255,255,255,0.3); font-size: 16px; opacity: 1;
+  transition: color 0.15s; flex-shrink: 0; margin-left: 8px;
 }
 .ctx-plan-form-card .ctx-plan-form-leg-card .leg-card-remove:hover {
-  opacity: 1; color: #c62828;
+  color: rgba(255,255,255,0.7);
 }
 .ctx-plan-playbook {
-  font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 800;
-  color: #1A1A1B; margin-bottom: 8px;
+  font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+  color: rgba(255,255,255,0.85); margin-bottom: 8px;
 }
 .ctx-plan-leg {
-  padding: 8px 10px; border: 1px solid rgba(0,0,0,0.08); border-radius: 6px;
-  margin-bottom: 6px; background: rgba(255,255,255,0.7);
+  padding: 10px 12px; border: 0.5px solid rgba(255,255,255,0.08); border-radius: 6px;
+  margin-bottom: 6px; background: #161b24;
 }
-.ctx-plan-leg.is-primary { border-left: 3px solid #b8860b; }
+.ctx-plan-leg.is-primary { border-left: 3px solid #f5a623; }
 .ctx-plan-leg.side-long {
-  border-left: 3px solid #2e7d32;
+  border-left: 2px solid #00d084;
 }
 .ctx-plan-leg.side-short {
-  border-left: 3px solid #c62828;
+  border-left: 2px solid #ff4d4d;
 }
 .ctx-plan-leg-label {
-  font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800;
-  color: #1A1A1B; margin-bottom: 3px; display: flex; align-items: center; gap: 6px;
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600;
+  color: rgba(255,255,255,0.85); margin-bottom: 3px; display: flex; align-items: center; gap: 6px;
 }
 .ctx-plan-leg-zone {
-  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600;
-  color: var(--text); margin-bottom: 2px;
+  display: block; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600;
+  color: rgba(255,255,255,0.75); margin-top: 4px;
 }
 .ctx-plan-leg-trigger {
-  font-family: 'Inter', sans-serif; font-size: 10px; color: #555;
+  display: block; font-family: 'Inter', sans-serif; font-size: 9px; color: rgba(255,255,255,0.38);
+  margin-top: 3px;
 }
+.ctx-plan-leg-trigger::before { content: '\u2022 '; }
 .ctx-plan-leg-side {
-  display: inline-block; padding: 1px 6px; border-radius: 3px;
-  font-size: 8px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;
+  display: inline-block; padding: 2px 5px; border-radius: 3px;
+  font-size: 8px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
 }
-.ctx-plan-leg-side.long { background: rgba(46,125,50,0.15); color: #2e7d32; }
-.ctx-plan-leg-side.short { background: rgba(198,40,40,0.15); color: #c62828; }
+.ctx-plan-leg-side.long { background: rgba(0,208,132,0.15); color: #00d084; }
+.ctx-plan-leg-side.short { background: rgba(255,77,77,0.15); color: #ff4d4d; }
 .ctx-leg-edit-icon {
-  cursor: pointer; font-size: 12px; opacity: 0.3; margin-left: auto;
-  transition: opacity 0.15s;
+  cursor: pointer; font-size: 12px; color: rgba(255,255,255,0.3); opacity: 1; margin-left: auto;
+  transition: color 0.15s;
 }
-.ctx-plan-leg:hover .ctx-leg-edit-icon { opacity: 0.7; }
-.ctx-leg-edit-icon:hover { opacity: 1 !important; }
+.ctx-plan-leg:hover .ctx-leg-edit-icon { color: rgba(255,255,255,0.7); }
+.ctx-leg-edit-icon:hover { color: rgba(255,255,255,0.7) !important; }
 .ctx-leg-input { height: 30px; font-size: 11px; padding: 4px 8px; }
 
 .ctx-section-last { border-radius: 0 0 8px 8px; }
@@ -1234,7 +1374,10 @@
 .manage-cards {
   display: flex; flex-direction: column; gap: 6px;
   max-width: 520px; width: 100%; margin: 0 auto;
+  flex: 1; min-height: 0;
 }
+.manage-notes-card { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.manage-notes-card .mn-textarea { flex: 1; height: auto; min-height: 0; }
 
 /* Trade Entry Header */
 .trade-header-card {
@@ -1285,47 +1428,78 @@
 .mc-hs-value.text-green { color: var(--green); }
 
 /* Execution Card Grid */
-.mc-qe-grid {
-  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;
+/* ── Price Strip ── */
+.price-strip-wrap { margin-top: 6px; }
+.price-strip-labels { display: flex; justify-content: space-between; margin-bottom: 4px; padding: 0 4px; }
+.price-strip-labels span { font-size: 8px; letter-spacing: 1.5px; text-transform: uppercase; }
+.ps-label-tp { color: rgba(0,208,132,0.5); }
+.ps-label-stop { color: rgba(255,77,77,0.5); }
+.price-strip-card {
+  background: #161b24; border-radius: 8px; padding: 14px 10px 10px;
+  display: flex; align-items: stretch; gap: 0; position: relative;
 }
-.mc-qe-section-label {
-  grid-column: 1 / -1; font-size: 8px; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--muted); padding: 6px 0 2px; border-top: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: space-between;
+.ps-zone { display: flex; gap: 5px; flex: 1; flex-shrink: 1; align-items: center; min-width: 0; }
+.ps-zone-tp { justify-content: flex-end; }
+.ps-zone-stop { justify-content: flex-start; }
+.ps-entry-anchor {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: relative; min-width: 52px; padding: 0 6px;
 }
-.mc-qe-section-label:first-child { border-top: none; padding-top: 0; }
-.mc-qe-btn {
-  padding: 12px 8px; border: 1px solid var(--border2); background: var(--surface2);
-  cursor: pointer; text-align: center; transition: all 0.12s;
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
+.ps-entry-line {
+  position: absolute; top: 0; bottom: 0; left: 50%; width: 1.5px;
+  background: rgba(255,255,255,0.25); transform: translateX(-50%);
 }
-.mc-qe-btn:hover { border-color: var(--muted); background: var(--surface3); }
-.mc-qe-btn:active { transform: scale(0.97); }
-.mc-qe-btn.qe-tp { border-left: 2px solid var(--green); }
-.mc-qe-btn.qe-tp:hover { border-color: var(--green); background: rgba(79,255,176,0.06); }
-.mc-qe-btn.qe-stop { border-left: 2px solid var(--red); }
-.mc-qe-btn.qe-stop:hover { border-color: var(--red); background: rgba(255,77,109,0.06); }
-.mc-qe-btn.executed { opacity: 0.45; cursor: default; }
-.mc-qe-btn.executed:hover { border-color: var(--border2); background: var(--surface2); transform: none; }
-.mc-qe-btn-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted2); }
-.mc-qe-btn-price { font-family: var(--font-mono); font-size: 13px; color: var(--text); }
-.mc-qe-btn.executed .mc-qe-btn-price { text-decoration: line-through; }
-.mc-qe-btn-pnl { font-size: 10px; }
-.mc-qe-btn-undo {
-  background: none; border: none; cursor: pointer; color: var(--warn);
-  font-size: 11px; padding: 0; transition: color 0.12s;
+.ps-entry-label {
+  font-size: 8px; text-transform: uppercase; letter-spacing: 1px;
+  color: rgba(255,255,255,0.4); background: #161b24; padding: 0 4px; z-index: 1;
 }
-.mc-qe-btn-undo:hover { color: var(--red); }
-
-/* Section Labels (kept for GSA) */
-.mc-section-label {
-  font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 2px; color: var(--green);
-  margin-bottom: 2px;
+.ps-entry-price {
+  font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.9);
+  background: #161b24; padding: 0 4px; z-index: 1; font-family: 'Inter', sans-serif; letter-spacing: -0.01em;
 }
-.mc-section-label.risk { color: var(--red); }
-
-/* Edit mode for section labels */
+/* Active level cards */
+.ps-level {
+  border-radius: 6px; padding: 6px 8px; min-width: 58px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  cursor: pointer; transition: all 0.12s;
+}
+.ps-level:active { transform: scale(0.97); }
+.ps-level-tp { background: #1c2a20; border: 0.5px solid rgba(0,208,132,0.25); }
+.ps-level-tp:hover { border-color: rgba(0,208,132,0.5); }
+.ps-level-stop { background: #2a1c1c; border: 0.5px solid rgba(255,77,77,0.2); }
+.ps-level-stop:hover { border-color: rgba(255,77,77,0.45); }
+.ps-level-tag { font-size: 7px; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,0.3); }
+.ps-level-price { font-size: 14px; font-weight: 600; color: #f0f0f0; font-family: 'Inter', sans-serif; letter-spacing: -0.01em; }
+.ps-level-pnl { font-size: 8px; }
+.ps-level-pnl.pnl-pos { color: var(--green); }
+.ps-level-pnl.pnl-neg { color: var(--red); }
+.ps-level-pnl.pnl-be { color: #f5a623; }
+/* Done level cards */
+.ps-level-done {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  opacity: 0.45; cursor: pointer; transition: opacity 0.15s; padding: 3px 5px;
+  min-width: 46px;
+}
+.ps-level-done:hover { opacity: 0.85; }
+.ps-level-done:hover .ps-undo-hint { visibility: visible; }
+.ps-done-tag { font-size: 7px; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,0.4); }
+.ps-done-price { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.6); font-family: var(--font-mono); }
+.ps-done-result { font-size: 7px; }
+.ps-undo-hint { font-size: 7px; color: rgba(255,255,255,0.4); visibility: hidden; }
+.ps-done-sep { color: rgba(255,255,255,0.12); font-size: 14px; align-self: center; }
+/* Editing mode in strip */
+.ps-level-editing { cursor: default; }
+.ps-level-editing:active { transform: none; }
+.ps-edit-input {
+  width: 100%; max-width: 90px; background: rgba(0,0,0,0.3); border: 1.5px solid var(--accent2);
+  border-radius: 4px; padding: 4px 4px; text-align: center;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--text);
+  outline: none; -moz-appearance: textfield; box-sizing: border-box;
+}
+.ps-edit-input::-webkit-inner-spin-button,
+.ps-edit-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.ps-edit-input:focus { border-color: var(--accent); }
+.ps-level-editing { min-width: 80px; }
 .mc-qe-edit-btn {
   background: none; border: none; cursor: pointer; color: var(--muted);
   font-size: 11px; padding: 2px 4px; transition: color 0.12s;
@@ -1337,23 +1511,18 @@
   font-family: var(--font-mono); padding: 2px 4px; transition: color 0.12s;
 }
 .mc-qe-save-btn:hover { color: var(--green); }
-.mc-qe-btn.editing {
-  cursor: default; padding: 16px 8px;
-  border-color: var(--accent2); background: var(--surface);
-}
-.mc-qe-btn.editing:hover { transform: none; border-color: var(--accent2); background: var(--surface); }
 .mc-qe-price-input {
   width: 80px; background: var(--bg); border: 1.5px solid var(--accent2);
   border-radius: 5px; padding: 6px 8px; text-align: center;
   font-family: var(--font-mono); font-size: 16px; font-weight: 600; color: var(--text);
-  outline: none; transition: border-color 0.12s;
+  outline: none;
 }
 .mc-qe-price-input:focus { border-color: var(--accent); }
 
 /* Global Stop Adjust */
 .gsa-card {
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 10px; padding: 14px 18px; margin-top: 10px;
+  background: #161b24; border: 0.5px solid rgba(255,255,255,0.08);
+  border-radius: 6px; padding: 12px 14px; margin-top: 8px;
 }
 .gsa-label {
   font-size: 8px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
@@ -1363,20 +1532,82 @@
   display: flex; gap: 8px; align-items: center;
 }
 .gsa-input {
-  flex: 1; background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 6px; padding: 12px 14px; text-align: left;
+  flex: 1; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px; padding: 10px 12px; text-align: left;
   font-family: var(--font-mono); font-size: 14px; color: var(--text);
 }
 .gsa-btn {
-  padding: 12px 20px; border: none; border-radius: 6px;
+  padding: 10px 18px; border: none; border-radius: 6px;
   font-family: var(--font-mono); font-size: 10px; font-weight: 700;
   letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer;
   transition: all 0.12s;
 }
 .gsa-btn-update {
-  background: var(--text); color: var(--bg);
+  background: #1c2230; color: rgba(255,255,255,0.6);
+  border: 0.5px solid rgba(255,255,255,0.15);
+  font-size: 9px; letter-spacing: 0.08em; font-weight: 600;
 }
-.gsa-btn-update:hover { opacity: 0.85; }
+.gsa-btn-update:hover { background: #232a3a; color: rgba(255,255,255,0.85); opacity: 1; }
+
+/* ── Manage Notes ── */
+.manage-notes-card {
+  background: #161b24; border-radius: 6px;
+  border: 0.5px solid rgba(255,255,255,0.08); margin-top: 8px;
+  padding: 10px 12px;
+}
+.mn-tabs { display: flex; gap: 16px; margin-bottom: 8px; }
+.mn-tab {
+  font-size: 9px; text-transform: uppercase; letter-spacing: 1px;
+  color: rgba(255,255,255,0.28); cursor: pointer; padding-bottom: 4px;
+  border-bottom: 1.5px solid transparent; transition: all 0.12s;
+  background: none; border-top: none; border-left: none; border-right: none;
+  font-family: inherit;
+}
+.mn-tab.active { color: #f0f0f0; border-bottom-color: #f0f0f0; }
+.mn-textarea {
+  background: transparent; border: none; padding: 8px 12px;
+  font-size: 10px; color: rgba(255,255,255,0.65); font-family: monospace;
+  line-height: 1.6; height: 90px; resize: none; outline: none; width: 100%;
+  box-sizing: border-box;
+}
+
+/* ── Paper / Light mode for strip ── */
+[data-theme="paper"] .price-strip-card { background: var(--surface2); border: 1px solid var(--border); }
+[data-theme="paper"] .ps-entry-line { background: rgba(0,0,0,0.2); }
+[data-theme="paper"] .ps-entry-label { color: rgba(0,0,0,0.35); background: var(--surface2); }
+[data-theme="paper"] .ps-entry-price { color: rgba(0,0,0,0.85); background: var(--surface2); }
+[data-theme="paper"] .ps-level-tp { background: #c8e6d4; border: 1px solid #7ab896; }
+[data-theme="paper"] .ps-level-tp .ps-level-tag { color: #2d7a52; }
+[data-theme="paper"] .ps-level-tp .ps-level-price { color: #1a4d35; }
+[data-theme="paper"] .ps-level-tp .ps-level-pnl { color: #2d7a52; }
+[data-theme="paper"] .ps-level-stop { background: #f0c8c8; border: 1px solid #c97a7a; }
+[data-theme="paper"] .ps-level-stop .ps-level-tag { color: #a63030; }
+[data-theme="paper"] .ps-level-stop .ps-level-price { color: #6b1f1f; }
+[data-theme="paper"] .ps-level-stop .ps-level-pnl { color: #a63030; }
+[data-theme="paper"] .ps-level-tag { color: rgba(0,0,0,0.35); }
+[data-theme="paper"] .ps-level-price { color: #1a1a1a; }
+[data-theme="paper"] .ps-level-done { opacity: 0.45; }
+[data-theme="paper"] .ps-level-done:hover { opacity: 0.8; }
+[data-theme="paper"] .ps-done-tag { color: rgba(0,0,0,0.35); }
+[data-theme="paper"] .ps-done-price { color: rgba(0,0,0,0.6); }
+[data-theme="paper"] .ps-undo-hint { color: rgba(0,0,0,0.4); }
+[data-theme="paper"] .ps-done-sep { color: rgba(0,0,0,0.12); }
+[data-theme="paper"] .gsa-card { background: var(--surface2); border: 1px solid var(--border); }
+[data-theme="paper"] .gsa-input { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.12); color: #1a1a1a; }
+[data-theme="paper"] .metric-pair .metric { background: #e8e0d0; border: 0.5px solid rgba(0,0,0,0.08); }
+[data-theme="paper"] .metric-pair .metric-label { color: rgba(0,0,0,0.4); }
+[data-theme="paper"] .metric-pair .metric-value.text-green { color: #2d7a52; }
+[data-theme="paper"] .metric-pair .metric-value.text-red { color: var(--red); }
+[data-theme="paper"] .metric-pair .be-price { color: rgba(0,0,0,0.75) !important; }
+[data-theme="paper"] .metric-pair .be-buffer { color: rgba(0,0,0,0.35) !important; }
+[data-theme="paper"] .gsa-btn-update { background: #ddd5c4; color: rgba(0,0,0,0.65); border: 0.5px solid rgba(0,0,0,0.12); font-weight: 600; letter-spacing: 0.08em; }
+[data-theme="paper"] .gsa-btn-update:hover { background: #ccc3b0; color: rgba(0,0,0,0.85); opacity: 1; }
+[data-theme="paper"] .manage-notes-card { background: var(--surface2); border: 1px solid var(--border); }
+[data-theme="paper"] .mn-tab { color: rgba(0,0,0,0.35); }
+[data-theme="paper"] .mn-tab.active { color: #1a1a1a; border-bottom-color: #1a1a1a; }
+[data-theme="paper"] .mn-textarea { color: rgba(0,0,0,0.7); }
+[data-theme="paper"] .ps-label-tp { color: rgba(0,168,100,0.5); }
+[data-theme="paper"] .ps-label-stop { color: rgba(220,60,60,0.5); }
 
 /* Trade Plan in manage panel */
 .mc-plan {
@@ -1570,12 +1801,7 @@
     <div class="health-panel" id="health-panel"></div>
   </div>
 
-  <!-- BOTTOM BAR -->
-  <div class="bottom-bar">
-    <span id="bottom-left"></span>
-    <span id="bottom-clock"></span>
   </div>
-</div>
 
 <!-- GUARD OVERLAY -->
 <div class="guard-backdrop" id="guard-backdrop" onclick="closeGuardOverlay()"></div>
@@ -1952,6 +2178,12 @@ let inlineUpdateOpen = false;
 
 function renderContextPanel(trade) {
   const el = document.getElementById('context-panel');
+  el.classList.add('sp-mode');
+  el.innerHTML = buildSidePanelHtml();
+}
+
+function _renderContextPanel_unused(trade) {
+  const el = document.getElementById('context-panel');
 
   // Always show latest committed context prominently
   const latestCtx = getLatestContext();
@@ -1972,20 +2204,6 @@ function renderContextPanel(trade) {
         <div class="exec-score-circle">${trade.execScore}<span class="sub">/5</span></div>
       </div>`;
     }
-
-    // Fill list for REVIEW
-    if (activePhase === 'REVIEW') {
-      const executed = trade.partials.filter(p => p.status === 'executed');
-      if (executed.length > 0) {
-        html += '<div class="ctx-divider"></div><div class="ctx-field"><div class="ctx-label">FILLS</div><div class="fill-list">';
-        executed.forEach(p => {
-          const pnlStr = p.pnl !== undefined ? (p.pnl >= 0 ? `<span style="color:var(--green)">+$${p.pnl}</span>` : `<span style="color:var(--red)">-$${Math.abs(p.pnl)}</span>`) : '';
-          const typeLabel = p.exitType === 'tp_hit' ? 'TP' : p.exitType === 'stop_hit' ? 'Stop' : 'Manual';
-          html += `<div class="fill-row"><span style="color:var(--muted2)">P${p.portion} ${p.qty}× ${typeLabel} @ ${p.exitPrice || ''}</span><span>${pnlStr} ${p.exitTime ? '· ' + p.exitTime : ''}</span></div>`;
-        });
-        html += '</div></div>';
-      }
-    }
   }
 
   // Evo History collapsible tray
@@ -2001,6 +2219,123 @@ function renderContextPanel(trade) {
   }
 
   el.innerHTML = html;
+}
+
+function buildSidePanelHtml() {
+  const ctx = getLatestContext();
+  const ids = Object.keys(TRADES);
+  let html = '';
+
+  // Zone 1 — Market Conditions
+  const dayType = ctx ? (ctx.day_type || ctx.dayType || ctx.mkt_read || ctx.mktRead || '') : '';
+  const headlineRead = ctx ? (ctx.headline_read || '') : '';
+  const executionHeadline = ctx ? (ctx.execution_headline || '') : '';
+  const valueState = ctx ? (ctx.value_state || ctx.valueState || '') : '';
+  const trendStr = ctx ? (ctx.HTF_Trend || ctx.trend || '') : '';
+  const volumeState = ctx ? (ctx.volume_state || ctx.volumeState || '') : '';
+  const biasDirection = ctx ? (ctx.bias_direction || '') : '';
+
+  html += `<div class="sp-zone">`;
+  if (headlineRead) html += `<div class="sp-headline">${escHtml(headlineRead)}</div>`;
+  if (executionHeadline) html += `<div class="sp-exec-headline">${escHtml(executionHeadline)}</div>`;
+  html += `<div class="sp-pills" style="margin-top:6px">`;
+  if (valueState) {
+    const vCls = valueState.toLowerCase().includes('above') || valueState.toLowerCase().includes('upper') ? 'sp-pill-up'
+      : valueState.toLowerCase().includes('below') || valueState.toLowerCase().includes('lower') ? 'sp-pill-down' : 'sp-pill-neutral';
+    html += `<span class="sp-pill ${vCls}">Value: ${escHtml(valueState)}</span>`;
+  }
+  if (volumeState) {
+    html += `<span class="sp-pill sp-pill-neutral">Vol: ${escHtml(volumeState)}</span>`;
+  }
+  if (trendStr) {
+    const tCls = trendStr === 'Up' ? 'sp-pill-up' : trendStr === 'Down' ? 'sp-pill-down' : 'sp-pill-flat';
+    const prefix = (trendStr !== 'Up' && trendStr !== 'Down') ? '\u25CF ' : '';
+    html += `<span class="sp-pill ${tCls}">${prefix}Trend: ${escHtml(trendStr)}</span>`;
+  }
+  html += `</div></div>`;
+
+  // Zone 2 — Session Summary
+  let sessionRealized = 0, sessionNetRisk = 0, openCount = 0, contractsOpen = 0;
+  ids.forEach(id => {
+    const t = TRADES[id];
+    const h = computeHealth(t);
+    sessionNetRisk += h.netRisk;
+    const closed = isTradeClosed(t);
+    if (closed) {
+      sessionRealized += getTradePnl(t);
+    } else {
+      openCount++;
+      t.partials.forEach(p => {
+        if (p.status === 'executed' && p.pnl !== undefined) sessionRealized += p.pnl;
+        if (p.status === 'open') contractsOpen += p.qty;
+      });
+    }
+  });
+  const rSign = sessionRealized >= 0 ? '+' : '';
+  const riskSign = sessionNetRisk < 0 ? '' : '+';
+  const riskClr = sessionNetRisk < 0 ? 'clr-red' : 'clr-green';
+
+  html += `<div class="sp-zone">`;
+  html += `<div class="sp-zone-label">SESSION</div>`;
+  html += `<div class="sp-grid">`;
+  html += `<div class="sp-card"><div class="sp-card-val clr-green">${rSign}$${sessionRealized}</div><div class="sp-card-lbl">Realized</div></div>`;
+  html += `<div class="sp-card"><div class="sp-card-val ${riskClr}">${riskSign}$${Math.abs(Math.round(sessionNetRisk))}</div><div class="sp-card-lbl">Net Risk</div></div>`;
+  const closedCount = ids.length - openCount;
+  html += `<div class="sp-card"><div class="sp-card-val clr-default">${openCount} <span class="sp-card-sub">open</span></div><div class="sp-card-sub-line">${closedCount} closed</div><div class="sp-card-lbl">Trades</div></div>`;
+  html += `<div class="sp-card"><div class="sp-card-val clr-default">${contractsOpen}</div><div class="sp-card-lbl">Contracts Open</div></div>`;
+  html += `</div></div>`;
+
+  // Zone 3 — Open Trades
+  html += `<div class="sp-trades-zone">`;
+  html += `<div class="sp-zone-label">OPEN TRADES</div>`;
+  html += `<div class="sp-trades-list">`;
+  ids.forEach(id => {
+    const t = TRADES[id];
+    const closed = isTradeClosed(t);
+    const isActive = id === activeTrade;
+    const rowCls = isActive ? 'active' : (closed ? 'inactive' : 'inactive');
+    const dirCls = t.direction === 'Long' ? 'sp-dir-long' : 'sp-dir-short';
+    const totalQty = t.partials.reduce((s, p) => s + p.qty, 0);
+    const closedQty = t.partials.filter(p => p.status === 'executed').reduce((s, p) => s + p.qty, 0);
+    const openQty = totalQty - closedQty;
+    const pnl = getTradePnl(t);
+    const pnlColor = pnl >= 0 ? 'var(--green)' : 'var(--red)';
+
+    let riskAmt = 0;
+    if (!closed) {
+      const isLong = t.direction === 'Long';
+      t.partials.forEach(p => {
+        if (p.status === 'open') {
+          const stPts = isLong ? t.entry - (p.stop || t.entry) : (p.stop || t.entry) - t.entry;
+          riskAmt += stPts * p.qty * t.tickValue;
+        }
+      });
+    }
+
+    let dots = '';
+    t.partials.forEach(p => {
+      const cls = p.status === 'executed'
+        ? (p.exitType === 'stop_hit' ? 'dot-stop' : 'dot-tp')
+        : 'empty';
+      for (let di = 0; di < p.qty; di++) dots += `<div class="sp-mini-dot ${cls}"></div>`;
+    });
+
+    html += `<div class="sp-trade-row ${rowCls}" onclick="switchTrade('${id}')">`;
+    html += `<span class="sp-tid"><span class="sp-status-dot ${closed ? 'closed' : 'open'}"></span>${id}</span>`;
+    html += `<span class="sp-dir ${dirCls}">${t.direction.toUpperCase()}</span>`;
+    html += `<div class="sp-trade-info">`;
+    html += `<div class="sp-trade-closed">${closedQty}/${totalQty} closed</div>`;
+    html += `<div class="sp-mini-dots">${dots}</div>`;
+    html += `</div>`;
+    html += `<div class="sp-trade-nums">`;
+    html += `<div class="sp-trade-realized" style="color:${pnlColor}">${pnl >= 0 ? '+' : ''}$${pnl}</div>`;
+    if (!closed && riskAmt > 0) html += `<div class="sp-trade-risk">-$${Math.round(riskAmt)}</div>`;
+    html += `</div>`;
+    html += `</div>`;
+  });
+  html += `</div></div>`;
+
+  return html;
 }
 
 function toggleEvoTray() {
@@ -2069,10 +2404,10 @@ function buildTradePlanHtml(planText, legs, editable) {
       <div class="ctx-plan-leg-label">
         ${escHtml(leg.plan_label || '')}
         ${leg.execution_side ? `<span class="ctx-plan-leg-side ${sideClass}">${leg.execution_side}</span>` : ''}
-        ${leg.is_primary ? '<span style="color:#b8860b;font-size:10px;">\u2605</span>' : ''}
+        ${leg.is_primary ? '<span style="color:#f5a623;font-size:10px;">\u2605</span>' : ''}
       </div>
       ${zone ? `<div class="ctx-plan-leg-zone">${zone}</div>` : ''}
-      ${leg.trigger_text ? `<div class="ctx-plan-leg-trigger">Trigger: ${escHtml(leg.trigger_text)}</div>` : ''}
+      ${leg.trigger_text ? `<div class="ctx-plan-leg-trigger">${escHtml(leg.trigger_text)}</div>` : ''}
     </div>`;
   });
   html += `</div>`;
@@ -2173,11 +2508,11 @@ function buildProminentContextHtml(ctx) {
           <div class="ctx-plan-leg-label">
             ${escHtml(leg.plan_label || '')}
             ${leg.execution_side ? `<span class="ctx-plan-leg-side ${sideClass}">${leg.execution_side}</span>` : ''}
-            ${leg.is_primary ? '<span style="color:#b8860b;font-size:10px;">\u2605</span>' : ''}
+            ${leg.is_primary ? '<span style="color:#f5a623;font-size:10px;">\u2605</span>' : ''}
             <span class="ctx-leg-edit-icon" onclick="toggleLegEdit(${legId})" title="Edit">\u270e</span>
           </div>
           ${zone ? `<div class="ctx-plan-leg-zone">${zone}</div>` : ''}
-          ${leg.trigger_text ? `<div class="ctx-plan-leg-trigger">Trigger: ${escHtml(leg.trigger_text)}</div>` : ''}
+          ${leg.trigger_text ? `<div class="ctx-plan-leg-trigger">${escHtml(leg.trigger_text)}</div>` : ''}
         </div>
         <div class="ctx-plan-leg-edit" id="ctx-leg-edit-${legId}" style="display:none;">
           <input type="text" class="ds-input ctx-leg-input" id="ctx-leg-label-${legId}" value="${escHtml(leg.plan_label || '')}" placeholder="Label">
@@ -2550,14 +2885,14 @@ function renderPendingLegs() {
     const sideClass = leg.execution_side === 'Long' ? 'long' : 'short';
     const zone = (leg.entry_zone_low != null && leg.entry_zone_high != null)
       ? `${leg.entry_zone_low} \u2013 ${leg.entry_zone_high}` : (leg.entry_zone_low || leg.entry_zone_high || '');
-    const primaryStar = leg.is_primary ? ' <span style="color:#b8860b;font-size:10px;">\u2605</span>' : '';
+    const primaryStar = leg.is_primary ? ' <span style="color:#f5a623;font-size:10px;">\u2605</span>' : '';
     return `<div class="ctx-plan-form-leg-card side-${sideClass}">
       <div>
         <div class="leg-card-label">
           ${escHtml(leg.plan_label)}${primaryStar}
           <span class="ctx-plan-leg-side ${sideClass}">${leg.execution_side}</span>
-          ${zone ? `<span style="font-size:11px;font-weight:600;color:#1A1A1B;">${zone}</span>` : ''}
         </div>
+        ${zone ? `<div class="leg-card-zone">${zone}</div>` : ''}
         ${leg.trigger_text ? `<div class="leg-card-trigger">\u2022 ${escHtml(leg.trigger_text)}</div>` : ''}
       </div>
       <span class="leg-card-remove" onclick="removeLeg(${i})">\u00d7</span>
@@ -3201,29 +3536,102 @@ function renderHealthPanel(trade) {
   if (!trade) { el.innerHTML = '<div class="phase-empty"><span>No trade</span></div>'; return; }
 
   const h = computeHealth(trade);
+  const isLong = trade.direction === 'Long';
+  const closed = h.total - h.remaining;
+
+  // Active stop info: worst remaining stop
+  const openPartials = (trade.partials || []).filter(p => p.status !== 'executed');
+  const openStops = openPartials.map(p => p.stop).filter(s => s != null);
+  const activeStop = openStops.length
+    ? (isLong ? Math.min(...openStops) : Math.max(...openStops))
+    : null;
+  const stopDist = activeStop != null ? Math.abs(trade.entry - activeStop) : null;
+  const stopPortionLabel = openStops.length > 0
+    ? `S${openPartials.find(p => p.stop === activeStop)?.portion || ''}` : '';
+  const stopSub = activeStop != null
+    ? `${stopPortionLabel} @ <span class="stop-val">${activeStop}</span> \u2022 <span class="stop-val">${Math.round(stopDist)}</span> pts \u2022 entry <span class="stop-val">${trade.entry}</span>` : '';
+
+  // Elapsed time
+  const entryParts = (trade.time || '').match(/(\d{1,2}):(\d{2})/);
+  let elapsedStr = '';
+  if (entryParts) {
+    const now = new Date();
+    const entryMins = parseInt(entryParts[1]) * 60 + parseInt(entryParts[2]);
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+    const diff = Math.max(0, nowMins - entryMins);
+    elapsedStr = `${Math.floor(diff / 60)}h ${diff % 60}m`;
+  }
+
+  // Stop status: check if all open stops are at or past breakeven
+  const allStopsAtBE = openStops.length > 0 && openStops.every(s =>
+    isLong ? s >= trade.entry : s <= trade.entry
+  );
+  const someStopsAtBE = openStops.length > 0 && openStops.some(s =>
+    isLong ? s >= trade.entry : s <= trade.entry
+  );
+  let stopBadge = '';
+  if (allStopsAtBE) {
+    stopBadge = '<span class="hp-stop-badge be-active">BE ACTIVE</span>';
+  } else if (someStopsAtBE) {
+    stopBadge = '<span class="hp-stop-badge pending-be">PENDING BE</span>';
+  }
+
+  // Dot squares for contracts — color by partial outcome
+  let dotSlots = [];
+  (trade.partials || []).forEach(p => {
+    const cls = p.status === 'executed'
+      ? (p.exitType === 'stop_hit' ? 'dot-stop' : 'dot-tp')
+      : '';
+    for (let i = 0; i < p.qty; i++) dotSlots.push(cls);
+  });
+  const dots = dotSlots.map(cls =>
+    `<div class="hp-dot${cls ? ' ' + cls : ''}"></div>`
+  ).join('');
+
+  // Break-even calculation
+  const pointValue = trade.tickValue || 5;
+  let bePrice = null;
+  let beBuffer = null;
+  if (h.remaining > 0 && h.realized !== 0) {
+    bePrice = isLong
+      ? trade.entry + (h.realized / h.remaining / pointValue)
+      : trade.entry - (h.realized / h.remaining / pointValue);
+    bePrice = Math.round(bePrice * 4) / 4; // snap to tick
+    if (activeStop != null) {
+      beBuffer = Math.abs(bePrice - activeStop).toFixed(0);
+    }
+  }
 
   el.innerHTML = `
     <div class="health-metrics">
       <div class="metric">
-        <div class="metric-label">CLOSED</div>
-        <div class="metric-value text-default">${h.total - h.remaining} / ${h.total}</div>
-      </div>
-      <div class="metric">
         <div class="metric-label">NET RISK</div>
-        <div class="metric-value text-red">${h.netRisk >= 0 ? '+' : '-'}$${Math.abs(h.netRisk)}</div>
+        <div class="metric-value hp-hero-risk ${h.netRisk >= 0 ? 'text-green' : 'text-red'}">${h.netRisk >= 0 ? '+' : '-'}$${Math.abs(h.netRisk)}</div>
+        ${stopSub ? `<div class="metric-sub">${stopSub}</div>` : ''}
+      </div>
+      <div class="metric-pair">
+        <div class="metric">
+          <div class="metric-label">REALIZED</div>
+          <div class="metric-value ${h.realized >= 0 ? 'text-green' : 'text-red'}">${h.realized >= 0 ? '+' : '-'}$${Math.abs(h.realized)}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">BREAK-EVEN</div>
+          ${bePrice != null
+            ? `<div class="metric-value be-price" style="color:rgba(255,255,255,0.85)">@ ${bePrice}</div>
+               ${beBuffer != null ? `<div class="metric-sub be-buffer" style="color:rgba(255,255,255,0.35);font-size:9px;margin-top:3px">${beBuffer} pts buffer</div>` : ''}`
+            : `<div class="metric-value" style="color:var(--muted)">\u2014</div>`}
+        </div>
       </div>
       <div class="metric">
-        <div class="metric-label">REALIZED</div>
-        <div class="metric-value ${h.realized >= 0 ? 'text-green' : 'text-red'}">${h.realized >= 0 ? '+' : '-'}$${Math.abs(h.realized)}</div>
+        <div class="hp-closed-header">
+          <span class="metric-label" style="margin-bottom:0">CONTRACTS CLOSED</span>
+          <span class="hp-closed-fraction">${closed} / ${h.total}</span>
+        </div>
+        <div class="hp-dots">${dots}</div>
       </div>
-      <div class="metric">
-        <div class="metric-label">POTENTIAL</div>
-        <div class="metric-value text-accent2">+$${h.potential}</div>
-      </div>
-      <div class="metric">
-        <div class="metric-label">R-MULTIPLE</div>
-        <div class="metric-value text-accent">${h.rMultiple}R</div>
-      </div>
+      ${elapsedStr ? `<div class="hp-info-row">
+        <span class="hp-info-label">TIME IN TRADE <span class="hp-info-value" style="color:#00c8ff">${elapsedStr}</span></span>
+      </div>` : ''}
     </div>
     <div class="health-divider"></div>
     <div class="action-buttons">
@@ -3462,96 +3870,119 @@ function buildExecCardsHTML(trade) {
   const stops = levels.filter(l => l.level_type === 'stop').sort((a,b) => a.portion - b.portion);
   if (tps.length === 0 && stops.length === 0) return '';
 
-  // Map executed portions
   const portionExited = {};
   executions.forEach(e => { portionExited[e.portion] = (portionExited[e.portion]||0) + e.qty; });
 
-  const editingTP = editingSection === 'tp';
-  const editingStop = editingSection === 'stop';
-
-  let html = '<div class="mc-qe-grid">';
-
-  // TAKE PROFIT section
-  const tpLabelBtn = editingTP
-    ? `<button class="mc-qe-save-btn" onclick="event.stopPropagation();saveEditedPrices('tp')">SAVE</button>`
-    : `<button class="mc-qe-edit-btn" onclick="event.stopPropagation();toggleEditMode('tp')" title="Edit prices">✎</button>`;
-  html += `<div class="mc-qe-section-label"><span>Take Profit</span>${tpLabelBtn}</div>`;
-  tps.forEach(tp => {
-    const stop = stops.find(s => s.portion === tp.portion);
-    const origQty = stop ? stop.qty : tp.qty;
-    const exited = portionExited[tp.portion] || 0;
+  function buildLevel(lv, type) {
+    const label = type === 'tp' ? `TP${lv.portion}` : `S${lv.portion}`;
+    const stop = type === 'tp' ? stops.find(s => s.portion === lv.portion) : null;
+    const origQty = type === 'tp' ? (stop ? stop.qty : lv.qty) : lv.qty;
+    const exited = portionExited[lv.portion] || 0;
     const rem = origQty - exited;
 
     if (rem <= 0) {
-      const exec = executions.find(e => e.portion === tp.portion);
-      const undoBtn = (!isPushed && exec)
-        ? `<button class="mc-qe-btn-undo" onclick="event.stopPropagation();deleteExec(${trade.id},${exec.id})" title="Undo">↩</button>`
-        : '';
-      const execPnl = exec && exec.pnl != null ? exec.pnl : null;
-      const execPnlStr = execPnl != null ? (execPnl >= 0 ? `+$${Math.abs(execPnl).toFixed(0)}` : `-$${Math.abs(execPnl).toFixed(0)}`) : '';
-      const execPnlCls = execPnl != null ? (execPnl >= 0 ? 'pnl-pos' : 'pnl-neg') : '';
-      const execIcon = exec && exec.exec_type === 'stop_hit' ? '✗' : '✓';
-      html += `<div class="mc-qe-btn qe-tp executed">
-        <div class="mc-qe-btn-label">TP${tp.portion}</div>
-        <div class="mc-qe-btn-price">${tp.price}</div>
-        <div class="mc-qe-btn-pnl ${execPnlCls}">${execPnlStr} ${execIcon}</div>${undoBtn}
-      </div>`;
-    } else if (editingTP) {
-      html += `<div class="mc-qe-btn qe-tp editing">
-        <div class="mc-qe-btn-label">TP${tp.portion}</div>
-        <input type="number" class="mc-qe-price-input" data-section="tp" data-portion="${tp.portion}" value="${tp.price}" step="0.25" onclick="event.stopPropagation()">
-      </div>`;
-    } else {
-      const pnl = isLong ? (tp.price - entry) * rem * trade.tickValue : (entry - tp.price) * rem * trade.tickValue;
-      html += `<div class="mc-qe-btn qe-tp" onclick="executeLevelAPI(${tp.portion},'tp_hit')">
-        <div class="mc-qe-btn-label">TP${tp.portion}</div>
-        <div class="mc-qe-btn-price">${tp.price}</div>
-        <div class="mc-qe-btn-pnl pnl-pos">+$${pnl.toFixed(0)} · ${rem}×</div>
-      </div>`;
+      const exec = executions.find(e => e.portion === lv.portion);
+      const fillPrice = exec ? exec.price : lv.price;
+      const execPnl = exec?.pnl ?? null;
+      const pnlStr = execPnl != null ? (execPnl >= 0 ? `+$${Math.abs(execPnl).toFixed(0)}` : `-$${Math.abs(execPnl).toFixed(0)}`) : '';
+      const icon = exec?.exec_type === 'stop_hit' ? '\u2717' : '\u2713';
+      const iconCls = exec?.exec_type === 'stop_hit' ? 'pnl-neg' : 'pnl-pos';
+      const undoId = exec ? exec.id : null;
+      return { done: true, html: `<div class="ps-level-done" ${undoId && !isPushed ? `onclick="deleteExec(${trade.id},${undoId})"` : ''}>
+        <span class="ps-done-tag">${label}</span>
+        <span class="ps-done-price">${fillPrice}</span>
+        <span class="ps-done-result ${iconCls}">${icon} ${pnlStr}</span>
+        ${undoId && !isPushed ? '<span class="ps-undo-hint">\u21a9 undo</span>' : ''}
+      </div>` };
     }
-  });
 
-  // STOP HIT section
-  const stopLabelBtn = editingStop
+    const editing = editingSection === type;
+    if (editing) {
+      return { done: false, html: `<div class="ps-level ps-level-${type} ps-level-editing">
+        <span class="ps-level-tag">${label}</span>
+        <input type="number" class="ps-edit-input mc-qe-price-input" data-section="${type}" data-portion="${lv.portion}" value="${lv.price}" step="0.25" onclick="event.stopPropagation()">
+      </div>` };
+    }
+
+    const pnl = isLong ? (lv.price - entry) * rem * trade.tickValue : (entry - lv.price) * rem * trade.tickValue;
+    const isBE = type === 'stop' && Math.abs(lv.price - entry) < 0.01;
+    let pnlCls = pnl >= 0 ? 'pnl-pos' : 'pnl-neg';
+    if (isBE) pnlCls = 'pnl-be';
+    const pnlStr = pnl >= 0 ? `+$${pnl.toFixed(0)}` : `-$${Math.abs(pnl).toFixed(0)}`;
+    const execType = type === 'tp' ? 'tp_hit' : 'stop_hit';
+
+    return { done: false, html: `<div class="ps-level ps-level-${type}" onclick="executeLevelAPI(${lv.portion},'${execType}')">
+      <span class="ps-level-tag">${label} \u00b7 active</span>
+      <span class="ps-level-price">${lv.price}</span>
+      <span class="ps-level-pnl ${pnlCls}">${pnlStr} \u00b7 ${rem}\u00d7</span>
+    </div>` };
+  }
+
+  // Build TP and Stop level cards
+  const tpCards = tps.map(tp => buildLevel(tp, 'tp'));
+  const stopCards = stops.map(s => buildLevel(s, 'stop'));
+
+  // Closest-to-entry sits adjacent to the entry anchor, furthest at the edge.
+  // SHORT: TPs left (lower prices), Stops right (higher prices)
+  // LONG: Stops left (lower prices), TPs right (higher prices)
+  // Left zone reads right-to-left outward (reverse so closest is rightmost).
+  // Right zone reads left-to-right outward (closest is leftmost).
+  let leftCards, rightCards, leftType, rightType;
+  if (isLong) {
+    // LONG: left=stops sorted furthest-first (highest portion = lowest price = leftmost)
+    leftCards = [...stopCards].reverse();
+    rightCards = tpCards;
+    leftType = 'stop'; rightType = 'tp';
+  } else {
+    // SHORT: left=TPs sorted furthest-first (highest portion = lowest price = leftmost)
+    leftCards = [...tpCards].reverse();
+    rightCards = stopCards;
+    leftType = 'tp'; rightType = 'stop';
+  }
+
+  // Edit buttons for strip header
+  const editingTP = editingSection === 'tp';
+  const editingStop = editingSection === 'stop';
+  const tpEditBtn = editingTP
+    ? `<button class="mc-qe-save-btn" onclick="event.stopPropagation();saveEditedPrices('tp')">SAVE</button>`
+    : `<button class="mc-qe-edit-btn" onclick="event.stopPropagation();toggleEditMode('tp')" title="Edit TP">✎</button>`;
+  const stopEditBtn = editingStop
     ? `<button class="mc-qe-save-btn" onclick="event.stopPropagation();saveEditedPrices('stop')">SAVE</button>`
-    : `<button class="mc-qe-edit-btn" onclick="event.stopPropagation();toggleEditMode('stop')" title="Edit prices">✎</button>`;
-  html += `<div class="mc-qe-section-label"><span>Stop Hit</span>${stopLabelBtn}</div>`;
-  stops.forEach(s => {
-    const exited = portionExited[s.portion] || 0;
-    const rem = s.qty - exited;
+    : `<button class="mc-qe-edit-btn" onclick="event.stopPropagation();toggleEditMode('stop')" title="Edit Stop">✎</button>`;
 
-    if (rem <= 0) {
-      const exec = executions.find(e => e.portion === s.portion);
-      const undoBtn = (!isPushed && exec)
-        ? `<button class="mc-qe-btn-undo" onclick="event.stopPropagation();deleteExec(${trade.id},${exec.id})" title="Undo">↩</button>`
-        : '';
-      const execPnl = exec && exec.pnl != null ? exec.pnl : null;
-      const execPnlStr = execPnl != null ? (execPnl >= 0 ? `+$${Math.abs(execPnl).toFixed(0)}` : `-$${Math.abs(execPnl).toFixed(0)}`) : '';
-      const execPnlCls = execPnl != null ? (execPnl >= 0 ? 'pnl-pos' : 'pnl-neg') : '';
-      const execIcon = exec && exec.exec_type === 'tp_hit' ? '✓' : '✗';
-      html += `<div class="mc-qe-btn qe-stop executed">
-        <div class="mc-qe-btn-label">S${s.portion}</div>
-        <div class="mc-qe-btn-price">${s.price}</div>
-        <div class="mc-qe-btn-pnl ${execPnlCls}">${execPnlStr} ${execIcon}</div>${undoBtn}
-      </div>`;
-    } else if (editingStop) {
-      html += `<div class="mc-qe-btn qe-stop editing">
-        <div class="mc-qe-btn-label">S${s.portion}</div>
-        <input type="number" class="mc-qe-price-input" data-section="stop" data-portion="${s.portion}" value="${s.price}" step="0.25" onclick="event.stopPropagation()">
-      </div>`;
-    } else {
-      const pnl = isLong ? (s.price - entry) * rem * trade.tickValue : (entry - s.price) * rem * trade.tickValue;
-      const pnlCls = pnl >= 0 ? 'pnl-pos' : 'pnl-neg';
-      const pnlStr = pnl >= 0 ? `+$${pnl.toFixed(0)}` : `-$${Math.abs(pnl).toFixed(0)}`;
-      html += `<div class="mc-qe-btn qe-stop" onclick="executeLevelAPI(${s.portion},'stop_hit')">
-        <div class="mc-qe-btn-label">S${s.portion}</div>
-        <div class="mc-qe-btn-price">${s.price}</div>
-        <div class="mc-qe-btn-pnl ${pnlCls}">${pnlStr} · ${rem}×</div>
-      </div>`;
-    }
-  });
+  const leftLabel = leftType === 'tp' ? 'take profit' : 'stop hit';
+  const rightLabel = rightType === 'tp' ? 'take profit' : 'stop hit';
+  const leftLabelCls = leftType === 'tp' ? 'ps-label-tp' : 'ps-label-stop';
+  const rightLabelCls = rightType === 'tp' ? 'ps-label-tp' : 'ps-label-stop';
+  const leftEditBtn = leftType === 'tp' ? tpEditBtn : stopEditBtn;
+  const rightEditBtn = rightType === 'tp' ? tpEditBtn : stopEditBtn;
 
-  html += '</div>';
+  // Interleave done cards with separator dots
+  function renderZone(cards) {
+    let result = '';
+    cards.forEach((c, i) => {
+      if (i > 0 && c.done && cards[i-1].done) result += '<span class="ps-done-sep">\u00b7</span>';
+      result += c.html;
+    });
+    return result;
+  }
+
+  let html = `<div class="price-strip-wrap">
+    <div class="price-strip-labels">
+      <span class="${leftLabelCls}">\u25c4 ${leftLabel} ${leftEditBtn}</span>
+      <span class="${rightLabelCls}">${rightLabel} ${rightEditBtn} \u25ba</span>
+    </div>
+    <div class="price-strip-card">
+      <div class="ps-zone ps-zone-tp">${renderZone(leftCards)}</div>
+      <div class="ps-entry-anchor">
+        <div class="ps-entry-line"></div>
+        <span class="ps-entry-label">ENTRY</span>
+        <span class="ps-entry-price">${entry}</span>
+      </div>
+      <div class="ps-zone ps-zone-stop">${renderZone(rightCards)}</div>
+    </div>
+  </div>`;
+
   return html;
 }
 
@@ -3559,17 +3990,7 @@ function buildManageCardsHTML(trade, isLong) {
   const entry = trade.entry;
   let html = '<div class="manage-cards">';
 
-  // 1. Trade Header (unchanged)
-  const dirClass = isLong ? 'long' : 'short';
-  const dirLabel = isLong ? 'LONG' : 'SHORT';
-  html += `<div class="trade-header-card">
-    <div class="thc-title">
-      <span class="thc-dir ${dirClass}">${dirLabel}</span> ${activeTrade || ''} \u00b7 ${trade.qty}\u00d7 ${trade.instrument} @ ${entry}
-    </div>
-    <div class="thc-time">${trade.time || ''}</div>
-  </div>`;
-
-  // 1b. Strength + Confidence Chip
+  // 1. Strength + Confidence Chip
   const str = trade.strength;
   if (str && str.mental_state) {
     const factors = [
@@ -3587,24 +4008,20 @@ function buildManageCardsHTML(trade, isLong) {
     </div>`;
   }
 
-  // 2. Health Strip
-  const h = computeHealth(trade);
-  const netRiskCls = h.netRisk < 0 ? 'text-red' : 'text-green';
-  const realCls = h.realized >= 0 ? 'text-green' : 'text-red';
-  const realStr = h.realized >= 0 ? `+$${h.realized.toFixed(0)}` : `-$${Math.abs(h.realized).toFixed(0)}`;
-  const netRiskStr = h.netRisk < 0 ? `-$${Math.abs(h.netRisk).toFixed(0)}` : `+$${h.netRisk.toFixed(0)}`;
-  const potStr = h.potential >= 0 ? `+$${h.potential.toFixed(0)}` : `-$${Math.abs(h.potential).toFixed(0)}`;
-  html += `<div class="mc-health-strip">
-    <div class="mc-hs-card"><div class="mc-hs-label">CLOSED</div><div class="mc-hs-value">${h.total - h.remaining}/${h.total}</div></div>
-    <div class="mc-hs-card"><div class="mc-hs-label">NET RISK</div><div class="mc-hs-value ${netRiskCls}">${netRiskStr}</div></div>
-    <div class="mc-hs-card"><div class="mc-hs-label">REALIZED</div><div class="mc-hs-value ${realCls}">${realStr}</div></div>
-    <div class="mc-hs-card"><div class="mc-hs-label">POTENTIAL</div><div class="mc-hs-value" style="color:var(--accent2)">${potStr}</div></div>
+  // 1b. Trade Header
+  const dirClass = isLong ? 'long' : 'short';
+  const dirLabel = isLong ? 'LONG' : 'SHORT';
+  html += `<div class="trade-header-card">
+    <div class="thc-title">
+      <span class="thc-dir ${dirClass}">${dirLabel}</span> ${activeTrade || ''} \u00b7 ${trade.qty}\u00d7 ${trade.instrument} @ ${entry}
+    </div>
+    <div class="thc-time">${trade.time || ''}</div>
   </div>`;
 
-  // 3. Execution Cards
+  // 2. Execution Cards
   html += buildExecCardsHTML(trade);
 
-  // 4. Global Stop Adjust
+  // 3. Global Stop Adjust
   html += `<div class="gsa-card">
     <div class="gsa-label">GLOBAL STOP ADJUST</div>
     <div class="gsa-row">
@@ -3613,23 +4030,19 @@ function buildManageCardsHTML(trade, isLong) {
     </div>
   </div>`;
 
-  // 5. Trade Plan
-  const latestCtx = getLatestContext();
-  if (latestCtx) {
-    const planText = latestCtx.plan_text || latestCtx.planText || latestCtx.setup || '';
-    const planLoc = latestCtx.plan_location || latestCtx.planLocation || latestCtx.location || '';
-    const planTrigger = latestCtx.plan_trigger || latestCtx.planTrigger || '';
-    if (planText) {
-      html += `<div class="mc-plan">
-        <div class="mc-plan-title">TRADE PLAN</div>
-        <div class="mc-plan-body">
-          <div class="mc-plan-text">${escHtml(planText)}</div>
-          ${planLoc ? `<div class="mc-plan-detail">${escHtml(planLoc)}</div>` : ''}
-          ${planTrigger ? `<div class="mc-plan-detail">${escHtml(planTrigger)}</div>` : ''}
-        </div>
-      </div>`;
-    }
-  }
+  // 4. Manage Notes
+  const mnActiveTab = window._manageNoteTab || 'entry';
+  const noteVal = mnActiveTab === 'entry' ? (trade.notes || '')
+    : mnActiveTab === 'managing' ? (trade.notes_monitoring || '')
+    : (trade.notes_exit || '');
+  html += `<div class="manage-notes-card">
+    <div class="mn-tabs">
+      <button class="mn-tab${mnActiveTab === 'entry' ? ' active' : ''}" onclick="switchManageNoteTab('entry')">ENTRY</button>
+      <button class="mn-tab${mnActiveTab === 'managing' ? ' active' : ''}" onclick="switchManageNoteTab('managing')">MANAGING</button>
+      <button class="mn-tab${mnActiveTab === 'exit' ? ' active' : ''}" onclick="switchManageNoteTab('exit')">EXIT</button>
+    </div>
+    <textarea class="mn-textarea" id="mn-note-area" placeholder="Notes..." oninput="saveManageNote()">${escHtml(noteVal)}</textarea>
+  </div>`;
 
   html += '</div>';
   return html;
@@ -3661,8 +4074,8 @@ function computeHealth(trade) {
     }
   });
 
-  // Net risk = remaining stop exposure MINUS realized profits
-  const netRisk = -(stopExposure - Math.max(0, realized));
+  // Net risk = realized P&L + open position risk (negative = at risk)
+  const netRisk = realized - stopExposure;
 
   const initialRisk = Math.abs(
     (isLong ? entry - (trade.partials[0]?.stop || entry) : (trade.partials[0]?.stop || entry) - entry)
@@ -3698,6 +4111,37 @@ async function executeLevelAPI(portion, execType) {
 
   await refreshTradeFromServer(trade.id);
   showToast(`${execType.replace('_',' ')} \u00b7 $${data.pnl.toFixed(2)}`);
+}
+
+/* ── Manage Notes (tab switching + auto-save) ── */
+window._manageNoteTab = 'entry';
+let _mnSaveTimer = null;
+
+function switchManageNoteTab(tab) {
+  saveManageNoteNow();
+  window._manageNoteTab = tab;
+  const trade = TRADES[activeTrade];
+  if (!trade) return;
+  renderCenter(trade);
+}
+
+function saveManageNote() {
+  clearTimeout(_mnSaveTimer);
+  _mnSaveTimer = setTimeout(saveManageNoteNow, 600);
+}
+
+function saveManageNoteNow() {
+  const trade = TRADES[activeTrade];
+  if (!trade) return;
+  const val = document.getElementById('mn-note-area')?.value || '';
+  const tab = window._manageNoteTab;
+  if (tab === 'entry') trade.notes = val;
+  else if (tab === 'managing') trade.notes_monitoring = val;
+  else trade.notes_exit = val;
+  fetch(`/api/live/${trade.id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ notes: trade.notes, notes_monitoring: trade.notes_monitoring, notes_exit: trade.notes_exit })
+  });
 }
 
 async function moveStopsToBE() {
@@ -4502,51 +4946,6 @@ async function pushActiveTrade() {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   SESSION SUMMARY & CLOCK
-   ══════════════════════════════════════════════════════════════════════════════ */
-
-function renderSessionSummary() {
-  const ids = Object.keys(TRADES);
-  const totalTrades = ids.length;
-  let realized = 0, openCount = 0, closedCount = 0, openRisk = 0;
-
-  ids.forEach(id => {
-    const trade = TRADES[id];
-    const closed = isTradeClosed(trade);
-    if (closed) {
-      closedCount++;
-      realized += getTradePnl(trade);
-    } else {
-      openCount++;
-      const isLong = trade.direction === 'Long';
-      trade.partials.forEach(p => {
-        if (p.status === 'executed' && p.pnl !== undefined) realized += p.pnl;
-        if (p.status === 'open') {
-          const stPts = isLong ? trade.entry - (p.stop || trade.entry) : (p.stop || trade.entry) - trade.entry;
-          openRisk += stPts * p.qty * trade.tickValue;
-        }
-      });
-    }
-  });
-
-  // Net risk: realized profits offset open stop exposure
-  const netRisk = openRisk - Math.max(0, realized);
-  const rSign = realized >= 0 ? '+' : '';
-  const rColor = realized >= 0 ? 'var(--green)' : 'var(--red)';
-  const el = document.getElementById('bottom-left');
-  if (totalTrades === 0) {
-    el.innerHTML = 'No trades yet';
-  } else {
-    el.innerHTML = `Today: ${totalTrades} trades \u00b7 <span style="color:${rColor}">${rSign}$${realized} realized</span> \u00b7 ${openCount} open \u00b7 ${closedCount} closed${netRisk > 0 ? ' \u00b7 <span style="color:var(--red)">-$' + netRisk + ' at risk</span>' : ''}`;
-  }
-}
-
-function updateClock() {
-  document.getElementById('bottom-clock').textContent =
-    new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
-}
-
-/* ══════════════════════════════════════════════════════════════════════════════
    STATE MACHINE
    ══════════════════════════════════════════════════════════════════════════════ */
 
@@ -4580,7 +4979,6 @@ function renderAll() {
   renderContextPanel(trade);
   renderCenter(trade);
   renderHealthPanel(trade);
-  renderSessionSummary();
   updateRibbon();
 }
 
@@ -4635,8 +5033,6 @@ function renderAll() {
   }
 
   renderAll();
-  updateClock();
-  setInterval(updateClock, 1000);
 })();
 
 // Keyboard: Escape closes overlays
