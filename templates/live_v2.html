@@ -642,15 +642,21 @@
 .ef-toggle.sel-conf-low { background: #b71c1c; color: #fff; border-color: #b71c1c; }
 .ef-toggle.sel-conf-medium { background: #b8860b; color: #fff; border-color: #b8860b; }
 .ef-toggle.sel-conf-high { background: #2e7d32; color: #fff; border-color: #2e7d32; }
-/* Assess & Continue button — minimal outlined style */
+/* Assess & Continue button */
 .sa-assess-btn {
-  width: 100%; padding: 12px; margin-top: 6px; border: 1.5px solid #1A1A1B;
-  border-radius: 6px; background: transparent; color: #1A1A1B;
+  width: 100%; padding: 14px; margin-top: 16px; border: 1.5px solid rgba(0,208,132,0.3);
+  border-radius: 8px; background: rgba(0,208,132,0.06); color: #00d084;
   font-weight: 700; font-size: 11px; letter-spacing: 1.5px;
   text-transform: uppercase; cursor: pointer;
   transition: all 0.2s; font-family: 'Inter', sans-serif;
 }
-.sa-assess-btn:hover { background: #1A1A1B; color: #fff; }
+.sa-assess-btn:hover { background: rgba(0,208,132,0.12); border-color: rgba(0,208,132,0.5); }
+[data-theme="paper"] .sa-assess-btn {
+  border-color: rgba(0,150,80,0.25); background: rgba(0,150,80,0.06); color: #2d7a52;
+}
+[data-theme="paper"] .sa-assess-btn:hover {
+  background: rgba(0,150,80,0.12); border-color: rgba(0,150,80,0.4);
+}
 .ef-label {
   font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
   color: var(--muted); min-width: 60px;
@@ -812,6 +818,132 @@
 .es-check-item.active .es-checkbox-ui { background: var(--warn); border-color: var(--warn); color: var(--btn-text); }
 .es-commit-btn { width: 100%; margin-top: 12px; padding: 12px; background: var(--accent); color: var(--btn-text); border: none; border-radius: 6px; font-weight: 700; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; transition: background 0.2s; font-family: 'Inter', sans-serif; }
 .es-commit-btn:hover { background: var(--btn-hover); }
+
+/* ── REVIEW v2 Scoring ── */
+.rv2-score-header {
+  text-align: center; padding: 20px 16px; border-radius: 8px;
+  background: rgba(255,255,255,0.02); border: 0.5px solid rgba(255,255,255,0.06);
+}
+.rv2-score-title {
+  font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.35);
+}
+.rv2-score-big {
+  font-family: 'Inter', sans-serif; font-size: 3rem; font-weight: 700;
+  color: #f5a623; line-height: 1.1; margin: 8px 0 4px;
+}
+.rv2-score-max { font-size: 1.2rem; font-weight: 400; color: rgba(255,255,255,0.3); }
+.rv2-score-breakdown {
+  display: flex; justify-content: center; gap: 0; margin-top: 12px;
+}
+.rv2-bd-item {
+  flex: 1; text-align: center; padding: 0 12px;
+  border-right: 0.5px solid rgba(255,255,255,0.08);
+}
+.rv2-bd-item:last-child { border-right: none; }
+.rv2-bd-val { font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700; color: var(--text); }
+.rv2-bd-label {
+  font-family: 'Inter', sans-serif; font-size: 7px; font-weight: 600;
+  letter-spacing: 1.2px; text-transform: uppercase; color: rgba(255,255,255,0.3); margin-top: 2px;
+}
+
+.rv2-recap {
+  padding: 12px 14px; border-radius: 8px;
+  background: rgba(255,255,255,0.02); border: 0.5px solid rgba(255,255,255,0.06);
+}
+.rv2-recap-title {
+  font-family: 'Inter', sans-serif; font-size: 7px; font-weight: 600;
+  letter-spacing: 1.2px; text-transform: uppercase; color: rgba(255,255,255,0.25);
+  margin-bottom: 10px;
+}
+.rv2-recap-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rv2-recap-group-label {
+  font-family: 'Inter', sans-serif; font-size: 8px; font-weight: 600;
+  letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,0.25);
+  margin-right: 2px;
+}
+.rv2-recap-sep {
+  width: 0.5px; height: 16px; background: rgba(255,255,255,0.1);
+  margin: 0 6px; flex-shrink: 0;
+}
+.rv2-pill {
+  font-family: 'Inter', sans-serif; font-size: 8px; font-weight: 600;
+  letter-spacing: 0.5px; text-transform: uppercase; padding: 3px 8px;
+  border-radius: 4px; white-space: nowrap;
+}
+.rv2-pill-on { background: rgba(0,208,132,0.08); color: rgba(0,208,132,0.65); }
+.rv2-pill-off { background: rgba(255,77,77,0.06); color: rgba(255,77,77,0.4); text-decoration: line-through; }
+
+.rv2-q-section { margin-top: 8px; }
+.rv2-q-label {
+  font-family: 'Inter', sans-serif; font-size: 8px; font-weight: 600;
+  letter-spacing: 1.2px; text-transform: uppercase; color: rgba(255,255,255,0.3);
+  margin-bottom: 8px;
+}
+.rv2-q-title {
+  font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700;
+  color: var(--text); margin-bottom: 4px;
+}
+.rv2-q-sub {
+  font-family: 'Inter', sans-serif; font-size: 11px;
+  color: rgba(255,255,255,0.35); margin-bottom: 12px;
+}
+.rv2-q-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.rv2-q-opt {
+  background: #1c2230; border: 0.5px solid rgba(255,255,255,0.1);
+  border-radius: 5px; padding: 8px; cursor: pointer; text-align: center;
+  transition: all 0.15s ease; user-select: none;
+}
+.rv2-q-opt:hover { border-color: rgba(255,255,255,0.2); }
+.rv2-q-opt.selected {
+  background: rgba(0,208,132,0.1); border-color: rgba(0,208,132,0.35);
+}
+.rv2-q-opt-title {
+  font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 600;
+  color: rgba(255,255,255,0.45);
+}
+.rv2-q-opt.selected .rv2-q-opt-title { color: #00d084; }
+.rv2-q-opt-sub {
+  font-family: 'Inter', sans-serif; font-size: 8px; opacity: 0.7;
+  color: rgba(255,255,255,0.3); margin-top: 2px;
+}
+
+.rv2-save-btn {
+  width: 100%; padding: 14px; margin-top: 16px;
+  background: rgba(0,208,132,0.12); border: 0.5px solid rgba(0,208,132,0.3);
+  border-radius: 8px; color: #00d084; font-family: 'Inter', sans-serif;
+  font-weight: 700; font-size: 11px; letter-spacing: 1.5px;
+  text-transform: uppercase; cursor: pointer; transition: all 0.2s;
+}
+.rv2-save-btn:hover { background: rgba(0,208,132,0.18); border-color: rgba(0,208,132,0.5); }
+
+/* Paper overrides for review v2 */
+[data-theme="paper"] .rv2-score-header { background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.08); }
+[data-theme="paper"] .rv2-score-title { color: rgba(0,0,0,0.3); }
+[data-theme="paper"] .rv2-score-big { color: #8a6200; }
+[data-theme="paper"] .rv2-score-max { color: rgba(0,0,0,0.25); }
+[data-theme="paper"] .rv2-bd-item { border-right-color: rgba(0,0,0,0.08); }
+[data-theme="paper"] .rv2-bd-val { color: var(--text); }
+[data-theme="paper"] .rv2-bd-label { color: rgba(0,0,0,0.3); }
+[data-theme="paper"] .rv2-recap { background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.08); }
+[data-theme="paper"] .rv2-recap-title { color: rgba(0,0,0,0.25); }
+[data-theme="paper"] .rv2-recap-group-label { color: rgba(0,0,0,0.25); }
+[data-theme="paper"] .rv2-recap-sep { background: rgba(0,0,0,0.1); }
+[data-theme="paper"] .rv2-pill-on { background: rgba(0,150,80,0.08); color: rgba(0,120,60,0.7); }
+[data-theme="paper"] .rv2-pill-off { background: rgba(180,40,40,0.06); color: rgba(160,40,40,0.4); }
+[data-theme="paper"] .rv2-q-label { color: rgba(0,0,0,0.3); }
+[data-theme="paper"] .rv2-q-title { color: var(--text); }
+[data-theme="paper"] .rv2-q-sub { color: rgba(0,0,0,0.35); }
+[data-theme="paper"] .rv2-q-opt { background: #f5f0e8; border-color: rgba(0,0,0,0.1); }
+[data-theme="paper"] .rv2-q-opt:hover { border-color: rgba(0,0,0,0.2); }
+[data-theme="paper"] .rv2-q-opt.selected { background: rgba(0,150,80,0.08); border-color: rgba(0,150,80,0.25); }
+[data-theme="paper"] .rv2-q-opt-title { color: rgba(0,0,0,0.5); }
+[data-theme="paper"] .rv2-q-opt.selected .rv2-q-opt-title { color: #2d7a52; }
+[data-theme="paper"] .rv2-q-opt-sub { color: rgba(0,0,0,0.3); }
+[data-theme="paper"] .rv2-save-btn {
+  background: rgba(0,150,80,0.08); border-color: rgba(0,150,80,0.25); color: #2d7a52;
+}
+[data-theme="paper"] .rv2-save-btn:hover { background: rgba(0,150,80,0.14); }
 
 /* ── REVIEW: Tags ── */
 .tp-group { margin-bottom: 12px; }
@@ -1395,6 +1527,7 @@
 }
 
 /* Strength Confidence Chip */
+/* v1 signal bar (legacy) */
 .mc-strength-chip {
   background: var(--surface2); border-radius: 6px; padding: 6px 14px;
   display: flex; justify-content: space-between; align-items: center;
@@ -1410,6 +1543,39 @@
 .mc-strength-chip .sc-conf.conf-low { color: var(--red); }
 .mc-strength-chip .sc-conf.conf-medium { color: #b89a3e; }
 .mc-strength-chip .sc-conf.conf-high { color: var(--green); }
+/* v2 signal bar */
+.mc-signal-v2 {
+  background: #161b24; border-radius: 8px; padding: 10px 14px;
+  border: 0.5px solid rgba(255,255,255,0.08);
+  font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+}
+.mc-sig-row { display: flex; align-items: center; gap: 10px; }
+.mc-sig-row-process { padding-bottom: 7px; margin-bottom: 2px; border-bottom: 0.5px solid rgba(255,255,255,0.06); }
+.mc-sig-row-tech { padding-top: 5px; }
+.mc-sig-label { font-size: 7px; color: rgba(255,255,255,0.18); min-width: 48px; letter-spacing: 1.2px; flex-shrink: 0; }
+.mc-sig-items { display: flex; gap: 10px; flex: 1; }
+.mc-sig-item-on { color: rgba(0,208,132,0.75); white-space: nowrap; }
+.mc-sig-item-off { color: rgba(255,77,77,0.5); text-decoration: line-through; white-space: nowrap; }
+.mc-sig-tech-on { color: #00d084; white-space: nowrap; }
+.mc-sig-tech-off { color: rgba(255,77,77,0.5); text-decoration: line-through; white-space: nowrap; }
+.mc-sig-conf-pill {
+  margin-left: auto; font-size: 8px; padding: 2px 8px; border-radius: 10px;
+  white-space: nowrap; flex-shrink: 0;
+}
+.mc-sig-conf-pill.conf-low { background: rgba(255,77,109,0.12); color: #ff4d6d; }
+.mc-sig-conf-pill.conf-medium { background: rgba(245,166,35,0.12); color: #f5a623; }
+.mc-sig-conf-pill.conf-high { background: rgba(0,208,132,0.12); color: #00d084; }
+[data-theme="paper"] .mc-signal-v2 { background: #f0ece3; border-color: rgba(0,0,0,0.08); }
+[data-theme="paper"] .mc-sig-label { color: rgba(0,0,0,0.25); }
+[data-theme="paper"] .mc-sig-row-process { border-bottom-color: rgba(0,0,0,0.06); }
+[data-theme="paper"] .mc-sig-item-on { color: rgba(0,120,60,0.75); }
+[data-theme="paper"] .mc-sig-item-off { color: rgba(180,40,40,0.5); }
+[data-theme="paper"] .mc-sig-tech-on { color: #2d7a52; }
+[data-theme="paper"] .mc-sig-tech-off { color: rgba(180,40,40,0.45); }
+[data-theme="paper"] .mc-sig-conf-pill.conf-low { background: rgba(180,40,40,0.1); color: #a63030; }
+[data-theme="paper"] .mc-sig-conf-pill.conf-medium { background: rgba(180,120,0,0.1); color: #8a6200; }
+[data-theme="paper"] .mc-sig-conf-pill.conf-high { background: rgba(0,150,80,0.1); color: #2d7a52; }
 
 /* Health Strip — 4-col grid */
 .mc-health-strip {
@@ -1630,34 +1796,109 @@
 }
 
 /* ── STRENGTH AUDIT CARD ── */
-.sa-card { max-width: 420px; width: 100%; margin: auto; display: flex; flex-direction: column; gap: 16px; }
-.sa-header { display: flex; justify-content: space-between; align-items: baseline; }
+.sa-card { max-width: 520px; width: 100%; margin: auto; display: flex; flex-direction: column; gap: 0; }
+.sa-header { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 16px; }
 .sa-title { font-family: 'Inter', sans-serif; font-weight: 300; letter-spacing: 4px; font-size: 0.95rem; color: var(--text); text-transform: uppercase; }
-.sa-score { font-family: var(--font-mono); font-size: 14px; color: var(--accent2); letter-spacing: 1px; }
+.sa-score { font-family: 'Inter', sans-serif; font-size: 11px; color: rgba(255,255,255,0.45); letter-spacing: 0.5px; }
+.sa-score-num { font-family: var(--font-mono); color: var(--accent2); }
+
+.sa-section-label {
+  font-family: 'Inter', sans-serif; font-size: 8px; font-weight: 600;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: rgba(255,255,255,0.32); padding: 16px 0 10px;
+}
+.sa-divider { height: 0.5px; background: rgba(255,255,255,0.06); margin: 4px 0; }
+
+.sa-check-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px; border-radius: 8px; cursor: pointer;
+  background: #1c2230; border: 1px solid rgba(255,255,255,0.06);
+  transition: all 0.2s ease; user-select: none; margin-bottom: 8px;
+}
+.sa-check-row:last-child { margin-bottom: 0; }
+.sa-check-row:hover { background: #1e2536; }
+.sa-check-row.checked {
+  background: rgba(0,208,132,0.06); border-color: rgba(0,208,132,0.15);
+}
+.sa-checkbox {
+  width: 22px; height: 22px; border-radius: 4px; flex-shrink: 0;
+  border: 1.5px solid rgba(255,255,255,0.2); display: flex;
+  align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; color: transparent;
+  transition: all 0.2s ease;
+}
+.sa-check-row.checked .sa-checkbox {
+  background: #00d084; border-color: #00d084; color: #0b0d10;
+}
+.sa-check-text { display: flex; flex-direction: column; gap: 2px; }
+.sa-check-title {
+  font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+  color: rgba(255,255,255,0.75); transition: color 0.2s;
+}
+.sa-check-row.checked .sa-check-title { color: rgba(255,255,255,0.9); }
+.sa-check-desc {
+  font-family: 'Inter', sans-serif; font-size: 11px;
+  color: rgba(255,255,255,0.35); line-height: 1.4;
+}
 
 .sa-toggle-card {
-  display: flex; align-items: center; justify-content: center;
-  padding: 16px 20px; border-radius: 10px; cursor: pointer;
-  border: 1px solid var(--border); background: var(--surface2);
-  transition: all 0.3s ease; user-select: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; padding: 12px 8px; border-radius: 8px; cursor: pointer;
+  background: rgba(255,77,77,0.08); border: 0.5px solid rgba(255,77,77,0.2);
+  opacity: 0.85; transition: all 0.2s ease; user-select: none;
 }
-.sa-toggle-card:hover { background: var(--surface3); }
+.sa-toggle-card:hover { opacity: 1; }
 .sa-toggle-card.yes {
-  background: #2e7d32; border-color: #2e7d32;
+  background: rgba(0,208,132,0.1); border: 0.5px solid rgba(0,208,132,0.3); opacity: 1;
 }
 .sa-toggle-card-label {
-  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700;
-  letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted);
-  transition: color 0.3s ease;
+  font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: rgba(255,77,77,0.6); transition: color 0.2s ease;
 }
-.sa-toggle-card.yes .sa-toggle-card-label { color: #fff; }
-.sa-toggle-check {
-  margin-left: 6px; font-size: 13px; color: #fff; font-weight: 700;
+.sa-toggle-card.yes .sa-toggle-card-label { color: rgba(0,208,132,0.7); }
+.sa-toggle-icon { font-size: 13px; font-weight: 700; color: #ff4d4d; transition: color 0.2s ease; }
+.sa-toggle-card.yes .sa-toggle-icon { color: #00d084; }
+
+[data-theme="paper"] .sa-toggle-card {
+  background: rgba(180,40,40,0.06); border: 0.5px solid rgba(180,40,40,0.18);
+}
+[data-theme="paper"] .sa-toggle-card-label { color: rgba(160,40,40,0.6); }
+[data-theme="paper"] .sa-toggle-icon { color: #a63030; }
+[data-theme="paper"] .sa-toggle-card.yes {
+  background: rgba(0,150,80,0.08); border: 0.5px solid rgba(0,150,80,0.25);
+}
+[data-theme="paper"] .sa-toggle-card.yes .sa-toggle-card-label { color: #2d7a52; }
+[data-theme="paper"] .sa-toggle-card.yes .sa-toggle-icon { color: #2d7a52; }
+.sa-tech-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  padding-top: 4px;
 }
 
-.sa-bottom-row { display: flex; gap: 16px; }
+.sa-bottom-row { display: flex; gap: 16px; padding-top: 4px; }
 .sa-bottom-group { flex: 1; display: flex; flex-direction: column; gap: 6px; }
 .sa-bottom-label { font-size: 8px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); }
+
+/* Paper theme overrides for assessment card */
+[data-theme="paper"] .sa-section-label { color: rgba(0,0,0,0.32); }
+[data-theme="paper"] .sa-divider { background: rgba(0,0,0,0.06); }
+[data-theme="paper"] .sa-score { color: rgba(0,0,0,0.4); }
+[data-theme="paper"] .sa-check-row {
+  background: #f5f0e8; border-color: rgba(0,0,0,0.08);
+}
+[data-theme="paper"] .sa-check-row:hover { background: #ede8de; }
+[data-theme="paper"] .sa-check-row.checked {
+  background: rgba(0,150,80,0.06); border-color: rgba(0,150,80,0.2);
+}
+[data-theme="paper"] .sa-checkbox {
+  border-color: rgba(0,0,0,0.15);
+}
+[data-theme="paper"] .sa-check-row.checked .sa-checkbox {
+  background: #2d7a52; border-color: #2d7a52; color: #fff;
+}
+[data-theme="paper"] .sa-check-title { color: rgba(0,0,0,0.6); }
+[data-theme="paper"] .sa-check-row.checked .sa-check-title { color: rgba(0,0,0,0.85); }
+[data-theme="paper"] .sa-check-desc { color: rgba(0,0,0,0.35); }
 
 /* ── RED PULSE for FOMO/low confidence ── */
 @keyframes pulse-red-border {
@@ -1902,6 +2143,9 @@ let strengthTrend = 0;
 let strengthAdh = 0;
 let strengthMental = 'calm';
 let strengthConfidence = 'medium';
+let processPatience = 0;
+let processArrival = 0;
+let processConfirmation = 0;
 
 const PHASES = ['CONTEXT', 'ENTRY', 'MANAGE', 'EXIT', 'REVIEW'];
 let strengthSubmitted = false;
@@ -3093,6 +3337,9 @@ async function commitStrength() {
       adh: strengthAdh,
       mental_state: strengthMental,
       confidence: strengthConfidence,
+      patience: processPatience,
+      arrival_context: processArrival,
+      confirmation: processConfirmation,
     })
   });
   const data = await res.json();
@@ -3102,6 +3349,7 @@ async function commitStrength() {
   activeStrength = {
     value: strengthValue, volume: strengthVolume, trend: strengthTrend,
     adh: strengthAdh, mental_state: strengthMental, confidence: strengthConfidence,
+    patience: processPatience, arrival_context: processArrival, confirmation: processConfirmation,
   };
   strengthSubmitted = true;
   showToast('Trade strength saved');
@@ -3125,6 +3373,9 @@ function cancelEntry() {
   contextFormMode = 'create';
   liveNowContext = null;
   inlineUpdateOpen = false;
+  processPatience = 0;
+  processArrival = 0;
+  processConfirmation = 0;
   setPhase('CONTEXT');
 }
 
@@ -3236,14 +3487,39 @@ async function updateExistingContext() {
 
 
 /* ── STRENGTH AUDIT CARD (step 1 of ENTRY) ── */
+function toggleProcess(field) {
+  if (field === 'patience') processPatience = processPatience ? 0 : 1;
+  else if (field === 'arrival') processArrival = processArrival ? 0 : 1;
+  else if (field === 'confirmation') processConfirmation = processConfirmation ? 0 : 1;
+  renderCenter(TRADES[activeTrade]);
+}
+
+function getProcessScore() {
+  return processPatience + processArrival + processConfirmation;
+}
+
 function renderStrengthAudit(el) {
-  const score = getStrengthScore();
+  const techScore = getStrengthScore();
+  const procScore = getProcessScore();
+
+  function checkRow(field, val, title, desc) {
+    return `<div class="sa-check-row${val ? ' checked' : ''}" onclick="toggleProcess('${field}')">
+      <div class="sa-checkbox">${val ? '\u2713' : ''}</div>
+      <div class="sa-check-text">
+        <div class="sa-check-title">${title}</div>
+        <div class="sa-check-desc">${desc}</div>
+      </div>
+    </div>`;
+  }
+
   function toggleCard(field) {
     const cur = field === 'value' ? strengthValue : field === 'volume' ? strengthVolume : field === 'trend' ? strengthTrend : strengthAdh;
     return `<div class="sa-toggle-card${cur ? ' yes' : ''}" onclick="setStrength('${field}',${cur ? 0 : 1})">
-      <span class="sa-toggle-card-label">${field.toUpperCase()}${cur ? '<span class="sa-toggle-check">\u2713</span>' : ''}</span>
+      <span class="sa-toggle-card-label">${field.toUpperCase()}</span>
+      <span class="sa-toggle-icon">${cur ? '\u2713' : '\u2717'}</span>
     </div>`;
   }
+
   function mentalBtn(val, label) {
     const active = strengthMental === val;
     const activeCls = active ? `sel-${val}` : '';
@@ -3258,16 +3534,29 @@ function renderStrengthAudit(el) {
   el.innerHTML = `
     <div class="sa-card">
       <div class="sa-header">
-        <span class="sa-title">Trade Strength</span>
-        <span class="sa-score">${score}/4</span>
+        <span class="sa-title">Trade Assessment</span>
+        <span class="sa-score"><span class="sa-score-num">${procScore}</span> / 3 process &middot; <span class="sa-score-num">${techScore}</span> / 4 technical</span>
       </div>
-      ${toggleCard('value')}
-      ${toggleCard('volume')}
-      ${toggleCard('trend')}
-      ${toggleCard('adh')}
+
+      <div class="sa-section-label">1 &middot; PROCESS CHECKLIST</div>
+      ${checkRow('patience', processPatience, 'Patience', 'Trade came to me. I waited for my level.')}
+      ${checkRow('arrival', processArrival, 'Arrival context', 'I watched tempo and volume at the level.')}
+      ${checkRow('confirmation', processConfirmation, 'Confirmation', 'I saw a clear signal before entering.')}
+
+      <div class="sa-divider"></div>
+      <div class="sa-section-label">2 &middot; TECHNICAL FACTORS &mdash; context only, not scored</div>
+      <div class="sa-tech-grid">
+        ${toggleCard('value')}
+        ${toggleCard('volume')}
+        ${toggleCard('trend')}
+        ${toggleCard('adh')}
+      </div>
+
+      <div class="sa-divider"></div>
+      <div class="sa-section-label">3 &middot; MENTAL STATE</div>
       <div class="sa-bottom-row">
         <div class="sa-bottom-group">
-          <div class="sa-bottom-label">MENTAL STATE</div>
+          <div class="sa-bottom-label">STATE</div>
           <div class="ef-toggle-group">${mentalBtn('calm','CALM')}${mentalBtn('fomo','FOMO')}</div>
         </div>
         <div class="sa-bottom-group">
@@ -3275,7 +3564,8 @@ function renderStrengthAudit(el) {
           <div class="ef-toggle-group">${confBtn('low')}${confBtn('medium')}${confBtn('high')}</div>
         </div>
       </div>
-      <button class="sa-assess-btn" onclick="commitStrength()">ASSESS & CONTINUE</button>
+
+      <button class="sa-assess-btn" onclick="commitStrength()">ASSESS & CONTINUE \u2192</button>
     </div>
   `;
 }
@@ -3388,113 +3678,184 @@ function renderReviewCenter(el, trade) {
     return;
   }
 
-  // Execution score
-  let esChecks = {};
-  let esScore = 0;
+  // Parse execution_score_json
+  let esParsed = null;
   try {
-    const d = trade.execution_score_json ? (typeof trade.execution_score_json === 'object' ? trade.execution_score_json : JSON.parse(trade.execution_score_json)) : null;
-    if (d && d.checks) { esChecks = d.checks; esScore = d.score || 0; }
+    esParsed = trade.execution_score_json
+      ? (typeof trade.execution_score_json === 'object' ? trade.execution_score_json : JSON.parse(trade.execution_score_json))
+      : null;
   } catch(e) {}
+  const esVersion = esParsed && esParsed.version === 2 ? 2 : 1;
 
-  const criteria = [
-    { key: 'patience', title: 'Patience (Level)', desc: 'Did I wait for the price to reach my planned location?' },
-    { key: 'arrival', title: 'Arrival (Context)', desc: 'Did I watch the tape and nuances at the level?' },
-    { key: 'strength', title: 'Strength and Confluence', desc: 'Did I execute on verified directional strength with market internals aligned?' },
-    { key: 'exit', title: 'Exit (Discipline)', desc: 'Did I exit at planned levels without hesitation?' },
-    { key: 'review', title: 'Review (Continuation)', desc: 'Did I monitor price behavior after the exit?' },
-  ];
-
+  // Status stack (shared between v1/v2)
   const pnl = getTradePnl(trade);
   const pnlSign = pnl >= 0 ? '+' : '';
   const pnlColor = pnl >= 0 ? 'var(--green)' : 'var(--red)';
-
   const h = computeHealth(trade);
   const partials = trade.partials || [];
-  const closedContracts = partials
-    .filter(p => p.status === 'executed')
-    .reduce((s, p) => s + (p.qty || 0), 0);
+  const closedContracts = partials.filter(p => p.status === 'executed').reduce((s, p) => s + (p.qty || 0), 0);
   const totalContracts = partials.reduce((s, p) => s + (p.qty || 0), 0) || (trade.qty || 0);
-
-  // Per-contract filled/empty squares: build a flat list of segments weighted by qty.
-  // Executed partials are filled; open partials are empty. Partials render in portion order.
   const sortedPartials = [...partials].sort((a, b) => (a.portion || 0) - (b.portion || 0));
   const contractCells = [];
   for (const p of sortedPartials) {
     const filled = p.status === 'executed';
     for (let i = 0; i < (p.qty || 0); i++) contractCells.push(filled);
   }
-
   const isLong = trade.direction === 'Long';
-  const remainingStops = partials
-    .filter(p => p.status !== 'executed')
-    .map(p => p.stop)
-    .filter(s => s != null);
-  const worstStop = remainingStops.length
-    ? (isLong ? Math.min(...remainingStops) : Math.max(...remainingStops))
-    : null;
-
+  const remainingStops = partials.filter(p => p.status !== 'executed').map(p => p.stop).filter(s => s != null);
+  const worstStop = remainingStops.length ? (isLong ? Math.min(...remainingStops) : Math.max(...remainingStops)) : null;
   let riskState = 'red';
   if (h.netRisk >= -0.5 && h.netRisk <= 0.5) riskState = 'grey';
   else if (h.netRisk > 0) riskState = 'green';
-
-  // Pinned initial risk (persisted at creation). Fall back to derivation for legacy trades.
   const firstStop = partials[0]?.stop ?? trade.entry;
   const firstQty  = partials[0]?.qty ?? 1;
-  const fallbackInitial = Math.abs(
-    (isLong ? trade.entry - firstStop : firstStop - trade.entry)
-    * firstQty * (trade.tickValue || 1)
-  );
+  const fallbackInitial = Math.abs((isLong ? trade.entry - firstStop : firstStop - trade.entry) * firstQty * (trade.tickValue || 1));
   const initialRiskAbs = (trade.initialRisk > 0 ? trade.initialRisk : fallbackInitial) || 1;
-
-  // Fill width = how much of the original risk is still live (shrinks as stops tighten).
-  const riskFillPct = Math.max(0, Math.min(100,
-    (Math.abs(Math.min(0, h.netRisk)) / initialRiskAbs) * 100
-  ));
-
+  const riskFillPct = Math.max(0, Math.min(100, (Math.abs(Math.min(0, h.netRisk)) / initialRiskAbs) * 100));
   const netRiskSign = h.netRisk >= 0 ? '+' : '-';
   const netRiskAbs = Math.abs(h.netRisk).toFixed(2);
 
-  el.innerHTML = `
-    <div class="review-center" style="margin:auto;">
-      <div class="review-status-stack">
-        <div class="rss-header">
-          <span class="rss-h-left">CLOSED / REALIZED P&L</span>
-          <span class="rss-h-right">${closedContracts}/${totalContracts} · <span style="color:${pnlColor}">${pnlSign}$${pnl}</span></span>
-        </div>
-        <div class="rss-boxes">
-          ${contractCells.map(filled =>
-            `<div class="rss-box${filled ? ' rss-box-filled' : ''}"></div>`
-          ).join('')}
-        </div>
-        ${worstStop != null ? `
-          <div class="rss-header rss-risk-header">
-            <span class="rss-h-left">RISK LEFT (STOP @ ${worstStop})</span>
-            <span class="rss-h-right rss-risk-${riskState}">${netRiskSign}$${netRiskAbs}</span>
-          </div>
-          <div class="rss-riskbar">
-            <div class="rss-riskbar-fill rss-riskbar-${riskState}" style="width:${riskFillPct}%"></div>
-          </div>
-        ` : ''}
+  const statusStackHtml = `
+    <div class="review-status-stack">
+      <div class="rss-header">
+        <span class="rss-h-left">CLOSED / REALIZED P&L</span>
+        <span class="rss-h-right">${closedContracts}/${totalContracts} \u00b7 <span style="color:${pnlColor}">${pnlSign}$${pnl}</span></span>
       </div>
-      <div class="es-header">
-        <h2>Execution Score</h2>
-        <p>Process Over P&L Audit</p>
+      <div class="rss-boxes">
+        ${contractCells.map(filled => `<div class="rss-box${filled ? ' rss-box-filled' : ''}"></div>`).join('')}
       </div>
-      <div class="es-score-circle${esScore > 0 ? ' score-active' : ''}" id="es-score-val">${esScore}</div>
-      <div class="es-checklist">
-        ${criteria.map(c => `
-          <div class="es-check-item${esChecks[c.key] ? ' active' : ''}" data-key="${c.key}" onclick="toggleExecCheck(this)">
-            <div class="es-check-content">
-              <span class="es-check-title">${c.title}</span>
-              <span class="es-check-desc">${c.desc}</span>
+      ${worstStop != null ? `
+        <div class="rss-header rss-risk-header">
+          <span class="rss-h-left">RISK LEFT (STOP @ ${worstStop})</span>
+          <span class="rss-h-right rss-risk-${riskState}">${netRiskSign}$${netRiskAbs}</span>
+        </div>
+        <div class="rss-riskbar">
+          <div class="rss-riskbar-fill rss-riskbar-${riskState}" style="width:${riskFillPct}%"></div>
+        </div>
+      ` : ''}
+    </div>`;
+
+  if (esVersion === 2) {
+    // ── v2 Review UI ──
+    const proc = esParsed.process || {};
+    const tech = esParsed.technical || {};
+    const mgmt = esParsed.management;
+    const exit = esParsed.exit;
+    const procScore = proc.score != null ? proc.score : 0;
+    const mgmtScore = mgmt ? mgmt.score : null;
+    const exitScore = exit ? exit.score : null;
+    const selectedMgmt = mgmt ? mgmt.state : (window._rv2Mgmt || '');
+    const selectedExit = exit ? exit.quality : (window._rv2Exit || '');
+
+    // Reactive total
+    const liveMgmt = mgmtScore != null ? mgmtScore : (selectedMgmt === 'calm_objective' ? 1 : (selectedMgmt ? 0 : null));
+    const liveExit = exitScore != null ? exitScore : (selectedExit === 'planned' ? 1 : (selectedExit ? 0 : null));
+    const totalKnown = procScore + (liveMgmt != null ? liveMgmt : 0) + (liveExit != null ? liveExit : 0);
+    const showTotal = (liveMgmt != null && liveExit != null) ? totalKnown : null;
+
+    const pill = (label, on) => `<span class="rv2-pill ${on ? 'rv2-pill-on' : 'rv2-pill-off'}">${on ? '\u2713' : '\u2717'} ${label}</span>`;
+
+    function qOpt(group, value, title, sub, selected) {
+      return `<div class="rv2-q-opt${selected === value ? ' selected' : ''}" onclick="selectReviewOpt('${group}','${value}')">
+        <div class="rv2-q-opt-title">${title}</div>
+        <div class="rv2-q-opt-sub">${sub}</div>
+      </div>`;
+    }
+
+    el.innerHTML = `
+      <div class="review-center" style="margin:auto;">
+
+        <div class="rv2-score-header">
+          <div class="rv2-score-title">EXECUTION SCORE \u00b7 PROCESS ONLY</div>
+          <div class="rv2-score-big" id="rv2-total">${showTotal != null ? showTotal : '\u2014'}<span class="rv2-score-max"> /5</span></div>
+          <div class="rv2-score-breakdown">
+            <div class="rv2-bd-item"><div class="rv2-bd-val">${procScore}/3</div><div class="rv2-bd-label">ENTRY PROCESS</div></div>
+            <div class="rv2-bd-item"><div class="rv2-bd-val" id="rv2-mgmt-val">${liveMgmt != null ? liveMgmt + '/1' : '\u2014'}</div><div class="rv2-bd-label">MANAGEMENT</div></div>
+            <div class="rv2-bd-item"><div class="rv2-bd-val" id="rv2-exit-val">${liveExit != null ? liveExit + '/1' : '\u2014'}</div><div class="rv2-bd-label">EXIT</div></div>
+          </div>
+        </div>
+
+        <div class="rv2-recap">
+          <div class="rv2-recap-title">ENTRY RECAP \u2014 RECORDED AT ENTRY \u00b7 NOT EDITABLE</div>
+          <div class="rv2-recap-row">
+            <span class="rv2-recap-group-label">PROCESS</span>
+            ${pill('Patience', proc.patience)}
+            ${pill('Arrival', proc.arrival_context)}
+            ${pill('Confirm', proc.confirmation)}
+          </div>
+          <div class="rv2-recap-row" style="margin-top:8px;">
+            <span class="rv2-recap-group-label">TECHNICAL</span>
+            ${pill('Value', tech.value)}
+            ${pill('Vol', tech.volume)}
+            ${pill('Trend', tech.trend)}
+            ${pill('ADH', tech.adh)}
+          </div>
+        </div>
+
+        <div class="rv2-q-section">
+          <div class="rv2-q-label">1 OF 2 \u00b7 MANAGEMENT</div>
+          <div class="rv2-q-title">How were you during the trade?</div>
+          <div class="rv2-q-sub">Pick the most honest answer. No one sees this but you.</div>
+          <div class="rv2-q-grid">
+            ${qOpt('mgmt', 'calm_objective', 'Calm & objective', "Watched, didn't react", selectedMgmt)}
+            ${qOpt('mgmt', 'anxious', 'Anxious', 'Wanted out early', selectedMgmt)}
+            ${qOpt('mgmt', 'frozen', 'Frozen', "Didn't manage well", selectedMgmt)}
+            ${qOpt('mgmt', 'overconfident', 'Overconfident', 'Held too long', selectedMgmt)}
+          </div>
+        </div>
+
+        <div class="rv2-q-section">
+          <div class="rv2-q-label">2 OF 2 \u00b7 EXIT DISCIPLINE</div>
+          <div class="rv2-q-title">How did you exit?</div>
+          <div class="rv2-q-sub">Be honest \u2014 this is for your data, not your ego.</div>
+          <div class="rv2-q-grid">
+            ${qOpt('exit', 'planned', 'Planned level', 'Exited as intended', selectedExit)}
+            ${qOpt('exit', 'early_fear', 'Early \u2014 fear', 'Pulled out too soon', selectedExit)}
+            ${qOpt('exit', 'early_boredom', 'Early \u2014 boredom', 'Lost patience', selectedExit)}
+            ${qOpt('exit', 'late', 'Late \u2014 held too long', "Didn't follow plan", selectedExit)}
+          </div>
+        </div>
+
+        <button class="rv2-save-btn" id="rv2-save-btn" onclick="commitReviewScore()">SAVE SCORE \u2192</button>
+      </div>
+    `;
+  } else {
+    // ── v1 Review UI (legacy) ──
+    let esChecks = {};
+    let esScore = 0;
+    if (esParsed && esParsed.checks) { esChecks = esParsed.checks; esScore = esParsed.score || 0; }
+
+    const criteria = [
+      { key: 'patience', title: 'Patience (Level)', desc: 'Did I wait for the price to reach my planned location?' },
+      { key: 'arrival', title: 'Arrival (Context)', desc: 'Did I watch the tape and nuances at the level?' },
+      { key: 'strength', title: 'Strength and Confluence', desc: 'Did I execute on verified directional strength with market internals aligned?' },
+      { key: 'exit', title: 'Exit (Discipline)', desc: 'Did I exit at planned levels without hesitation?' },
+      { key: 'review', title: 'Review (Continuation)', desc: 'Did I monitor price behavior after the exit?' },
+    ];
+
+    el.innerHTML = `
+      <div class="review-center" style="margin:auto;">
+        ${statusStackHtml}
+        <div class="es-header">
+          <h2>Execution Score</h2>
+          <p>Process Over P&L Audit</p>
+        </div>
+        <div class="es-score-circle${esScore > 0 ? ' score-active' : ''}" id="es-score-val">${esScore}</div>
+        <div class="es-checklist">
+          ${criteria.map(c => `
+            <div class="es-check-item${esChecks[c.key] ? ' active' : ''}" data-key="${c.key}" onclick="toggleExecCheck(this)">
+              <div class="es-check-content">
+                <span class="es-check-title">${c.title}</span>
+                <span class="es-check-desc">${c.desc}</span>
+              </div>
+              <div class="es-checkbox-ui">\u2713</div>
             </div>
-            <div class="es-checkbox-ui">\u2713</div>
-          </div>
-        `).join('')}
+          `).join('')}
+        </div>
+        <button class="es-commit-btn" onclick="commitExecutionScore()">Save Score</button>
       </div>
-      <button class="es-commit-btn" onclick="commitExecutionScore()">Save Score</button>
-    </div>
-  `;
+    `;
+  }
 }
 
 /* ── RENDER: HEALTH PANEL (right) ── */
@@ -3990,22 +4351,55 @@ function buildManageCardsHTML(trade, isLong) {
   const entry = trade.entry;
   let html = '<div class="manage-cards">';
 
-  // 1. Strength + Confidence Chip
-  const str = trade.strength;
-  if (str && str.mental_state) {
-    const factors = [
-      ['VALUE', str.value], ['VOL', str.volume], ['TREND', str.trend]
+  // 1. Signal bar — v2 (from execution_score_json) or v1 fallback
+  const _esRaw = trade.execution_score_json;
+  let _esParsed = null;
+  try { _esParsed = _esRaw ? (typeof _esRaw === 'object' ? _esRaw : JSON.parse(_esRaw)) : null; } catch(e) {}
+  const _esVersion = _esParsed && _esParsed.version === 2 ? 2 : 1;
+
+  if (_esVersion === 2 && _esParsed) {
+    const proc = _esParsed.process || {};
+    const tech = _esParsed.technical || {};
+    const conf = (_esParsed.confidence || 'medium').toLowerCase();
+    const confLabels = { low: 'Low', medium: 'Med', high: 'High' };
+    const procItems = [
+      ['\u2713 Patience', proc.patience], ['\u2713 Arrival', proc.arrival_context], ['\u2713 Confirm', proc.confirmation]
     ];
-    if (str.adh) factors.push(['ADH', str.adh]);
-    const factorsHtml = factors.map(([label, on]) =>
-      `<span class="sc-factor ${on ? 'on' : 'off'}">${on ? '\u2713' : '\u2717'}${label}</span>`
-    ).join('');
-    const conf = (str.confidence || 'medium').toLowerCase();
-    const confLabel = conf.toUpperCase() + ' CONFIDENCE';
-    html += `<div class="mc-strength-chip">
-      <div class="sc-factors">${factorsHtml}</div>
-      <span class="sc-conf conf-${conf}">\u2713${confLabel}</span>
+    const techItems = [
+      ['Value', tech.value], ['Vol', tech.volume], ['Trend', tech.trend], ['ADH', tech.adh]
+    ];
+    html += `<div class="mc-signal-v2">
+      <div class="mc-sig-row mc-sig-row-process">
+        <span class="mc-sig-label">PROCESS</span>
+        <div class="mc-sig-items">
+          ${procItems.map(([l, on]) => `<span class="${on ? 'mc-sig-item-on' : 'mc-sig-item-off'}">${on ? '' : '\u2717 '}${l}</span>`).join('')}
+        </div>
+        <span class="mc-sig-conf-pill conf-${conf}">\u25cf ${confLabels[conf] || 'Med'} confidence</span>
+      </div>
+      <div class="mc-sig-row mc-sig-row-tech">
+        <span class="mc-sig-label">TECHNICAL</span>
+        <div class="mc-sig-items">
+          ${techItems.map(([l, on]) => `<span class="${on ? 'mc-sig-tech-on' : 'mc-sig-tech-off'}">${on ? '\u25cf' : ''} ${l}</span>`).join('')}
+        </div>
+      </div>
     </div>`;
+  } else {
+    const str = trade.strength;
+    if (str && str.mental_state) {
+      const factors = [
+        ['VALUE', str.value], ['VOL', str.volume], ['TREND', str.trend]
+      ];
+      if (str.adh) factors.push(['ADH', str.adh]);
+      const factorsHtml = factors.map(([label, on]) =>
+        `<span class="sc-factor ${on ? 'on' : 'off'}">${on ? '\u2713' : '\u2717'}${label}</span>`
+      ).join('');
+      const conf = (str.confidence || 'medium').toLowerCase();
+      const confLabel = conf.toUpperCase() + ' CONFIDENCE';
+      html += `<div class="mc-strength-chip">
+        <div class="sc-factors">${factorsHtml}</div>
+        <span class="sc-conf conf-${conf}">\u2713${confLabel}</span>
+      </div>`;
+    }
   }
 
   // 1b. Trade Header
@@ -4868,6 +5262,81 @@ function commitExecutionScore() {
     trade.execScore = score;
     showToast('Execution score saved');
   });
+}
+
+/* ── v2 Review Score Handlers ── */
+function selectReviewOpt(group, value) {
+  if (group === 'mgmt') window._rv2Mgmt = value;
+  else if (group === 'exit') window._rv2Exit = value;
+  updateReviewScoreDisplay();
+  const trade = TRADES[activeTrade];
+  if (trade) renderCenter(trade);
+}
+
+function updateReviewScoreDisplay() {
+  const trade = TRADES[activeTrade];
+  if (!trade) return;
+  let esParsed = null;
+  try {
+    esParsed = trade.execution_score_json
+      ? (typeof trade.execution_score_json === 'object' ? trade.execution_score_json : JSON.parse(trade.execution_score_json))
+      : null;
+  } catch(e) {}
+  if (!esParsed || esParsed.version !== 2) return;
+
+  const procScore = (esParsed.process || {}).score || 0;
+  const mgmtVal = window._rv2Mgmt || (esParsed.management ? esParsed.management.state : '');
+  const exitVal = window._rv2Exit || (esParsed.exit ? esParsed.exit.quality : '');
+  const mgmtScore = mgmtVal === 'calm_objective' ? 1 : (mgmtVal ? 0 : null);
+  const exitScore = exitVal === 'planned' ? 1 : (exitVal ? 0 : null);
+  const total = (mgmtScore != null && exitScore != null) ? procScore + mgmtScore + exitScore : null;
+
+  const totalEl = document.getElementById('rv2-total');
+  const mgmtEl = document.getElementById('rv2-mgmt-val');
+  const exitEl = document.getElementById('rv2-exit-val');
+  if (totalEl) totalEl.innerHTML = (total != null ? total : '\u2014') + '<span class="rv2-score-max"> /5</span>';
+  if (mgmtEl) mgmtEl.textContent = mgmtScore != null ? mgmtScore + '/1' : '\u2014';
+  if (exitEl) exitEl.textContent = exitScore != null ? exitScore + '/1' : '\u2014';
+}
+
+async function commitReviewScore() {
+  const trade = TRADES[activeTrade];
+  if (!trade) return;
+  let esParsed = null;
+  try {
+    esParsed = trade.execution_score_json
+      ? (typeof trade.execution_score_json === 'object' ? trade.execution_score_json : JSON.parse(trade.execution_score_json))
+      : null;
+  } catch(e) {}
+
+  const mgmtVal = window._rv2Mgmt || (esParsed && esParsed.management ? esParsed.management.state : '');
+  const exitVal = window._rv2Exit || (esParsed && esParsed.exit ? esParsed.exit.quality : '');
+
+  if (!mgmtVal || !exitVal) {
+    showToast('Please answer both questions before saving', true);
+    return;
+  }
+
+  const btn = document.getElementById('rv2-save-btn');
+  try {
+    const res = await fetch(`/api/live/${trade.id}/review-score`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ management_state: mgmtVal, exit_quality: exitVal })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      trade.execution_score_json = JSON.stringify(data.execution_score_json);
+      window._rv2Mgmt = '';
+      window._rv2Exit = '';
+      if (btn) { btn.textContent = 'SAVED \u2713'; setTimeout(() => { btn.textContent = 'SAVE SCORE \u2192'; }, 1500); }
+      showToast('Review score saved');
+      renderCenter(trade);
+    } else {
+      showToast(data.error || 'Failed to save', true);
+    }
+  } catch(e) {
+    showToast('Network error', true);
+  }
 }
 
 /* ── IMAGES ── */

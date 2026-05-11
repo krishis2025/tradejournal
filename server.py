@@ -1037,6 +1037,9 @@ def api_create_trade_strength():
             mental_state=body.get("mental_state", "calm"),
             confidence=body.get("confidence", "medium"),
             adh=body.get("adh", 0),
+            patience=body.get("patience"),
+            arrival_context=body.get("arrival_context"),
+            confirmation=body.get("confirmation"),
         )
         return jsonify({"ok": True, "id": strength_id})
     except Exception as e:
@@ -1096,6 +1099,14 @@ def api_create_live_trade():
             if lv.get("level_type") == "stop":
                 initial_risk += abs(entry_price - lv["price"]) * lv["qty"] * dpp
         db.update_live_trade(live_id, initial_risk=round(initial_risk, 2))
+
+        # Build v2 execution_score_json from strength record
+        sid = body.get("strength_id")
+        if sid:
+            strength_rec = db.get_trade_strength(int(sid))
+            if strength_rec:
+                es_v2 = logic.build_entry_execution_score(strength_rec)
+                db.update_live_trade(live_id, execution_score_json=json.dumps(es_v2))
 
         return jsonify({"ok": True, "id": live_id})
     except Exception as e:
@@ -1184,6 +1195,28 @@ def api_live_push_to_journal(live_id):
         return jsonify({"ok": True, "journal_trade_id": journal_trade_id})
     else:
         return jsonify({"error": "Failed to push to journal"}), 500
+
+
+@app.route("/api/live/<int:live_id>/review-score", methods=["PUT"])
+def api_update_review_score(live_id):
+    """Update execution_score_json with post-trade management and exit review."""
+    body = request.get_json(silent=True) or {}
+    management_state = body.get("management_state", "")
+    exit_quality = body.get("exit_quality", "")
+
+    trade = db.get_live_trade(live_id)
+    if not trade:
+        return jsonify({"error": "Trade not found"}), 404
+
+    es_raw = trade.get("execution_score_json") or "{}"
+    try:
+        score_json = json.loads(es_raw) if isinstance(es_raw, str) else (es_raw or {})
+    except (json.JSONDecodeError, TypeError):
+        score_json = {}
+
+    updated = logic.update_review_score(score_json, management_state, exit_quality)
+    db.update_live_trade(live_id, execution_score_json=json.dumps(updated))
+    return jsonify({"ok": True, "execution_score_json": updated})
 
 
 @app.route("/api/live/<int:live_id>/execution/<int:exec_id>", methods=["DELETE"])

@@ -476,10 +476,13 @@ Pre-entry trade strength questionnaire capturing conviction data before trade en
 | value        | INTEGER | NOT NULL DEFAULT 0 (0=No, 1=Yes)                |
 | volume       | INTEGER | NOT NULL DEFAULT 0 (0=No, 1=Yes)                |
 | trend        | INTEGER | NOT NULL DEFAULT 0 (0=No, 1=Yes)                |
-| adh          | INTEGER | NOT NULL DEFAULT 0 (0=No, 1=Yes)                |
-| mental_state | TEXT    | NOT NULL DEFAULT 'calm' (calm, fomo)             |
-| confidence   | TEXT    | NOT NULL DEFAULT 'medium' (low, medium, high)    |
-| created_at   | TEXT    | NOT NULL DEFAULT datetime('now','localtime')     |
+| adh              | INTEGER | NOT NULL DEFAULT 0 (0=No, 1=Yes)                |
+| patience         | INTEGER | DEFAULT NULL (1=checked, 0=unchecked, NULL=old)  |
+| arrival_context  | INTEGER | DEFAULT NULL (1=checked, 0=unchecked, NULL=old)  |
+| confirmation     | INTEGER | DEFAULT NULL (1=checked, 0=unchecked, NULL=old)  |
+| mental_state     | TEXT    | NOT NULL DEFAULT 'calm' (calm, fomo)             |
+| confidence       | TEXT    | NOT NULL DEFAULT 'medium' (low, medium, high)    |
+| created_at       | TEXT    | NOT NULL DEFAULT datetime('now','localtime')     |
 
 ---
 

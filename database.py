@@ -527,6 +527,14 @@ def init_db():
         if "adh" not in ts_cols:
             conn.execute("ALTER TABLE trade_strength ADD COLUMN adh INTEGER NOT NULL DEFAULT 0")
 
+        # Migration: add execution checklist columns to trade_strength
+        if "patience" not in ts_cols:
+            conn.execute("ALTER TABLE trade_strength ADD COLUMN patience INTEGER DEFAULT NULL")
+        if "arrival_context" not in ts_cols:
+            conn.execute("ALTER TABLE trade_strength ADD COLUMN arrival_context INTEGER DEFAULT NULL")
+        if "confirmation" not in ts_cols:
+            conn.execute("ALTER TABLE trade_strength ADD COLUMN confirmation INTEGER DEFAULT NULL")
+
         # Migration: add strength_id to live_trades
         lt_cols_str = [r[1] for r in conn.execute("PRAGMA table_info(live_trades)").fetchall()]
         if "strength_id" not in lt_cols_str:
@@ -2273,14 +2281,19 @@ def get_developing_contexts(date_from, date_to, account_id=None):
 # ── Trade Strength ────────────────────────────────────────────────────────────
 
 def create_trade_strength(context_id, account_id, value, volume, trend,
-                          mental_state, confidence, adh=0):
+                          mental_state, confidence, adh=0,
+                          patience=None, arrival_context=None, confirmation=None):
     with get_conn() as conn:
         cur = conn.execute("""
             INSERT INTO trade_strength
-                (context_id, account_id, value, volume, trend, adh, mental_state, confidence)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (context_id, account_id, value, volume, trend, adh, mental_state, confidence,
+                 patience, arrival_context, confirmation)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (context_id, account_id, int(value), int(volume), int(trend),
-              int(adh), mental_state, confidence))
+              int(adh), mental_state, confidence,
+              int(patience) if patience is not None else None,
+              int(arrival_context) if arrival_context is not None else None,
+              int(confirmation) if confirmation is not None else None))
         return cur.lastrowid
 
 
