@@ -391,7 +391,7 @@
             'dot-grade-cat':'#00e676'
           } %}
 
-          {% for g in tag_groups %}
+          {% for g in tag_groups if g.id != 'exit' %}
           <div class="tag-config-card" id="card-{{ g.id }}" data-group="{{ g.id }}" data-multi="{{ 'true' if g.multi else 'false' }}">
             <div class="tag-config-header">
               <div class="tag-config-title">

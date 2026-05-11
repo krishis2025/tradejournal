@@ -4015,14 +4015,26 @@ function renderReviewRight(el, trade) {
   if (!trade) { el.innerHTML = ''; return; }
 
   let tagsHtml = '';
-  TAG_GROUPS.forEach(g => {
-    const dotColor = g.id === 'with' ? 'var(--green)' : g.id === 'against' ? 'var(--red)' : g.id === 'volume' ? 'var(--accent2)' : g.id === 'exit' ? 'var(--warn)' : g.id === 'setup' ? 'var(--purple)' : 'var(--muted)';
-    tagsHtml += `<div class="tp-group"><div class="tp-group-label"><span class="tp-dot" style="background:${dotColor};"></span>${escHtml(g.label)}</div><div class="tp-tags">`;
-    g.tags.forEach(tag => {
-      const isActive = (activeTags[g.id] || []).includes(tag);
-      tagsHtml += `<button class="tp-tag-btn${isActive ? ' ' + g.active_class : ''}" data-group="${g.id}" data-tag="${escHtml(tag)}" data-multi="${g.multi}" data-active-class="${g.active_class}" onclick="toggleTag('${g.id}','${escHtml(tag)}',${g.multi},this)">${escHtml(tag)}</button>`;
-    });
-    tagsHtml += '</div></div>';
+  TAG_GROUPS.filter(g => g.id !== 'exit').forEach(g => {
+    if (g.id === 'with') {
+      // 3-state Technicals section: neutral → with (green) → against (red) → neutral
+      tagsHtml += `<div class="tp-group"><div class="tp-group-label"><span class="tp-dot" style="background:var(--accent2);"></span>Technicals</div><div class="tp-tags">`;
+      g.tags.forEach(tag => {
+        const isWith = (activeTags['with'] || []).includes(tag);
+        const isAgainst = (activeTags['against'] || []).includes(tag);
+        const cls = isWith ? ' active-with' : isAgainst ? ' active-against' : '';
+        tagsHtml += `<button class="tp-tag-btn${cls}" data-tag="${escHtml(tag)}" onclick="toggleTechnical('${escHtml(tag)}',this)">${escHtml(tag)}</button>`;
+      });
+      tagsHtml += '</div></div>';
+    } else {
+      const dotColor = g.id === 'volume' ? 'var(--accent2)' : g.id === 'setup' ? 'var(--purple)' : 'var(--muted)';
+      tagsHtml += `<div class="tp-group"><div class="tp-group-label"><span class="tp-dot" style="background:${dotColor};"></span>${escHtml(g.label)}</div><div class="tp-tags">`;
+      g.tags.forEach(tag => {
+        const isActive = (activeTags[g.id] || []).includes(tag);
+        tagsHtml += `<button class="tp-tag-btn${isActive ? ' ' + g.active_class : ''}" data-group="${g.id}" data-tag="${escHtml(tag)}" data-multi="${g.multi}" data-active-class="${g.active_class}" onclick="toggleTag('${g.id}','${escHtml(tag)}',${g.multi},this)">${escHtml(tag)}</button>`;
+      });
+      tagsHtml += '</div></div>';
+    }
   });
 
   el.innerHTML = `
@@ -5223,6 +5235,37 @@ function toggleTag(gid, tag, multi, btn) {
     if (idx >= 0) { activeTags[gid] = []; }
     else { activeTags[gid] = [tag]; btn.classList.add(ac); }
   }
+
+  trade.tags = activeTags;
+  fetch(`/api/live/${trade.id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tags: activeTags })
+  });
+}
+
+function toggleTechnical(tag, btn) {
+  if (!activeTrade || !TRADES[activeTrade]) return;
+  const trade = TRADES[activeTrade];
+  if (!activeTags['with']) activeTags['with'] = [];
+  if (!activeTags['against']) activeTags['against'] = [];
+
+  const isWith = activeTags['with'].includes(tag);
+  const isAgainst = activeTags['against'].includes(tag);
+
+  // Remove from both first
+  activeTags['with'] = activeTags['with'].filter(t => t !== tag);
+  activeTags['against'] = activeTags['against'].filter(t => t !== tag);
+
+  // Cycle: neutral → with → against → neutral
+  btn.classList.remove('active-with', 'active-against');
+  if (!isWith && !isAgainst) {
+    activeTags['with'].push(tag);
+    btn.classList.add('active-with');
+  } else if (isWith) {
+    activeTags['against'].push(tag);
+    btn.classList.add('active-against');
+  }
+  // else: was against → back to neutral (already removed)
 
   trade.tags = activeTags;
   fetch(`/api/live/${trade.id}`, {

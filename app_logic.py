@@ -22,17 +22,9 @@ import database as db
 TAG_GROUPS = [
     {
         "id": "with",
-        "label": "With",
+        "label": "Technicals",
         "dot": "dot-with",
         "active_class": "active-with",
-        "tags": ["Value", "Market Internals", "ADH", "AVWAP", "VWAP"],
-        "multi": True,
-    },
-    {
-        "id": "against",
-        "label": "Against",
-        "dot": "dot-against",
-        "active_class": "active-against",
         "tags": ["Value", "Market Internals", "ADH", "AVWAP", "VWAP"],
         "multi": True,
     },

@@ -516,17 +516,26 @@
     {% set EXIT_GOOD = ['Planned — Monitored Continuation'] %}
     {% set VOL_MAP   = {'Avg':'active-vol-avg','Above Avg':'active-vol-high','Below Avg':'active-vol-low'} %}
     <div class="tag-panel">
-      {% for g in tag_groups[:4] %}
+      {% for g in tag_groups[:4] if g.id != 'exit' %}
       <div class="tag-group">
         <div class="tg-label">
           <span class="tg-dot" style="background:{{ dot_colors[g.dot] }};box-shadow:0 0 6px {{ dot_colors[g.dot] }}40;"></span>
           {{ g.label }}
         </div>
+        {% if g.id == 'with' %}
+        <div class="tags-row" id="tags-{{ trade.id }}-technicals">
+          {% for tag in g.tags %}
+          {% set is_with = tag in trade.tags.get('with', []) %}
+          {% set is_against = tag in trade.tags.get('against', []) %}
+          <button class="tag-btn {{ 'active-with' if is_with else 'active-against' if is_against else '' }}"
+            data-tag="{{ tag }}"
+            onclick="toggleTechnicalDay({{ trade.id }},'{{ tag }}',this)">{{ tag }}</button>
+          {% endfor %}
+        </div>
+        {% else %}
         <div class="tags-row" id="tags-{{ trade.id }}-{{ g.id }}">
           {% for tag in g.tags %}
-          {% if g.id == 'exit' %}
-            {% set active_cls = 'active-exit-good' if tag in EXIT_GOOD else 'active-exit-bad' %}
-          {% elif g.id == 'volume' %}
+          {% if g.id == 'volume' %}
             {% set active_cls = VOL_MAP.get(tag, g.active_class) %}
           {% else %}
             {% set active_cls = g.active_class %}
@@ -537,6 +546,7 @@
             onclick="toggleTag({{ trade.id }},'{{ g.id }}','{{ tag }}',{{ 'true' if g.multi else 'false' }})">{{ tag }}</button>
           {% endfor %}
         </div>
+        {% endif %}
       </div>
       {% endfor %}
     </div>
@@ -806,6 +816,44 @@ async function toggleTag(tradeId, groupId, tag, multi) {
     method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({group_id: groupId, tags: [...active]})
   });
+}
+
+async function toggleTechnicalDay(tradeId, tag, btn) {
+  const isWith = btn.classList.contains('active-with');
+  const isAgainst = btn.classList.contains('active-against');
+
+  btn.classList.remove('active-with', 'active-against');
+
+  // Cycle: neutral → with → against → neutral
+  let newWith, newAgainst;
+  const container = document.getElementById(`tags-${tradeId}-technicals`);
+  const buttons = container.querySelectorAll('.tag-btn');
+
+  // Gather current state of all buttons
+  const withTags = new Set([...buttons].filter(b => b.classList.contains('active-with')).map(b => b.dataset.tag));
+  const againstTags = new Set([...buttons].filter(b => b.classList.contains('active-against')).map(b => b.dataset.tag));
+
+  if (!isWith && !isAgainst) {
+    withTags.add(tag);
+    btn.classList.add('active-with');
+  } else if (isWith) {
+    withTags.delete(tag);
+    againstTags.add(tag);
+    btn.classList.add('active-against');
+  } else {
+    againstTags.delete(tag);
+  }
+
+  await Promise.all([
+    fetch(`/api/trade/${tradeId}/tags`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({group_id: 'with', tags: [...withTags]})
+    }),
+    fetch(`/api/trade/${tradeId}/tags`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({group_id: 'against', tags: [...againstTags]})
+    })
+  ]);
 }
 
 // ── Notes ────────────────────────────────────────────────────────────────────
