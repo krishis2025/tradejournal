@@ -1320,6 +1320,14 @@ def internals_view(day_id):
     return render_template("internals.html", day=day)
 
 
+@app.route("/day/<int:day_id>/internals-v2")
+def internals_v2_view(day_id):
+    day = db.get_day_by_id(day_id)
+    if not day:
+        return render_template("404.html", message=f"Day #{day_id} not found"), 404
+    return render_template("internals_v2.html", day=day)
+
+
 @app.route("/api/day/<int:day_id>/internals", methods=["GET"])
 def api_get_internals(day_id):
     rows = db.get_internals_for_day(day_id)
@@ -1330,6 +1338,27 @@ def api_get_internals(day_id):
 def api_upsert_internals(day_id, session):
     if session not in ("morning", "midday", "afternoon"):
         return jsonify({"error": "Invalid session"}), 400
+    body = request.get_json(silent=True) or {}
+    db.upsert_internals(day_id, session, **body)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/today/internals", methods=["GET"])
+def api_get_today_internals():
+    from datetime import date as dt_date
+    today_str = dt_date.today().isoformat()
+    day_id = db.upsert_day(today_str)
+    rows = db.get_internals_for_day(day_id)
+    return jsonify({"day_id": day_id, "sessions": rows})
+
+
+@app.route("/api/today/internals/<session>", methods=["POST"])
+def api_upsert_today_internals(session):
+    from datetime import date as dt_date
+    if session not in ("morning", "midday", "afternoon"):
+        return jsonify({"error": "Invalid session"}), 400
+    today_str = dt_date.today().isoformat()
+    day_id = db.upsert_day(today_str)
     body = request.get_json(silent=True) or {}
     db.upsert_internals(day_id, session, **body)
     return jsonify({"ok": True})

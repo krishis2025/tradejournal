@@ -1,0 +1,1442 @@
+{% extends "base.html" %}
+{% block title %}Market Internals — {{ day.date }}{% endblock %}
+
+{% block extra_styles %}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+.page { max-width: 100%; padding: 32px 48px 80px; }
+
+/* ── Header ── */
+.mi2-header {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 20px;
+}
+.mi2-title {
+  font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 20px;
+  color: var(--text); letter-spacing: 2px;
+}
+.mi2-date {
+  font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 13px;
+  color: var(--muted2);
+}
+
+/* ── Alert banners ── */
+.mi2-alert {
+  background: rgba(90,10,10,0.25); border: 0.5px solid rgba(255,80,80,0.25);
+  border-radius: 8px; padding: 7px 12px; font-size: 11px; color: #ff7070;
+  font-family: 'JetBrains Mono', monospace; font-weight: 500;
+  margin-bottom: 8px; display: flex; align-items: center; gap: 8px;
+}
+.mi2-alert svg { flex-shrink: 0; }
+
+/* ── Cards ── */
+.mi2-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 20px 24px; margin-bottom: 16px;
+}
+.mi2-card-title {
+  font-family: 'Inter', sans-serif; font-weight: 600; font-size: 11px;
+  letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted2);
+  margin-bottom: 16px;
+}
+
+/* ── Two-column layout ── */
+.mi2-two-col {
+  display: grid; grid-template-columns: 62% 38%; gap: 12px; align-items: start;
+}
+.mi2-left-col {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.mi2-left-col .mi2-card { padding: 14px 16px; margin-bottom: 0; }
+.mi2-left-col .mi2-table td { padding: 7px 8px; }
+.mi2-left-col .adh-spark-cell { min-width: 140px; }
+.mi2-right-col { display: flex; flex-direction: column; gap: 0; }
+
+/* ── Sector stacked cards ── */
+.sec-header-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px 10px 0 0; padding: 12px 14px 8px; margin-bottom: 0;
+  border-bottom: none;
+}
+.sec-pos-card, .sec-neg-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 0; padding: 10px 14px; min-height: 60px;
+}
+.sec-pos-card { border-bottom: none; }
+.sec-neg-card { border-radius: 0 0 10px 10px; }
+.sec-card-hdr {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 5px 10px; border-radius: 5px; margin-bottom: 8px;
+  font-family: 'Inter', sans-serif; font-weight: 600; font-size: 11px;
+  letter-spacing: 1px; text-transform: uppercase;
+}
+.sec-card-hdr-pos { background: rgba(26,138,74,0.1); color: #1a8a4a; }
+.sec-card-hdr-neg { background: rgba(192,48,48,0.1); color: #c03030; }
+.sec-card-hdr-sub {
+  font-size: 8px; opacity: 0.6; font-weight: 400; letter-spacing: 0.5px;
+  text-transform: lowercase;
+}
+.sec-row-weak { background: rgba(255,255,255,0.025); }
+[data-theme="paper"] .sec-row-weak { background: rgba(0,0,0,0.025); }
+.sec-weak-divider { height: 1px; background: var(--border); margin: 6px 0; opacity: 0.4; }
+.sec-weak-none {
+  color: var(--muted); font-family: 'Inter', sans-serif; font-size: 10px;
+  padding: 4px 10px; background: rgba(255,255,255,0.025); border-radius: 4px;
+}
+[data-theme="paper"] .sec-weak-none { background: rgba(0,0,0,0.025); }
+.sec-label-group { display: flex; flex-direction: column; min-width: 52px; }
+.sec-label-sub {
+  font-size: 8px; opacity: 0.45; color: var(--muted2); margin-top: 1px;
+  font-weight: 400; letter-spacing: 0;
+}
+
+/* ── Tables ── */
+.mi2-table { width: 100%; border-collapse: collapse; }
+.mi2-table th {
+  font-family: 'Inter', sans-serif; font-weight: 600; font-size: 9px;
+  letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted);
+  padding: 0 12px 10px; text-align: center;
+}
+.mi2-table th:first-child { text-align: left; }
+.mi2-table td {
+  padding: 10px 12px; text-align: center; vertical-align: middle;
+  border-top: 1px solid var(--border);
+  font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500;
+  color: var(--text);
+}
+.mi2-table td:first-child {
+  text-align: left; font-family: 'Inter', sans-serif; font-weight: 500;
+  font-size: 13px; color: var(--muted2); width: 140px;
+}
+.mi2-table .td-delta { text-align: center; min-width: 140px; }
+
+/* ── Editable inputs ── */
+.mi2-input {
+  background: transparent; border: 1px solid transparent; border-radius: 4px;
+  color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 13px;
+  font-weight: 600; text-align: center; padding: 4px 8px; width: 80px;
+  outline: none; transition: border-color 0.15s, background 0.15s;
+}
+.mi2-input:hover { border-color: var(--border2); }
+.mi2-input:focus { border-color: var(--accent); background: var(--surface2); }
+.mi2-input::placeholder { color: var(--muted); font-weight: 400; }
+
+/* ── Pill classes ── */
+.d-pill {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;
+  font-family: 'JetBrains Mono', monospace; white-space: nowrap;
+}
+.d-sl-inc { background: rgba(52,211,153,0.15); color: #34d399; }
+.d-inc    { background: rgba(52,211,153,0.25); color: #2ecc70; }
+.d-sl-dec { background: rgba(255,77,109,0.15); color: #ff7070; }
+.d-dec    { background: rgba(255,77,109,0.25); color: #ff4d6d; }
+.d-flat   { background: rgba(255,255,255,0.08); color: var(--muted2); }
+.d-amber  { background: rgba(255,179,71,0.2); color: #ffb347; }
+.d-blue   { background: rgba(0,207,255,0.15); color: #00cfff; }
+
+/* Value pills (for Vol%, ADH) */
+.vp-dg { background: rgba(52,211,153,0.25); color: #2ecc70; border: 1px solid rgba(52,211,153,0.3); }
+.vp-lg { background: rgba(52,211,153,0.12); color: #34d399; border: 1px solid rgba(52,211,153,0.15); }
+.vp-lr { background: rgba(255,77,109,0.12); color: #ff7070; border: 1px solid rgba(255,77,109,0.15); }
+.vp-dr { background: rgba(255,77,109,0.25); color: #ff4d6d; border: 1px solid rgba(255,77,109,0.3); }
+
+.ap-dg { background: rgba(46,204,112,0.3); color: #2ecc70; }
+.ap-lg { background: rgba(46,204,112,0.15); color: #34d399; }
+.ap-lr { background: rgba(255,77,109,0.15); color: #ff7070; }
+.ap-dr { background: rgba(255,77,109,0.3); color: #ff4d6d; }
+
+/* ── Internals card pair styling ── */
+.mi2-pair { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.mi2-pair-values {
+  display: flex; align-items: center; gap: 4px;
+  font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600;
+}
+.mi2-pair-label {
+  font-family: 'Inter', sans-serif; font-size: 9px; color: var(--muted);
+  letter-spacing: 0.5px;
+}
+.mi2-pair .mi2-input { width: 55px; font-size: 12px; padding: 3px 4px; }
+
+/* ── Sectors ── */
+.mi2-sectors-header {
+  font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 11px;
+  color: var(--muted2); letter-spacing: 0.5px; margin-bottom: 6px;
+}
+.mi2-sectors-axis {
+  display: flex; justify-content: space-between; margin-bottom: 8px;
+  font-family: 'Inter', sans-serif; font-size: 9px; letter-spacing: 1px;
+  text-transform: uppercase; opacity: 0.4; color: var(--muted);
+}
+.mi2-quad-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.mi2-quad {
+  border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px;
+  min-height: 80px;
+}
+.mi2-quad-title {
+  font-family: 'Inter', sans-serif; font-weight: 600; font-size: 11px;
+  letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px;
+}
+.mi2-quad.q-hp { background: rgba(26,138,74,0.06); border-color: rgba(26,138,74,0.15); }
+.mi2-quad.q-hp .mi2-quad-title { color: #1a8a4a; }
+.mi2-quad.q-hn { background: rgba(192,48,48,0.06); border-color: rgba(192,48,48,0.15); }
+.mi2-quad.q-hn .mi2-quad-title { color: #c03030; }
+.mi2-quad.q-wp, .mi2-quad.q-wn { background: var(--surface2); }
+.mi2-quad.q-wp .mi2-quad-title, .mi2-quad.q-wn .mi2-quad-title { color: var(--muted2); }
+
+/* Sector row pill */
+.sec-row {
+  display: flex; align-items: center; gap: 8px;
+  border-radius: 5px; padding: 5px 10px; margin-bottom: 5px;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+}
+.sec-row-dg { background: rgba(16,82,40,0.75); border: 0.5px solid rgba(46,204,112,0.35); }
+.sec-row-lg { background: rgba(20,42,30,0.4); border: 0.5px solid rgba(125,212,160,0.1); }
+.sec-row-lr { background: rgba(42,20,20,0.4); border: 0.5px solid rgba(196,144,144,0.12); }
+.sec-row-dr { background: rgba(82,16,16,0.75); border: 0.5px solid rgba(224,85,85,0.35); }
+
+.sec-label {
+  font-weight: 600; font-size: 12px; min-width: 48px;
+  font-family: 'Inter', sans-serif;
+}
+.sec-label-dg { color: #34d97a; }
+.sec-label-lg { color: #7dd4a0; }
+.sec-label-lr { color: #c49090; }
+.sec-label-dr { color: #ff5555; }
+
+.sec-vals {
+  flex: 1; display: flex; align-items: center; gap: 2px;
+  font-size: 11px; font-weight: 500;
+}
+.sec-arrow { color: rgba(255,255,255,0.2); font-size: 10px; }
+.sec-empty { color: rgba(255,255,255,0.2); }
+.sec-v-dg { color: #34d97a; } .sec-v-lg { color: #7dd4a0; }
+.sec-v-lr { color: #c49090; } .sec-v-dr { color: #ff5555; }
+
+.sec-delta { margin-left: auto; font-size: 11px; }
+.sec-delta-up { color: #7dd4a0; }
+.sec-delta-dn { color: #c49090; }
+.sec-delta-flip {
+  color: #ff7070; background: rgba(90,10,10,0.6);
+  padding: 1px 4px; border-radius: 3px; font-size: 10px;
+}
+
+.sec-none { color: var(--muted); font-family: 'Inter', sans-serif; font-size: 12px; }
+
+/* + Add button */
+.sec-add-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--muted2); font-family: 'Inter', sans-serif; font-size: 11px;
+  font-weight: 500; padding: 6px 14px; cursor: pointer; margin-top: 6px;
+  transition: all 0.15s;
+}
+.sec-add-btn:hover { border-color: var(--muted); color: var(--text); }
+
+/* Add sector modal inline */
+.sec-add-form {
+  display: flex; gap: 6px; align-items: center; margin-top: 8px;
+}
+.sec-add-form select, .sec-add-form input {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+  color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  padding: 5px 8px; outline: none;
+}
+.sec-add-form select { min-width: 100px; }
+.sec-add-form input { width: 60px; }
+.sec-add-form button {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 4px;
+  color: var(--muted2); font-size: 10px; padding: 5px 10px; cursor: pointer;
+  font-family: 'Inter', sans-serif; font-weight: 600; letter-spacing: 0.5px;
+}
+.sec-add-form button:hover { color: var(--text); border-color: var(--muted); }
+
+/* ── ADH sparkline ── */
+.adh-spark-cell { min-width: 200px; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SECTOR MODAL — Trigger, Timestamps, Modal
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Trigger row ── */
+.sec-trigger-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.sec-trigger-label {
+  font-family: 'Inter', sans-serif; font-weight: 600; font-size: 10px;
+  letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted2);
+}
+.sec-record-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(0,200,255,0.08); border: 0.5px solid rgba(0,200,255,0.3);
+  color: #00c8ff; font-family: 'Inter', sans-serif; font-size: 11px;
+  font-weight: 600; padding: 5px 14px; border-radius: 5px;
+  cursor: pointer; transition: all 0.15s;
+}
+.sec-record-btn:hover { background: rgba(0,200,255,0.14); }
+.sec-record-btn svg { width: 13px; height: 13px; }
+
+/* ── Timestamp pills ── */
+.sec-ts-row {
+  display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap;
+}
+.sec-ts-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 4px; font-family: 'Inter', sans-serif;
+  font-size: 10px; font-weight: 500; white-space: nowrap;
+}
+.sec-ts-pill.ts-mng       { background: rgba(0,200,255,0.08); border: 0.5px solid rgba(0,200,255,0.2); color: #00c8ff; }
+.sec-ts-pill.ts-mid       { background: rgba(245,166,35,0.08); border: 0.5px solid rgba(245,166,35,0.2); color: #f5a623; }
+.sec-ts-pill.ts-aft       { background: rgba(160,100,220,0.08); border: 0.5px solid rgba(160,100,220,0.2); color: #c084fc; }
+.sec-ts-pill.ts-empty     { background: rgba(255,255,255,0.03); border: 0.5px solid rgba(255,255,255,0.08); color: var(--muted); opacity: 0.5; }
+
+/* ── Modal backdrop ── */
+.sm-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9000;
+}
+
+/* ── Modal container ── */
+.sm-modal {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 400px; max-height: 540px; display: flex; flex-direction: column;
+  border-radius: 12px; border: 0.5px solid var(--border2);
+  background: var(--surface); z-index: 9001;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.4);
+  overflow: hidden;
+}
+
+/* ── Modal header ── */
+.sm-header {
+  padding: 16px 20px 12px; border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.sm-title-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.sm-title {
+  font-family: 'Inter', sans-serif; font-weight: 600; font-size: 14px;
+  color: var(--text);
+}
+.sm-close {
+  background: none; border: none; color: var(--muted); font-size: 16px;
+  cursor: pointer; padding: 2px 6px; border-radius: 4px;
+  transition: all 0.15s; line-height: 1;
+}
+.sm-close:hover { color: var(--text); background: var(--surface2); }
+
+.sm-session-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.sm-session-label {
+  font-family: 'Inter', sans-serif; font-weight: 600; font-size: 9px;
+  letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted);
+  margin-right: 4px;
+}
+.sm-session-btn {
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--muted2); font-family: 'Inter', sans-serif; font-size: 10px;
+  font-weight: 600; padding: 4px 10px; border-radius: 4px;
+  cursor: pointer; transition: all 0.15s;
+}
+.sm-session-btn:hover { border-color: var(--muted); color: var(--text); }
+.sm-status-hint {
+  margin-left: auto; font-family: 'Inter', sans-serif; font-size: 9px;
+  color: var(--muted); white-space: nowrap;
+}
+
+/* ── Modal body ── */
+.sm-body {
+  flex: 1; overflow-y: auto; padding: 14px 20px;
+  min-height: 0;
+}
+.sm-section-label {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-bottom: 6px; margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.sm-section-label span:first-child {
+  font-family: 'Inter', sans-serif; font-weight: 600; font-size: 10px;
+  letter-spacing: 1px; text-transform: uppercase; color: var(--muted2);
+}
+.sm-section-label span:last-child {
+  font-family: 'Inter', sans-serif; font-size: 8px; color: var(--muted);
+  opacity: 0.7;
+}
+
+/* Heavy sector row */
+.sm-heavy-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 0; border-bottom: 0.5px solid var(--border); gap: 12px;
+}
+.sm-heavy-label {
+  display: flex; align-items: center; gap: 6px; flex: 1;
+}
+.sm-heavy-ticker {
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  font-weight: 500; color: var(--text); min-width: 32px;
+}
+.sm-heavy-short {
+  font-family: 'Inter', sans-serif; font-size: 11px;
+  color: var(--muted2);
+}
+.sm-heavy-weight {
+  font-family: 'Inter', sans-serif; font-size: 10px;
+  opacity: 0.45; color: var(--muted); margin-left: auto; padding-right: 12px;
+}
+.sm-heavy-input {
+  width: 58px; font-size: 12px; padding: 4px 6px; border-radius: 4px;
+  text-align: center; font-family: 'JetBrains Mono', monospace;
+  background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  outline: none; transition: border-color 0.15s, background 0.15s;
+}
+.sm-heavy-input::placeholder { color: var(--muted); font-weight: 400; }
+.sm-heavy-input:focus { background: var(--surface2); }
+.sm-heavy-input.prefilled {
+  border-color: rgba(0,208,132,0.35); background: rgba(0,208,132,0.06);
+  color: #00d084;
+}
+
+/* Weak sector list row */
+.sm-weak-divider { margin: 12px 0 8px; }
+.sm-weak-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 0; border-bottom: 0.5px solid var(--border);
+}
+.sm-weak-name {
+  flex: 1; font-family: 'Inter', sans-serif; font-size: 11px;
+  font-weight: 500; color: var(--text);
+}
+.sm-weak-val {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500;
+}
+.sm-weak-val.wv-pos { color: #7dd4a0; }
+.sm-weak-val.wv-neg { color: #ff7070; }
+.sm-weak-session-tag {
+  font-family: 'Inter', sans-serif; font-size: 9px; color: var(--muted);
+}
+.sm-weak-rm {
+  background: none; border: none; color: var(--muted); opacity: 0.4;
+  font-size: 12px; cursor: pointer; padding: 2px 4px; line-height: 1;
+  transition: all 0.15s;
+}
+.sm-weak-rm:hover { opacity: 1; color: #e05555; }
+
+/* Add weak sector row */
+.sm-add-row {
+  display: flex; align-items: center; gap: 6px; margin-top: 8px;
+}
+.sm-add-row select {
+  flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; color: var(--text); font-family: 'Inter', sans-serif;
+  font-size: 11px; padding: 5px 6px; outline: none;
+}
+.sm-add-row select optgroup { font-weight: 600; }
+.sm-add-row input {
+  width: 58px; font-size: 12px; padding: 4px 6px; border-radius: 4px;
+  text-align: center; font-family: 'JetBrains Mono', monospace;
+  background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  outline: none;
+}
+.sm-add-row input::placeholder { color: var(--muted); }
+.sm-add-btn-green {
+  background: rgba(0,208,132,0.08); border: 1px solid rgba(0,208,132,0.3);
+  color: #00d084; font-family: 'Inter', sans-serif; font-size: 12px;
+  font-weight: 700; padding: 4px 10px; border-radius: 4px; cursor: pointer;
+  transition: all 0.15s;
+}
+.sm-add-btn-green:hover { background: rgba(0,208,132,0.15); }
+
+/* ── Modal footer ── */
+.sm-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 20px; border-top: 1px solid var(--border); flex-shrink: 0;
+}
+.sm-footer-label {
+  font-family: 'Inter', sans-serif; font-size: 10px; color: var(--muted);
+}
+.sm-footer-actions { display: flex; gap: 8px; }
+.sm-cancel-btn {
+  background: transparent; border: 1px solid var(--border); color: var(--muted2);
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 500;
+  padding: 5px 14px; border-radius: 5px; cursor: pointer; transition: all 0.15s;
+}
+.sm-cancel-btn:hover { border-color: var(--muted); color: var(--text); }
+.sm-save-btn {
+  background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3);
+  color: #34d399; font-family: 'Inter', sans-serif; font-size: 11px;
+  font-weight: 600; padding: 5px 14px; border-radius: 5px; cursor: pointer;
+  transition: all 0.15s;
+}
+.sm-save-btn:hover { background: rgba(52,211,153,0.25); }
+.sm-save-btn.saved { background: rgba(52,211,153,0.3); color: #2ecc70; }
+
+/* ── Paper theme overrides ── */
+[data-theme="paper"] .sm-modal { background: #f5f0e8; border-color: rgba(0,0,0,0.12); }
+[data-theme="paper"] .sm-backdrop { background: rgba(0,0,0,0.35); }
+[data-theme="paper"] .sm-heavy-input.prefilled {
+  border-color: rgba(0,150,80,0.35); background: rgba(0,150,80,0.06); color: #2d7a52;
+}
+[data-theme="paper"] .sm-section-label span:first-child { color: rgba(0,0,0,0.35); }
+[data-theme="paper"] .sm-heavy-row { border-color: rgba(0,0,0,0.08); }
+[data-theme="paper"] .sm-weak-row { border-color: rgba(0,0,0,0.08); }
+
+/* ── Responsive ── */
+.breadcrumb { font-family: 'Inter', sans-serif; font-weight: 500; }
+
+@media (max-width: 900px) {
+  .page { padding: 24px 16px 60px; }
+  .mi2-two-col { grid-template-columns: 1fr; }
+  .sm-modal { width: 92vw; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="/">Journal</a>
+  <span class="sep">/</span>
+  <a href="/day/{{ day.id }}">{{ day.date }}</a>
+  <span class="sep">/</span>
+  <span style="color:var(--text);">Market Internals</span>
+</div>
+
+<div class="mi2-header">
+  <div class="mi2-title">MARKET INTERNALS</div>
+  <div class="mi2-date" id="mi2-date"></div>
+</div>
+
+<div id="mi2-alerts"></div>
+<div class="mi2-two-col">
+  <div class="mi2-left-col">
+    <div id="mi2-vitals"></div>
+    <div id="mi2-internals"></div>
+  </div>
+  <div class="mi2-right-col">
+    <div id="mi2-sectors"></div>
+  </div>
+</div>
+
+<div class="sm-backdrop" id="sm-backdrop" onclick="closeSectorModal()" style="display:none"></div>
+<div class="sm-modal" id="sm-modal" style="display:none">
+  <div id="sm-content"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const DAY_ID = {{ day.id }};
+const DAY_DATE = '{{ day.date }}';
+const SESSIONS = ['morning', 'midday', 'afternoon'];
+const SESSION_LABELS = { morning: 'MORNING', midday: 'MID-DAY', afternoon: 'AFTERNOON' };
+
+const SPY_SECTORS = [
+  { ticker:'XLK', short:'Tech' },
+  { ticker:'XLV', short:'Health' },
+  { ticker:'XLF', short:'Fin' },
+  { ticker:'XLY', short:'Disc' },
+  { ticker:'XLC', short:'Comm' },
+  { ticker:'XLI', short:'Indust' },
+  { ticker:'XLP', short:'Staples' },
+  { ticker:'XLE', short:'Energy' },
+  { ticker:'XLRE',short:'RE' },
+  { ticker:'XLB', short:'Matls' },
+  { ticker:'XLU', short:'Utils' },
+];
+const HEAVY_TICKERS = new Set(['XLK','XLV','XLF','XLY','XLC','XLI']);
+
+function sectorShort(ticker) {
+  const s = SPY_SECTORS.find(x => x.ticker === ticker);
+  return s ? s.short : ticker;
+}
+
+const state = {};
+SESSIONS.forEach(s => {
+  state[s] = {
+    timestamp:'', structure:'', value_area:'',
+    vix:'', trin:'', vol_pct:'',
+    vold_nyse:'', vold_nq:'', add_nyse:'', add_nq:'', adh:'',
+    sectors_json:'[]', tape_notes:''
+  };
+});
+
+const _saveTimers = {};
+function scheduleSave(session) {
+  clearTimeout(_saveTimers[session]);
+  _saveTimers[session] = setTimeout(() => saveSession(session), 400);
+}
+
+async function saveSession(session) {
+  try {
+    await fetch(`/api/day/${DAY_ID}/internals/${session}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state[session]),
+    });
+  } catch(e) { console.error('Save failed', e); }
+}
+
+function updateField(session, field, value) {
+  state[session][field] = value;
+  scheduleSave(session);
+  renderAll();
+}
+
+function num(v) {
+  if (v === '' || v === null || v === undefined) return NaN;
+  return parseFloat(String(v).replace(/[^\d.\-]/g, ''));
+}
+
+function getLatestNonEmpty(field) {
+  for (let i = SESSIONS.length - 1; i >= 0; i--) {
+    const v = num(state[SESSIONS[i]][field]);
+    if (!isNaN(v)) return { value: v, session: SESSIONS[i], index: i };
+  }
+  return null;
+}
+
+function getMorningVal(field) {
+  const v = num(state.morning[field]);
+  return isNaN(v) ? null : v;
+}
+
+function getDelta(field) {
+  const latest = getLatestNonEmpty(field);
+  const morning = getMorningVal(field);
+  if (!latest || morning === null || latest.index === 0) return null;
+  return { diff: latest.value - morning, latest: latest.value, morning };
+}
+
+function parseSectors(session) {
+  try { return JSON.parse(state[session].sectors_json || '[]'); }
+  catch { return []; }
+}
+
+function formatDateShort(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ALERTS
+   ═══════════════════════════════════════════════════════════════════════ */
+function renderAlerts() {
+  const el = document.getElementById('mi2-alerts');
+  const alerts = [];
+  const alertSVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff7070" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+
+  for (let i = 0; i < SESSIONS.length - 1; i++) {
+    const s1 = SESSIONS[i], s2 = SESSIONS[i+1];
+    const adh1 = num(state[s1].adh), adh2 = num(state[s2].adh);
+    if (!isNaN(adh1) && !isNaN(adh2) && adh1 !== 0 && adh2 !== 0) {
+      if ((adh1 > 0 && adh2 < 0) || (adh1 < 0 && adh2 > 0)) {
+        const dir = adh1 > 0 ? 'positive' : 'negative';
+        const dir2 = adh2 > 0 ? 'positive' : 'negative';
+        alerts.push(`${alertSVG} <strong>ADH flipped</strong> ${dir} (${adh1 > 0 ? '+' : ''}${adh1}) → ${dir2} (${adh2 > 0 ? '+' : ''}${adh2}) between ${SESSION_LABELS[s1].toLowerCase()} and ${SESSION_LABELS[s2].toLowerCase()}`);
+      }
+    }
+
+    const sec1 = parseSectors(s1), sec2 = parseSectors(s2);
+    for (const entry of sec2) {
+      if (!HEAVY_TICKERS.has(entry.ticker)) continue;
+      const prev = sec1.find(x => x.ticker === entry.ticker);
+      if (!prev) continue;
+      const v1 = parseFloat(prev.value), v2 = parseFloat(entry.value);
+      if (isNaN(v1) || isNaN(v2)) continue;
+      if ((v1 > 0 && v2 < 0) || (v1 < 0 && v2 > 0)) {
+        const name = sectorShort(entry.ticker);
+        const dest = v2 < 0 ? 'Heavy −' : 'Heavy +';
+        alerts.push(`${alertSVG} <strong>${name} flipped</strong> ${v1 > 0 ? '+' : ''}${v1.toFixed(2)} → ${v2 > 0 ? '+' : ''}${v2.toFixed(2)} between ${SESSION_LABELS[s1].toLowerCase()} and ${SESSION_LABELS[s2].toLowerCase()} · moved to ${dest}`);
+      }
+    }
+  }
+
+  el.innerHTML = alerts.map(a => `<div class="mi2-alert">${a}</div>`).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   VITALS CARD
+   ═══════════════════════════════════════════════════════════════════════ */
+function inputHTML(session, field, val, extraClass) {
+  const display = val !== '' && val !== null && val !== undefined ? val : '';
+  return `<input class="mi2-input ${extraClass || ''}" value="${display}"
+    placeholder="—" data-session="${session}" data-field="${field}"
+    onblur="updateField('${session}','${field}',this.value)">`;
+}
+
+function volPillClass(v) {
+  if (isNaN(v)) return '';
+  if (v > 10) return 'vp-dg';
+  if (v >= 0) return 'vp-lg';
+  if (v >= -10) return 'vp-lr';
+  return 'vp-dr';
+}
+
+function adhPillClass(v) {
+  if (isNaN(v)) return '';
+  if (v > 150) return 'ap-dg';
+  if (v >= 0) return 'ap-lg';
+  if (v >= -150) return 'ap-lr';
+  return 'ap-dr';
+}
+
+function volDisplay(raw) {
+  const v = num(raw);
+  if (isNaN(v)) return '';
+  return (v >= 0 ? '+' : '') + v + '%';
+}
+
+function adhDisplay(raw) {
+  const v = num(raw);
+  if (isNaN(v)) return '';
+  return (v >= 0 ? '+' : '') + v;
+}
+
+function vixDeltaPill() {
+  const d = getDelta('vix');
+  if (!d) return '<span class="d-pill d-flat">—</span>';
+  const abs = Math.abs(d.diff);
+  if (abs < 0.10) return '<span class="d-pill d-flat">≈ flat</span>';
+  const arrow = d.diff > 0 ? '▲' : '▼';
+  const cls = d.diff > 0 ? 'd-sl-dec' : 'd-sl-inc';
+  return `<span class="d-pill ${cls}">${arrow} ${d.diff > 0 ? '+' : ''}${d.diff.toFixed(2)}</span>`;
+}
+
+function trinDeltaPill() {
+  const latest = getLatestNonEmpty('trin');
+  if (!latest) return '<span class="d-pill d-flat">—</span>';
+  if (latest.value > 3.0) return '<span class="d-pill d-amber">oversold</span>';
+  if (latest.value < 0.5) return '<span class="d-pill d-blue">overbought</span>';
+  return '<span class="d-pill d-flat">≈ flat</span>';
+}
+
+function volDeltaPill() {
+  const d = getDelta('vol_pct');
+  if (!d) return '<span class="d-pill d-flat">—</span>';
+  const abs = Math.abs(d.diff);
+  if (abs < 5) return `<span class="d-pill d-flat">≈ ${Math.abs(d.diff).toFixed(1)}% flat</span>`;
+  const arrow = d.diff > 0 ? '▲' : '▼';
+  const word = d.diff > 0 ? 'improving' : 'declining';
+  let cls;
+  if (d.diff > 10) cls = 'd-inc';
+  else if (d.diff > 0) cls = 'd-sl-inc';
+  else if (d.diff > -10) cls = 'd-sl-dec';
+  else cls = 'd-dec';
+  return `<span class="d-pill ${cls}">${arrow} ${Math.abs(d.diff).toFixed(1)}% ${word}</span>`;
+}
+
+function renderADHSparkline() {
+  const vals = SESSIONS.map(s => num(state[s].adh));
+  const points = [];
+  const W = 140, H = 44, midY = 22;
+  const xs = [25, 70, 115];
+
+  function yPos(v) { return midY - (Math.max(-500, Math.min(500, v)) / 500 * midY); }
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="vertical-align:middle;">`;
+  svg += `<line x1="0" y1="${midY}" x2="${W}" y2="${midY}" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>`;
+  svg += `<line x1="0" y1="9" x2="${W-15}" y2="9" stroke="rgba(255,255,255,0.08)" stroke-width="0.5" stroke-dasharray="3,3"/>`;
+  svg += `<text x="${W-10}" y="12" fill="rgba(255,255,255,0.25)" font-size="7" font-family="JetBrains Mono">150</text>`;
+  svg += `<text x="${W-10}" y="25" fill="rgba(255,255,255,0.25)" font-size="7" font-family="JetBrains Mono">0</text>`;
+
+  const validPts = [];
+  vals.forEach((v, i) => {
+    if (!isNaN(v)) validPts.push({ x: xs[i], y: yPos(v), v, i });
+  });
+
+  for (let j = 0; j < validPts.length - 1; j++) {
+    const a = validPts[j], b = validPts[j+1];
+    let lineColor;
+    if (a.v > 0 && b.v > 0) lineColor = '#34d399';
+    else if (a.v < 0 && b.v < 0) lineColor = '#ff4d6d';
+    else lineColor = '#ffb347';
+    svg += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${lineColor}" stroke-width="1.5"/>`;
+
+    if ((a.v > 0 && b.v < 0) || (a.v < 0 && b.v > 0)) {
+      const ratio = Math.abs(a.v) / (Math.abs(a.v) + Math.abs(b.v));
+      const cx = a.x + (b.x - a.x) * ratio;
+      svg += `<text x="${cx}" y="${midY - 4}" fill="#ff7070" font-size="8" font-family="JetBrains Mono" text-anchor="middle">↕</text>`;
+    }
+  }
+
+  vals.forEach((v, i) => {
+    const x = xs[i];
+    if (isNaN(v)) {
+      svg += `<circle cx="${x}" cy="${midY}" r="3" fill="rgba(255,255,255,0.15)"/>`;
+    } else {
+      const y = yPos(v);
+      const color = v > 0 ? '#34d399' : '#ff4d6d';
+      svg += `<circle cx="${x}" cy="${y}" r="4" fill="${color}"/>`;
+      const label = (v > 0 ? '+' : '') + v;
+      const ly = v > 0 ? y - 6 : y + 11;
+      svg += `<text x="${x}" y="${ly}" fill="${color}" font-size="8" font-family="JetBrains Mono" text-anchor="middle" font-weight="600">${label}</text>`;
+    }
+  });
+
+  svg += '</svg>';
+  return svg;
+}
+
+function renderVitals() {
+  const el = document.getElementById('mi2-vitals');
+
+  function sessionCell(session, field) {
+    return inputHTML(session, field, state[session][field]);
+  }
+
+  function volSessionCell(session) {
+    const raw = state[session].vol_pct;
+    const v = num(raw);
+    const cls = volPillClass(v);
+    const display = isNaN(v) ? '' : volDisplay(raw);
+    return `<td><span class="d-pill ${cls}" style="padding:3px 10px;">${display || `<input class="mi2-input" value="" placeholder="—" style="width:60px;" onblur="updateField('${session}','vol_pct',this.value)">`}</span></td>`;
+  }
+
+  function adhSessionCell(session) {
+    const raw = state[session].adh;
+    const v = num(raw);
+    const cls = adhPillClass(v);
+    const display = isNaN(v) ? '' : adhDisplay(raw);
+    if (!display) return `<td>${inputHTML(session, 'adh', '', '')}</td>`;
+    return `<td><span class="d-pill ${cls}" style="padding:3px 10px;cursor:pointer;" onclick="this.style.display='none';this.nextElementSibling.style.display='';this.nextElementSibling.querySelector('input').focus()">${display}</span><span style="display:none">${inputHTML(session, 'adh', raw, '')}</span></td>`;
+  }
+
+  const VITALS_SESSIONS = SESSIONS;
+
+  el.innerHTML = `
+    <div class="mi2-card">
+      <div class="mi2-card-title">VITALS</div>
+      <table class="mi2-table">
+        <thead><tr>
+          <th>METRIC</th>
+          ${VITALS_SESSIONS.map(s => `<th>${SESSION_LABELS[s]}</th>`).join('')}
+          <th>DELTA</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td>VIX</td>
+            ${VITALS_SESSIONS.map(s => `<td>${inputHTML(s, 'vix', state[s].vix)}</td>`).join('')}
+            <td class="td-delta">${vixDeltaPill()}</td>
+          </tr>
+          <tr>
+            <td>$TRIN</td>
+            ${VITALS_SESSIONS.map(s => `<td>${inputHTML(s, 'trin', state[s].trin)}</td>`).join('')}
+            <td class="td-delta">${trinDeltaPill()}</td>
+          </tr>
+          <tr>
+            <td>Vol % vs 21D</td>
+            ${VITALS_SESSIONS.map(s => {
+              const v = num(state[s].vol_pct);
+              const cls = volPillClass(v);
+              const display = isNaN(v) ? '' : volDisplay(state[s].vol_pct);
+              if (!display) return `<td>${inputHTML(s, 'vol_pct', '', '')}</td>`;
+              return `<td><span class="d-pill ${cls}" style="padding:3px 10px;cursor:pointer;" onclick="this.style.display='none';this.nextElementSibling.style.display='';this.nextElementSibling.querySelector('input').focus()">${display}</span><span style="display:none">${inputHTML(s, 'vol_pct', state[s].vol_pct, '')}</span></td>`;
+            }).join('')}
+            <td class="td-delta">${volDeltaPill()}</td>
+          </tr>
+          <tr>
+            <td>ADH</td>
+            ${VITALS_SESSIONS.map(s => {
+              const v = num(state[s].adh);
+              const cls = adhPillClass(v);
+              const display = isNaN(v) ? '' : adhDisplay(state[s].adh);
+              if (!display) return `<td>${inputHTML(s, 'adh', '', '')}</td>`;
+              return `<td><span class="d-pill ${cls}" style="padding:3px 10px;cursor:pointer;" onclick="this.style.display='none';this.nextElementSibling.style.display='';this.nextElementSibling.querySelector('input').focus()">${display}</span><span style="display:none">${inputHTML(s, 'adh', state[s].adh, '')}</span></td>`;
+            }).join('')}
+            <td class="td-delta adh-spark-cell">${renderADHSparkline()}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   INTERNALS CARD
+   ═══════════════════════════════════════════════════════════════════════ */
+function voldColor(v) {
+  if (isNaN(v)) return '';
+  if (v > 1.5) return 'sec-v-dg';
+  if (v >= 1.0) return 'sec-v-lg';
+  if (v >= 0.5) return 'sec-v-lr';
+  return 'sec-v-dr';
+}
+
+function addColor(v) {
+  if (isNaN(v)) return '';
+  if (v > 500) return 'sec-v-dg';
+  if (v >= 0) return 'sec-v-lg';
+  if (v >= -500) return 'sec-v-lr';
+  return 'sec-v-dr';
+}
+
+function pairCell(session, f1, f2, colorFn) {
+  const v1 = num(state[session][f1]);
+  const v2 = num(state[session][f2]);
+  if (isNaN(v1) && isNaN(v2)) {
+    return `<td>
+      <div class="mi2-pair">
+        <div class="mi2-pair-values">
+          ${inputHTML(session, f1, '', '')}
+          <span style="color:var(--muted)">:</span>
+          ${inputHTML(session, f2, '', '')}
+        </div>
+        <div class="mi2-pair-label">NYSE : NQ</div>
+      </div>
+    </td>`;
+  }
+  const c1 = colorFn(v1), c2 = colorFn(v2);
+  const d1 = isNaN(v1) ? '—' : v1, d2 = isNaN(v2) ? '—' : v2;
+  return `<td>
+    <div class="mi2-pair">
+      <div class="mi2-pair-values">
+        <span class="${c1}" style="cursor:pointer;" onclick="this.style.display='none';this.nextElementSibling.style.display='';this.nextElementSibling.querySelector('input').focus()">${d1}</span><span style="display:none">${inputHTML(session, f1, state[session][f1], '')}</span>
+        <span style="color:var(--muted); font-weight:400;">:</span>
+        <span class="${c2}" style="cursor:pointer;" onclick="this.style.display='none';this.nextElementSibling.style.display='';this.nextElementSibling.querySelector('input').focus()">${d2}</span><span style="display:none">${inputHTML(session, f2, state[session][f2], '')}</span>
+      </div>
+      <div class="mi2-pair-label">NYSE : NQ</div>
+    </div>
+  </td>`;
+}
+
+function renderInternals() {
+  const el = document.getElementById('mi2-internals');
+  const iLabels = SESSION_LABELS;
+  el.innerHTML = `
+    <div class="mi2-card">
+      <div class="mi2-card-title">INTERNALS</div>
+      <table class="mi2-table">
+        <thead><tr>
+          <th>METRIC</th>
+          ${SESSIONS.map(s => `<th>${iLabels[s]}</th>`).join('')}
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td>VOLD</td>
+            ${SESSIONS.map(s => pairCell(s, 'vold_nyse', 'vold_nq', voldColor)).join('')}
+          </tr>
+          <tr>
+            <td>ADD</td>
+            ${SESSIONS.map(s => pairCell(s, 'add_nyse', 'add_nq', addColor)).join('')}
+          </tr>
+        </tbody>
+      </table>
+    </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SECTORS CARD
+   ═══════════════════════════════════════════════════════════════════════ */
+function collectSectorData() {
+  const all = {};
+  SESSIONS.forEach(s => {
+    parseSectors(s).forEach(entry => {
+      if (!all[entry.ticker]) all[entry.ticker] = { ticker: entry.ticker, values: {} };
+      all[entry.ticker].values[s] = parseFloat(entry.value);
+    });
+  });
+  return all;
+}
+
+function getLatestSectorVal(data) {
+  for (let i = SESSIONS.length - 1; i >= 0; i--) {
+    const v = data.values[SESSIONS[i]];
+    if (v !== undefined && !isNaN(v)) return v;
+  }
+  return NaN;
+}
+
+function getFirstSectorVal(data) {
+  for (let i = 0; i < SESSIONS.length; i++) {
+    const v = data.values[SESSIONS[i]];
+    if (v !== undefined && !isNaN(v)) return { v, i };
+  }
+  return null;
+}
+
+function sectorRowClass(latest) {
+  if (isNaN(latest)) return 'sec-row-lg';
+  if (latest > 0.50) return 'sec-row-dg';
+  if (latest >= 0) return 'sec-row-lg';
+  if (latest >= -0.50) return 'sec-row-lr';
+  return 'sec-row-dr';
+}
+
+function sectorLabelClass(latest) {
+  if (isNaN(latest)) return 'sec-label-lg';
+  if (latest > 0.50) return 'sec-label-dg';
+  if (latest >= 0) return 'sec-label-lg';
+  if (latest >= -0.50) return 'sec-label-lr';
+  return 'sec-label-dr';
+}
+
+function sectorValClass(v) {
+  if (isNaN(v)) return 'sec-empty';
+  if (v > 0.50) return 'sec-v-dg';
+  if (v >= 0) return 'sec-v-lg';
+  if (v >= -0.50) return 'sec-v-lr';
+  return 'sec-v-dr';
+}
+
+function sectorDeltaHTML(data) {
+  const vals = SESSIONS.map(s => data.values[s]).filter(v => v !== undefined && !isNaN(v));
+  if (vals.length < 2) return '';
+
+  let crossed = false;
+  for (let i = 0; i < vals.length - 1; i++) {
+    if ((vals[i] > 0 && vals[i+1] < 0) || (vals[i] < 0 && vals[i+1] > 0)) { crossed = true; break; }
+  }
+  if (crossed) return '<span class="sec-delta sec-delta-flip">↕</span>';
+
+  const first = vals[0], last = vals[vals.length - 1];
+  if (Math.abs(last) > Math.abs(first)) {
+    return last > 0 ? '<span class="sec-delta sec-delta-up">▲</span>' : '<span class="sec-delta sec-delta-dn">▼</span>';
+  } else if (Math.abs(last) < Math.abs(first)) {
+    return last > 0 ? '<span class="sec-delta sec-delta-dn">▼</span>' : '<span class="sec-delta sec-delta-up">▲</span>';
+  }
+  return '<span class="sec-delta" style="color:var(--muted);">—</span>';
+}
+
+function renderSectorRow(data, isWeak) {
+  const latest = getLatestSectorVal(data);
+  const name = sectorShort(data.ticker);
+  const rowCls = sectorRowClass(latest);
+  const lblCls = sectorLabelClass(latest);
+  const meta = SECTOR_META[data.ticker];
+  const subLabel = meta ? `${data.ticker} ${meta.weight}` : data.ticker;
+  const weakCls = isWeak ? ' sec-row-weak' : '';
+
+  const valsHTML = SESSIONS.map((s, i) => {
+    const v = data.values[s];
+    if (v === undefined || isNaN(v)) {
+      return (i > 0 ? '<span class="sec-arrow">→</span>' : '') + '<span class="sec-empty">—</span>';
+    }
+    const cls = sectorValClass(v);
+    const display = (v > 0 ? '+' : '') + v.toFixed(2);
+    return (i > 0 ? '<span class="sec-arrow">→</span>' : '') + `<span class="${cls}">${display}</span>`;
+  }).join('');
+
+  return `<div class="sec-row ${rowCls}${weakCls}">
+    <div class="sec-label-group">
+      <span class="sec-label ${lblCls}">${name}</span>
+      <span class="sec-label-sub">${subLabel}</span>
+    </div>
+    <span class="sec-vals">${valsHTML}</span>
+    ${sectorDeltaHTML(data)}
+  </div>`;
+}
+
+let addFormVisible = {};
+
+function toggleAddForm(quad) {
+  addFormVisible[quad] = !addFormVisible[quad];
+  renderSectorsCard();
+}
+
+function addWeakSector(quad) {
+  const sel = document.getElementById(`sec-add-sel-${quad}`);
+  const inp = document.getElementById(`sec-add-val-${quad}`);
+  if (!sel || !inp) return;
+  const ticker = sel.value;
+  const val = parseFloat(inp.value);
+  if (!ticker || isNaN(val)) return;
+
+  const session = SESSIONS.find(s => {
+    const v = num(state[s].vix) || num(state[s].trin) || num(state[s].adh);
+    return !isNaN(v);
+  }) || 'morning';
+
+  const sectors = parseSectors(session);
+  const filtered = sectors.filter(s => s.ticker !== ticker);
+  filtered.push({ ticker, value: val.toFixed(2) });
+  state[session].sectors_json = JSON.stringify(filtered);
+  scheduleSave(session);
+  addFormVisible[quad] = false;
+  renderAll();
+}
+
+function nonHeavySectors() {
+  return SPY_SECTORS.filter(s => !HEAVY_TICKERS.has(s.ticker));
+}
+
+function sectorPlacement(d) {
+  const latest = getLatestSectorVal(d);
+  if (!isNaN(latest)) return latest >= 0 ? 'pos' : 'neg';
+  const first = getFirstSectorVal(d);
+  if (first) return first.v >= 0 ? 'pos' : 'neg';
+  return 'neg';
+}
+
+function renderSectorsCard() {
+  const el = document.getElementById('mi2-sectors');
+  const allData = collectSectorData();
+
+  const heavyPos = [], heavyNeg = [], weakPos = [], weakNeg = [];
+
+  Object.values(allData).forEach(d => {
+    const place = sectorPlacement(d);
+    const isHeavy = HEAVY_TICKERS.has(d.ticker);
+    if (isHeavy) {
+      (place === 'pos' ? heavyPos : heavyNeg).push(d);
+    } else {
+      (place === 'pos' ? weakPos : weakNeg).push(d);
+    }
+  });
+
+  HEAVY_TICKERS.forEach(t => {
+    if (!allData[t]) {
+      heavyNeg.push({ ticker: t, values: {} });
+    }
+  });
+
+  const sortByAbsDesc = (a, b) => Math.abs(getLatestSectorVal(b) || 0) - Math.abs(getLatestSectorVal(a) || 0);
+  heavyPos.sort(sortByAbsDesc);
+  heavyNeg.sort(sortByAbsDesc);
+  weakPos.sort(sortByAbsDesc);
+  weakNeg.sort(sortByAbsDesc);
+
+  const pencilSVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>';
+
+  function weakSection(weakArr, quad) {
+    let html = '<div class="sec-weak-divider"></div>';
+    if (weakArr.length) {
+      html += weakArr.map(d => renderSectorRow(d, true)).join('');
+    } else {
+      html += '<div class="sec-weak-none">None added</div>';
+    }
+    return html;
+  }
+
+  el.innerHTML = `
+    <div class="sec-header-card">
+      <div class="sec-trigger-row">
+        <span class="sec-trigger-label">SECTORS</span>
+        <button class="sec-record-btn" onclick="openSectorModal()">${pencilSVG} Record session data</button>
+      </div>
+      <div class="sec-ts-row">${renderTimestampPills()}</div>
+    </div>
+    <div class="sec-pos-card">
+      <div class="sec-card-hdr sec-card-hdr-pos">
+        <span>Positive +</span>
+        <span class="sec-card-hdr-sub">heavy → weak</span>
+      </div>
+      ${heavyPos.map(d => renderSectorRow(d, false)).join('')}
+      ${weakSection(weakPos, 'wp')}
+    </div>
+    <div class="sec-neg-card">
+      <div class="sec-card-hdr sec-card-hdr-neg">
+        <span>Negative −</span>
+        <span class="sec-card-hdr-sub">heavy → weak</span>
+      </div>
+      ${heavyNeg.map(d => renderSectorRow(d, false)).join('')}
+      ${weakSection(weakNeg, 'wn')}
+    </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SECTOR ENTRY MODAL
+   ═══════════════════════════════════════════════════════════════════════ */
+const SECTOR_META = {
+  XLK: { short:'Tech', full:'Technology', weight:'30.5%' },
+  XLV: { short:'Health', full:'Health Care', weight:'12.2%' },
+  XLF: { short:'Fin', full:'Financials', weight:'12.1%' },
+  XLY: { short:'Disc', full:'Cons Disc', weight:'10.2%' },
+  XLC: { short:'Comm', full:'Comm Svcs', weight:'9.3%' },
+  XLI: { short:'Indust', full:'Industrials', weight:'8.1%' },
+  XLP: { short:'Staples', full:'Staples', weight:'5.9%' },
+  XLE: { short:'Energy', full:'Energy', weight:'3.8%' },
+  XLRE:{ short:'RE', full:'Real Estate', weight:'2.2%' },
+  XLB: { short:'Matls', full:'Materials', weight:'2.1%' },
+  XLU: { short:'Utils', full:'Utilities', weight:'2.0%' },
+};
+
+const SESSION_COLORS = {
+  morning:   { color:'#00c8ff', bg:'rgba(0,200,255,0.08)',  bgA:'rgba(0,200,255,0.1)',  border:'rgba(0,200,255,0.2)',  borderA:'rgba(0,200,255,0.3)',  short:'MNG' },
+  midday:    { color:'#f5a623', bg:'rgba(245,166,35,0.08)', bgA:'rgba(245,166,35,0.1)', border:'rgba(245,166,35,0.2)', borderA:'rgba(245,166,35,0.3)', short:'MID' },
+  afternoon: { color:'#c084fc', bg:'rgba(160,100,220,0.08)',bgA:'rgba(160,100,220,0.1)',border:'rgba(160,100,220,0.2)',borderA:'rgba(160,100,220,0.3)',short:'AFT' },
+};
+
+const HEAVY_ORDER = ['XLK','XLV','XLF','XLY','XLC','XLI'];
+
+let smOpen = false;
+let smSession = 'morning';
+let smHeavyInputs = {};
+let smWeakEntries = [];
+let smSaving = false;
+
+function sessionHasData(session) {
+  const sectors = parseSectors(session);
+  if (sectors.length > 0) return true;
+  const s = state[session];
+  return !!(s.vix || s.trin || s.vol_pct || s.adh || s.vold_nyse || s.add_nyse);
+}
+
+function getSessionTime(session) {
+  const raw = state[session].timestamp;
+  if (!raw) return '';
+  const parts = raw.split(':');
+  if (parts.length < 2) return raw;
+  let h = parseInt(parts[0]), m = parts[1];
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  if (h > 12) h -= 12;
+  if (h === 0) h = 12;
+  return `${h}:${m} ${ampm}`;
+}
+
+function getDefaultModalSession() {
+  for (const s of SESSIONS) { if (!sessionHasData(s)) return s; }
+  return 'morning';
+}
+
+function loadSessionIntoModal(session) {
+  const sectors = parseSectors(session);
+  smHeavyInputs = {};
+  HEAVY_ORDER.forEach(t => {
+    const entry = sectors.find(s => s.ticker === t);
+    smHeavyInputs[t] = entry ? String(entry.value) : '';
+  });
+  smWeakEntries = [];
+  SESSIONS.forEach(s => {
+    parseSectors(s).filter(e => !HEAVY_TICKERS.has(e.ticker)).forEach(e => {
+      if (!smWeakEntries.find(w => w.ticker === e.ticker && w.session === s)) {
+        smWeakEntries.push({ ticker: e.ticker, value: e.value, session: s });
+      }
+    });
+  });
+}
+
+function openSectorModal() {
+  smSession = getDefaultModalSession();
+  loadSessionIntoModal(smSession);
+  smOpen = true;
+  smSaving = false;
+  document.getElementById('sm-backdrop').style.display = '';
+  document.getElementById('sm-modal').style.display = '';
+  renderSectorModal();
+}
+
+function closeSectorModal() {
+  smOpen = false;
+  document.getElementById('sm-backdrop').style.display = 'none';
+  document.getElementById('sm-modal').style.display = 'none';
+}
+
+function switchModalSession(session) {
+  smSession = session;
+  loadSessionIntoModal(session);
+  renderSectorModal();
+}
+
+function renderTimestampPills() {
+  const pills = SESSIONS.map(s => {
+    const sc = SESSION_COLORS[s];
+    const has = sessionHasData(s);
+    const time = getSessionTime(s);
+    if (has) {
+      const tsCls = s === 'morning' ? 'ts-mng' : s === 'midday' ? 'ts-mid' : 'ts-aft';
+      return `<span class="sec-ts-pill ${tsCls}">● ${sc.short} recorded${time ? ' ' + time : ''}</span>`;
+    }
+    return `<span class="sec-ts-pill ts-empty">○ ${sc.short} not recorded</span>`;
+  });
+  return pills.join('');
+}
+
+function buildStatusHint() {
+  const parts = [];
+  SESSIONS.forEach(s => {
+    const sc = SESSION_COLORS[s];
+    const has = sessionHasData(s);
+    const time = getSessionTime(s);
+    if (has) parts.push(`<span style="color:${sc.color}">✓ ${sc.short}${time ? ' ' + time : ''}</span>`);
+    else if (s === smSession) parts.push(`<span style="color:${sc.color}">${sc.short} active</span>`);
+  });
+  return parts.join(' · ');
+}
+
+function renderSectorModal() {
+  const sc = SESSION_COLORS[smSession];
+  const el = document.getElementById('sm-content');
+
+  const pencilSVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>';
+
+  const sessionBtns = SESSIONS.map(s => {
+    const c = SESSION_COLORS[s];
+    const isActive = s === smSession;
+    const style = isActive
+      ? `background:${c.bgA};border-color:${c.borderA};color:${c.color}`
+      : '';
+    const label = s === 'morning' ? 'MNG' : s === 'midday' ? 'MID-DAY' : 'AFT';
+    return `<button class="sm-session-btn" style="${style}" onclick="switchModalSession('${s}')">${label}</button>`;
+  }).join('');
+
+  const heavyRows = HEAVY_ORDER.map(t => {
+    const m = SECTOR_META[t];
+    const val = smHeavyInputs[t] || '';
+    const prefilled = val !== '' ? 'prefilled' : '';
+    const borderStyle = `border-color:${val ? '' : sc.borderA}`;
+    return `<div class="sm-heavy-row">
+      <div class="sm-heavy-label">
+        <span class="sm-heavy-ticker">${t}</span>
+        <span class="sm-heavy-short">${m.short}</span>
+        <span class="sm-heavy-weight">${m.weight}</span>
+      </div>
+      <input class="sm-heavy-input ${prefilled}" value="${val}" placeholder="0.00" maxlength="6"
+        style="${!prefilled ? borderStyle : ''}"
+        oninput="smHeavyInputs['${t}']=this.value"
+        onfocus="this.classList.remove('prefilled');this.style.borderColor='${sc.borderA}'"
+      >
+    </div>`;
+  }).join('');
+
+  const weakRows = smWeakEntries.map((w, i) => {
+    const v = parseFloat(w.value);
+    const valCls = isNaN(v) ? '' : v < 0 ? 'wv-neg' : 'wv-pos';
+    const sessTag = SESSION_COLORS[w.session]?.short || w.session;
+    const name = SECTOR_META[w.ticker]?.short || w.ticker;
+    return `<div class="sm-weak-row">
+      <span class="sm-weak-name">${name} (${w.ticker})</span>
+      <span class="sm-weak-val ${valCls}">${w.value}</span>
+      <span class="sm-weak-session-tag">${sessTag}</span>
+      <button class="sm-weak-rm" onclick="removeWeakFromModal(${i})">✕</button>
+    </div>`;
+  }).join('');
+
+  const availableSectors = Object.keys(SECTOR_META).filter(t => !HEAVY_TICKERS.has(t));
+  const addOpts = `<optgroup label="Available">${availableSectors.map(t => {
+    const m = SECTOR_META[t];
+    return `<option value="${t}">${t} – ${m.full} (${m.weight})</option>`;
+  }).join('')}</optgroup>
+  <optgroup label="Already tracked">${HEAVY_ORDER.map(t => {
+    const m = SECTOR_META[t];
+    return `<option value="${t}" disabled>${t} – ${m.full} (${m.weight})</option>`;
+  }).join('')}</optgroup>`;
+
+  const sessLabel = smSession === 'morning' ? 'morning' : smSession === 'midday' ? 'mid-day' : 'afternoon';
+  const saveBtnLabel = smSaving ? 'Saved ✓' : `Save ${SESSION_COLORS[smSession].short} →`;
+  const saveBtnCls = smSaving ? 'sm-save-btn saved' : 'sm-save-btn';
+
+  el.innerHTML = `
+    <div class="sm-header">
+      <div class="sm-title-row">
+        <span class="sm-title">Record session data</span>
+        <button class="sm-close" onclick="closeSectorModal()">✕</button>
+      </div>
+      <div class="sm-session-row">
+        <span class="sm-session-label">SESSION</span>
+        ${sessionBtns}
+        <span class="sm-status-hint">${buildStatusHint()}</span>
+      </div>
+    </div>
+    <div class="sm-body">
+      <div class="sm-section-label">
+        <span>HEAVY SECTORS</span>
+        <span>top 6 by S&P 500 weight</span>
+      </div>
+      ${heavyRows}
+      <div class="sm-weak-divider"></div>
+      <div class="sm-section-label">
+        <span>WEAK SECTORS</span>
+        <span>notable outliers only</span>
+      </div>
+      ${weakRows || '<div style="color:var(--muted);font-size:11px;padding:4px 0;">None added</div>'}
+      <div class="sm-add-row">
+        <select id="sm-weak-sel">${addOpts}</select>
+        <input id="sm-weak-val" placeholder="±0.00" maxlength="6"
+          onkeydown="if(event.key==='Enter'){addWeakFromModal();event.preventDefault();}">
+        <button class="sm-add-btn-green" onclick="addWeakFromModal()">+</button>
+      </div>
+    </div>
+    <div class="sm-footer">
+      <span class="sm-footer-label">Recording ${sessLabel} session</span>
+      <div class="sm-footer-actions">
+        <button class="sm-cancel-btn" onclick="closeSectorModal()">Cancel</button>
+        <button class="${saveBtnCls}" onclick="saveSectorModal()"${smSaving ? ' disabled' : ''}>${saveBtnLabel}</button>
+      </div>
+    </div>`;
+}
+
+function addWeakFromModal() {
+  const sel = document.getElementById('sm-weak-sel');
+  const inp = document.getElementById('sm-weak-val');
+  if (!sel || !inp) return;
+  const ticker = sel.value;
+  const val = parseFloat(inp.value);
+  if (!ticker || isNaN(val)) return;
+  smWeakEntries = smWeakEntries.filter(w => !(w.ticker === ticker && w.session === smSession));
+  smWeakEntries.push({ ticker, value: val.toFixed(2), session: smSession });
+  inp.value = '';
+  renderSectorModal();
+}
+
+function removeWeakFromModal(index) {
+  const removed = smWeakEntries[index];
+  smWeakEntries.splice(index, 1);
+  if (removed) {
+    const sectors = parseSectors(removed.session).filter(s => s.ticker !== removed.ticker);
+    state[removed.session].sectors_json = JSON.stringify(sectors);
+    scheduleSave(removed.session);
+  }
+  renderSectorModal();
+}
+
+function saveSectorModal() {
+  if (smSaving) return;
+  const sectors = [];
+  HEAVY_ORDER.forEach(t => {
+    const raw = smHeavyInputs[t];
+    if (raw !== '' && raw !== undefined) {
+      const v = parseFloat(raw);
+      if (!isNaN(v)) sectors.push({ ticker: t, value: raw });
+    }
+  });
+  smWeakEntries.filter(w => w.session === smSession).forEach(w => {
+    sectors.push({ ticker: w.ticker, value: w.value });
+  });
+  state[smSession].sectors_json = JSON.stringify(sectors);
+  scheduleSave(smSession);
+
+  smSaving = true;
+  renderSectorModal();
+  setTimeout(() => {
+    smSaving = false;
+    closeSectorModal();
+    renderAll();
+  }, 600);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RENDER ALL + LOAD
+   ═══════════════════════════════════════════════════════════════════════ */
+function renderAll() {
+  renderAlerts();
+  renderVitals();
+  renderInternals();
+  renderSectorsCard();
+}
+
+async function loadInternals() {
+  try {
+    const res = await fetch(`/api/day/${DAY_ID}/internals`);
+    const rows = await res.json();
+    rows.forEach(row => {
+      if (state[row.session]) {
+        Object.keys(state[row.session]).forEach(k => {
+          if (row[k] !== undefined && row[k] !== null) {
+            state[row.session][k] = row[k];
+          }
+        });
+      }
+    });
+  } catch(e) {}
+  renderAll();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('mi2-date').textContent = formatDateShort(DAY_DATE);
+  loadInternals();
+});
+</script>
+{% endblock %}

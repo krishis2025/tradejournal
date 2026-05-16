@@ -103,6 +103,7 @@
   width: 100vw; flex: 1; min-height: 0;
   position: relative; z-index: 1;
 }
+.main-area.internals-mode { grid-template-columns: 1fr; }
 
 /* ── LEFT: CONTEXT PANEL ── */
 .context-panel {
@@ -2008,6 +2009,274 @@
   background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 50%;
   font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   INTERNALS TAB
+   ═══════════════════════════════════════════════════════════════════════ */
+.int-wrap { padding: 24px 32px; overflow-y: auto; max-height: 100%; }
+.int-header { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:16px; }
+.int-title { font-family:'JetBrains Mono',monospace; font-weight:700; font-size:18px; color:var(--text); letter-spacing:2px; }
+.int-date { font-family:'JetBrains Mono',monospace; font-weight:500; font-size:12px; color:var(--muted2); }
+
+.int-alert {
+  background:rgba(90,10,10,0.25); border:0.5px solid rgba(255,80,80,0.25);
+  border-radius:8px; padding:7px 12px; font-size:11px; color:#ff7070;
+  font-family:'JetBrains Mono',monospace; font-weight:500; margin-bottom:6px;
+  display:flex; align-items:center; gap:8px;
+}
+.int-alert svg { flex-shrink:0; }
+
+.int-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:10px; padding:16px 20px; margin-bottom:12px;
+}
+.int-card-title {
+  font-family:'Inter',sans-serif; font-weight:600; font-size:10px;
+  letter-spacing:1.5px; text-transform:uppercase; color:var(--muted2); margin-bottom:12px;
+}
+
+/* Two-column layout */
+.int-two-col { display:grid; grid-template-columns:62% 38%; gap:10px; align-items:start; }
+.int-left-col { display:flex; flex-direction:column; gap:8px; }
+.int-left-col .int-card { padding:14px 16px; margin-bottom:0; }
+.int-left-col .int-table td { padding:7px 8px; }
+.int-right-col { display:flex; flex-direction:column; gap:0; }
+
+/* Sector stacked cards */
+.is-header-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:10px 10px 0 0; padding:10px 12px 6px; margin-bottom:0;
+  border-bottom:none;
+}
+.is-pos-card, .is-neg-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:0; padding:8px 12px; min-height:50px;
+}
+.is-pos-card { border-bottom:none; }
+.is-neg-card { border-radius:0 0 10px 10px; }
+.is-card-hdr {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:4px 8px; border-radius:5px; margin-bottom:6px;
+  font-family:'Inter',sans-serif; font-weight:600; font-size:10px;
+  letter-spacing:1px; text-transform:uppercase;
+}
+.is-card-hdr-pos { background:rgba(26,138,74,0.1); color:#1a8a4a; }
+.is-card-hdr-neg { background:rgba(192,48,48,0.1); color:#c03030; }
+.is-card-hdr-sub {
+  font-size:7px; opacity:0.6; font-weight:400; letter-spacing:0.5px;
+  text-transform:lowercase;
+}
+.is-row-weak { background:rgba(255,255,255,0.025); }
+[data-theme="paper"] .is-row-weak { background:rgba(0,0,0,0.025); }
+.is-weak-divider { height:1px; background:var(--border); margin:5px 0; opacity:0.4; }
+.is-weak-none {
+  color:var(--muted); font-family:'Inter',sans-serif; font-size:9px;
+  padding:3px 8px; background:rgba(255,255,255,0.025); border-radius:4px;
+}
+[data-theme="paper"] .is-weak-none { background:rgba(0,0,0,0.025); }
+.is-label-group { display:flex; flex-direction:column; min-width:48px; }
+.is-label-sub {
+  font-size:7px; opacity:0.45; color:var(--muted2); margin-top:1px;
+  font-weight:400; letter-spacing:0;
+}
+
+.int-table { width:100%; border-collapse:collapse; }
+.int-table th {
+  font-family:'Inter',sans-serif; font-weight:600; font-size:9px;
+  letter-spacing:1.5px; text-transform:uppercase; color:var(--muted);
+  padding:0 10px 8px; text-align:center;
+}
+.int-table th:first-child { text-align:left; }
+.int-table td {
+  padding:8px 10px; text-align:center; vertical-align:middle;
+  border-top:1px solid var(--border);
+  font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:500; color:var(--text);
+}
+.int-table td:first-child {
+  text-align:left; font-family:'Inter',sans-serif; font-weight:500;
+  font-size:12px; color:var(--muted2); width:120px;
+}
+
+.int-input {
+  background:transparent; border:1px solid transparent; border-radius:4px;
+  color:var(--text); font-family:'JetBrains Mono',monospace; font-size:12px;
+  font-weight:600; text-align:center; padding:3px 6px; width:70px;
+  outline:none; transition:border-color 0.15s,background 0.15s;
+}
+.int-input:hover { border-color:var(--border2); }
+.int-input:focus { border-color:var(--accent); background:var(--surface2); }
+.int-input::placeholder { color:var(--muted); font-weight:400; }
+
+.int-pill {
+  display:inline-flex; align-items:center; gap:3px;
+  padding:2px 8px; border-radius:4px; font-size:10px; font-weight:600;
+  font-family:'JetBrains Mono',monospace; white-space:nowrap;
+}
+.ip-sl-inc { background:rgba(52,211,153,0.15); color:#34d399; }
+.ip-inc    { background:rgba(52,211,153,0.25); color:#2ecc70; }
+.ip-sl-dec { background:rgba(255,77,109,0.15); color:#ff7070; }
+.ip-dec    { background:rgba(255,77,109,0.25); color:#ff4d6d; }
+.ip-flat   { background:rgba(255,255,255,0.08); color:var(--muted2); }
+.ip-amber  { background:rgba(255,179,71,0.2); color:#ffb347; }
+.ip-blue   { background:rgba(0,207,255,0.15); color:#00cfff; }
+
+.ivp-dg { background:rgba(52,211,153,0.25); color:#2ecc70; border:1px solid rgba(52,211,153,0.3); }
+.ivp-lg { background:rgba(52,211,153,0.12); color:#34d399; border:1px solid rgba(52,211,153,0.15); }
+.ivp-lr { background:rgba(255,77,109,0.12); color:#ff7070; border:1px solid rgba(255,77,109,0.15); }
+.ivp-dr { background:rgba(255,77,109,0.25); color:#ff4d6d; border:1px solid rgba(255,77,109,0.3); }
+
+.iap-dg { background:rgba(46,204,112,0.3); color:#2ecc70; }
+.iap-lg { background:rgba(46,204,112,0.15); color:#34d399; }
+.iap-lr { background:rgba(255,77,109,0.15); color:#ff7070; }
+.iap-dr { background:rgba(255,77,109,0.3); color:#ff4d6d; }
+
+.int-pair { display:flex; flex-direction:column; align-items:center; gap:2px; }
+.int-pair-vals { display:flex; align-items:center; gap:4px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600; }
+.int-pair-lbl { font-family:'Inter',sans-serif; font-size:8px; color:var(--muted); letter-spacing:0.5px; }
+.int-pair .int-input { width:48px; font-size:11px; padding:2px 3px; }
+
+.int-sectors-hdr { font-family:'JetBrains Mono',monospace; font-weight:500; font-size:10px; color:var(--muted2); letter-spacing:0.5px; margin-bottom:4px; }
+.int-sectors-axis { display:flex; justify-content:space-between; margin-bottom:6px; font-family:'Inter',sans-serif; font-size:8px; letter-spacing:1px; text-transform:uppercase; opacity:0.4; color:var(--muted); }
+.int-quad-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.int-quad { border:1px solid var(--border); border-radius:8px; padding:10px 12px; min-height:60px; }
+.int-quad-title { font-family:'Inter',sans-serif; font-weight:600; font-size:10px; letter-spacing:1px; text-transform:uppercase; margin-bottom:8px; }
+.int-quad.iq-hp { background:rgba(26,138,74,0.06); border-color:rgba(26,138,74,0.15); }
+.int-quad.iq-hp .int-quad-title { color:#1a8a4a; }
+.int-quad.iq-hn { background:rgba(192,48,48,0.06); border-color:rgba(192,48,48,0.15); }
+.int-quad.iq-hn .int-quad-title { color:#c03030; }
+.int-quad.iq-wp,.int-quad.iq-wn { background:var(--surface2); }
+.int-quad.iq-wp .int-quad-title,.int-quad.iq-wn .int-quad-title { color:var(--muted2); }
+
+.is-row {
+  display:flex; align-items:center; gap:6px;
+  border-radius:5px; padding:4px 8px; margin-bottom:4px;
+  font-family:'JetBrains Mono',monospace; font-size:10px;
+}
+.is-row-dg { background:rgba(16,82,40,0.75); border:0.5px solid rgba(46,204,112,0.35); }
+.is-row-lg { background:rgba(20,42,30,0.4); border:0.5px solid rgba(125,212,160,0.1); }
+.is-row-lr { background:rgba(42,20,20,0.4); border:0.5px solid rgba(196,144,144,0.12); }
+.is-row-dr { background:rgba(82,16,16,0.75); border:0.5px solid rgba(224,85,85,0.35); }
+.is-label { font-weight:600; font-size:11px; min-width:42px; font-family:'Inter',sans-serif; }
+.is-label-dg { color:#34d97a; } .is-label-lg { color:#7dd4a0; }
+.is-label-lr { color:#c49090; } .is-label-dr { color:#ff5555; }
+.is-vals { flex:1; display:flex; align-items:center; gap:2px; font-size:10px; font-weight:500; }
+.is-arrow { color:rgba(255,255,255,0.2); font-size:9px; }
+.is-empty { color:rgba(255,255,255,0.2); }
+.is-v-dg { color:#34d97a; } .is-v-lg { color:#7dd4a0; }
+.is-v-lr { color:#c49090; } .is-v-dr { color:#ff5555; }
+.is-delta { margin-left:auto; font-size:10px; }
+.is-delta-up { color:#7dd4a0; } .is-delta-dn { color:#c49090; }
+.is-delta-flip { color:#ff7070; background:rgba(90,10,10,0.6); padding:1px 4px; border-radius:3px; font-size:9px; }
+.is-none { color:var(--muted); font-family:'Inter',sans-serif; font-size:11px; }
+
+.is-add-btn {
+  display:inline-flex; align-items:center; gap:4px;
+  background:var(--surface); border:1px solid var(--border); border-radius:6px;
+  color:var(--muted2); font-family:'Inter',sans-serif; font-size:10px;
+  font-weight:500; padding:5px 12px; cursor:pointer; margin-top:4px;
+  transition:all 0.15s;
+}
+.is-add-btn:hover { border-color:var(--muted); color:var(--text); }
+.is-add-form { display:flex; gap:5px; align-items:center; margin-top:6px; }
+.is-add-form select,.is-add-form input {
+  background:var(--bg); border:1px solid var(--border); border-radius:4px;
+  color:var(--text); font-family:'JetBrains Mono',monospace; font-size:10px;
+  padding:4px 6px; outline:none;
+}
+.is-add-form select { min-width:80px; }
+.is-add-form input { width:50px; }
+.is-add-form button {
+  background:var(--surface2); border:1px solid var(--border); border-radius:4px;
+  color:var(--muted2); font-size:9px; padding:4px 8px; cursor:pointer;
+  font-family:'Inter',sans-serif; font-weight:600;
+}
+.is-add-form button:hover { color:var(--text); border-color:var(--muted); }
+
+/* ── Sector Modal ── */
+.int-sec-trigger-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+.int-sec-trigger-label { font-family:'Inter',sans-serif; font-weight:600; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted2); }
+.int-sec-record-btn {
+  display:inline-flex; align-items:center; gap:5px;
+  background:rgba(0,200,255,0.08); border:0.5px solid rgba(0,200,255,0.3);
+  color:#00c8ff; font-family:'Inter',sans-serif; font-size:10px;
+  font-weight:600; padding:4px 12px; border-radius:5px; cursor:pointer; transition:all 0.15s;
+}
+.int-sec-record-btn:hover { background:rgba(0,200,255,0.14); }
+.int-sec-record-btn svg { width:12px; height:12px; }
+.int-sec-ts-row { display:flex; gap:5px; margin-bottom:8px; flex-wrap:wrap; }
+.int-sec-ts-pill {
+  display:inline-flex; align-items:center; gap:3px;
+  padding:2px 8px; border-radius:4px; font-family:'Inter',sans-serif;
+  font-size:9px; font-weight:500; white-space:nowrap;
+}
+.int-sec-ts-pill.its-mng { background:rgba(0,200,255,0.08); border:0.5px solid rgba(0,200,255,0.2); color:#00c8ff; }
+.int-sec-ts-pill.its-mid { background:rgba(245,166,35,0.08); border:0.5px solid rgba(245,166,35,0.2); color:#f5a623; }
+.int-sec-ts-pill.its-aft { background:rgba(160,100,220,0.08); border:0.5px solid rgba(160,100,220,0.2); color:#c084fc; }
+.int-sec-ts-pill.its-empty { background:rgba(255,255,255,0.03); border:0.5px solid rgba(255,255,255,0.08); color:var(--muted); opacity:0.5; }
+
+.ism-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9000; }
+.ism-modal {
+  position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+  width:400px; max-height:540px; display:flex; flex-direction:column;
+  border-radius:12px; border:0.5px solid var(--border2);
+  background:var(--surface); z-index:9001; box-shadow:0 16px 48px rgba(0,0,0,0.4); overflow:hidden;
+}
+.ism-header { padding:14px 18px 10px; border-bottom:1px solid var(--border); flex-shrink:0; }
+.ism-title-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.ism-title { font-family:'Inter',sans-serif; font-weight:600; font-size:13px; color:var(--text); }
+.ism-close { background:none; border:none; color:var(--muted); font-size:15px; cursor:pointer; padding:2px 6px; border-radius:4px; transition:all 0.15s; line-height:1; }
+.ism-close:hover { color:var(--text); background:var(--surface2); }
+.ism-session-row { display:flex; align-items:center; gap:6px; }
+.ism-session-label { font-family:'Inter',sans-serif; font-weight:600; font-size:8px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-right:2px; }
+.ism-session-btn {
+  background:var(--surface2); border:1px solid var(--border); color:var(--muted2);
+  font-family:'Inter',sans-serif; font-size:9px; font-weight:600;
+  padding:3px 9px; border-radius:4px; cursor:pointer; transition:all 0.15s;
+}
+.ism-session-btn:hover { border-color:var(--muted); color:var(--text); }
+.ism-status-hint { margin-left:auto; font-family:'Inter',sans-serif; font-size:8px; color:var(--muted); white-space:nowrap; }
+.ism-body { flex:1; overflow-y:auto; padding:12px 18px; min-height:0; }
+.ism-section-label {
+  display:flex; align-items:center; justify-content:space-between;
+  padding-bottom:5px; margin-bottom:6px; border-bottom:1px solid var(--border);
+}
+.ism-section-label span:first-child { font-family:'Inter',sans-serif; font-weight:600; font-size:9px; letter-spacing:1px; text-transform:uppercase; color:var(--muted2); }
+.ism-section-label span:last-child { font-family:'Inter',sans-serif; font-size:8px; color:var(--muted); opacity:0.7; }
+.ism-heavy-row { display:flex; align-items:center; justify-content:space-between; padding:4px 0; border-bottom:0.5px solid var(--border); gap:10px; }
+.ism-heavy-label { display:flex; align-items:center; gap:5px; flex:1; }
+.ism-heavy-ticker { font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:500; color:var(--text); min-width:30px; }
+.ism-heavy-short { font-family:'Inter',sans-serif; font-size:10px; color:var(--muted2); }
+.ism-heavy-weight { font-family:'Inter',sans-serif; font-size:9px; opacity:0.45; color:var(--muted); margin-left:auto; padding-right:10px; }
+.ism-heavy-input {
+  width:58px; font-size:11px; padding:4px 5px; border-radius:4px; text-align:center;
+  font-family:'JetBrains Mono',monospace; background:var(--bg); border:1px solid var(--border);
+  color:var(--text); outline:none; transition:border-color 0.15s,background 0.15s;
+}
+.ism-heavy-input::placeholder { color:var(--muted); font-weight:400; }
+.ism-heavy-input:focus { background:var(--surface2); }
+.ism-heavy-input.ism-prefilled { border-color:rgba(0,208,132,0.35); background:rgba(0,208,132,0.06); color:#00d084; }
+.ism-weak-divider { margin:10px 0 6px; }
+.ism-weak-row { display:flex; align-items:center; gap:6px; padding:3px 0; border-bottom:0.5px solid var(--border); }
+.ism-weak-name { flex:1; font-family:'Inter',sans-serif; font-size:10px; font-weight:500; color:var(--text); }
+.ism-weak-val { font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:500; }
+.ism-weak-val.iwv-pos { color:#7dd4a0; } .ism-weak-val.iwv-neg { color:#ff7070; }
+.ism-weak-session-tag { font-family:'Inter',sans-serif; font-size:8px; color:var(--muted); }
+.ism-weak-rm { background:none; border:none; color:var(--muted); opacity:0.4; font-size:11px; cursor:pointer; padding:2px 4px; line-height:1; transition:all 0.15s; }
+.ism-weak-rm:hover { opacity:1; color:#e05555; }
+.ism-add-row { display:flex; align-items:center; gap:5px; margin-top:6px; }
+.ism-add-row select { flex:1; min-width:0; background:var(--bg); border:1px solid var(--border); border-radius:4px; color:var(--text); font-family:'Inter',sans-serif; font-size:10px; padding:4px 5px; outline:none; }
+.ism-add-row input { width:54px; font-size:11px; padding:3px 5px; border-radius:4px; text-align:center; font-family:'JetBrains Mono',monospace; background:var(--bg); border:1px solid var(--border); color:var(--text); outline:none; }
+.ism-add-row input::placeholder { color:var(--muted); }
+.ism-add-btn-green { background:rgba(0,208,132,0.08); border:1px solid rgba(0,208,132,0.3); color:#00d084; font-family:'Inter',sans-serif; font-size:11px; font-weight:700; padding:3px 9px; border-radius:4px; cursor:pointer; transition:all 0.15s; }
+.ism-add-btn-green:hover { background:rgba(0,208,132,0.15); }
+.ism-footer { display:flex; align-items:center; justify-content:space-between; padding:10px 18px; border-top:1px solid var(--border); flex-shrink:0; }
+.ism-footer-label { font-family:'Inter',sans-serif; font-size:9px; color:var(--muted); }
+.ism-footer-actions { display:flex; gap:6px; }
+.ism-cancel-btn { background:transparent; border:1px solid var(--border); color:var(--muted2); font-family:'Inter',sans-serif; font-size:10px; font-weight:500; padding:4px 12px; border-radius:5px; cursor:pointer; transition:all 0.15s; }
+.ism-cancel-btn:hover { border-color:var(--muted); color:var(--text); }
+.ism-save-btn { background:rgba(52,211,153,0.15); border:1px solid rgba(52,211,153,0.3); color:#34d399; font-family:'Inter',sans-serif; font-size:10px; font-weight:600; padding:4px 12px; border-radius:5px; cursor:pointer; transition:all 0.15s; }
+.ism-save-btn:hover { background:rgba(52,211,153,0.25); }
+.ism-save-btn.ism-saved { background:rgba(52,211,153,0.3); color:#2ecc70; }
 {% endblock %}
 
 {% block content %}
@@ -2043,6 +2312,10 @@
   </div>
 
   </div>
+
+<!-- SECTOR MODAL -->
+<div class="ism-backdrop" id="ism-backdrop" onclick="intCloseSectorModal()" style="display:none"></div>
+<div class="ism-modal" id="ism-modal" style="display:none"><div id="ism-content"></div></div>
 
 <!-- GUARD OVERLAY -->
 <div class="guard-backdrop" id="guard-backdrop" onclick="closeGuardOverlay()"></div>
@@ -2147,8 +2420,25 @@ let processPatience = 0;
 let processArrival = 0;
 let processConfirmation = 0;
 
-const PHASES = ['CONTEXT', 'ENTRY', 'MANAGE', 'EXIT', 'REVIEW'];
+const PHASES = ['INTERNALS', 'CONTEXT', 'ENTRY', 'MANAGE', 'EXIT', 'REVIEW'];
 let strengthSubmitted = false;
+
+/* ── INTERNALS STATE ── */
+let intState = { morning: {}, midday: {}, afternoon: {} };
+let intDayId = null;
+let intLoaded = false;
+const INT_SESSIONS = ['morning', 'midday', 'afternoon'];
+const INT_SESSION_LABELS = { morning: 'MORNING', midday: 'MID-DAY', afternoon: 'AFTERNOON' };
+const INT_SPY_SECTORS = [
+  { ticker:'XLK', short:'Tech' }, { ticker:'XLV', short:'Health' },
+  { ticker:'XLF', short:'Fin' }, { ticker:'XLY', short:'Disc' },
+  { ticker:'XLC', short:'Comm' }, { ticker:'XLI', short:'Indust' },
+  { ticker:'XLP', short:'Staples' }, { ticker:'XLE', short:'Energy' },
+  { ticker:'XLRE',short:'RE' }, { ticker:'XLB', short:'Matls' },
+  { ticker:'XLU', short:'Utils' },
+];
+const INT_HEAVY = new Set(['XLK','XLV','XLF','XLY','XLC','XLI']);
+let intAddFormVisible = {};
 
 /* ── DATA MODEL ────────────────────────────────────────────────────────────── */
 function buildTradeModel(liveTrade, contexts, instrumentConfig) {
@@ -2422,6 +2712,7 @@ let inlineUpdateOpen = false;
 
 function renderContextPanel(trade) {
   const el = document.getElementById('context-panel');
+  if (activePhase === 'INTERNALS') { el.innerHTML = ''; return; }
   el.classList.add('sp-mode');
   el.innerHTML = buildSidePanelHtml();
 }
@@ -3253,6 +3544,11 @@ function setTrend(val) {
 function renderCenter(trade) {
   const el = document.getElementById('ladder');
 
+  if (activePhase === 'INTERNALS') {
+    renderInternalsTab(el);
+    return;
+  }
+
   if (activePhase === 'CONTEXT') {
     if (activeContextId && contextFormMode !== 'create') {
       // Modify mode: populate form with current context
@@ -3861,6 +4157,7 @@ function renderReviewCenter(el, trade) {
 /* ── RENDER: HEALTH PANEL (right) ── */
 function renderHealthPanel(trade) {
   const el = document.getElementById('health-panel');
+  if (activePhase === 'INTERNALS') { el.innerHTML = ''; return; }
 
   // Expand panel in REVIEW phase
   el.classList.toggle('review-expanded', activePhase === 'REVIEW');
@@ -5471,6 +5768,604 @@ function switchTrade(id) {
   renderAll();
 }
 
+/* ══════════════════════════════════════════════════════════════════════════════
+   INTERNALS TAB — Render Functions
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+function intNum(v) {
+  if (v === '' || v === null || v === undefined) return NaN;
+  return parseFloat(String(v).replace(/[^\d.\-]/g, ''));
+}
+
+function intSectorShort(ticker) {
+  const s = INT_SPY_SECTORS.find(x => x.ticker === ticker);
+  return s ? s.short : ticker;
+}
+
+function intParseSectors(session) {
+  try { return JSON.parse(intState[session].sectors_json || '[]'); }
+  catch { return []; }
+}
+
+function intGetLatest(field) {
+  for (let i = INT_SESSIONS.length - 1; i >= 0; i--) {
+    const v = intNum(intState[INT_SESSIONS[i]][field]);
+    if (!isNaN(v)) return { value: v, session: INT_SESSIONS[i], index: i };
+  }
+  return null;
+}
+
+function intGetDelta(field) {
+  const latest = intGetLatest(field);
+  const mV = intNum(intState.morning[field]);
+  if (!latest || isNaN(mV) || latest.index === 0) return null;
+  return { diff: latest.value - mV, latest: latest.value, morning: mV };
+}
+
+const _intSaveTimers = {};
+function intScheduleSave(session) {
+  clearTimeout(_intSaveTimers[session]);
+  _intSaveTimers[session] = setTimeout(() => intSaveSession(session), 400);
+}
+
+async function intSaveSession(session) {
+  try {
+    const url = intDayId ? `/api/day/${intDayId}/internals/${session}` : `/api/today/internals/${session}`;
+    await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(intState[session]) });
+  } catch(e) { console.error('Internals save failed', e); }
+}
+
+function intUpdateField(session, field, value) {
+  intState[session][field] = value;
+  intScheduleSave(session);
+  if (activePhase === 'INTERNALS') renderInternalsTab(document.getElementById('ladder'));
+}
+
+async function loadInternalsData() {
+  try {
+    const res = await fetch('/api/today/internals');
+    const json = await res.json();
+    intDayId = json.day_id;
+    for (const row of json.sessions) {
+      if (intState[row.session]) {
+        Object.keys(row).forEach(k => {
+          if (row[k] !== undefined && row[k] !== null) intState[row.session][k] = row[k];
+        });
+      }
+    }
+    intLoaded = true;
+  } catch(e) { console.error('Failed to load internals', e); }
+}
+
+function intInputHTML(session, field, val) {
+  const display = (val !== '' && val !== null && val !== undefined) ? val : '';
+  return `<input class="int-input" value="${display}" placeholder="—" onblur="intUpdateField('${session}','${field}',this.value)">`;
+}
+
+function intVolPillCls(v) {
+  if (isNaN(v)) return '';
+  if (v > 10) return 'ivp-dg'; if (v >= 0) return 'ivp-lg';
+  if (v >= -10) return 'ivp-lr'; return 'ivp-dr';
+}
+
+function intAdhPillCls(v) {
+  if (isNaN(v)) return '';
+  if (v > 150) return 'iap-dg'; if (v >= 0) return 'iap-lg';
+  if (v >= -150) return 'iap-lr'; return 'iap-dr';
+}
+
+function intVolDisplay(raw) {
+  const v = intNum(raw); if (isNaN(v)) return ''; return (v >= 0 ? '+' : '') + v + '%';
+}
+
+function intAdhDisplay(raw) {
+  const v = intNum(raw); if (isNaN(v)) return ''; return (v >= 0 ? '+' : '') + v;
+}
+
+function intVixDelta() {
+  const d = intGetDelta('vix');
+  if (!d) return '<span class="int-pill ip-flat">—</span>';
+  if (Math.abs(d.diff) < 0.10) return '<span class="int-pill ip-flat">≈ flat</span>';
+  const arrow = d.diff > 0 ? '▲' : '▼';
+  const cls = d.diff > 0 ? 'ip-sl-dec' : 'ip-sl-inc';
+  return `<span class="int-pill ${cls}">${arrow} ${d.diff > 0 ? '+' : ''}${d.diff.toFixed(2)}</span>`;
+}
+
+function intTrinDelta() {
+  const latest = intGetLatest('trin');
+  if (!latest) return '<span class="int-pill ip-flat">—</span>';
+  if (latest.value > 3.0) return '<span class="int-pill ip-amber">oversold</span>';
+  if (latest.value < 0.5) return '<span class="int-pill ip-blue">overbought</span>';
+  return '<span class="int-pill ip-flat">≈ flat</span>';
+}
+
+function intVolDelta() {
+  const d = intGetDelta('vol_pct');
+  if (!d) return '<span class="int-pill ip-flat">—</span>';
+  const abs = Math.abs(d.diff);
+  if (abs < 5) return `<span class="int-pill ip-flat">≈ ${abs.toFixed(1)}% flat</span>`;
+  const arrow = d.diff > 0 ? '▲' : '▼';
+  const word = d.diff > 0 ? 'improving' : 'declining';
+  let cls;
+  if (d.diff > 10) cls = 'ip-inc'; else if (d.diff > 0) cls = 'ip-sl-inc';
+  else if (d.diff > -10) cls = 'ip-sl-dec'; else cls = 'ip-dec';
+  return `<span class="int-pill ${cls}">${arrow} ${abs.toFixed(1)}% ${word}</span>`;
+}
+
+function intADHSparkline() {
+  const vals = INT_SESSIONS.map(s => intNum(intState[s].adh));
+  const W = 140, H = 44, midY = 22;
+  const xs = [25, 70, 115];
+  function yP(v) { return midY - (Math.max(-500, Math.min(500, v)) / 500 * midY); }
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="vertical-align:middle;">`;
+  svg += `<line x1="0" y1="${midY}" x2="${W}" y2="${midY}" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>`;
+  svg += `<line x1="0" y1="9" x2="${W-15}" y2="9" stroke="rgba(255,255,255,0.08)" stroke-width="0.5" stroke-dasharray="3,3"/>`;
+  svg += `<text x="${W-10}" y="12" fill="rgba(255,255,255,0.25)" font-size="7" font-family="JetBrains Mono">150</text>`;
+  svg += `<text x="${W-10}" y="25" fill="rgba(255,255,255,0.25)" font-size="7" font-family="JetBrains Mono">0</text>`;
+
+  const pts = [];
+  vals.forEach((v, i) => { if (!isNaN(v)) pts.push({ x: xs[i], y: yP(v), v, i }); });
+
+  for (let j = 0; j < pts.length - 1; j++) {
+    const a = pts[j], b = pts[j+1];
+    let lc = (a.v > 0 && b.v > 0) ? '#34d399' : (a.v < 0 && b.v < 0) ? '#ff4d6d' : '#ffb347';
+    svg += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${lc}" stroke-width="1.5"/>`;
+    if ((a.v > 0 && b.v < 0) || (a.v < 0 && b.v > 0)) {
+      const r = Math.abs(a.v) / (Math.abs(a.v) + Math.abs(b.v));
+      const cx = a.x + (b.x - a.x) * r;
+      svg += `<text x="${cx}" y="${midY - 4}" fill="#ff7070" font-size="8" font-family="JetBrains Mono" text-anchor="middle">↕</text>`;
+    }
+  }
+
+  vals.forEach((v, i) => {
+    if (isNaN(v)) { svg += `<circle cx="${xs[i]}" cy="${midY}" r="3" fill="rgba(255,255,255,0.15)"/>`; return; }
+    const y = yP(v), c = v > 0 ? '#34d399' : '#ff4d6d';
+    svg += `<circle cx="${xs[i]}" cy="${y}" r="4" fill="${c}"/>`;
+    const lbl = (v > 0 ? '+' : '') + v;
+    svg += `<text x="${xs[i]}" y="${v > 0 ? y - 6 : y + 11}" fill="${c}" font-size="8" font-family="JetBrains Mono" text-anchor="middle" font-weight="600">${lbl}</text>`;
+  });
+
+  svg += '</svg>';
+  return svg;
+}
+
+function intPillValCell(session, field, raw, pillClsFn, displayFn) {
+  const v = intNum(raw);
+  const cls = pillClsFn(v);
+  const display = displayFn(raw);
+  if (!display) return `<td>${intInputHTML(session, field, '')}</td>`;
+  return `<td><span class="int-pill ${cls}" style="padding:3px 8px;cursor:pointer;" onclick="this.style.display='none';this.nextElementSibling.style.display='';this.nextElementSibling.querySelector('input').focus()">${display}</span><span style="display:none">${intInputHTML(session, field, raw)}</span></td>`;
+}
+
+function intVoldColor(v) {
+  if (isNaN(v)) return ''; if (v > 1.5) return 'is-v-dg'; if (v >= 1.0) return 'is-v-lg';
+  if (v >= 0.5) return 'is-v-lr'; return 'is-v-dr';
+}
+
+function intAddColor(v) {
+  if (isNaN(v)) return ''; if (v > 500) return 'is-v-dg'; if (v >= 0) return 'is-v-lg';
+  if (v >= -500) return 'is-v-lr'; return 'is-v-dr';
+}
+
+function intPairCell(session, f1, f2, colorFn) {
+  const v1 = intNum(intState[session][f1]), v2 = intNum(intState[session][f2]);
+  if (isNaN(v1) && isNaN(v2)) {
+    return `<td><div class="int-pair"><div class="int-pair-vals">${intInputHTML(session, f1, '')}<span style="color:var(--muted)">:</span>${intInputHTML(session, f2, '')}</div><div class="int-pair-lbl">NYSE : NQ</div></div></td>`;
+  }
+  const c1 = colorFn(v1), c2 = colorFn(v2);
+  const d1 = isNaN(v1) ? '—' : v1, d2 = isNaN(v2) ? '—' : v2;
+  return `<td><div class="int-pair"><div class="int-pair-vals"><span class="${c1}" style="cursor:pointer" onclick="this.style.display='none';this.nextElementSibling.style.display='';this.nextElementSibling.querySelector('input').focus()">${d1}</span><span style="display:none">${intInputHTML(session, f1, intState[session][f1])}</span><span style="color:var(--muted);font-weight:400">:</span><span class="${c2}" style="cursor:pointer" onclick="this.style.display='none';this.nextElementSibling.style.display='';this.nextElementSibling.querySelector('input').focus()">${d2}</span><span style="display:none">${intInputHTML(session, f2, intState[session][f2])}</span></div><div class="int-pair-lbl">NYSE : NQ</div></div></td>`;
+}
+
+/* ── Sectors helpers ── */
+function intCollectSectors() {
+  const all = {};
+  INT_SESSIONS.forEach(s => {
+    intParseSectors(s).forEach(e => {
+      if (!all[e.ticker]) all[e.ticker] = { ticker: e.ticker, values: {} };
+      all[e.ticker].values[s] = parseFloat(e.value);
+    });
+  });
+  return all;
+}
+
+function intLatestSecVal(d) {
+  for (let i = INT_SESSIONS.length - 1; i >= 0; i--) {
+    const v = d.values[INT_SESSIONS[i]]; if (v !== undefined && !isNaN(v)) return v;
+  }
+  return NaN;
+}
+
+function intFirstSecVal(d) {
+  for (let i = 0; i < INT_SESSIONS.length; i++) {
+    const v = d.values[INT_SESSIONS[i]]; if (v !== undefined && !isNaN(v)) return { v, i };
+  }
+  return null;
+}
+
+function intSectorPlacement(d) {
+  const latest = intLatestSecVal(d);
+  if (!isNaN(latest)) return latest >= 0 ? 'pos' : 'neg';
+  const first = intFirstSecVal(d);
+  if (first) return first.v >= 0 ? 'pos' : 'neg';
+  return 'neg';
+}
+
+function intSecRowCls(v) {
+  if (isNaN(v)) return 'is-row-lg'; if (v > 0.50) return 'is-row-dg';
+  if (v >= 0) return 'is-row-lg'; if (v >= -0.50) return 'is-row-lr'; return 'is-row-dr';
+}
+function intSecLblCls(v) {
+  if (isNaN(v)) return 'is-label-lg'; if (v > 0.50) return 'is-label-dg';
+  if (v >= 0) return 'is-label-lg'; if (v >= -0.50) return 'is-label-lr'; return 'is-label-dr';
+}
+function intSecValCls(v) {
+  if (isNaN(v)) return 'is-empty'; if (v > 0.50) return 'is-v-dg';
+  if (v >= 0) return 'is-v-lg'; if (v >= -0.50) return 'is-v-lr'; return 'is-v-dr';
+}
+
+function intSecDelta(d) {
+  const vals = INT_SESSIONS.map(s => d.values[s]).filter(v => v !== undefined && !isNaN(v));
+  if (vals.length < 2) return '';
+  let crossed = false;
+  for (let i = 0; i < vals.length - 1; i++) {
+    if ((vals[i] > 0 && vals[i+1] < 0) || (vals[i] < 0 && vals[i+1] > 0)) { crossed = true; break; }
+  }
+  if (crossed) return '<span class="is-delta is-delta-flip">↕</span>';
+  const first = vals[0], last = vals[vals.length - 1];
+  if (Math.abs(last) > Math.abs(first)) return last > 0 ? '<span class="is-delta is-delta-up">▲</span>' : '<span class="is-delta is-delta-dn">▼</span>';
+  if (Math.abs(last) < Math.abs(first)) return last > 0 ? '<span class="is-delta is-delta-dn">▼</span>' : '<span class="is-delta is-delta-up">▲</span>';
+  return '';
+}
+
+function intSecRow(d, isWeak) {
+  const latest = intLatestSecVal(d);
+  const name = intSectorShort(d.ticker);
+  const rCls = intSecRowCls(latest), lCls = intSecLblCls(latest);
+  const meta = INT_SECTOR_META[d.ticker];
+  const subLabel = meta ? `${d.ticker} ${meta.weight}` : d.ticker;
+  const weakCls = isWeak ? ' is-row-weak' : '';
+  const valsHTML = INT_SESSIONS.map((s, i) => {
+    const v = d.values[s];
+    if (v === undefined || isNaN(v)) return (i > 0 ? '<span class="is-arrow">→</span>' : '') + '<span class="is-empty">—</span>';
+    const cls = intSecValCls(v);
+    const disp = (v > 0 ? '+' : '') + v.toFixed(2);
+    return (i > 0 ? '<span class="is-arrow">→</span>' : '') + `<span class="${cls}">${disp}</span>`;
+  }).join('');
+  return `<div class="is-row ${rCls}${weakCls}"><div class="is-label-group"><span class="is-label ${lCls}">${name}</span><span class="is-label-sub">${subLabel}</span></div><span class="is-vals">${valsHTML}</span>${intSecDelta(d)}</div>`;
+}
+
+function intToggleAddForm(quad) {
+  intAddFormVisible[quad] = !intAddFormVisible[quad];
+  renderInternalsTab(document.getElementById('ladder'));
+}
+
+function intAddWeakSector(quad) {
+  const sel = document.getElementById(`is-add-sel-${quad}`);
+  const inp = document.getElementById(`is-add-val-${quad}`);
+  if (!sel || !inp) return;
+  const ticker = sel.value;
+  const val = parseFloat(inp.value);
+  if (!ticker || isNaN(val)) return;
+  const session = INT_SESSIONS.find(s => { const v = intNum(intState[s].vix); return !isNaN(v); }) || 'morning';
+  const sectors = intParseSectors(session).filter(s => s.ticker !== ticker);
+  sectors.push({ ticker, value: val.toFixed(2) });
+  intState[session].sectors_json = JSON.stringify(sectors);
+  intScheduleSave(session);
+  intAddFormVisible[quad] = false;
+  renderInternalsTab(document.getElementById('ladder'));
+}
+
+/* ── Main render function ── */
+function renderInternalsTab(el) {
+  if (!intLoaded) { el.innerHTML = '<div class="int-wrap" style="color:var(--muted);padding:40px;text-align:center;">Loading internals...</div>'; return; }
+
+  const alertSVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff7070" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+
+  // Alerts
+  const alerts = [];
+  for (let i = 0; i < INT_SESSIONS.length - 1; i++) {
+    const s1 = INT_SESSIONS[i], s2 = INT_SESSIONS[i+1];
+    const a1 = intNum(intState[s1].adh), a2 = intNum(intState[s2].adh);
+    if (!isNaN(a1) && !isNaN(a2) && a1 !== 0 && a2 !== 0 && ((a1 > 0 && a2 < 0) || (a1 < 0 && a2 > 0))) {
+      const d1 = a1 > 0 ? 'positive' : 'negative', d2 = a2 > 0 ? 'positive' : 'negative';
+      alerts.push(`${alertSVG} <strong>ADH flipped</strong> ${d1} (${a1 > 0?'+':''}${a1}) → ${d2} (${a2 > 0?'+':''}${a2}) between ${INT_SESSION_LABELS[s1].toLowerCase()} and ${INT_SESSION_LABELS[s2].toLowerCase()}`);
+    }
+    const sec1 = intParseSectors(s1), sec2 = intParseSectors(s2);
+    for (const e of sec2) {
+      if (!INT_HEAVY.has(e.ticker)) continue;
+      const prev = sec1.find(x => x.ticker === e.ticker);
+      if (!prev) continue;
+      const v1 = parseFloat(prev.value), v2 = parseFloat(e.value);
+      if (isNaN(v1) || isNaN(v2)) continue;
+      if ((v1 > 0 && v2 < 0) || (v1 < 0 && v2 > 0)) {
+        const name = intSectorShort(e.ticker);
+        alerts.push(`${alertSVG} <strong>${name} flipped</strong> ${v1>0?'+':''}${v1.toFixed(2)} → ${v2>0?'+':''}${v2.toFixed(2)} between ${INT_SESSION_LABELS[s1].toLowerCase()} and ${INT_SESSION_LABELS[s2].toLowerCase()} · moved to ${v2<0?'Heavy −':'Heavy +'}`);
+      }
+    }
+  }
+
+  // Sectors
+  const allSec = intCollectSectors();
+  const hp = [], hn = [], wp = [], wn = [];
+  Object.values(allSec).forEach(d => {
+    const place = intSectorPlacement(d);
+    if (INT_HEAVY.has(d.ticker)) { (place === 'pos' ? hp : hn).push(d); }
+    else { (place === 'pos' ? wp : wn).push(d); }
+  });
+  INT_HEAVY.forEach(t => { if (!allSec[t]) hn.push({ ticker: t, values: {} }); });
+  const sortFn = (a, b) => Math.abs(intLatestSecVal(b) || 0) - Math.abs(intLatestSecVal(a) || 0);
+  hp.sort(sortFn); hn.sort(sortFn); wp.sort(sortFn); wn.sort(sortFn);
+
+  function intWeakSection(weakArr) {
+    let html = '<div class="is-weak-divider"></div>';
+    if (weakArr.length) {
+      html += weakArr.map(d => intSecRow(d, true)).join('');
+    } else {
+      html += '<div class="is-weak-none">None added</div>';
+    }
+    return html;
+  }
+
+  const today = new Date();
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dateStr = `${days[today.getDay()]}, ${months[today.getMonth()]} ${today.getDate()}`;
+
+  el.innerHTML = `<div class="int-wrap">
+    <div class="int-header">
+      <div class="int-title">MARKET INTERNALS</div>
+      <div style="display:flex;align-items:baseline;gap:12px;">
+        <div class="int-date">${dateStr}</div>
+        ${intDayId ? `<a href="/day/${intDayId}/internals-v2" target="_blank" style="font-family:'Inter',sans-serif;font-size:10px;color:var(--accent2);text-decoration:none;letter-spacing:0.5px;opacity:0.7;">Open ↗</a>` : ''}
+      </div>
+    </div>
+
+    ${alerts.map(a => `<div class="int-alert">${a}</div>`).join('')}
+
+    <div class="int-two-col">
+      <div class="int-left-col">
+        <div class="int-card">
+          <div class="int-card-title">VITALS</div>
+          <table class="int-table"><thead><tr>
+            <th>METRIC</th>${INT_SESSIONS.map(s => `<th>${INT_SESSION_LABELS[s]}</th>`).join('')}<th>DELTA</th>
+          </tr></thead><tbody>
+            <tr><td>VIX</td>${INT_SESSIONS.map(s => `<td>${intInputHTML(s, 'vix', intState[s].vix)}</td>`).join('')}<td>${intVixDelta()}</td></tr>
+            <tr><td>$TRIN</td>${INT_SESSIONS.map(s => `<td>${intInputHTML(s, 'trin', intState[s].trin)}</td>`).join('')}<td>${intTrinDelta()}</td></tr>
+            <tr><td>Vol %</td>${INT_SESSIONS.map(s => intPillValCell(s, 'vol_pct', intState[s].vol_pct, intVolPillCls, intVolDisplay)).join('')}<td>${intVolDelta()}</td></tr>
+            <tr><td>ADH</td>${INT_SESSIONS.map(s => intPillValCell(s, 'adh', intState[s].adh, intAdhPillCls, intAdhDisplay)).join('')}<td style="min-width:140px">${intADHSparkline()}</td></tr>
+          </tbody></table>
+        </div>
+        <div class="int-card">
+          <div class="int-card-title">INTERNALS</div>
+          <table class="int-table"><thead><tr>
+            <th>METRIC</th>${INT_SESSIONS.map(s => `<th>${INT_SESSION_LABELS[s]}</th>`).join('')}
+          </tr></thead><tbody>
+            <tr><td>VOLD</td>${INT_SESSIONS.map(s => intPairCell(s, 'vold_nyse', 'vold_nq', intVoldColor)).join('')}</tr>
+            <tr><td>ADD</td>${INT_SESSIONS.map(s => intPairCell(s, 'add_nyse', 'add_nq', intAddColor)).join('')}</tr>
+          </tbody></table>
+        </div>
+      </div>
+      <div class="int-right-col">
+        <div class="is-header-card">
+          <div class="int-sec-trigger-row">
+            <span class="int-sec-trigger-label">SECTORS</span>
+            <button class="int-sec-record-btn" onclick="intOpenSectorModal()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg> Record session data</button>
+          </div>
+          <div class="int-sec-ts-row">${intRenderTsPills()}</div>
+        </div>
+        <div class="is-pos-card">
+          <div class="is-card-hdr is-card-hdr-pos"><span>Positive +</span><span class="is-card-hdr-sub">heavy → weak</span></div>
+          ${hp.map(d => intSecRow(d, false)).join('')}
+          ${intWeakSection(wp)}
+        </div>
+        <div class="is-neg-card">
+          <div class="is-card-hdr is-card-hdr-neg"><span>Negative −</span><span class="is-card-hdr-sub">heavy → weak</span></div>
+          ${hn.map(d => intSecRow(d, false)).join('')}
+          ${intWeakSection(wn)}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   INTERNALS TAB — Sector Entry Modal
+   ══════════════════════════════════════════════════════════════════════════════ */
+const INT_SECTOR_META = {
+  XLK:{short:'Tech',full:'Technology',weight:'30.5%'},
+  XLV:{short:'Health',full:'Health Care',weight:'12.2%'},
+  XLF:{short:'Fin',full:'Financials',weight:'12.1%'},
+  XLY:{short:'Disc',full:'Cons Disc',weight:'10.2%'},
+  XLC:{short:'Comm',full:'Comm Svcs',weight:'9.3%'},
+  XLI:{short:'Indust',full:'Industrials',weight:'8.1%'},
+  XLP:{short:'Staples',full:'Staples',weight:'5.9%'},
+  XLE:{short:'Energy',full:'Energy',weight:'3.8%'},
+  XLRE:{short:'RE',full:'Real Estate',weight:'2.2%'},
+  XLB:{short:'Matls',full:'Materials',weight:'2.1%'},
+  XLU:{short:'Utils',full:'Utilities',weight:'2.0%'},
+};
+const INT_SESS_COLORS = {
+  morning:  {color:'#00c8ff',bg:'rgba(0,200,255,0.08)',bgA:'rgba(0,200,255,0.1)',border:'rgba(0,200,255,0.2)',borderA:'rgba(0,200,255,0.3)',short:'MNG'},
+  midday:   {color:'#f5a623',bg:'rgba(245,166,35,0.08)',bgA:'rgba(245,166,35,0.1)',border:'rgba(245,166,35,0.2)',borderA:'rgba(245,166,35,0.3)',short:'MID'},
+  afternoon:{color:'#c084fc',bg:'rgba(160,100,220,0.08)',bgA:'rgba(160,100,220,0.1)',border:'rgba(160,100,220,0.2)',borderA:'rgba(160,100,220,0.3)',short:'AFT'},
+};
+const INT_HEAVY_ORDER = ['XLK','XLV','XLF','XLY','XLC','XLI'];
+let ismOpen = false, ismSession = 'morning', ismHeavy = {}, ismWeak = [], ismSaving = false;
+
+function intSessionHasData(s) {
+  const sec = intParseSectors(s);
+  if (sec.length > 0) return true;
+  const d = intState[s];
+  return !!(d.vix || d.trin || d.vol_pct || d.adh || d.vold_nyse || d.add_nyse);
+}
+
+function intGetSessionTime(s) {
+  const raw = intState[s].timestamp;
+  if (!raw) return '';
+  const parts = raw.split(':');
+  if (parts.length < 2) return raw;
+  let h = parseInt(parts[0]), m = parts[1];
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  if (h > 12) h -= 12; if (h === 0) h = 12;
+  return `${h}:${m} ${ampm}`;
+}
+
+function intGetDefaultSession() {
+  for (const s of INT_SESSIONS) { if (!intSessionHasData(s)) return s; }
+  return 'morning';
+}
+
+function intLoadSessionModal(session) {
+  const sectors = intParseSectors(session);
+  ismHeavy = {};
+  INT_HEAVY_ORDER.forEach(t => {
+    const e = sectors.find(s => s.ticker === t);
+    ismHeavy[t] = e ? String(e.value) : '';
+  });
+  ismWeak = [];
+  INT_SESSIONS.forEach(s => {
+    intParseSectors(s).filter(e => !INT_HEAVY.has(e.ticker)).forEach(e => {
+      if (!ismWeak.find(w => w.ticker === e.ticker && w.session === s))
+        ismWeak.push({ticker:e.ticker, value:e.value, session:s});
+    });
+  });
+}
+
+function intOpenSectorModal() {
+  ismSession = intGetDefaultSession();
+  intLoadSessionModal(ismSession);
+  ismOpen = true; ismSaving = false;
+  document.getElementById('ism-backdrop').style.display = '';
+  document.getElementById('ism-modal').style.display = '';
+  intRenderSectorModal();
+}
+
+function intCloseSectorModal() {
+  ismOpen = false;
+  document.getElementById('ism-backdrop').style.display = 'none';
+  document.getElementById('ism-modal').style.display = 'none';
+}
+
+function intSwitchModalSession(s) {
+  ismSession = s;
+  intLoadSessionModal(s);
+  intRenderSectorModal();
+}
+
+function intRenderTsPills() {
+  return INT_SESSIONS.map(s => {
+    const sc = INT_SESS_COLORS[s];
+    const has = intSessionHasData(s);
+    const time = intGetSessionTime(s);
+    if (has) {
+      const cls = s === 'morning' ? 'its-mng' : s === 'midday' ? 'its-mid' : 'its-aft';
+      return `<span class="int-sec-ts-pill ${cls}">● ${sc.short} recorded${time ? ' ' + time : ''}</span>`;
+    }
+    return `<span class="int-sec-ts-pill its-empty">○ ${sc.short} not recorded</span>`;
+  }).join('');
+}
+
+function intBuildStatusHint() {
+  const parts = [];
+  INT_SESSIONS.forEach(s => {
+    const sc = INT_SESS_COLORS[s];
+    const has = intSessionHasData(s);
+    const time = intGetSessionTime(s);
+    if (has) parts.push(`<span style="color:${sc.color}">✓ ${sc.short}${time?' '+time:''}</span>`);
+    else if (s === ismSession) parts.push(`<span style="color:${sc.color}">${sc.short} active</span>`);
+  });
+  return parts.join(' · ');
+}
+
+function intRenderSectorModal() {
+  const sc = INT_SESS_COLORS[ismSession];
+  const el = document.getElementById('ism-content');
+  const pencil = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>';
+
+  const sessBtns = INT_SESSIONS.map(s => {
+    const c = INT_SESS_COLORS[s];
+    const active = s === ismSession;
+    const st = active ? `background:${c.bgA};border-color:${c.borderA};color:${c.color}` : '';
+    const lbl = s === 'morning' ? 'MNG' : s === 'midday' ? 'MID-DAY' : 'AFT';
+    return `<button class="ism-session-btn" style="${st}" onclick="intSwitchModalSession('${s}')">${lbl}</button>`;
+  }).join('');
+
+  const heavyRows = INT_HEAVY_ORDER.map(t => {
+    const m = INT_SECTOR_META[t]; const val = ismHeavy[t] || '';
+    const pre = val !== '' ? 'ism-prefilled' : '';
+    const bst = !pre ? `border-color:${sc.borderA}` : '';
+    return `<div class="ism-heavy-row"><div class="ism-heavy-label"><span class="ism-heavy-ticker">${t}</span><span class="ism-heavy-short">${m.short}</span><span class="ism-heavy-weight">${m.weight}</span></div><input class="ism-heavy-input ${pre}" value="${val}" placeholder="0.00" maxlength="6" style="${bst}" oninput="ismHeavy['${t}']=this.value" onfocus="this.classList.remove('ism-prefilled');this.style.borderColor='${sc.borderA}'"></div>`;
+  }).join('');
+
+  const weakRows = ismWeak.map((w,i) => {
+    const v = parseFloat(w.value);
+    const vc = isNaN(v) ? '' : v < 0 ? 'iwv-neg' : 'iwv-pos';
+    const st = INT_SESS_COLORS[w.session]?.short || w.session;
+    const nm = INT_SECTOR_META[w.ticker]?.short || w.ticker;
+    return `<div class="ism-weak-row"><span class="ism-weak-name">${nm} (${w.ticker})</span><span class="ism-weak-val ${vc}">${w.value}</span><span class="ism-weak-session-tag">${st}</span><button class="ism-weak-rm" onclick="intRemoveWeakModal(${i})">✕</button></div>`;
+  }).join('');
+
+  const avail = Object.keys(INT_SECTOR_META).filter(t => !INT_HEAVY.has(t));
+  const opts = `<optgroup label="Available">${avail.map(t => {const m=INT_SECTOR_META[t];return `<option value="${t}">${t} – ${m.full} (${m.weight})</option>`;}).join('')}</optgroup><optgroup label="Already tracked">${INT_HEAVY_ORDER.map(t => {const m=INT_SECTOR_META[t];return `<option value="${t}" disabled>${t} – ${m.full} (${m.weight})</option>`;}).join('')}</optgroup>`;
+
+  const sessLbl = ismSession === 'morning' ? 'morning' : ismSession === 'midday' ? 'mid-day' : 'afternoon';
+  const saveLbl = ismSaving ? 'Saved ✓' : `Save ${sc.short} →`;
+  const saveCls = ismSaving ? 'ism-save-btn ism-saved' : 'ism-save-btn';
+
+  el.innerHTML = `<div class="ism-header"><div class="ism-title-row"><span class="ism-title">Record session data</span><button class="ism-close" onclick="intCloseSectorModal()">✕</button></div><div class="ism-session-row"><span class="ism-session-label">SESSION</span>${sessBtns}<span class="ism-status-hint">${intBuildStatusHint()}</span></div></div>
+<div class="ism-body"><div class="ism-section-label"><span>HEAVY SECTORS</span><span>top 6 by S&P 500 weight</span></div>${heavyRows}<div class="ism-weak-divider"></div><div class="ism-section-label"><span>WEAK SECTORS</span><span>notable outliers only</span></div>${weakRows||'<div style="color:var(--muted);font-size:10px;padding:3px 0;">None added</div>'}<div class="ism-add-row"><select id="ism-weak-sel">${opts}</select><input id="ism-weak-val" placeholder="±0.00" maxlength="6" onkeydown="if(event.key==='Enter'){intAddWeakModal();event.preventDefault();}"><button class="ism-add-btn-green" onclick="intAddWeakModal()">+</button></div></div>
+<div class="ism-footer"><span class="ism-footer-label">Recording ${sessLbl} session</span><div class="ism-footer-actions"><button class="ism-cancel-btn" onclick="intCloseSectorModal()">Cancel</button><button class="${saveCls}" onclick="intSaveSectorModal()"${ismSaving?' disabled':''}>${saveLbl}</button></div></div>`;
+}
+
+function intAddWeakModal() {
+  const sel = document.getElementById('ism-weak-sel');
+  const inp = document.getElementById('ism-weak-val');
+  if (!sel || !inp) return;
+  const ticker = sel.value, val = parseFloat(inp.value);
+  if (!ticker || isNaN(val)) return;
+  ismWeak = ismWeak.filter(w => !(w.ticker === ticker && w.session === ismSession));
+  ismWeak.push({ticker, value:val.toFixed(2), session:ismSession});
+  inp.value = '';
+  intRenderSectorModal();
+}
+
+function intRemoveWeakModal(idx) {
+  const removed = ismWeak[idx];
+  ismWeak.splice(idx, 1);
+  if (removed) {
+    const sectors = intParseSectors(removed.session).filter(s => s.ticker !== removed.ticker);
+    intState[removed.session].sectors_json = JSON.stringify(sectors);
+    intScheduleSave(removed.session);
+  }
+  intRenderSectorModal();
+}
+
+function intSaveSectorModal() {
+  if (ismSaving) return;
+  const sectors = [];
+  INT_HEAVY_ORDER.forEach(t => {
+    const raw = ismHeavy[t];
+    if (raw !== '' && raw !== undefined) {
+      const v = parseFloat(raw);
+      if (!isNaN(v)) sectors.push({ticker:t, value:raw});
+    }
+  });
+  ismWeak.filter(w => w.session === ismSession).forEach(w => {
+    sectors.push({ticker:w.ticker, value:w.value});
+  });
+  intState[ismSession].sectors_json = JSON.stringify(sectors);
+  intScheduleSave(ismSession);
+  ismSaving = true;
+  intRenderSectorModal();
+  setTimeout(() => {
+    ismSaving = false;
+    intCloseSectorModal();
+    renderInternalsTab(document.getElementById('ladder'));
+  }, 600);
+}
+
 function setPhase(name) {
   activePhase = name;
   renderAll();
@@ -5488,6 +6383,7 @@ function renderAll() {
     document.getElementById('trade-status').innerHTML = '';
   }
   renderTabs();
+  document.querySelector('.main-area').classList.toggle('internals-mode', activePhase === 'INTERNALS');
   renderContextPanel(trade);
   renderCenter(trade);
   renderHealthPanel(trade);
@@ -5499,6 +6395,8 @@ function renderAll() {
    ══════════════════════════════════════════════════════════════════════════════ */
 
 (function init() {
+  loadInternalsData();
+
   // Build trade models from server data
   const allServer = SERVER_OPEN.concat(SERVER_CLOSED);
   allServer.sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
