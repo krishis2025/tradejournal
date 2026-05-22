@@ -5471,6 +5471,11 @@ async function createTradeFromForm() {
 
   const pid = document.getElementById('global-account-select')?.value || null;
 
+  if (!pid) {
+    showToast('Select an account before logging a trade', true);
+    return;
+  }
+
   const res = await fetch('/api/live', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
