@@ -665,18 +665,12 @@ def compute_live_trade_plan(direction, instrument, entry_price, total_qty, mode)
 
     if mode == "full":
         stop_dist = float(defaults["full_stop_points"])
-        tp_dist   = float(defaults["full_tp_points"])
 
         stop_price = entry_price - stop_dist if is_long else entry_price + stop_dist
-        tp_price   = entry_price + tp_dist   if is_long else entry_price - tp_dist
-
-        risk   = abs(entry_price - stop_price) * total_qty * dpp
-        reward = abs(tp_price - entry_price)   * total_qty * dpp
+        risk = abs(entry_price - stop_price) * total_qty * dpp
 
         levels.append({"level_type": "stop", "portion": 1, "qty": total_qty,
                         "price": round(stop_price, 2), "risk_dollars": round(risk, 2), "reward_dollars": 0})
-        levels.append({"level_type": "tp",   "portion": 1, "qty": total_qty,
-                        "price": round(tp_price, 2),   "risk_dollars": 0, "reward_dollars": round(reward, 2)})
     else:
         # Partials — divide into 3
         stop_dist = float(defaults["partial_stop_points"])
@@ -1003,16 +997,25 @@ def close_live_trade_to_journal(live_trade_id):
 
     trade_num = max_num + 1
 
-    # Compute avg exit from executions
+    # POC dynamic-trade-model: split executions into entry-side (OPEN/ADD) vs exit-side
     executions = lt.get("executions", [])
-    total_exit_val = sum(e["price"] * e["qty"] for e in executions)
-    total_exit_qty = sum(e["qty"] for e in executions)
+    entry_side_execs = [e for e in executions if str(e.get("exec_type") or "").upper() in ("OPEN", "ADD")]
+    exit_side_execs = [e for e in executions if str(e.get("exec_type") or "").upper() not in ("OPEN", "ADD")]
+
+    # Avg exit from exit-side executions only
+    total_exit_val = sum(e["price"] * e["qty"] for e in exit_side_execs)
+    total_exit_qty = sum(e["qty"] for e in exit_side_execs)
     avg_exit = round(total_exit_val / total_exit_qty, 4) if total_exit_qty else lt["entry_price"]
 
-    # Get last execution time
-    exit_time = executions[-1]["exec_time"] if executions else lt["entry_time"]
+    # Get last exit execution time (fall back to entry_time if never exited)
+    exit_time = exit_side_execs[-1]["exec_time"] if exit_side_execs else lt["entry_time"]
 
     realized_pnl = calc["realized_pnl"]
+
+    # POC: prefer weighted_avg_entry (covers OPEN + ADDs); fall back to entry_price for legacy trades
+    avg_entry_for_journal = lt.get("weighted_avg_entry") or lt["entry_price"]
+    if not avg_entry_for_journal:
+        avg_entry_for_journal = lt["entry_price"]
 
     # Build execution detail JSON for journal (levels + executions from live trade)
     levels = lt.get("levels", [])
@@ -1020,6 +1023,7 @@ def close_live_trade_to_journal(live_trade_id):
         "instrument": lt.get("instrument", "MES"),
         "mode": lt.get("mode", "full"),
         "entry_price": lt["entry_price"],
+        "weighted_avg_entry": lt.get("weighted_avg_entry"),
         "levels": [{"level_type": lv["level_type"], "portion": lv["portion"],
                      "qty": lv["qty"], "price": lv["price"]} for lv in levels],
         "executions": [{"exec_type": e.get("exec_type",""), "portion": e["portion"],
@@ -1030,7 +1034,7 @@ def close_live_trade_to_journal(live_trade_id):
 
     trade_id = db.insert_trade(
         day_id, trade_num, lt["direction"], lt["total_qty"],
-        lt["entry_price"], avg_exit, realized_pnl,
+        avg_entry_for_journal, avg_exit, realized_pnl,
         lt["entry_time"], exit_time, is_open=(calc["remaining_qty"] > 0),
         execution_json=execution_json_str,
         execution_score_json=lt.get("execution_score_json"),
@@ -1054,14 +1058,19 @@ def close_live_trade_to_journal(live_trade_id):
             lt.get("notes_exit", ""),
         )
 
-    # Generate fills from entry + executions
-    # The entry is one fill (Buy for Long, Sell for Short) — no exit_type
+    # Generate fills from executions.
+    # POC: when an OPEN row exists, all entry-side fills (OPEN + ADDs) come from the ledger.
+    # Legacy trades (no OPEN row) still need a synthesised entry fill.
     entry_side = "Buy" if lt["direction"] == "Long" else "Sell"
-    db.insert_fill(trade_id, lt["entry_time"], entry_side, lt["total_qty"], lt["entry_price"], exit_type=None)
-
-    # Each execution is a fill on the opposite side — carries its exit_type
     exit_side = "Sell" if lt["direction"] == "Long" else "Buy"
-    for e in executions:
+
+    if entry_side_execs:
+        for e in entry_side_execs:
+            db.insert_fill(trade_id, e["exec_time"], entry_side, e["qty"], e["price"], exit_type=None)
+    else:
+        db.insert_fill(trade_id, lt["entry_time"], entry_side, lt["total_qty"], lt["entry_price"], exit_type=None)
+
+    for e in exit_side_execs:
         db.insert_fill(trade_id, e["exec_time"], exit_side, e["qty"], e["price"],
                        exit_type=e.get("exec_type"))
 

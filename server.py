@@ -4,7 +4,7 @@ Flask routes only. Delegates all logic to app_logic.py and database.py.
 """
 
 from flask import Flask, render_template, request, jsonify, redirect, url_for, send_from_directory
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from werkzeug.utils import secure_filename
 import database as db
 import app_logic as logic
@@ -414,6 +414,11 @@ def live_trade_v2_page():
         t["levels"] = full.get("levels", [])
         t["executions"] = full.get("executions", [])
         t["calc"] = logic.recalculate_live_trade(full)
+        # POC dynamic-trade-model: also inject net_risk + per-execution open_qty_after
+        # so the initial page render has the same shape as /api/live/<id>. Without this,
+        # the browser's trade.netRisk falls back to null on first load and the center
+        # vs right panel disagree on net risk until the user triggers a refresh.
+        _poc_decorate_trade(t)
 
     contexts = db.get_developing_contexts(date_from, date_to, account_id)
 
@@ -1087,6 +1092,14 @@ def api_create_live_trade():
         )
         db.set_live_trade_levels(live_id, levels)
 
+        # POC dynamic-trade-model: record OPEN transaction + derive position state
+        db.add_live_trade_execution(
+            live_id, "OPEN", 1,
+            int(body["total_qty"]), float(body["entry_price"]),
+            body["entry_time"], 0
+        )
+        db.recalculate_position(live_id)
+
         # Pin initial_risk at creation so the risk-left bar has a stable reference
         # (tightening a stop later must shrink the fill without shrinking the ghost).
         inst_cfg = logic.get_instrument_config().get(
@@ -1113,12 +1126,65 @@ def api_create_live_trade():
         return jsonify({"error": str(e)}), 500
 
 
+def _poc_decorate_trade(trade):
+    """POC: enrich the trade dict with derived fields the frontend needs:
+    net_risk, per-execution open_qty_after, break_even, break_even_buffer_pts."""
+    if not trade:
+        return trade
+    executions = trade.get("executions") or []
+    # Sort oldest-first to replay running open qty
+    ordered = sorted(executions, key=lambda e: (e.get("created_at") or "", e.get("id") or 0))
+    running = 0
+    after_map = {}
+    for ex in ordered:
+        t = str(ex.get("exec_type") or "").upper()
+        qty = int(ex.get("qty") or 0)
+        if t in ("OPEN", "ADD"):
+            running += qty
+        else:
+            running -= qty
+            if running < 0:
+                running = 0
+        after_map[ex.get("id")] = running
+    # Inject open_qty_after into each execution (keep original order from db.get_live_trade)
+    for ex in executions:
+        ex["open_qty_after"] = after_map.get(ex.get("id"), 0)
+    trade["net_risk"] = db.calculate_net_risk(trade["id"])
+
+    # Break-even price (matches legacy formula used in renderHealthPanel).
+    # For Long: BE = wae + realized / (open_qty * dpp); for Short the opposite sign.
+    wae = float(trade.get("weighted_avg_entry") or trade.get("entry_price") or 0)
+    open_qty = int(trade.get("open_qty") or 0)
+    realized = float(trade.get("realized_pnl") or 0)
+    direction = str(trade.get("direction") or "").lower()
+    instrument = trade.get("instrument") or "MES"
+    inst_cfg = logic.get_instrument_config().get(instrument, logic.INSTRUMENT_CONFIG["MES"])
+    dpp = float(inst_cfg.get("dollars_per_point") or 5)
+    be_price = None
+    be_buffer_pts = None
+    if open_qty > 0 and realized != 0 and wae and dpp:
+        delta = realized / open_qty / dpp
+        be_price = (wae + delta) if direction == "long" else (wae - delta)
+        be_price = round(be_price * 4) / 4  # snap to tick
+        # Buffer against the worst-side stop
+        stops = [lv for lv in (trade.get("levels") or []) if lv.get("level_type") == "stop" and (lv.get("qty") or 0) > 0]
+        if stops:
+            if direction == "long":
+                active_stop = min(float(s.get("price") or 0) for s in stops)
+            else:
+                active_stop = max(float(s.get("price") or 0) for s in stops)
+            be_buffer_pts = round(abs(be_price - active_stop), 2)
+    trade["break_even"] = be_price
+    trade["break_even_buffer_pts"] = be_buffer_pts
+    return trade
+
+
 @app.route("/api/live/<int:live_id>", methods=["GET"])
 def api_get_live_trade(live_id):
     trade = db.get_live_trade(live_id)
     if not trade:
         return jsonify({"error": "Not found"}), 404
-    return jsonify(trade)
+    return jsonify(_poc_decorate_trade(trade))
 
 
 @app.route("/api/live/<int:live_id>", methods=["PUT"])
@@ -1146,7 +1212,9 @@ def api_update_live_levels(live_id):
     db.set_live_trade_levels(live_id, levels)
     trade = db.get_live_trade(live_id)
     calc = logic.recalculate_live_trade(trade)
-    return jsonify({"ok": True, "calc": calc})
+    # POC: net_risk depends on stops, recalc so the cached value is fresh
+    db.recalculate_position(live_id)
+    return jsonify({"ok": True, "calc": calc, "net_risk": db.calculate_net_risk(live_id)})
 
 
 @app.route("/api/live/<int:live_id>/execute", methods=["POST"])
@@ -1171,13 +1239,248 @@ def api_live_execute(live_id):
         int(body["qty"]), float(body["price"]), body["exec_time"], pnl
     )
 
-    # Recalculate
+    # Recalculate (legacy partials-aware) + POC dynamic state
     trade = db.get_live_trade(live_id)
     calc = logic.recalculate_live_trade(trade)
+    db.recalculate_position(live_id)
+    # POC: auto-close once all contracts are out
+    closed_after = db.get_live_trade(live_id)
+    if int(closed_after.get("open_qty") or 0) == 0 and closed_after.get("status") == "open":
+        db.update_live_trade(live_id, status="closed",
+                             closed_at=datetime.utcnow().isoformat(timespec="seconds"))
 
     return jsonify({
         "ok": True, "exec_id": exec_id, "pnl": pnl,
         "calc": calc,
+    })
+
+
+@app.route("/api/live/<int:live_id>/add", methods=["POST"])
+def api_live_add_contracts(live_id):
+    """POC dynamic-trade-model: append an ADD transaction (scale-in)."""
+    body = request.get_json(silent=True) or {}
+    for key in ("price", "qty", "time"):
+        if key not in body:
+            return jsonify({"error": f"{key} is required"}), 400
+
+    trade = db.get_live_trade(live_id)
+    if not trade:
+        return jsonify({"error": "Trade not found"}), 404
+    if trade.get("status") != "open":
+        return jsonify({"error": "Trade is not open"}), 422
+
+    qty = int(body["qty"])
+    price = float(body["price"])
+    if qty <= 0:
+        return jsonify({"error": "qty must be positive"}), 400
+
+    exec_id = db.add_live_trade_execution(
+        live_id, "ADD", 1, qty, price, body["time"], 0
+    )
+    # Keep total_qty in sync so legacy code paths still report the right denominator
+    db.update_live_trade(live_id, total_qty=int(trade["total_qty"]) + qty)
+    db.recalculate_position(live_id)
+
+    updated = _poc_decorate_trade(db.get_live_trade(live_id))
+    # Phase 4 contract: return the trade dict directly with an ok flag merged in.
+    updated["ok"] = True
+    updated["exec_id"] = exec_id
+    return jsonify(updated)
+
+
+@app.route("/api/live/<int:live_id>/exit", methods=["POST"])
+def api_live_exit(live_id):
+    """Phase 4: unified exit endpoint. exec_type ∈ {'EXIT','STOP'}.
+    qty=open_qty flattens the trade. Auto-closes the trade when open_qty hits 0."""
+    body = request.get_json(silent=True) or {}
+    for key in ("price", "qty", "time"):
+        if key not in body:
+            return jsonify({"error": f"{key} is required"}), 400
+
+    trade = db.get_live_trade(live_id)
+    if not trade:
+        return jsonify({"error": "Trade not found"}), 404
+    if trade.get("status") != "open":
+        return jsonify({"error": "Trade is not open"}), 422
+
+    qty = int(body["qty"])
+    if qty <= 0:
+        return jsonify({"error": "qty must be positive"}), 400
+    open_qty = int(trade.get("open_qty") or trade.get("total_qty") or 0)
+    if qty > open_qty:
+        return jsonify({"error": f"qty {qty} exceeds open_qty {open_qty}"}), 422
+
+    price = float(body["price"])
+    exec_type = str(body.get("exec_type", "EXIT") or "EXIT").upper()
+    if exec_type not in ("EXIT", "STOP"):
+        exec_type = "EXIT"
+
+    # P&L is computed correctly by recalculate_position; the stored row's pnl is
+    # a best-effort initial value (entry_price-based) that gets superseded.
+    initial_pnl = logic.compute_execution_pnl(
+        trade["direction"], trade["instrument"],
+        float(trade.get("weighted_avg_entry") or trade.get("entry_price") or 0),
+        price, qty,
+    )
+    exec_id = db.add_live_trade_execution(
+        live_id, exec_type, 1, qty, price, body["time"], initial_pnl
+    )
+    db.recalculate_position(live_id)
+
+    # Auto-close when all contracts are out.
+    fresh = db.get_live_trade(live_id)
+    if int(fresh.get("open_qty") or 0) == 0 and fresh.get("status") == "open":
+        db.update_live_trade(
+            live_id, status="closed",
+            closed_at=datetime.utcnow().isoformat(timespec="seconds"),
+        )
+
+    updated = _poc_decorate_trade(db.get_live_trade(live_id))
+    updated["ok"] = True
+    updated["exec_id"] = exec_id
+    return jsonify(updated)
+
+
+@app.route("/api/live/<int:live_id>/stop", methods=["PUT"])
+def api_live_stop(live_id):
+    """Phase 4: stop-price update. level_id=null → update all stop rows to the
+    new price. level_id=int → update only that row's price (creating it if the
+    front-end split a global stop into multiple per-lot rows that don't exist yet
+    isn't this endpoint's concern; clients send the new full set via /levels for
+    structural changes)."""
+    body = request.get_json(silent=True) or {}
+    if "price" not in body:
+        return jsonify({"error": "price is required"}), 400
+    trade = db.get_live_trade(live_id)
+    if not trade:
+        return jsonify({"error": "Trade not found"}), 404
+
+    price = float(body["price"])
+    level_id = body.get("level_id")
+    levels = trade.get("levels") or []
+    # Rebuild the full level set with the target rows' price replaced — reusing
+    # the existing set_live_trade_levels signature.
+    rebuilt = []
+    for lv in levels:
+        new_price = lv.get("price")
+        if lv.get("level_type") == "stop":
+            if level_id is None or lv.get("id") == level_id:
+                new_price = price
+        rebuilt.append({
+            "level_type": lv.get("level_type"),
+            "portion": lv.get("portion") or 1,
+            "qty": lv.get("qty") or 0,
+            "price": new_price,
+            "risk_dollars": lv.get("risk_dollars") or 0,
+            "reward_dollars": lv.get("reward_dollars") or 0,
+        })
+    db.set_live_trade_levels(live_id, rebuilt)
+    db.recalculate_position(live_id)
+
+    updated = _poc_decorate_trade(db.get_live_trade(live_id))
+    updated["ok"] = True
+    return jsonify(updated)
+
+
+@app.route("/api/live/<int:live_id>/stops", methods=["POST"])
+def api_live_stops_replace(live_id):
+    """POC stop rebuild Part 2a — replace the active (non-hit) stop set.
+    Body: { stops: [{qty, price}, ...] }. Hit rows + non-stop levels stay."""
+    body = request.get_json(silent=True) or {}
+    trade = db.get_live_trade(live_id)
+    if not trade:
+        return jsonify({"error": "Trade not found"}), 404
+
+    raw_stops = body.get("stops") or []
+    # Silently drop qty<=0 rows per spec
+    stops = [
+        {"qty": int(s.get("qty") or 0), "price": float(s.get("price") or 0)}
+        for s in raw_stops if int(s.get("qty") or 0) > 0
+    ]
+    total = sum(s["qty"] for s in stops)
+    open_qty = int(trade.get("open_qty") or 0)
+    if total != open_qty:
+        return jsonify({"error": f"Stop quantities must sum to open_qty ({open_qty})"}), 400
+
+    db.replace_active_stops(live_id, stops)
+    db.recalculate_position(live_id)
+    updated = _poc_decorate_trade(db.get_live_trade(live_id))
+    updated["ok"] = True
+    return jsonify(updated)
+
+
+@app.route("/api/live/<int:live_id>/stop-hit", methods=["POST"])
+def api_live_stop_hit(live_id):
+    """POC stop rebuild Part 2b — mark one stop row hit and record the STOP
+    exit. The hit row stays in the DB so the UI can render it struck-through.
+    recalculate_position adjusts open_qty / weighted_avg / realized; the
+    redistribute step only touches non-hit rows."""
+    body = request.get_json(silent=True) or {}
+    level_id = body.get("level_id")
+    if level_id is None:
+        return jsonify({"error": "level_id is required"}), 400
+
+    trade = db.get_live_trade(live_id)
+    if not trade:
+        return jsonify({"error": "Trade not found"}), 404
+    if trade.get("status") != "open":
+        return jsonify({"error": "Trade is not open"}), 422
+
+    level = db.mark_stop_hit(live_id, int(level_id))
+    if not level:
+        return jsonify({"error": "Level not found / not hittable"}), 404
+
+    qty = int(level["qty"])
+    price = float(level["price"])
+    now = datetime.utcnow().strftime("%H:%M")
+    initial_pnl = logic.compute_execution_pnl(
+        trade["direction"], trade["instrument"],
+        float(trade.get("weighted_avg_entry") or trade.get("entry_price") or 0),
+        price, qty,
+    )
+    db.add_live_trade_execution(live_id, "STOP", 1, qty, price, now, initial_pnl)
+    db.recalculate_position(live_id)
+
+    fresh = db.get_live_trade(live_id)
+    if int(fresh.get("open_qty") or 0) == 0 and fresh.get("status") == "open":
+        db.update_live_trade(
+            live_id, status="closed",
+            closed_at=datetime.utcnow().isoformat(timespec="seconds"),
+        )
+
+    updated = _poc_decorate_trade(db.get_live_trade(live_id))
+    updated["ok"] = True
+    return jsonify(updated)
+
+
+@app.route("/api/live/<int:live_id>/levels-set", methods=["PUT"])
+def api_live_set_levels_dynamic(live_id):
+    """Phase 4: replace the full stop-level set (used when entering/leaving
+    per-lot mode). Body: { levels: [{level_type,qty,price,...}] }."""
+    body = request.get_json(silent=True) or {}
+    levels = body.get("levels") or []
+    db.set_live_trade_levels(live_id, levels)
+    db.recalculate_position(live_id)
+    updated = _poc_decorate_trade(db.get_live_trade(live_id))
+    updated["ok"] = True
+    return jsonify(updated)
+
+
+@app.route("/api/session/summary", methods=["GET"])
+def api_session_summary():
+    """Phase 4: aggregate today's live trades for the left-panel session figures."""
+    today = date.today().isoformat()
+    account_id = request.args.get("account") or None
+    opens   = db.get_all_live_trades(status="open",   date_from=today, date_to=today, account_id=account_id)
+    closeds = db.get_all_live_trades(status="closed", date_from=today, date_to=today, account_id=account_id)
+    realized = sum(float(t.get("realized_pnl") or 0) for t in opens + closeds)
+    net_risk = sum(float(db.calculate_net_risk(t["id"]) or 0) for t in opens)
+    return jsonify({
+        "realized_pnl": round(realized, 2),
+        "net_risk": round(net_risk, 2),
+        "open_trades": len(opens),
+        "closed_trades": len(closeds),
+        "open_contracts": sum(int(t.get("open_qty") or 0) for t in opens),
     })
 
 
@@ -1195,6 +1498,25 @@ def api_live_push_to_journal(live_id):
         return jsonify({"ok": True, "journal_trade_id": journal_trade_id})
     else:
         return jsonify({"error": "Failed to push to journal"}), 500
+
+
+@app.route("/api/live/<int:live_id>/cancel", methods=["POST"])
+def api_live_cancel(live_id):
+    """Mark a live trade as cancelled — it stays in live_trades for audit but
+    drops out of every aggregate (the /live-v2 route fetches only 'open' and
+    'closed', and the session-summary aggregator skips it too). Reject if the
+    trade was already pushed to the journal."""
+    trade = db.get_live_trade(live_id)
+    if not trade:
+        return jsonify({"error": "Trade not found"}), 404
+    if trade.get("journal_trade_id"):
+        return jsonify({"error": "Already pushed to journal"}), 422
+    db.update_live_trade(
+        live_id,
+        status="cancelled",
+        closed_at=datetime.utcnow().isoformat(timespec="seconds"),
+    )
+    return jsonify({"ok": True, "id": live_id, "status": "cancelled"})
 
 
 @app.route("/api/live/<int:live_id>/review-score", methods=["PUT"])
@@ -1224,6 +1546,8 @@ def api_delete_execution(live_id, exec_id):
     db.delete_live_trade_execution(exec_id)
     trade = db.get_live_trade(live_id)
     calc = logic.recalculate_live_trade(trade)
+    # POC: keep dynamic state in sync after undo
+    db.recalculate_position(live_id)
     # Re-open if was closed
     if trade["status"] == "closed" and not calc["is_closed"]:
         db.update_live_trade(live_id, status="open", closed_at=None, journal_trade_id=None)
@@ -1265,6 +1589,10 @@ def api_live_recalc(live_id):
     trade = db.get_live_trade(live_id)
     if not trade:
         return jsonify({"error": "Trade not found"}), 404
+    # POC: also refresh dynamic state (open_qty, weighted_avg, stop qty redistribution)
+    # so trades created before the redistribute fix self-heal on next view.
+    db.recalculate_position(live_id)
+    trade = db.get_live_trade(live_id)
     calc = logic.recalculate_live_trade(trade)
     return jsonify(calc)
 

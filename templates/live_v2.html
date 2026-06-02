@@ -99,7 +99,7 @@
 
 /* ── MAIN AREA ── */
 .main-area {
-  display: grid; grid-template-columns: 3fr 5fr 2fr;
+  display: grid; grid-template-columns: 3fr 5fr 290px;
   width: 100vw; flex: 1; min-height: 0;
   position: relative; z-index: 1;
 }
@@ -158,6 +158,7 @@
 .sp-mini-dot { width: 8px; height: 5px; border-radius: 2px; }
 .sp-mini-dot.dot-tp { background: #00d084; }
 .sp-mini-dot.dot-stop { background: #ff4d4d; }
+.sp-mini-dot.dot-zero { background: #f5a623; }
 .sp-mini-dot.empty { background: rgba(255,255,255,0.1); }
 .sp-trade-nums { text-align: right; }
 .sp-trade-realized { font-size: 10px; font-weight: 600; font-family: 'Inter', sans-serif; letter-spacing: -0.01em; }
@@ -191,6 +192,7 @@
 [data-theme="paper"] .sp-trade-closed { color: rgba(0,0,0,0.45); }
 [data-theme="paper"] .sp-mini-dot.dot-tp { background: #2d7a52; }
 [data-theme="paper"] .sp-mini-dot.dot-stop { background: #a63030; }
+[data-theme="paper"] .sp-mini-dot.dot-zero { background: #b07a18; }
 [data-theme="paper"] .sp-mini-dot.empty { background: rgba(0,0,0,0.1); }
 [data-theme="paper"] .sp-trade-risk { color: #a63030; }
 
@@ -270,13 +272,14 @@
 .ladder-container {
   display: flex; flex-direction: column;
   align-items: center; justify-content: flex-start;
-  padding: 24px 20px; position: relative;
+  padding: 24px 8px; position: relative;
   overflow-y: auto;
 }
 
 .ladder-wrapper {
   width: 100%; position: relative;
   display: flex; flex-direction: column; flex: 1; min-height: 0;
+  overflow-y: auto;
 }
 
 /* Zone overlays */
@@ -1507,15 +1510,17 @@
 .manage-cards {
   display: flex; flex-direction: column; gap: 6px;
   max-width: 520px; width: 100%; margin: 0 auto;
-  flex: 1; min-height: 0;
+  /* No flex:1 — children take their natural heights so total content height is
+     known. Combined with .ladder-wrapper { overflow-y: auto } this gives a
+     scrolling Manage panel when content exceeds the viewport. */
 }
-.manage-notes-card { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-.manage-notes-card .mn-textarea { flex: 1; height: auto; min-height: 0; }
+.manage-notes-card { display: flex; flex-direction: column; }
+.manage-notes-card .mn-textarea { height: 90px; min-height: 90px; }
 
 /* Trade Entry Header */
 .trade-header-card {
   background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 10px; padding: 14px 18px;
+  border-radius: 10px; padding: 14px 8px;
   display: flex; justify-content: space-between; align-items: center;
 }
 .thc-title { font-family: var(--font-mono); font-size: 13px; letter-spacing: 1px; color: var(--text); }
@@ -1530,7 +1535,7 @@
 /* Strength Confidence Chip */
 /* v1 signal bar (legacy) */
 .mc-strength-chip {
-  background: var(--surface2); border-radius: 6px; padding: 6px 14px;
+  background: var(--surface2); border-radius: 6px; padding: 6px 8px;
   display: flex; justify-content: space-between; align-items: center;
   font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 600;
   letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted);
@@ -1546,7 +1551,7 @@
 .mc-strength-chip .sc-conf.conf-high { color: var(--green); }
 /* v2 signal bar */
 .mc-signal-v2 {
-  background: #161b24; border-radius: 8px; padding: 10px 14px;
+  background: #161b24; border-radius: 8px; padding: 10px 8px;
   border: 0.5px solid rgba(255,255,255,0.08);
   font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 600;
   letter-spacing: 0.06em; text-transform: uppercase;
@@ -1720,7 +1725,7 @@
 .manage-notes-card {
   background: #161b24; border-radius: 6px;
   border: 0.5px solid rgba(255,255,255,0.08); margin-top: 8px;
-  padding: 10px 12px;
+  padding: 10px 8px;
 }
 .mn-tabs { display: flex; gap: 16px; margin-bottom: 8px; }
 .mn-tab {
@@ -1737,6 +1742,98 @@
   line-height: 1.6; height: 90px; resize: none; outline: none; width: 100%;
   box-sizing: border-box;
 }
+
+/* ── POC dynamic-trade-model: center panel ── */
+.dyn-center { display: flex; flex-direction: column; background: var(--surface); border: 0.5px solid var(--border); border-radius: 6px; margin-top: 8px; overflow: hidden; }
+
+/* Position summary bar */
+.dyn-summary { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 0.5px solid var(--border); }
+.dyn-summary-cell { padding: 8px 8px; border-right: 0.5px solid var(--border); display: flex; flex-direction: column; gap: 2px; }
+.dyn-summary-cell:last-child { border-right: none; }
+.dyn-summary-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+.dyn-summary-val  { font-size: 13px; font-family: 'Inter', monospace; color: var(--text); }
+.dyn-summary-val.green { color: var(--green); }
+.dyn-summary-val.red   { color: var(--red); }
+.dyn-summary-val .pos-step-exit { color: var(--green); }
+.dyn-summary-val .pos-step-add  { color: #ffb347; }
+.dyn-summary-val .pos-step-base { color: var(--text); }
+.dyn-summary-sub  { font-size: 9px; color: var(--muted); }
+
+/* Position strip */
+.dyn-strip-wrap { padding: 14px; border-bottom: 0.5px solid var(--border); }
+.dyn-strip { position: relative; width: 100%; height: 72px; }
+.dyn-strip-baseline { position: absolute; left: 0; right: 0; top: 34px; height: 1px; background: rgba(255,255,255,0.18); }
+.dyn-strip-zone-profit, .dyn-strip-zone-risk {
+  position: absolute; top: 30px; height: 8px; pointer-events: none;
+}
+.dyn-strip-zone-profit { background: linear-gradient(to right, rgba(95,212,142,0.18), rgba(95,212,142,0.04)); }
+.dyn-strip-zone-risk   { background: linear-gradient(to right, rgba(220,80,80,0.04), rgba(220,80,80,0.18)); }
+.dyn-marker { position: absolute; top: 0; width: 2px; height: 72px; pointer-events: none; }
+.dyn-marker .dmk-dot { position: absolute; left: 50%; top: 30px; width: 8px; height: 8px; border-radius: 50%; transform: translate(-50%, -2px); }
+.dyn-marker .dmk-line { position: absolute; left: 50%; top: 32px; width: 2px; height: 12px; transform: translateX(-50%); }
+.dyn-marker .dmk-top { position: absolute; left: 50%; bottom: 44px; transform: translateX(-50%); white-space: nowrap; font-size: 10px; font-family: 'Inter', monospace; color: var(--text); }
+.dyn-marker .dmk-bot { position: absolute; left: 50%; top: 46px; transform: translateX(-50%); white-space: nowrap; font-size: 9px; color: var(--muted); text-transform: lowercase; }
+.dyn-marker .dmk-badge { position: absolute; left: 50%; top: 60px; transform: translateX(-50%); white-space: nowrap; font-size: 9px; padding: 1px 5px; border-radius: 3px; background: rgba(220,80,80,0.18); color: var(--red); border: 0.5px solid rgba(220,80,80,0.35); }
+.dyn-marker .dmk-badge.pos { background: rgba(95,212,142,0.18); color: var(--green); border-color: rgba(95,212,142,0.35); }
+.dyn-marker.dm-open .dmk-dot  { background: #f0f0f0; }
+.dyn-marker.dm-open .dmk-line { background: #f0f0f0; }
+.dyn-marker.dm-add  .dmk-dot  { background: #ffb347; }
+.dyn-marker.dm-add  .dmk-line { background: #ffb347; }
+.dyn-marker.dm-exit .dmk-dot  { background: var(--green); }
+.dyn-marker.dm-exit .dmk-line { background: var(--green); }
+.dyn-marker.dm-stop .dmk-dot  { background: var(--red); }
+.dyn-marker.dm-stop .dmk-line { background: var(--red); }
+.dyn-strip-legend { display: flex; align-items: center; gap: 14px; padding-top: 8px; font-size: 9px; color: var(--muted); text-transform: lowercase; }
+.dyn-strip-legend .leg-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+.dyn-strip-legend .leg-open { background: #f0f0f0; }
+.dyn-strip-legend .leg-add  { background: #ffb347; }
+.dyn-strip-legend .leg-exit { background: var(--green); }
+.dyn-strip-legend .leg-stop { background: var(--red); }
+.dyn-strip-legend .leg-spacer { flex: 1; }
+
+/* Stop management row */
+.dyn-stop-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 0.5px solid var(--border); }
+.dyn-stop-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+.dyn-stop-input { width: 80px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 6px 8px; font-family: 'Inter', monospace; font-size: 12px; color: var(--text); }
+.dyn-stop-update-btn { background: transparent; border: 0.5px solid rgba(255,255,255,0.18); color: rgba(255,255,255,0.7); border-radius: 4px; padding: 6px 10px; font-size: 10px; cursor: pointer; }
+.dyn-stop-update-btn:hover { background: rgba(255,255,255,0.04); }
+.dyn-stop-perlot-btn { background: rgba(0,200,255,0.08); border: 0.5px solid rgba(0,200,255,0.3); color: #00c8ff; border-radius: 4px; padding: 6px 10px; font-size: 10px; cursor: pointer; }
+.dyn-stop-perlot-btn.active { background: rgba(0,200,255,0.18); }
+.dyn-stop-perlot-panel { background: rgba(0,200,255,0.03); border-top: 0.5px solid rgba(0,200,255,0.15); padding: 8px 14px; display: flex; flex-direction: column; gap: 6px; }
+.dyn-stop-perlot-row { display: grid; grid-template-columns: 80px 90px 1fr; gap: 8px; align-items: center; font-size: 10px; color: var(--text); }
+.dyn-stop-perlot-row .ps-qty  { color: var(--muted); }
+.dyn-stop-perlot-row .ps-risk { color: var(--red); text-align: right; font-family: 'Inter', monospace; }
+
+/* Transaction feed */
+.dyn-feed-header { display: flex; align-items: center; padding: 10px 8px 6px; }
+.dyn-feed-header .feed-title { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+.dyn-feed-header .feed-spacer { flex: 1; }
+.dyn-add-btn { background: rgba(0,200,255,0.08); border: 0.5px solid rgba(0,200,255,0.3); color: #00c8ff; border-radius: 4px; padding: 5px 10px; font-size: 10px; cursor: pointer; }
+.dyn-add-btn:hover { background: rgba(0,200,255,0.18); }
+.dyn-add-form { background: var(--surface2); border: 0.5px solid rgba(0,200,255,0.2); border-radius: 6px; padding: 10px 14px; margin: 0 14px 8px; display: grid; grid-template-columns: 90px 1fr; row-gap: 6px; column-gap: 8px; align-items: center; }
+.dyn-add-form label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+.dyn-add-form input { background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 5px 8px; font-family: 'Inter', monospace; font-size: 11px; color: var(--text); }
+.dyn-add-form input[readonly] { opacity: 0.6; }
+.dyn-add-form .dyn-form-actions { grid-column: 1 / -1; display: flex; gap: 8px; margin-top: 4px; }
+.dyn-add-form .btn-confirm { background: rgba(0,200,255,0.18); border: 0.5px solid rgba(0,200,255,0.5); color: #00c8ff; border-radius: 4px; padding: 5px 12px; font-size: 10px; cursor: pointer; }
+.dyn-add-form .btn-cancel  { background: transparent; border: 0.5px solid rgba(255,255,255,0.15); color: var(--muted); border-radius: 4px; padding: 5px 12px; font-size: 10px; cursor: pointer; }
+.dyn-feed-cols { display: grid; grid-template-columns: 52px 52px 40px 70px 60px 1fr; gap: 8px; padding: 4px 8px; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+.dyn-feed-row  { display: grid; grid-template-columns: 52px 52px 40px 70px 60px 1fr; gap: 8px; padding: 6px 8px; font-size: 10px; color: var(--text); align-items: center; }
+.dyn-feed-row:hover { background: var(--surface2); }
+.dyn-feed-row .feed-time  { color: var(--muted); }
+.dyn-feed-row .feed-type  { font-size: 10px; padding: 1px 5px; border-radius: 3px; justify-self: start; }
+.dyn-feed-row .feed-type.t-open { background: rgba(0,200,255,0.12); color: #00c8ff; }
+.dyn-feed-row .feed-type.t-add  { background: rgba(255,179,71,0.14); color: #ffb347; }
+.dyn-feed-row .feed-type.t-exit { background: rgba(95,212,142,0.14); color: var(--green); }
+.dyn-feed-row .feed-type.t-stop { background: rgba(220,80,80,0.14); color: var(--red); }
+.dyn-feed-row .feed-qty   { font-family: 'Inter', monospace; }
+.dyn-feed-row .feed-qty.qty-pos { color: var(--text); }
+.dyn-feed-row .feed-qty.qty-neg { color: var(--muted); }
+.dyn-feed-row .feed-price { font-weight: 500; font-family: 'Inter', monospace; }
+.dyn-feed-row .feed-pnl.pos { color: var(--green); }
+.dyn-feed-row .feed-pnl.zero { color: var(--muted); }
+.dyn-feed-row .feed-open  { color: var(--muted); text-align: right; font-size: 10px; }
+.dyn-feed-empty { padding: 14px 8px; font-size: 10px; color: var(--muted); text-align: center; }
 
 /* ── Paper / Light mode for strip ── */
 [data-theme="paper"] .price-strip-card { background: var(--surface2); border: 1px solid var(--border); }
@@ -2277,6 +2374,518 @@
 .ism-save-btn { background:rgba(52,211,153,0.15); border:1px solid rgba(52,211,153,0.3); color:#34d399; font-family:'Inter',sans-serif; font-size:10px; font-weight:600; padding:4px 12px; border-radius:5px; cursor:pointer; transition:all 0.15s; }
 .ism-save-btn:hover { background:rgba(52,211,153,0.25); }
 .ism-save-btn.ism-saved { background:rgba(52,211,153,0.3); color:#2ecc70; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   POC dynamic-trade-model — typography + color refinement (cascades last)
+   Visual-only: tightens numeric values to Inter 600 -0.01em with exact spec colors.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --poc-pos: #00d084;
+  --poc-neg: #ff4d4d;
+  --poc-cyan: #00c8ff;
+  --poc-amber: #f5a623;
+  --poc-text-primary:   rgba(255,255,255,0.88);
+  --poc-text-secondary: rgba(255,255,255,0.38);
+  --poc-text-muted:     rgba(255,255,255,0.45);
+  --poc-row-hover:      rgba(255,255,255,0.025);
+  --poc-row-border:     rgba(255,255,255,0.06);
+}
+[data-theme="paper"] {
+  --poc-pos: #1a6e3a;
+  --poc-neg: #a63030;
+  --poc-cyan: #2d6e8a;
+  --poc-amber: #b07a18;
+  --poc-text-primary:   rgba(0,0,0,0.82);
+  --poc-text-secondary: rgba(0,0,0,0.42);
+  --poc-text-muted:     rgba(0,0,0,0.35);
+  --poc-row-hover:      rgba(0,0,0,0.025);
+  --poc-row-border:     rgba(0,0,0,0.06);
+}
+
+/* ── Right-panel numeric sharpness (Net Risk, Realized, BE, contracts closed) ── */
+.hp-hero-risk.text-red,
+.metric-pair .metric-value.text-red    { color: var(--poc-neg); }
+.hp-hero-risk.text-green,
+.metric-pair .metric-value.text-green  { color: var(--poc-pos); }
+.metric-pair .be-price                 { color: var(--poc-text-primary) !important; }
+.hp-closed-fraction                    { color: var(--poc-text-primary); font-family: 'Inter', sans-serif; font-weight: 600; letter-spacing: -0.01em; }
+.metric-sub                            { color: var(--poc-text-muted) !important; }
+.metric-sub .stop-val                  { color: var(--poc-text-primary) !important; font-family: 'Inter', sans-serif; font-weight: 600; letter-spacing: -0.01em; }
+.hp-info-value                         { color: var(--poc-text-primary); font-family: 'Inter', sans-serif; font-weight: 600; letter-spacing: -0.01em; }
+
+/* ── Position summary cells ── */
+.dyn-summary-label            { color: var(--poc-text-muted); }
+.dyn-summary-sub              { color: var(--poc-text-secondary); }
+.dyn-summary-val              { font-family: 'Inter', sans-serif; font-weight: 600; letter-spacing: -0.01em; font-size: 13px; color: var(--poc-text-primary); }
+.dyn-summary-val.green        { color: var(--poc-pos); }
+.dyn-summary-val.red          { color: var(--poc-neg); }
+.dyn-summary-val .pos-step-exit { color: var(--poc-pos); }
+.dyn-summary-val .pos-step-add  { color: var(--poc-amber); }
+.dyn-summary-val .pos-step-base { color: var(--poc-text-primary); }
+
+/* ── Position strip markers ── */
+.dyn-marker .dmk-top          { font-family: 'Inter', sans-serif; font-weight: 600; letter-spacing: -0.01em; color: var(--poc-text-primary); }
+.dyn-marker .dmk-bot          { color: var(--poc-text-secondary); }
+.dyn-marker .dmk-badge        { font-family: 'Inter', sans-serif; font-weight: 600; letter-spacing: -0.01em; background: rgba(255,77,77,0.10); color: var(--poc-neg); border: 0.5px solid rgba(255,77,77,0.25); }
+.dyn-marker .dmk-badge.pos    { background: rgba(0,208,132,0.10); color: var(--poc-pos); border-color: rgba(0,208,132,0.25); }
+.dyn-marker.dm-add  .dmk-dot,
+.dyn-marker.dm-add  .dmk-line { background: var(--poc-amber); }
+.dyn-marker.dm-exit .dmk-dot,
+.dyn-marker.dm-exit .dmk-line { background: var(--poc-pos); }
+.dyn-marker.dm-stop .dmk-dot,
+.dyn-marker.dm-stop .dmk-line { background: var(--poc-neg); }
+.dyn-strip-legend             { color: var(--poc-text-muted); }
+.dyn-strip-legend .leg-add    { background: var(--poc-amber); }
+.dyn-strip-legend .leg-exit   { background: var(--poc-pos); }
+.dyn-strip-legend .leg-stop   { background: var(--poc-neg); }
+
+/* ── Stop management row ── */
+.dyn-stop-label               { color: var(--poc-text-muted); }
+.dyn-stop-input               { font-family: 'Inter', sans-serif; font-weight: 600; letter-spacing: -0.01em; font-size: 12px; color: var(--poc-text-primary); }
+.dyn-stop-perlot-btn          { color: var(--poc-cyan); background: rgba(0,200,255,0.10); border: 0.5px solid rgba(0,200,255,0.25); }
+.dyn-stop-perlot-btn.active   { background: rgba(0,200,255,0.20); }
+.dyn-stop-perlot-row .ps-qty  { color: var(--poc-text-muted); }
+.dyn-stop-perlot-row .ps-risk { color: var(--poc-neg); font-family: 'Inter', sans-serif; font-weight: 600; letter-spacing: -0.01em; }
+
+/* ── Transaction feed ── */
+.dyn-feed-header .feed-title  { color: var(--poc-text-muted); }
+.dyn-add-btn                  { color: var(--poc-cyan); background: rgba(0,200,255,0.10); border: 0.5px solid rgba(0,200,255,0.25); font-family: 'Inter', sans-serif; font-weight: 500; }
+.dyn-add-btn:hover            { background: rgba(0,200,255,0.20); }
+.dyn-feed-cols                { color: var(--poc-text-muted); }
+.dyn-feed-row                 { border-bottom: 0.5px solid var(--poc-row-border); }
+.dyn-feed-row:hover           { background: var(--poc-row-hover); }
+.dyn-feed-row .feed-time      { color: var(--poc-text-secondary); font-family: var(--font-mono, 'JetBrains Mono', monospace); font-size: 10px; }
+.dyn-feed-row .feed-type      { font-size: 10px; font-weight: 500; padding: 1px 5px; border-radius: 3px; }
+.dyn-feed-row .feed-type.t-open { background: rgba(0,200,255,0.10);  color: var(--poc-cyan);  border: 0.5px solid rgba(0,200,255,0.25); }
+.dyn-feed-row .feed-type.t-add  { background: rgba(245,166,35,0.10); color: var(--poc-amber); border: 0.5px solid rgba(245,166,35,0.25); }
+.dyn-feed-row .feed-type.t-exit { background: rgba(0,208,132,0.10);  color: var(--poc-pos);   border: 0.5px solid rgba(0,208,132,0.25); }
+.dyn-feed-row .feed-type.t-stop { background: rgba(255,77,77,0.10);  color: var(--poc-neg);   border: 0.5px solid rgba(255,77,77,0.25); }
+.dyn-feed-row .feed-qty       { font-family: 'Inter', sans-serif; font-weight: 500; letter-spacing: -0.01em; font-size: 11px; }
+.dyn-feed-row .feed-qty.qty-pos { color: var(--poc-text-primary); }
+.dyn-feed-row .feed-qty.qty-neg { color: var(--poc-text-secondary); }
+.dyn-feed-row .feed-price     { font-family: 'Inter', sans-serif; font-weight: 600; letter-spacing: -0.01em; font-size: 11px; color: var(--poc-text-primary); }
+.dyn-feed-row .feed-pnl       { font-family: 'Inter', sans-serif; font-weight: 600; letter-spacing: -0.01em; font-size: 11px; }
+.dyn-feed-row .feed-pnl.pos   { color: var(--poc-pos); }
+.dyn-feed-row .feed-pnl.zero  { color: var(--poc-text-muted); }
+.dyn-feed-row .feed-open      { color: var(--poc-text-secondary); font-family: var(--font-mono, 'JetBrains Mono', monospace); font-size: 10px; text-align: right; }
+
+/* ── Node diagram utility classes (Phase 2 prep) ── */
+.node-type-lbl { font-size: 8px; letter-spacing: 0.08em; text-transform: uppercase; font-family: var(--font-mono, 'JetBrains Mono', monospace); color: var(--poc-text-muted); }
+.node-number   { font-size: 17px; font-weight: 600; font-family: 'Inter', sans-serif; letter-spacing: -0.01em; line-height: 1.1; color: var(--poc-text-primary); }
+.node-sub-lbl  { font-size: 8px; font-family: 'Inter', sans-serif; opacity: 0.7; color: var(--poc-text-secondary); }
+.node-time-lbl { font-size: 8px; font-family: var(--font-mono, 'JetBrains Mono', monospace); color: rgba(255,255,255,0.35); margin-top: 4px; text-align: center; min-height: 12px; line-height: 12px; }
+[data-theme="paper"] .node-time-lbl { color: rgba(0,0,0,0.32); }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   POC dynamic-trade-model — node diagram (Phase 2)
+   Replaces the position strip with chronological node cards.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.dyn-nodes-wrap { padding: 14px 8px; border-bottom: 0.5px solid var(--border); }
+.dyn-nodes-two-row { display: flex; flex-direction: column; gap: 4px; }
+.dyn-nodes-row { display: flex; align-items: center; gap: 0; overflow-x: auto; padding: 4px 0; }
+/* Two-row layout: top row sits all nodes on a common baseline (Fix 1) */
+.dyn-nodes-row.top-row { align-items: flex-end; }
+.dyn-nodes-row-label { font-size: 8px; color: rgba(255,255,255,0.3); width: 36px; text-align: right; padding-right: 6px; flex-shrink: 0; line-height: 1.2; font-family: var(--font-mono, 'JetBrains Mono', monospace); }
+[data-theme="paper"] .dyn-nodes-row-label { color: rgba(0,0,0,0.32); }
+
+.dyn-node-col { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+
+.dyn-node { border-radius: 6px; padding: 7px 10px; text-align: center; width: 64px; flex-shrink: 0; }
+
+.dyn-node.open-node { background: rgba(0,200,255,0.08); border: 0.5px solid rgba(0,200,255,0.25); }
+.dyn-node.open-node .node-type-lbl { color: var(--poc-cyan); }
+.dyn-node.open-node .node-number   { color: var(--poc-text-primary); }
+.dyn-node.open-node .node-sub-lbl  { color: var(--poc-cyan); opacity: 0.85; }
+
+.dyn-node.add-node { background: rgba(245,166,35,0.08); border: 0.5px solid rgba(245,166,35,0.25); }
+.dyn-node.add-node .node-type-lbl,
+.dyn-node.add-node .node-number,
+.dyn-node.add-node .node-sub-lbl   { color: var(--poc-amber); opacity: 1; }
+
+.dyn-node.exit-pos { background: rgba(0,208,132,0.08); border: 0.5px solid rgba(0,208,132,0.25); }
+.dyn-node.exit-pos .node-type-lbl,
+.dyn-node.exit-pos .node-number,
+.dyn-node.exit-pos .node-sub-lbl    { color: var(--poc-pos); opacity: 1; }
+
+.dyn-node.exit-neg { background: rgba(255,77,77,0.06); border: 0.5px solid rgba(255,77,77,0.2); }
+.dyn-node.exit-neg .node-type-lbl,
+.dyn-node.exit-neg .node-number,
+.dyn-node.exit-neg .node-sub-lbl    { color: var(--poc-neg); opacity: 1; }
+
+.dyn-node.now-node { background: var(--surface2); border: 1.5px solid rgba(255,255,255,0.15); width: 72px; padding: 9px 10px; }
+[data-theme="paper"] .dyn-node.now-node { border-color: rgba(0,0,0,0.18); }
+.dyn-node.now-node .node-type-lbl { color: var(--poc-text-muted); }
+.dyn-node.now-node .node-number   { font-size: 22px; color: var(--poc-text-primary); }
+.dyn-node.now-node .node-sub-lbl  { color: var(--poc-text-muted); opacity: 1; }
+
+/* Stop node — plain mono lines, neutral muted text + colored net-risk only. */
+.dyn-node.stop-node {
+  background: transparent; border: 0.5px dashed rgba(255,255,255,0.15);
+  width: auto; min-width: 80px; max-width: 100px;
+  padding: 6px 8px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 11px; font-weight: 400; line-height: 1.5;
+  color: rgba(255,255,255,0.55);
+}
+.dyn-node.stop-node .node-type-lbl,
+.dyn-node.stop-node .stop-line,
+.dyn-node.stop-node .stop-net {
+  display: block;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 11px; font-weight: 400; line-height: 1.5;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.dyn-node.stop-node .node-type-lbl { color: rgba(255,255,255,0.55); }
+.dyn-node.stop-node .stop-line     { color: rgba(255,255,255,0.55); }
+/* net-risk colored only when non-zero */
+.dyn-node.stop-node .stop-net      { color: rgba(255,255,255,0.55); }
+.dyn-node.stop-node .stop-net.neg  { color: rgba(255,77,77,0.7); }
+.dyn-node.stop-node .stop-net.pos  { color: rgba(0,208,132,0.7); }
+[data-theme="paper"] .dyn-node.stop-node {
+  border-color: rgba(0,0,0,0.15); color: rgba(0,0,0,0.55);
+}
+[data-theme="paper"] .dyn-node.stop-node .node-type-lbl,
+[data-theme="paper"] .dyn-node.stop-node .stop-line,
+[data-theme="paper"] .dyn-node.stop-node .stop-net { color: rgba(0,0,0,0.55); }
+[data-theme="paper"] .dyn-node.stop-node .stop-net.neg { color: rgba(166,48,48,0.75); }
+[data-theme="paper"] .dyn-node.stop-node .stop-net.pos { color: rgba(45,122,82,0.75); }
+
+/* Arrows (Fix 1: no extra bottom margin — wrapped in a node-col instead so it aligns) */
+.dyn-node-arrow { display: flex; align-items: center; padding: 0 3px; flex-shrink: 0; }
+.dyn-node-arrow .arrow-line { height: 1px; width: 14px; background: rgba(255,255,255,0.15); }
+.dyn-node-arrow .arrow-tip  { font-size: 9px; color: rgba(255,255,255,0.25); margin-left: -2px; }
+.dyn-node-arrow.dashed .arrow-line { background: transparent; border-top: 1px dashed rgba(255,77,77,0.35); height: 0; }
+.dyn-node-arrow.dashed .arrow-tip  { color: rgba(255,77,77,0.5); }
+[data-theme="paper"] .dyn-node-arrow .arrow-line { background: rgba(0,0,0,0.15); }
+[data-theme="paper"] .dyn-node-arrow .arrow-tip  { color: rgba(0,0,0,0.3); }
+
+.dyn-exit-total-pill {
+  background: var(--surface2); color: var(--poc-text-muted);
+  font-size: 9px; padding: 3px 8px; border-radius: 4px;
+  margin-left: 6px;
+  font-family: 'Inter', sans-serif; flex-shrink: 0;
+}
+
+/* Summary bar below the nodes */
+.dyn-node-summary {
+  display: flex; align-items: center; flex-wrap: wrap;
+  padding: 6px 8px; background: var(--surface2); border-radius: 4px;
+  font-size: 11px; margin-top: 10px; gap: 8px;
+  font-family: 'Inter', sans-serif;
+}
+.dyn-node-summary .sum-text  { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; color: var(--poc-text-secondary); }
+.dyn-node-summary .sum-pos   { color: var(--poc-pos); }
+.dyn-node-summary .sum-neg   { color: var(--poc-neg); }
+.dyn-node-summary .sum-amber { color: var(--poc-amber); }
+.dyn-node-summary .sum-bold  { color: var(--poc-text-primary); font-weight: 600; }
+.dyn-node-summary .sum-arrow { color: rgba(255,255,255,0.3); }
+[data-theme="paper"] .dyn-node-summary .sum-arrow { color: rgba(0,0,0,0.3); }
+.dyn-node-summary .sum-dots  { display: flex; gap: 3px; flex-wrap: wrap; margin-left: auto; }
+
+/* Contract dots (used in summary bar; right-panel dots use .hp-dot) */
+.dyn-dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+.dyn-dot.pos  { background: var(--poc-pos); }
+.dyn-dot.zero { background: var(--poc-amber); }
+.dyn-dot.neg  { background: var(--poc-neg); }
+.dyn-dot.open { background: rgba(255,255,255,0.10); border: 0.5px solid rgba(255,255,255,0.15); }
+[data-theme="paper"] .dyn-dot.open { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.15); }
+
+/* Right-panel dots — add an amber zero variant; pos/neg already exist as dot-tp/dot-stop */
+.hp-dot.dot-zero { background: var(--poc-amber); }
+
+/* Cancel trade — quiet escape hatch. Muted neutral text + border by default;
+   tinges red only on hover so the destructive intent is still telegraphed. */
+.btn-cancel-trade, .poc-btn-cancel-trade {
+  background: transparent;
+  border: 0.5px solid rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.40);
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 11px; font-weight: 400; padding: 8px 12px;
+  letter-spacing: 1.2px; text-transform: uppercase;
+  border-radius: 4px; cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.poc-btn-cancel-trade { width: 100%; padding: 6px; font-size: 11px; }
+.btn-cancel-trade:hover, .poc-btn-cancel-trade:hover {
+  background: rgba(255,77,77,0.06);
+  color: rgba(255,77,77,0.85);
+  border-color: rgba(255,77,77,0.35);
+}
+.rv-action-row { display: flex; gap: 8px; align-items: stretch; }
+[data-theme="paper"] .btn-cancel-trade,
+[data-theme="paper"] .poc-btn-cancel-trade {
+  border-color: rgba(0,0,0,0.15); color: rgba(0,0,0,0.45);
+}
+[data-theme="paper"] .btn-cancel-trade:hover,
+[data-theme="paper"] .poc-btn-cancel-trade:hover {
+  background: rgba(166,48,48,0.06);
+  color: rgba(166,48,48,0.85);
+  border-color: rgba(166,48,48,0.35);
+}
+
+/* ── Stop section rebuild — Part 3 styling ── */
+.stop-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+.stop-qty-inp {
+  width: 60px; flex-shrink: 0; font-size: 11px; font-family: 'Inter', sans-serif;
+  padding: 4px 6px; border-radius: 4px;
+  border: 0.5px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.88); text-align: center;
+}
+.stop-price-inp {
+  width: 100px; flex-shrink: 0; font-size: 12px; font-family: 'Inter', sans-serif;
+  padding: 4px 8px; border-radius: 4px;
+  border: 0.5px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.88);
+}
+.stop-row-spacer { flex: 1; min-width: 0; }
+.stop-qty-txt   { min-width: 60px; }
+.stop-price-txt { min-width: 100px; }
+.stop-qty-inp:focus, .stop-price-inp:focus { outline: none; border-color: rgba(0,200,255,0.45); }
+.stop-add-btn {
+  font-size: 13px; width: 24px; height: 24px; border-radius: 4px;
+  border: 0.5px solid rgba(0,200,255,0.30);
+  background: rgba(0,200,255,0.08); color: var(--poc-cyan);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; padding: 0; font-family: 'Inter', sans-serif;
+}
+.stop-add-btn:hover { background: rgba(0,200,255,0.18); }
+.stop-remove-btn {
+  font-size: 13px; width: 24px; height: 24px; border-radius: 4px;
+  border: 0.5px solid rgba(255,255,255,0.08);
+  background: transparent; color: rgba(255,255,255,0.30);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; padding: 0; transition: color 0.12s, border-color 0.12s;
+}
+.stop-remove-btn:hover { color: var(--poc-neg); border-color: rgba(255,77,77,0.30); }
+.stop-row-actions { display: flex; gap: 6px; margin-top: 6px; }
+.stop-validation-err {
+  font-size: 9px; color: var(--poc-neg); font-family: 'Inter', sans-serif;
+  margin-top: 4px; padding: 4px 6px; background: rgba(255,77,77,0.08);
+  border: 0.5px solid rgba(255,77,77,0.25); border-radius: 3px;
+}
+.stop-qty-txt   { font-size: 11px; font-weight: 600; font-family: 'Inter', sans-serif; color: var(--poc-text-primary); letter-spacing: -0.01em; min-width: 40px; }
+.stop-price-txt { font-size: 12px; font-family: 'Inter', sans-serif; color: var(--poc-text-primary); letter-spacing: -0.01em; }
+.stop-stopped-txt { font-size: 10px; color: rgba(255,77,77,0.50); margin-left: auto; font-family: 'Inter', sans-serif; }
+.stop-pending-txt { font-size: 9px; color: var(--poc-text-muted); font-style: italic; }
+.stop-hit-btn { font-size: 11px; padding: 4px 12px; }
+.stop-row-hit { text-decoration: line-through; opacity: 0.45; }
+[data-theme="paper"] .stop-qty-inp, [data-theme="paper"] .stop-price-inp {
+  border-color: rgba(0,0,0,0.15); background: rgba(0,0,0,0.04); color: rgba(0,0,0,0.85);
+}
+[data-theme="paper"] .stop-qty-txt, [data-theme="paper"] .stop-price-txt { color: rgba(0,0,0,0.85); }
+[data-theme="paper"] .stop-remove-btn { color: rgba(0,0,0,0.30); border-color: rgba(0,0,0,0.10); }
+[data-theme="paper"] .stop-remove-btn:hover { color: #a63030; border-color: rgba(166,48,48,0.30); }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   POC dynamic-trade-model — Phase 3
+   Banner +Add button/form + right-panel three-section rebuild. Visual-only,
+   no backend wiring (Phase 4 will hook these up).
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Reusable label/button/input primitives ── */
+.poc-lbl       { font-family: var(--font-mono, 'JetBrains Mono', monospace); letter-spacing: 0.08em; text-transform: uppercase; font-size: 9px; color: var(--poc-text-muted); }
+.poc-lbl-tiny  { font-family: var(--font-mono, 'JetBrains Mono', monospace); letter-spacing: 0.08em; text-transform: uppercase; font-size: 8px; color: var(--poc-text-muted); }
+
+.poc-input     { font-family: 'Inter', sans-serif; font-size: 12px; padding: 4px 8px; border-radius: 4px; border: 0.5px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: var(--poc-text-primary); width: 100%; box-sizing: border-box; }
+.poc-input:focus { outline: none; border-color: rgba(0,200,255,0.45); }
+.poc-input.amber-tint { border-color: rgba(245,166,35,0.30); background: rgba(245,166,35,0.05); }
+.poc-input.amber-tint:focus { border-color: rgba(245,166,35,0.55); }
+[data-theme="paper"] .poc-input { border-color: rgba(0,0,0,0.15); background: rgba(0,0,0,0.04); color: rgba(0,0,0,0.85); }
+[data-theme="paper"] .poc-input.amber-tint { border-color: rgba(176,122,24,0.35); background: rgba(245,166,35,0.06); }
+
+.poc-btn-base  { font-family: 'Inter', sans-serif; font-size: 10px; padding: 5px 10px; border-radius: 4px; cursor: pointer; border: 0.5px solid transparent; transition: background 0.12s, border-color 0.12s; letter-spacing: -0.005em; }
+.poc-btn-sm    { background: transparent; border: 0.5px solid rgba(255,255,255,0.18); color: rgba(255,255,255,0.6); }
+.poc-btn-sm:hover    { background: rgba(255,255,255,0.04); }
+.poc-btn-cyan  { background: rgba(0,200,255,0.10); border: 0.5px solid rgba(0,200,255,0.30); color: var(--poc-cyan); }
+.poc-btn-cyan:hover  { background: rgba(0,200,255,0.18); }
+.poc-btn-red   { background: rgba(255,77,77,0.10); border: 0.5px solid rgba(255,77,77,0.30); color: var(--poc-neg); }
+.poc-btn-red:hover   { background: rgba(255,77,77,0.20); }
+.poc-btn-red-s { background: rgba(255,77,77,0.04); border: 0.5px solid rgba(255,77,77,0.25); color: var(--poc-neg); }
+.poc-btn-red-s:hover { background: rgba(255,77,77,0.10); }
+.poc-btn-green { background: rgba(0,208,132,0.10); border: 0.5px solid rgba(0,208,132,0.30); color: var(--poc-pos); }
+.poc-btn-green:hover { background: rgba(0,208,132,0.18); }
+.poc-btn-amber { background: rgba(245,166,35,0.10); border: 0.5px solid rgba(245,166,35,0.40); color: var(--poc-amber); font-weight: 600; font-size: 11px; }
+.poc-btn-amber:hover { background: rgba(245,166,35,0.20); }
+[data-theme="paper"] .poc-btn-sm    { border-color: rgba(0,0,0,0.18); color: rgba(0,0,0,0.55); }
+[data-theme="paper"] .poc-btn-sm:hover { background: rgba(0,0,0,0.04); }
+
+/* ── 3a — Banner +Add button + amber inline form ── */
+.thc-right { display: flex; align-items: center; gap: 8px; }
+
+.poc-banner-add-btn {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 10px; padding: 3px 10px; border-radius: 4px;
+  border: 0.5px solid rgba(0,200,255,0.35);
+  background: rgba(0,200,255,0.08); color: var(--poc-cyan);
+  cursor: pointer;
+}
+.poc-banner-add-btn:hover { background: rgba(0,200,255,0.18); }
+.poc-banner-add-btn.active { background: rgba(0,200,255,0.22); }
+
+.poc-banner-add-form {
+  background: rgba(245,166,35,0.04);
+  border-bottom: 0.5px solid rgba(245,166,35,0.15);
+  padding: 8px 8px;
+  display: flex; flex-direction: column; gap: 6px;
+  margin-top: -6px; /* hug the banner above (which has its own margin-bottom) */
+}
+[data-theme="paper"] .poc-banner-add-form { background: rgba(245,166,35,0.06); border-bottom-color: rgba(176,122,24,0.18); }
+.poc-banner-add-label {
+  font-size: 9px; color: rgba(245,166,35,0.7);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+.poc-banner-add-inputs { display: grid; grid-template-columns: 80px 1fr; gap: 8px; align-items: end; }
+.poc-banner-add-field  { display: flex; flex-direction: column; gap: 2px; }
+.poc-banner-add-actions { display: flex; gap: 6px; }
+
+/* ── 3b — Right-panel three-section structure ── */
+.health-panel.poc-manage { padding: 0; }
+.health-panel.poc-manage .poc-section {
+  padding: 10px 16px;
+  border-bottom: 0.5px solid rgba(255,255,255,0.08);
+}
+.health-panel.poc-manage .poc-section.poc-section-stops { background: rgba(255,255,255,0.015); }
+.health-panel.poc-manage .poc-section.poc-section-exit  { background: rgba(0,208,132,0.015); border-bottom: none; }
+[data-theme="paper"] .health-panel.poc-manage .poc-section { border-bottom-color: rgba(0,0,0,0.08); }
+[data-theme="paper"] .health-panel.poc-manage .poc-section.poc-section-stops { background: rgba(0,0,0,0.02); }
+[data-theme="paper"] .health-panel.poc-manage .poc-section.poc-section-exit  { background: rgba(0,150,80,0.02); }
+
+.poc-section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 8px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: rgba(255,255,255,0.25); margin-bottom: 8px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+[data-theme="paper"] .poc-section-header { color: rgba(0,0,0,0.30); }
+
+/* KPIs */
+.poc-kpi-hero        { line-height: 1; }
+.poc-kpi-hero-label  { display: block; margin-bottom: 4px; }
+.poc-kpi-hero-val    { font-size: 28px; font-weight: 600; font-family: 'Inter', sans-serif; letter-spacing: -0.02em; line-height: 1; }
+.poc-kpi-hero-val.neg { color: var(--poc-neg); }
+.poc-kpi-hero-val.pos { color: var(--poc-pos); }
+.poc-kpi-hero-sub    { font-size: 9px; color: rgba(255,255,255,0.35); font-family: 'Inter', sans-serif; margin-top: 4px; }
+[data-theme="paper"] .poc-kpi-hero-sub { color: rgba(0,0,0,0.40); }
+
+.poc-kpi-pair        { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; border-top: 0.5px solid rgba(255,255,255,0.08); padding-top: 7px; }
+[data-theme="paper"] .poc-kpi-pair { border-top-color: rgba(0,0,0,0.08); }
+.poc-kpi-cell        { display: flex; flex-direction: column; gap: 2px; }
+.poc-kpi-cell + .poc-kpi-cell { border-left: 0.5px solid rgba(255,255,255,0.08); padding-left: 10px; }
+[data-theme="paper"] .poc-kpi-cell + .poc-kpi-cell { border-left-color: rgba(0,0,0,0.08); }
+.poc-kpi-val         { font-size: 14px; font-weight: 500; font-family: 'Inter', sans-serif; letter-spacing: -0.01em; }
+.poc-kpi-val.pos     { color: var(--poc-pos); }
+.poc-kpi-val.neg     { color: var(--poc-neg); }
+.poc-kpi-val.primary { color: var(--poc-text-primary); }
+.poc-kpi-be-price    { font-size: 12px; font-weight: 500; font-family: 'Inter', sans-serif; letter-spacing: -0.01em; color: rgba(255,255,255,0.88); }
+.poc-kpi-be-buf      { font-size: 8px; color: rgba(255,255,255,0.3); font-family: 'Inter', sans-serif; margin-top: 2px; }
+[data-theme="paper"] .poc-kpi-be-price { color: rgba(0,0,0,0.85); }
+[data-theme="paper"] .poc-kpi-be-buf { color: rgba(0,0,0,0.35); }
+
+.poc-kpi-block       { margin-top: 8px; border-top: 0.5px solid rgba(255,255,255,0.08); padding-top: 7px; }
+[data-theme="paper"] .poc-kpi-block { border-top-color: rgba(0,0,0,0.08); }
+.poc-kpi-row         { display: flex; align-items: center; justify-content: space-between; }
+.poc-kpi-row .count  { font-size: 10px; color: rgba(255,255,255,0.4); font-family: 'Inter', sans-serif; }
+[data-theme="paper"] .poc-kpi-row .count { color: rgba(0,0,0,0.45); }
+.poc-kpi-dots        { display: flex; gap: 2px; flex-wrap: wrap; margin-top: 4px; }
+.poc-kpi-dot         { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+.poc-kpi-dot.pos     { background: var(--poc-pos); }
+.poc-kpi-dot.zero    { background: var(--poc-amber); }
+.poc-kpi-dot.neg     { background: var(--poc-neg); }
+.poc-kpi-dot.open    { background: rgba(255,255,255,0.10); border: 0.5px solid rgba(255,255,255,0.15); }
+[data-theme="paper"] .poc-kpi-dot.open { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.15); }
+.poc-kpi-time        { font-size: 13px; font-weight: 500; color: var(--poc-cyan); font-family: 'Inter', sans-serif; letter-spacing: -0.01em; }
+
+/* Stops & execution */
+.stop-toggle { display: flex; border-radius: 4px; overflow: hidden; border: 0.5px solid rgba(255,255,255,0.1); }
+[data-theme="paper"] .stop-toggle { border-color: rgba(0,0,0,0.12); }
+.st-btn { font-size: 9px; padding: 3px 8px; cursor: pointer; font-family: var(--font-mono, 'JetBrains Mono', monospace); letter-spacing: 0.05em; text-transform: uppercase; border: none; background: transparent; color: rgba(255,255,255,0.35); }
+[data-theme="paper"] .st-btn { color: rgba(0,0,0,0.35); }
+.st-btn.active-update  { background: rgba(0,200,255,0.12); color: var(--poc-cyan); }
+.st-btn.active-execute { background: rgba(255,77,77,0.12); color: var(--poc-neg); }
+
+.poc-stop-row    { display: flex; align-items: center; gap: 6px; margin-bottom: 7px; }
+.poc-stop-row .qty    { font-size: 11px; font-weight: 500; color: rgba(255,255,255,0.88); font-family: 'Inter', sans-serif; }
+.poc-stop-row .sub    { font-size: 9px; color: rgba(255,255,255,0.38); font-family: 'Inter', sans-serif; }
+.poc-stop-row .price-w { width: 80px; flex-shrink: 0; }
+.poc-stop-row > .spacer { flex: 1; }
+.poc-stop-row .poc-btn-base,
+.poc-perlot-row .poc-btn-base { padding: 4px 10px; }
+[data-theme="paper"] .poc-stop-row .qty { color: rgba(0,0,0,0.85); }
+[data-theme="paper"] .poc-stop-row .sub { color: rgba(0,0,0,0.40); }
+
+.poc-stop-buttons { display: flex; gap: 6px; margin-top: 4px; }
+.poc-stop-buttons .poc-btn-base { padding: 5px 8px; }
+
+.poc-perlot-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px; border-radius: 4px; margin-bottom: 5px;
+  background: rgba(255,77,77,0.05); border: 0.5px solid rgba(255,77,77,0.12);
+  transition: background 0.12s;
+}
+.poc-perlot-row:hover { background: rgba(255,77,77,0.09); }
+[data-theme="paper"] .poc-perlot-row { background: rgba(180,40,40,0.05); border-color: rgba(180,40,40,0.12); }
+.poc-perlot-row .qty   { font-size: 11px; font-weight: 500; color: rgba(255,255,255,0.88); font-family: 'Inter', sans-serif; }
+.poc-perlot-row .sub   { font-size: 9px; color: rgba(255,255,255,0.45); font-family: 'Inter', sans-serif; }
+.poc-perlot-row .risk  { font-size: 10px; font-family: 'Inter', sans-serif; color: var(--poc-neg); }
+.poc-perlot-row .price-w { width: 80px; flex-shrink: 0; }
+.poc-perlot-row .qty-w   { width: 48px; flex-shrink: 0; }
+.poc-perlot-remove {
+  background: transparent; border: none; cursor: pointer;
+  font-size: 14px; line-height: 1; padding: 0 4px;
+  color: rgba(255,255,255,0.35); transition: color 0.12s;
+  flex-shrink: 0;
+}
+.poc-perlot-remove:hover { color: var(--poc-neg); }
+.poc-perlot-error {
+  font-size: 9px; color: var(--poc-neg);
+  font-family: 'Inter', sans-serif; margin-top: 4px; margin-bottom: 4px;
+  padding: 4px 6px; background: rgba(255,77,77,0.08);
+  border: 0.5px solid rgba(255,77,77,0.25); border-radius: 3px;
+}
+.poc-perlot-add-btn {
+  width: 100%; margin-top: 2px; padding: 4px 8px;
+  background: rgba(0,200,255,0.06); border: 0.5px dashed rgba(0,200,255,0.30);
+  color: var(--poc-cyan); border-radius: 4px;
+  font-size: 10px; font-family: 'Inter', sans-serif; cursor: pointer;
+  transition: background 0.12s;
+}
+.poc-perlot-add-btn:hover { background: rgba(0,200,255,0.15); }
+[data-theme="paper"] .poc-perlot-remove { color: rgba(0,0,0,0.35); }
+[data-theme="paper"] .poc-perlot-remove:hover { color: #a63030; }
+.poc-perlot-row .left  { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+[data-theme="paper"] .poc-perlot-row .qty { color: rgba(0,0,0,0.85); }
+[data-theme="paper"] .poc-perlot-row .sub { color: rgba(0,0,0,0.45); }
+[data-theme="paper"] .poc-perlot-row .risk { color: #a63030; }
+
+.poc-collapse-confirm {
+  background: rgba(0,0,0,0.04); border: 0.5px solid rgba(255,255,255,0.08);
+  border-radius: 4px; padding: 8px 10px; margin-top: 6px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+[data-theme="paper"] .poc-collapse-confirm { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.10); }
+.poc-collapse-confirm .title { font-size: 10px; color: rgba(255,255,255,0.7); font-family: 'Inter', sans-serif; }
+.poc-collapse-confirm .suggest { font-size: 9px; color: rgba(255,255,255,0.45); font-family: 'Inter', sans-serif; }
+[data-theme="paper"] .poc-collapse-confirm .title { color: rgba(0,0,0,0.7); }
+[data-theme="paper"] .poc-collapse-confirm .suggest { color: rgba(0,0,0,0.50); }
+.poc-collapse-confirm .row { display: flex; gap: 6px; }
+
+.poc-flash-saved {
+  font-size: 10px; color: var(--poc-pos); margin-top: 4px;
+  font-family: 'Inter', sans-serif;
+  animation: pocFadeOut 2s forwards;
+}
+@keyframes pocFadeOut { 0% { opacity: 1 } 70% { opacity: 1 } 100% { opacity: 0 } }
+
+/* Exit section */
+.poc-exit-grid { display: grid; grid-template-columns: 72px 1fr; gap: 6px; align-items: end; }
+.poc-exit-field { display: flex; flex-direction: column; gap: 2px; }
+.poc-exit-btn   { width: 100%; padding: 6px; font-size: 11px; font-weight: 600; margin-top: 6px; }
 {% endblock %}
 
 {% block content %}
@@ -2405,7 +3014,7 @@ let contextFormMode = 'create'; // 'create' | 'modify'
 // Entry form state
 let formDir = 'Long';
 let formInst = 'MES';
-let formMode = 'partials';
+let formMode = 'full';
 let formPrice = '';
 let formQty = '';
 
@@ -2467,8 +3076,19 @@ function buildTradeModel(liveTrade, contexts, instrumentConfig) {
     instrument: liveTrade.instrument || 'MES', qty: liveTrade.total_qty,
     entry: liveTrade.entry_price, time: liveTrade.entry_time, tickValue,
     partials, status: liveTrade.status === 'closed' ? 'closed' : undefined,
-    pnl: liveTrade.calc?.realized_pnl || 0, context_id: liveTrade.context_id,
+    pnl: liveTrade.calc?.realized_pnl ?? liveTrade.realized_pnl ?? 0, context_id: liveTrade.context_id,
     initialRisk: liveTrade.initial_risk || 0,
+    // POC dynamic-trade-model: surfaced from new API fields. Default missing fields to
+    // null (NOT 0) so downstream consumers can fall back to legacy calc when an older
+    // server is in front of newer HTML/JS (Jinja2 reloads templates per request but
+    // Python module state stays loaded until restart).
+    weightedAvgEntry: liveTrade.weighted_avg_entry || liveTrade.entry_price,
+    openQty: (liveTrade.open_qty != null) ? liveTrade.open_qty : liveTrade.total_qty,
+    netRisk: (liveTrade.net_risk != null) ? liveTrade.net_risk : null,
+    realizedPnl: liveTrade.realized_pnl || 0,
+    // Phase 4: surfaced from API (server-computed BE + buffer in pts).
+    breakEven: (liveTrade.break_even != null) ? liveTrade.break_even : null,
+    breakEvenBufferPts: (liveTrade.break_even_buffer_pts != null) ? liveTrade.break_even_buffer_pts : null,
     levels: levels, executions: executions,
     mode: liveTrade.mode || 'partials',
     notes: liveTrade.notes || '', notes_monitoring: liveTrade.notes_monitoring || '',
@@ -2503,6 +3123,10 @@ function isTradeClosed(trade) {
   if (trade.noData) return true;
   if (trade.status === 'closed') return true;
   if (trade.pushed) return true;
+  // POC dynamic-trade-model: under the new ledger, the OPEN execution is recorded
+  // in live_trade_executions. The legacy partials logic treats any execution as an
+  // exit and would mark a brand-new trade as "closed". Prefer open_qty when available.
+  if (trade.openQty != null) return trade.openQty <= 0;
   return trade.partials.every(p => p.status === 'executed');
 }
 
@@ -2790,30 +3414,55 @@ function buildSidePanelHtml() {
   html += `</div></div>`;
 
   // Zone 2 — Session Summary
-  let sessionRealized = 0, sessionNetRisk = 0, openCount = 0, contractsOpen = 0;
+  // Phase 4: prefer trade.openQty / trade.realizedPnl (dynamic model) for the
+  // session aggregation; fall back to partials for legacy trades.
+  // Bug 2 fix: session net risk = (sum of open-trade net risks) − (sum of
+  // closed-trade realized). A losing closed trade widens the session risk;
+  // a winning closed trade cushions it.
+  let sessionRealized = 0, openNetRisk = 0, closedRealizedForRisk = 0;
+  let openCount = 0, contractsOpen = 0;
   ids.forEach(id => {
     const t = TRADES[id];
-    const h = computeHealth(t);
-    sessionNetRisk += h.netRisk;
+    if (!t) return;
     const closed = isTradeClosed(t);
     if (closed) {
-      sessionRealized += getTradePnl(t);
+      const pnl = getTradePnl(t);
+      sessionRealized += pnl;
+      closedRealizedForRisk += pnl;
     } else {
       openCount++;
-      t.partials.forEach(p => {
-        if (p.status === 'executed' && p.pnl !== undefined) sessionRealized += p.pnl;
-        if (p.status === 'open') contractsOpen += p.qty;
-      });
+      const h = computeHealth(t);
+      openNetRisk += Number(h.netRisk || 0);
+      if (t.realizedPnl != null) {
+        sessionRealized += Number(t.realizedPnl);
+      } else {
+        t.partials.forEach(p => {
+          if (p.status === 'executed' && p.pnl !== undefined) sessionRealized += p.pnl;
+        });
+      }
+      if (t.openQty != null) {
+        contractsOpen += Number(t.openQty);
+      } else {
+        t.partials.forEach(p => { if (p.status === 'open') contractsOpen += p.qty; });
+      }
     }
   });
-  const rSign = sessionRealized >= 0 ? '+' : '';
-  const riskSign = sessionNetRisk < 0 ? '' : '+';
-  const riskClr = sessionNetRisk < 0 ? 'clr-red' : 'clr-green';
+  // Session net risk = (sum of open-trade net risks) + (realized P&L on
+  // closed/pushed trades). A winning closed trade reduces session risk; a
+  // losing closed trade adds to it. (Open trade net_risk is already signed
+  // negative when at risk, so addition works for both cases.)
+  const sessionNetRisk = openNetRisk + closedRealizedForRisk;
+  // Match the SAME sign+color convention Net Risk uses, so a negative session
+  // realized goes red (was hardcoded to clr-green).
+  const realizedClr  = sessionRealized < 0 ? 'clr-red' : 'clr-green';
+  const realizedSign = sessionRealized < 0 ? '-' : '+';
+  const riskSign = sessionNetRisk < 0 ? '-' : '+';
+  const riskClr  = sessionNetRisk < 0 ? 'clr-red' : 'clr-green';
 
   html += `<div class="sp-zone">`;
   html += `<div class="sp-zone-label">SESSION</div>`;
   html += `<div class="sp-grid">`;
-  html += `<div class="sp-card"><div class="sp-card-val clr-green">${rSign}$${sessionRealized}</div><div class="sp-card-lbl">Realized</div></div>`;
+  html += `<div class="sp-card"><div class="sp-card-val ${realizedClr}">${realizedSign}$${Math.abs(Math.round(sessionRealized))}</div><div class="sp-card-lbl">Realized</div></div>`;
   html += `<div class="sp-card"><div class="sp-card-val ${riskClr}">${riskSign}$${Math.abs(Math.round(sessionNetRisk))}</div><div class="sp-card-lbl">Net Risk</div></div>`;
   const closedCount = ids.length - openCount;
   html += `<div class="sp-card"><div class="sp-card-val clr-default">${openCount} <span class="sp-card-sub">open</span></div><div class="sp-card-sub-line">${closedCount} closed</div><div class="sp-card-lbl">Trades</div></div>`;
@@ -2830,30 +3479,51 @@ function buildSidePanelHtml() {
     const isActive = id === activeTrade;
     const rowCls = isActive ? 'active' : (closed ? 'inactive' : 'inactive');
     const dirCls = t.direction === 'Long' ? 'sp-dir-long' : 'sp-dir-short';
-    const totalQty = t.partials.reduce((s, p) => s + p.qty, 0);
-    const closedQty = t.partials.filter(p => p.status === 'executed').reduce((s, p) => s + p.qty, 0);
-    const openQty = totalQty - closedQty;
-    const pnl = getTradePnl(t);
+
+    // Bug 3 fix: prefer dynamic-model fields (qty/openQty/realizedPnl) so a
+    // freshly opened trade doesn't get its OPEN execution mis-counted as a
+    // closed partial. Fall back to partials math for pre-POC trades.
+    const hasDynamic = (t.openQty != null);
+    const totalQty  = hasDynamic ? Number(t.qty || 0)
+                                 : t.partials.reduce((s, p) => s + p.qty, 0);
+    const openQty   = hasDynamic ? Number(t.openQty)
+                                 : (totalQty - t.partials.filter(p => p.status === 'executed').reduce((s, p) => s + p.qty, 0));
+    const closedQty = totalQty - openQty;
+    const pnl = (t.realizedPnl != null) ? Number(t.realizedPnl) : getTradePnl(t);
     const pnlColor = pnl >= 0 ? 'var(--green)' : 'var(--red)';
 
     let riskAmt = 0;
     if (!closed) {
-      const isLong = t.direction === 'Long';
-      t.partials.forEach(p => {
-        if (p.status === 'open') {
-          const stPts = isLong ? t.entry - (p.stop || t.entry) : (p.stop || t.entry) - t.entry;
-          riskAmt += stPts * p.qty * t.tickValue;
-        }
-      });
+      if (t.netRisk != null) {
+        // Dynamic model: net_risk is already the trade-level worst-case;
+        // show its magnitude when negative.
+        riskAmt = Math.max(0, -Number(t.netRisk));
+      } else {
+        const isLong = t.direction === 'Long';
+        t.partials.forEach(p => {
+          if (p.status === 'open') {
+            const stPts = isLong ? t.entry - (p.stop || t.entry) : (p.stop || t.entry) - t.entry;
+            riskAmt += stPts * p.qty * t.tickValue;
+          }
+        });
+      }
     }
 
     let dots = '';
-    t.partials.forEach(p => {
-      const cls = p.status === 'executed'
-        ? (p.exitType === 'stop_hit' ? 'dot-stop' : 'dot-tp')
-        : 'empty';
-      for (let di = 0; di < p.qty; di++) dots += `<div class="sp-mini-dot ${cls}"></div>`;
-    });
+    if (hasDynamic && typeof buildContractDotSlots === 'function') {
+      // P&L-based dots, matches the right-panel + summary-bar coloring.
+      const slotMap = { pos: 'dot-tp', neg: 'dot-stop', zero: 'dot-zero', open: 'empty' };
+      buildContractDotSlots(t).forEach(k => {
+        dots += `<div class="sp-mini-dot ${slotMap[k] || 'empty'}"></div>`;
+      });
+    } else {
+      t.partials.forEach(p => {
+        const cls = p.status === 'executed'
+          ? (p.exitType === 'stop_hit' ? 'dot-stop' : 'dot-tp')
+          : 'empty';
+        for (let di = 0; di < p.qty; di++) dots += `<div class="sp-mini-dot ${cls}"></div>`;
+      });
+    }
 
     html += `<div class="sp-trade-row ${rowCls}" onclick="switchTrade('${id}')">`;
     html += `<span class="sp-tid"><span class="sp-status-dot ${closed ? 'closed' : 'open'}"></span>${id}</span>`;
@@ -3920,13 +4590,6 @@ function renderEntryForm(el) {
         <span class="ef-label">Time</span>
         <input type="time" class="ef-input" id="ef-time" value="${getCurrentTimeStr()}">
       </div>
-      <div class="ef-row">
-        <span class="ef-label">Mode</span>
-        <div class="ef-toggle-group">
-          <button class="ef-toggle ${formMode === 'full' ? 'active' : ''}" onclick="setEntryMode('full')">FULL</button>
-          <button class="ef-toggle ${formMode === 'partials' ? 'active' : ''}" onclick="setEntryMode('partials')">3-WAY</button>
-        </div>
-      </div>
       <button class="ef-enter-btn" id="ef-enter" onclick="handleEnterClick()">ENTER \u21b5</button>
       <button class="ef-cancel-btn" onclick="cancelEntry()">CANCEL</button>
     </div>
@@ -3965,7 +4628,6 @@ function saveEntryFields() {
 }
 function setEntryDir(d) { saveEntryFields(); formDir = d; renderCenter(TRADES[activeTrade]); }
 function setEntryInst(i) { saveEntryFields(); formInst = i; renderCenter(TRADES[activeTrade]); }
-function setEntryMode(m) { saveEntryFields(); formMode = m; renderCenter(TRADES[activeTrade]); }
 
 /* ── REVIEW CENTER ── */
 function renderReviewCenter(el, trade) {
@@ -4155,8 +4817,194 @@ function renderReviewCenter(el, trade) {
 }
 
 /* ── RENDER: HEALTH PANEL (right) ── */
+/* ── POC Phase 3b: right-panel three-section renderer (MANAGE only) ── */
+function _pocFmtSigned(n)   { const v = Number(n||0); return `${v >= 0 ? '+' : '−'}$${Math.abs(v).toFixed(0)}`; }
+function _pocFmtPrice(p)    { return p == null ? '—' : Number(p).toFixed(2); }
+
+function buildPocKpisSection(trade, h, isLong, closed, dotSlots, bePrice, beBuffer, elapsedStr) {
+  const netRisk = Number(h.netRisk || 0);
+  const wae = Number(trade.weightedAvgEntry != null ? trade.weightedAvgEntry : trade.entry || 0);
+  const entryPrice = Number(trade.entry || wae);
+  const realized = Number(h.realized || 0);
+
+  const dotsHtml = dotSlots.map(slotCls => {
+    // dotSlots already mapped to 'dot-tp' / 'dot-stop' / 'dot-zero' / '' — translate to .poc-kpi-dot variants.
+    const m = { 'dot-tp': 'pos', 'dot-stop': 'neg', 'dot-zero': 'zero', '': 'open' };
+    const k = m[slotCls] != null ? m[slotCls] : 'open';
+    return `<div class="poc-kpi-dot ${k}"></div>`;
+  }).join('');
+
+  const bePart = bePrice != null
+    ? `<div class="poc-kpi-be-price">@ ${_pocFmtPrice(bePrice)}</div>
+       ${beBuffer != null ? `<div class="poc-kpi-be-buf">${beBuffer} pts buffer</div>` : ''}`
+    : `<div class="poc-kpi-be-price" style="color:var(--poc-text-muted)">—</div>`;
+
+  return `<div class="poc-section poc-section-kpis">
+    <div class="poc-section-header"><span>KPIs</span></div>
+
+    <div class="poc-kpi-hero">
+      <div class="poc-lbl poc-kpi-hero-label">NET RISK</div>
+      <div class="poc-kpi-hero-val ${netRisk >= 0 ? 'pos' : 'neg'}">${_pocFmtSigned(netRisk)}</div>
+      <div class="poc-kpi-hero-sub">avg ${_pocFmtPrice(wae)} · entry ${_pocFmtPrice(entryPrice)}</div>
+    </div>
+
+    <div class="poc-kpi-pair">
+      <div class="poc-kpi-cell">
+        <div class="poc-lbl">REALIZED</div>
+        <div class="poc-kpi-val ${realized >= 0 ? 'pos' : 'neg'}">${_pocFmtSigned(realized)}</div>
+      </div>
+      <div class="poc-kpi-cell">
+        <div class="poc-lbl">BREAK-EVEN</div>
+        ${bePart}
+      </div>
+    </div>
+
+    <div class="poc-kpi-block">
+      <div class="poc-kpi-row">
+        <span class="poc-lbl">CONTRACTS</span>
+        <span class="count">${closed} / ${h.total}</span>
+      </div>
+      <div class="poc-kpi-dots">${dotsHtml}</div>
+    </div>
+
+    <div class="poc-kpi-block">
+      <div class="poc-kpi-row">
+        <span class="poc-lbl">TIME IN TRADE</span>
+        <span class="poc-kpi-time">${elapsedStr || '—'}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* Load (or re-load) _stopRows from a trade.levels array. tradeId tags the
+   cache so trade-switching reloads instead of showing the previous trade's
+   rows (Bug 1 fix). */
+function loadStopRows(levels, tradeId) {
+  _stopRows = (levels || [])
+    .filter(l => l.level_type === 'stop')
+    .slice()
+    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+    .map(l => ({
+      id: l.id,
+      qty: Number(l.qty),
+      price: Number(l.price),
+      hit: !!l.hit,
+      sort_order: l.sort_order || 0,
+    }));
+  _stopRowsTradeId = tradeId != null ? tradeId : null;
+  _stopValidationError = null;
+}
+
+function buildPocStopsSection(trade, h, isLong, bePrice) {
+  const isUpdate  = _stopMode === 'update';
+  const isExecute = _stopMode === 'execute';
+  const toggle = `<div class="stop-toggle">
+    <button class="st-btn ${isUpdate ? 'active-update' : ''}"  onclick="dynStopModeSet('update')">UPDATE</button>
+    <button class="st-btn ${isExecute ? 'active-execute' : ''}" onclick="dynStopModeSet('execute')">EXECUTE</button>
+  </div>`;
+
+  // Reload when the cached rows are stale (no cache, or belong to a different
+  // trade) — fixes the Bug 1 case where switching from T2 to T3 left T2's
+  // hit stop row visible in the right panel.
+  if (_stopRows == null || _stopRowsTradeId !== trade.id) {
+    loadStopRows(trade.levels, trade.id);
+  }
+
+  let rowsHtml = '';
+  if (isUpdate) {
+    // UPDATE: only show non-hit rows (editable). Hit rows can't be edited or
+    // un-hit; they show in Execute mode struck-through.
+    const editable = _stopRows.filter(r => !r.hit);
+    rowsHtml = editable.map((r, i) => {
+      const isFirst = i === 0;
+      const isLast  = i === editable.length - 1;
+      const addBtn    = isLast              ? `<button class="stop-add-btn"    title="Add row"    onclick="handleAddStopRow()">+</button>` : '';
+      const removeBtn = (!isFirst)          ? `<button class="stop-remove-btn" title="Remove row" onclick="handleRemoveStopRow(${i})">×</button>` : '';
+      return `<div class="stop-row" data-index="${i}">
+        <input type="number" min="1" step="1"   class="stop-qty-inp"   value="${r.qty}"   oninput="_handleStopQtyEdit(${i}, this.value)">
+        <input type="number" step="0.25"        class="stop-price-inp" value="${r.price}" oninput="_handleStopPriceEdit(${i}, this.value)">
+        <span class="stop-row-spacer"></span>
+        ${addBtn}
+        ${removeBtn}
+      </div>`;
+    }).join('');
+    if (_stopValidationError) {
+      rowsHtml += `<div class="stop-validation-err" style="display:block">${_stopValidationError}</div>`;
+    }
+    rowsHtml += `<div class="stop-row-actions">
+      <button class="poc-btn-base poc-btn-sm"   style="flex:1" id="saveStopsBtn"   onclick="handleSaveStops()">Update stops</button>
+      <button class="poc-btn-base poc-btn-cyan" style="flex:2" id="stopsToBEBtn"   onclick="handleStopsToBE()">Stops → BE${bePrice != null ? ' (' + _pocFmtPrice(bePrice) + ')' : ''}</button>
+    </div>`;
+  } else {
+    // EXECUTE mode — read-only rows. Hit rows struck-through, active rows show Hit.
+    rowsHtml = _stopRows.map((r, i) => {
+      if (r.hit) {
+        return `<div class="stop-row stop-row-hit">
+          <span class="stop-qty-txt">${r.qty}×</span>
+          <span class="stop-price-txt">${_pocFmtPrice(r.price)}</span>
+          <span class="stop-stopped-txt">stopped</span>
+        </div>`;
+      }
+      const hitBtn = (r.id != null)
+        ? `<button class="poc-btn-base poc-btn-red stop-hit-btn" onclick="handleStopHit(${r.id})">Hit</button>`
+        : `<span class="stop-pending-txt">unsaved</span>`;
+      return `<div class="stop-row">
+        <span class="stop-qty-txt">${r.qty}×</span>
+        <span class="stop-price-txt">${_pocFmtPrice(r.price)}</span>
+        <span style="flex:1"></span>
+        ${hitBtn}
+      </div>`;
+    }).join('');
+    const hasActive = _stopRows.some(r => !r.hit && r.id != null);
+    if (hasActive) {
+      rowsHtml += `<button class="poc-btn-base poc-btn-red-s" style="width:100%;margin-top:6px" id="stopAllBtn" onclick="handleStopAll()">Stop all</button>`;
+    }
+  }
+
+  // ✓ Stops updated flash (set by dynStopsFlash on successful save).
+  const flashHtml = (_stopsFlashAt && (Date.now() - _stopsFlashAt < 2000))
+    ? `<div class="poc-flash-saved">✓ Stops updated</div>`
+    : '';
+
+  return `<div class="poc-section poc-section-stops">
+    <div class="poc-section-header">
+      <span>STOPS &amp; EXECUTION</span>
+      ${toggle}
+    </div>
+    ${rowsHtml}
+    ${flashHtml}
+  </div>`;
+}
+
+function buildPocExitSection(trade) {
+  return `<div class="poc-section poc-section-exit">
+    <div class="poc-section-header"><span>EXIT</span></div>
+    <div class="poc-exit-grid">
+      <div class="poc-exit-field">
+        <span class="poc-lbl-tiny">QTY</span>
+        <input type="number" min="1" step="1" class="poc-input" id="poc-exit-qty">
+      </div>
+      <div class="poc-exit-field">
+        <span class="poc-lbl-tiny">PRICE</span>
+        <input type="number" step="0.25" class="poc-input" id="poc-exit-price">
+      </div>
+    </div>
+    <button class="poc-btn-base poc-btn-green poc-exit-btn" onclick="dynPhase3ExitPartial()">Exit</button>
+    <button class="poc-btn-base poc-btn-red   poc-exit-btn" style="margin-top:5px" onclick="dynPhase3FlattenAll()">Flatten all</button>
+    <button class="poc-btn-cancel-trade poc-exit-btn"       style="margin-top:5px" onclick="cancelActiveTrade()">Cancel trade</button>
+  </div>`;
+}
+
+function buildPocManagePanel(trade, h, isLong, closed, dotSlots, bePrice, beBuffer, elapsedStr) {
+  return buildPocKpisSection(trade, h, isLong, closed, dotSlots, bePrice, beBuffer, elapsedStr)
+       + buildPocStopsSection(trade, h, isLong, bePrice)
+       + buildPocExitSection(trade);
+}
+
 function renderHealthPanel(trade) {
   const el = document.getElementById('health-panel');
+  // Phase 3b: scope the no-padding 3-section layout to MANAGE only.
+  el.classList.toggle('poc-manage', activePhase === 'MANAGE');
   if (activePhase === 'INTERNALS') { el.innerHTML = ''; return; }
 
   // Expand panel in REVIEW phase
@@ -4191,6 +5039,9 @@ function renderHealthPanel(trade) {
   }
 
   // MANAGE / EXIT
+  // Phase 3: scope the no-padding rebuild to MANAGE only; EXIT phase retains
+  // the legacy hero+actions layout further down.
+  el.classList.toggle('poc-manage', activePhase === 'MANAGE');
   if (!trade) { el.innerHTML = '<div class="phase-empty"><span>No trade</span></div>'; return; }
 
   const h = computeHealth(trade);
@@ -4234,30 +5085,53 @@ function renderHealthPanel(trade) {
     stopBadge = '<span class="hp-stop-badge pending-be">PENDING BE</span>';
   }
 
-  // Dot squares for contracts — color by partial outcome
+  // Dot squares for contracts — POC: derive closed slots from executions when available,
+  // fall back to partials-based coloring for legacy trades.
   let dotSlots = [];
-  (trade.partials || []).forEach(p => {
-    const cls = p.status === 'executed'
-      ? (p.exitType === 'stop_hit' ? 'dot-stop' : 'dot-tp')
-      : '';
-    for (let i = 0; i < p.qty; i++) dotSlots.push(cls);
+  const hasDynamicExecs = (trade.executions || []).some(e => {
+    const t = String(e.exec_type || '').toUpperCase();
+    return t === 'OPEN' || t === 'ADD' || t === 'EXIT' || t === 'STOP';
   });
+  if (hasDynamicExecs) {
+    // POC: color slots by P&L sign (matches summary-bar dots).
+    // Order: profitable closes first, then loss closes, then open slots.
+    const slotMap = { pos: 'dot-tp', zero: 'dot-zero', neg: 'dot-stop', open: '' };
+    dotSlots = buildContractDotSlots(trade).map(k => slotMap[k] || '');
+  } else {
+    (trade.partials || []).forEach(p => {
+      const cls = p.status === 'executed'
+        ? (p.exitType === 'stop_hit' ? 'dot-stop' : 'dot-tp')
+        : '';
+      for (let i = 0; i < p.qty; i++) dotSlots.push(cls);
+    });
+  }
   const dots = dotSlots.map(cls =>
     `<div class="hp-dot${cls ? ' ' + cls : ''}"></div>`
   ).join('');
 
-  // Break-even calculation
+  // Break-even calculation — Phase 4: prefer the server-computed value when
+  // available; fall back to legacy local calc for trades that pre-date Phase 4.
   const pointValue = trade.tickValue || 5;
+  const beAnchor = (trade.weightedAvgEntry != null) ? trade.weightedAvgEntry : trade.entry;
   let bePrice = null;
   let beBuffer = null;
-  if (h.remaining > 0 && h.realized !== 0) {
+  if (trade.breakEven != null) {
+    bePrice = trade.breakEven;
+    beBuffer = (trade.breakEvenBufferPts != null)
+      ? trade.breakEvenBufferPts
+      : (activeStop != null ? Math.abs(bePrice - activeStop).toFixed(0) : null);
+  } else if (h.remaining > 0 && h.realized !== 0) {
     bePrice = isLong
-      ? trade.entry + (h.realized / h.remaining / pointValue)
-      : trade.entry - (h.realized / h.remaining / pointValue);
-    bePrice = Math.round(bePrice * 4) / 4; // snap to tick
-    if (activeStop != null) {
-      beBuffer = Math.abs(bePrice - activeStop).toFixed(0);
-    }
+      ? beAnchor + (h.realized / h.remaining / pointValue)
+      : beAnchor - (h.realized / h.remaining / pointValue);
+    bePrice = Math.round(bePrice * 4) / 4;
+    if (activeStop != null) beBuffer = Math.abs(bePrice - activeStop).toFixed(0);
+  }
+
+  // Phase 3b: MANAGE phase → three-section right panel.
+  if (activePhase === 'MANAGE') {
+    el.innerHTML = buildPocManagePanel(trade, h, isLong, closed, dotSlots, bePrice, beBuffer, elapsedStr);
+    return;
   }
 
   el.innerHTML = `
@@ -4351,7 +5225,10 @@ function renderReviewRight(el, trade) {
       <input type="file" id="rv-img-input" accept="image/*" multiple style="display:none">
       <div class="lt-img-grid" id="rv-img-grid"></div>
       <div class="spacer"></div>
-      <button class="btn-push" onclick="pushActiveTrade()">PUSH TO JOURNAL</button>
+      <div class="rv-action-row">
+        <button class="btn-cancel-trade" onclick="cancelActiveTrade()">CANCEL TRADE</button>
+        <button class="btn-push" style="flex:1" onclick="pushActiveTrade()">PUSH TO JOURNAL</button>
+      </div>
     </div>
   `;
 
@@ -4711,27 +5588,44 @@ function buildManageCardsHTML(trade, isLong) {
     }
   }
 
-  // 1b. Trade Header
+  // 1b. Trade Header (POC: avg entry shows weighted_avg_entry from API)
+  // Phase 3a: + Add button on the right; inline amber form below the banner.
   const dirClass = isLong ? 'long' : 'short';
   const dirLabel = isLong ? 'LONG' : 'SHORT';
+  const headerAvg = (trade.weightedAvgEntry != null ? trade.weightedAvgEntry : entry);
+  const addBtnActiveCls = _bannerShowAdd ? ' active' : '';
+  const addBtnLabel = _bannerShowAdd ? '\u00d7 Cancel' : '+ Add';
   html += `<div class="trade-header-card">
     <div class="thc-title">
-      <span class="thc-dir ${dirClass}">${dirLabel}</span> ${activeTrade || ''} \u00b7 ${trade.qty}\u00d7 ${trade.instrument} @ ${entry}
+      <span class="thc-dir ${dirClass}">${dirLabel}</span> ${activeTrade || ''} \u00b7 ${trade.qty}\u00d7 ${trade.instrument} @ ${fmtPriceForHeader(headerAvg)}
     </div>
-    <div class="thc-time">${trade.time || ''}</div>
-  </div>`;
-
-  // 2. Execution Cards
-  html += buildExecCardsHTML(trade);
-
-  // 3. Global Stop Adjust
-  html += `<div class="gsa-card">
-    <div class="gsa-label">GLOBAL STOP ADJUST</div>
-    <div class="gsa-row">
-      <input type="number" id="gsa-price" class="gsa-input" step="0.25">
-      <button class="gsa-btn gsa-btn-update" onclick="updateAllStops()">UPDATE ALL</button>
+    <div class="thc-right">
+      <button class="poc-banner-add-btn${addBtnActiveCls}" onclick="dynBannerAddToggle()">${addBtnLabel}</button>
+      <div class="thc-time">${trade.time || ''}</div>
     </div>
   </div>`;
+  if (_bannerShowAdd) {
+    html += `<div class="poc-banner-add-form">
+      <div class="poc-banner-add-label">ADD ${dirLabel} CONTRACTS</div>
+      <div class="poc-banner-add-inputs">
+        <div class="poc-banner-add-field">
+          <span class="poc-lbl-tiny">QTY</span>
+          <input type="number" min="1" step="1" class="poc-input amber-tint" id="poc-banner-add-qty" value="1">
+        </div>
+        <div class="poc-banner-add-field">
+          <span class="poc-lbl-tiny">PRICE</span>
+          <input type="number" step="0.25" class="poc-input amber-tint" id="poc-banner-add-price">
+        </div>
+      </div>
+      <div class="poc-banner-add-actions">
+        <button class="poc-btn-base poc-btn-sm" style="flex:1" onclick="dynBannerAddCancel()">Cancel</button>
+        <button class="poc-btn-base poc-btn-amber" style="flex:2" onclick="dynBannerAddConfirm()">Confirm + Add ${dirLabel}</button>
+      </div>
+    </div>`;
+  }
+
+  // 2. POC dynamic-trade-model center: position summary + node diagram + transaction feed
+  html += buildDynamicCenterHTML(trade);
 
   // 4. Manage Notes
   const mnActiveTab = window._manageNoteTab || 'entry';
@@ -4751,14 +5645,1294 @@ function buildManageCardsHTML(trade, isLong) {
   return html;
 }
 
+/* ── POC dynamic-trade-model: state for inline forms / toggles ── */
+let _dynShowAdd = false;
+let _dynPerLot  = false;
+
+/* ── State ── */
+let _bannerShowAdd = false;       // banner +Add inline form open/closed
+let _stopMode      = 'update';    // 'update' | 'execute'
+let _stopsFlashAt   = 0;          // timestamp; ✓ Stops updated visible for 2s
+/* Stop section rebuild: single source of truth mirroring trade.levels stops.
+   Each row: { id, qty, price, hit, sort_order }. Unsaved rows have id=null.
+   _stopRowsTradeId tags which trade's rows are cached so we reload when the
+   user switches tabs. */
+let _stopRows           = null;
+let _stopRowsTradeId    = null;
+let _stopValidationError = null;
+/* Legacy slots kept so older code paths don't crash before this branch loads —
+   they're no longer read. */
+let _perLotMode    = false;
+let _perLotGroups  = null;
+let _perLotDraft   = null;
+let _perLotError   = null;
+let _collapseToGlobal = false;
+
+function dynBannerAddToggle()   { _bannerShowAdd = !_bannerShowAdd; renderAll && renderAll(); }
+function dynBannerAddCancel()   { _bannerShowAdd = false; renderAll && renderAll(); }
+function dynBannerAddConfirm()  { /* Phase 4 wires this */ }
+
+function dynStopModeSet(m)      { _stopMode = m; renderAll && renderAll(); }
+
+function dynPerLotEnter() {
+  const trade = TRADES[activeTrade];
+  const openQty = trade && trade.openQty != null ? trade.openQty : 0;
+  const a = Math.ceil(openQty / 2);
+  const b = openQty - a;
+  // Seed both groups at the current global stop price for visual continuity
+  const stops = (trade && trade.levels || []).filter(l => l.level_type === 'stop' && (l.qty || 0) > 0);
+  const seedPrice = stops.length ? Number(stops[0].price) : Number(trade?.weightedAvgEntry || trade?.entry || 0);
+  _perLotGroups = b > 0 ? [{ qty: a, price: seedPrice }, { qty: b, price: seedPrice }]
+                        : [{ qty: a, price: seedPrice }];
+  _perLotMode = true;
+  _collapseToGlobal = false;
+  renderAll && renderAll();
+}
+function dynPerLotLeaveStart()   { _collapseToGlobal = true; renderAll && renderAll(); }
+function dynPerLotLeaveCancel()  { _collapseToGlobal = false; renderAll && renderAll(); }
+function dynPerLotLeaveConfirm() { _collapseToGlobal = false; _perLotMode = false; _perLotGroups = null; renderAll && renderAll(); }
+
+function dynStopsFlash() {
+  _stopsFlashAt = Date.now();
+  renderAll && renderAll();
+  setTimeout(() => { if (Date.now() - _stopsFlashAt >= 1900) { _stopsFlashAt = 0; renderAll && renderAll(); } }, 2100);
+}
+/* ══════════════════════════════════════════════════════════════════════════════
+   Phase 4 — action wiring + state propagation
+   - currentTrade lives in TRADES[activeTrade]; every action overwrites it with
+     the server's authoritative response, then renderAll() rebuilds the view.
+   - Every visual element re-reads from the trade data object — no DOM scraping.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+function getCurrentTimeString() {
+  const d = new Date();
+  return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+function formatPnl(value) {
+  const v = Number(value || 0);
+  const abs = Math.abs(v).toFixed(0);
+  return v >= 0 ? `+$${abs}` : `−$${abs}`;
+}
+function setButtonLoading(btn, text) {
+  if (!btn) return;
+  btn.disabled = true;
+  if (btn.dataset.originalText == null) btn.dataset.originalText = btn.textContent;
+  btn.textContent = text;
+  btn.style.opacity = '0.6';
+}
+function setButtonSuccess(btn, text) {
+  if (!btn) return;
+  btn.disabled = false;
+  btn.textContent = text;
+  btn.style.opacity = '1';
+  btn.style.borderColor = 'rgba(0,208,132,0.5)';
+  btn.style.color = '#00d084';
+}
+function setButtonError(btn, text) {
+  if (!btn) return;
+  btn.disabled = false;
+  btn.textContent = text;
+  btn.style.borderColor = 'rgba(255,77,77,0.5)';
+  btn.style.color = '#ff4d4d';
+}
+function resetButton(btn, originalText) {
+  if (!btn) return;
+  btn.disabled = false;
+  btn.textContent = originalText || btn.dataset.originalText || btn.textContent;
+  btn.style.opacity = '1';
+  btn.style.borderColor = '';
+  btn.style.color = '';
+  delete btn.dataset.originalText;
+}
+function showInputError(input, message) {
+  if (!input) return;
+  input.style.borderColor = 'rgba(255,77,77,0.6)';
+  const err = document.createElement('div');
+  err.className = 'poc-input-err';
+  err.style.cssText = 'font-size:9px;color:#ff4d4d;margin-top:2px;font-family:Inter,sans-serif;';
+  err.textContent = message;
+  // Replace any previous error for this input
+  const prev = input.parentNode.querySelector('.poc-input-err');
+  if (prev) prev.remove();
+  input.parentNode.appendChild(err);
+  setTimeout(() => { input.style.borderColor = ''; err.remove(); }, 2000);
+}
+
+/* Map a raw API trade dict (snake_case) into the buildTradeModel-friendly
+   `liveTrade` shape, then rebuild and overwrite the active TRADES entry. */
+function updateTradeDisplay(trade) {
+  if (!trade) return;
+  const key = Object.keys(TRADES).find(k => TRADES[k] && TRADES[k].id === trade.id);
+  if (!key) return;
+
+  // Pass the API trade through buildTradeModel so every renderer reads from a
+  // consistent model. We keep .calc shape compatible with existing computeHealth
+  // by attaching realized_pnl/remaining_qty (legacy fallback).
+  const totalQty = Number(trade.total_qty || 0);
+  const openQty  = Number(trade.open_qty != null ? trade.open_qty : totalQty);
+  trade.calc = {
+    realized_pnl: Number(trade.realized_pnl || 0),
+    remaining_qty: openQty,
+    exited_qty: Math.max(0, totalQty - openQty),
+    is_closed: trade.status === 'closed' || openQty <= 0,
+    current_risk: Math.max(0, -Number(trade.net_risk || 0)),
+    potential_reward: 0,
+    initial_risk: TRADES[key].initialRisk || 0,
+    active_portions: [],
+    portion_details: [],
+  };
+  TRADES[key] = buildTradeModel(trade, SERVER_CONTEXTS, INST_CONFIG);
+  // Stop section rebuild: refresh the local _stopRows array from the new
+  // trade.levels (the backend is the source of truth post-action).
+  loadStopRows(TRADES[key].levels, TRADES[key].id);
+  // Visual closed-state handling
+  const justClosed = (TRADES[key].status === 'closed' || trade.status === 'closed');
+  if (justClosed) {
+    markTradeClosed(TRADES[key]);
+    // Auto-advance the active trade from MANAGE/EXIT into REVIEW once it
+    // closes. Other phases (CONTEXT/ENTRY/INTERNALS/REVIEW) are left alone.
+    if (key === activeTrade && (activePhase === 'MANAGE' || activePhase === 'EXIT')) {
+      activePhase = 'REVIEW';
+      try { activeTags = TRADES[key].tags || {}; } catch (e) {}
+    }
+  }
+  renderAll();
+  updateSessionSummary().catch(()=>{});
+}
+
+function markTradeClosed(trade) {
+  // Visual-only: dim the center panel and the in-banner action buttons; the
+  // node diagram + transaction feed stay readable. Other phases of refresh
+  // (tab pill, left-panel row) are reflected naturally by renderAll().
+  setTimeout(() => {
+    const ladder = document.getElementById('ladder');
+    if (!ladder) return;
+    ladder.querySelectorAll('.dyn-center, .manage-notes-card').forEach(el => {
+      el.style.opacity = '0.6';
+    });
+    ladder.querySelectorAll('.poc-banner-add-btn').forEach(b => { b.disabled = true; });
+    const hp = document.getElementById('health-panel');
+    if (hp) {
+      hp.querySelectorAll('.poc-btn-base, .poc-input').forEach(el => {
+        el.disabled = true;
+        if (el.tagName === 'BUTTON') el.style.opacity = '0.5';
+      });
+    }
+  }, 0);
+}
+
+async function updateSessionSummary() {
+  try {
+    const url = window._sessionAccountId
+      ? `/api/session/summary?account=${encodeURIComponent(window._sessionAccountId)}`
+      : '/api/session/summary';
+    const res = await fetch(url);
+    if (!res.ok) return;
+    const session = await res.json();
+    const sel = (a) => document.querySelector(a);
+    const set = (a, txt) => { const el = sel(a); if (el) el.textContent = txt; };
+    set('[data-session-realized]',     formatPnl(session.realized_pnl));
+    set('[data-session-net-risk]',     formatPnl(session.net_risk));
+    set('[data-session-open-trades]',  String(session.open_trades));
+    set('[data-session-contracts]',    String(session.open_contracts));
+  } catch (e) { /* non-fatal */ }
+}
+
+/* ── Helpers ── */
+function _pocCurrentTrade()       { return TRADES[activeTrade]; }
+function _pocStopLevels(trade)    { return (trade.levels || []).filter(l => l.level_type === 'stop' && (l.qty || 0) > 0); }
+function _pocLowestStopPrice(trade) {
+  const stops = _pocStopLevels(trade);
+  if (!stops.length) return Number(trade.weightedAvgEntry || trade.entry || 0);
+  const isLong = trade.direction === 'Long';
+  return isLong
+    ? Math.min.apply(null, stops.map(s => Number(s.price)))
+    : Math.max.apply(null, stops.map(s => Number(s.price)));
+}
+
+async function _pocPostJson(url, body) {
+  const res = await fetch(url, {
+    method: body && body.__method || 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body && (delete body.__method, body) || {}),
+  });
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try { msg = (await res.text()) || msg; } catch (e) {}
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+/* ── Banner +Add Confirm ── */
+async function dynBannerAddConfirm() {
+  const trade = _pocCurrentTrade(); if (!trade) return;
+  const priceEl = document.getElementById('poc-banner-add-price');
+  const qtyEl   = document.getElementById('poc-banner-add-qty');
+  const price = parseFloat(priceEl && priceEl.value);
+  const qty   = parseInt(qtyEl && qtyEl.value, 10);
+  if (!price || price <= 0) { showInputError(priceEl, 'Enter a valid price'); return; }
+  if (!qty   || qty <= 0)   { showInputError(qtyEl,   'Enter qty'); return; }
+
+  const btn = document.querySelector('.poc-banner-add-form .poc-btn-amber');
+  setButtonLoading(btn, 'Adding...');
+  try {
+    const updated = await _pocPostJson(`/api/live/${trade.id}/add`, {
+      price, qty, time: getCurrentTimeString(),
+    });
+    _bannerShowAdd = false;
+    updateTradeDisplay(updated);
+  } catch (err) {
+    setButtonError(btn, 'Failed');
+    setTimeout(() => resetButton(btn, `Confirm + Add ${trade.direction.toUpperCase()}`), 2000);
+    console.error('Add failed:', err);
+  }
+}
+
+/* ── Exit + Flatten ── */
+async function dynPhase3ExitPartial() {
+  const trade = _pocCurrentTrade(); if (!trade) return;
+  const priceEl = document.getElementById('poc-exit-price');
+  const qtyEl   = document.getElementById('poc-exit-qty');
+  const price = parseFloat(priceEl && priceEl.value);
+  const qty   = parseInt(qtyEl && qtyEl.value, 10);
+  if (!price || price <= 0)                        { showInputError(priceEl, 'Enter a valid price'); return; }
+  if (!qty   || qty <= 0 || qty > trade.openQty)   { showInputError(qtyEl,   `Max ${trade.openQty}`); return; }
+
+  const btn = document.querySelector('.poc-section-exit .poc-btn-green');
+  setButtonLoading(btn, 'Exiting...');
+  try {
+    const updated = await _pocPostJson(`/api/live/${trade.id}/exit`, {
+      price, qty, time: getCurrentTimeString(), exec_type: 'EXIT',
+    });
+    if (priceEl) priceEl.value = '';
+    if (qtyEl)   qtyEl.value = '';
+    setButtonSuccess(btn, 'Exited ✓');
+    setTimeout(() => resetButton(btn, 'Exit'), 1500);
+    updateTradeDisplay(updated);
+  } catch (err) {
+    setButtonError(btn, 'Failed');
+    setTimeout(() => resetButton(btn, 'Exit'), 2000);
+    console.error('Exit failed:', err);
+  }
+}
+
+async function dynPhase3FlattenAll() {
+  const trade = _pocCurrentTrade(); if (!trade) return;
+  if (!confirm(`Flatten all ${trade.openQty} contracts?`)) return;
+  const btn = document.querySelectorAll('.poc-section-exit .poc-btn-red')[0];
+  setButtonLoading(btn, 'Flattening...');
+  const stops = _pocStopLevels(trade);
+  const price = stops.length ? Number(stops[0].price) : Number(trade.weightedAvgEntry || trade.entry || 0);
+  try {
+    const updated = await _pocPostJson(`/api/live/${trade.id}/exit`, {
+      price, qty: trade.openQty, time: getCurrentTimeString(), exec_type: 'EXIT',
+    });
+    updateTradeDisplay(updated);
+  } catch (err) {
+    resetButton(btn, 'Flatten all');
+    console.error('Flatten failed:', err);
+  }
+}
+
+/* ── Stop updates ── */
+async function _pocStopUpdate(levelId, newPrice) {
+  const trade = _pocCurrentTrade(); if (!trade) return;
+  const updated = await _pocPostJson(`/api/live/${trade.id}/stop`, {
+    __method: 'PUT', level_id: levelId, price: newPrice,
+  });
+  dynStopsFlash();
+  updateTradeDisplay(updated);
+}
+
+async function dynPhase3StopUpdateGlobal() {
+  const el = document.getElementById('poc-global-stop');
+  const p = parseFloat(el && el.value);
+  if (!p || p <= 0) { showInputError(el, 'Enter a valid stop'); return; }
+  try { await _pocStopUpdate(null, p); }
+  catch (err) { console.error('Stop update failed:', err); }
+}
+
+/* Fix 2: per-row Update click validates the WHOLE draft (sum must equal openQty,
+   no group can be 0), then persists all groups via /levels-set. */
+async function dynPhase3StopUpdateLot(i) {
+  const trade = _pocCurrentTrade(); if (!trade) return;
+  if (!_perLotDraft) return;
+  // Pull the current input values into the draft first (in case oninput hasn't fired)
+  _pocSyncDraftFromInputs();
+  const err = _pocValidateDraft(_perLotDraft, Number(trade.openQty || 0));
+  if (err) { _perLotError = err; renderAll && renderAll(); return; }
+  const newLevels = _pocBuildLevelsFromDraft(trade, _perLotDraft);
+  try {
+    const updated = await _pocSetLevels(trade.id, newLevels);
+    dynStopsFlash();
+    updateTradeDisplay(updated);
+  } catch (e) {
+    _perLotError = 'Save failed — please retry';
+    renderAll && renderAll();
+    console.error('Per-lot save failed:', e);
+  }
+}
+
+function _pocSyncDraftFromInputs() {
+  if (!_perLotDraft) return;
+  const rows = document.querySelectorAll('.poc-section-stops .poc-perlot-row');
+  rows.forEach((row, idx) => {
+    if (!_perLotDraft[idx]) return;
+    const q = row.querySelector('input.qty-w');
+    const p = row.querySelector('input.price-w');
+    if (q) { const n = parseInt(q.value, 10); if (Number.isFinite(n)) _perLotDraft[idx].qty = n; }
+    if (p) { const n = parseFloat(p.value);     if (Number.isFinite(n)) _perLotDraft[idx].price = n; }
+  });
+}
+
+async function dynPhase3StopsToBe() {
+  const trade = _pocCurrentTrade(); if (!trade) return;
+  // be_price is surfaced from API on `trade.break_even` via buildTradeModel below.
+  const be = trade.breakEven || trade.break_even;
+  if (be == null) return;
+  try { await _pocStopUpdate(null, Number(be)); }
+  catch (err) { console.error('Stops→BE failed:', err); }
+}
+
+/* ── Stop hits ── */
+async function _pocStopHit(price, qty) {
+  const trade = _pocCurrentTrade(); if (!trade) return;
+  const updated = await _pocPostJson(`/api/live/${trade.id}/exit`, {
+    price, qty, time: getCurrentTimeString(), exec_type: 'STOP',
+  });
+  updateTradeDisplay(updated);
+}
+
+/* Fix 3: Hit a per-lot group → /exit STOP with that row's qty/price.
+   updateTradeDisplay rebuilds the view; auto-collapse + markTradeClosed fire
+   inside updateTradeDisplay based on the API response. */
+async function dynPhase3StopHit(i) {
+  const trade = _pocCurrentTrade(); if (!trade) return;
+  const row = (_perLotDraft && _perLotDraft[i]) || _pocStopLevels(trade)[i];
+  if (!row) return;
+  try { await _pocStopHit(Number(row.price), Number(row.qty)); }
+  catch (err) { console.error('Stop hit failed:', err); }
+}
+
+async function dynPhase3StopHitAll() {
+  const trade = _pocCurrentTrade(); if (!trade) return;
+  try { await _pocStopHit(_pocLowestStopPrice(trade), trade.openQty); }
+  catch (err) { console.error('Hit all failed:', err); }
+}
+
+async function dynPhase3StopAllExecute() {
+  // Same semantic as Hit all in the Execute-mode bottom button row.
+  await dynPhase3StopHitAll();
+}
+
+/* ── Per-lot persistence: split / collapse the stop set on enter/leave ── */
+async function _pocSetLevels(tradeId, newLevels) {
+  return _pocPostJson(`/api/live/${tradeId}/levels-set`, {
+    __method: 'PUT', levels: newLevels,
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   POC stop section rebuild — handlers
+   _stopRows is the source of truth for the UI. Backend persists via /stops.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+function _handleStopQtyEdit(i, val) {
+  if (!_stopRows) return;
+  const editable = _stopRows.filter(r => !r.hit);
+  const row = editable[i]; if (!row) return;
+  const n = parseInt(val, 10);
+  row.qty = Number.isFinite(n) ? n : 0;
+  _stopValidationError = null;
+}
+function _handleStopPriceEdit(i, val) {
+  if (!_stopRows) return;
+  const editable = _stopRows.filter(r => !r.hit);
+  const row = editable[i]; if (!row) return;
+  const n = parseFloat(val);
+  row.price = Number.isFinite(n) ? n : 0;
+  _stopValidationError = null;
+}
+
+/* + Add row — appends a row whose qty defaults to remaining-uncovered
+   contracts (max 1). Price seeds from the last row. */
+function handleAddStopRow() {
+  const trade = _pocCurrentTrade(); if (!trade) return;
+  if (!_stopRows) loadStopRows(trade.levels);
+  const editable = _stopRows.filter(r => !r.hit);
+  const covered = editable.reduce((s, r) => s + Number(r.qty || 0), 0);
+  const remaining = Math.max(0, Number(trade.openQty || 0) - covered);
+  const lastPrice = editable.length
+    ? Number(editable[editable.length - 1].price)
+    : Number(trade.weightedAvgEntry || trade.entry || 0);
+  const nextSort = _stopRows.reduce((m, r) => Math.max(m, r.sort_order || 0), -1) + 1;
+  _stopRows.push({
+    id: null, qty: Math.max(1, remaining), price: lastPrice,
+    hit: false, sort_order: nextSort,
+  });
+  _stopValidationError = null;
+  renderAll && renderAll();
+}
+
+/* × Remove row — local only. Redistributes removed qty to the last active
+   row so the running total is preserved. Never removes the first editable row. */
+function handleRemoveStopRow(i) {
+  if (!_stopRows) return;
+  const editable = _stopRows.filter(r => !r.hit);
+  if (editable.length <= 1) return;          // always keep ≥1 editable row
+  if (i === 0) return;                       // first row not removable
+  const removed = editable[i]; if (!removed) return;
+  // Splice the row from _stopRows by identity (sort_order isn't unique enough)
+  const idxInAll = _stopRows.indexOf(removed);
+  if (idxInAll === -1) return;
+  _stopRows.splice(idxInAll, 1);
+  const stillEditable = _stopRows.filter(r => !r.hit);
+  if (stillEditable.length > 0) {
+    const last = stillEditable[stillEditable.length - 1];
+    last.qty = Number(last.qty || 0) + Number(removed.qty || 0);
+  }
+  _stopValidationError = null;
+  renderAll && renderAll();
+}
+
+async function handleSaveStops() {
+  const trade = _pocCurrentTrade(); if (!trade) return;
+  if (!_stopRows) loadStopRows(trade.levels);
+  // Drop qty<=0 rows silently (per spec: "remove those rows silently before processing")
+  const editable = _stopRows.filter(r => !r.hit);
+  const cleaned = editable.filter(r => Number(r.qty) > 0);
+  const droppedZero = editable.length - cleaned.length;
+  const total = cleaned.reduce((s, r) => s + Number(r.qty || 0), 0);
+  const openQty = Number(trade.openQty || 0);
+  if (total !== openQty) {
+    _stopValidationError = `Quantities must sum to ${openQty} (currently ${total})`;
+    renderAll && renderAll();
+    return;
+  }
+  const payload = cleaned.map(r => ({ qty: Number(r.qty), price: Number(r.price) }));
+  const btn = document.getElementById('saveStopsBtn');
+  setButtonLoading(btn, 'Saving...');
+  try {
+    const res = await fetch(`/api/live/${trade.id}/stops`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stops: payload }),
+    });
+    if (!res.ok) {
+      let msg = 'Save failed';
+      try { msg = (await res.json()).error || msg; } catch (e) {}
+      _stopValidationError = msg;
+      resetButton(btn, 'Update stops');
+      renderAll && renderAll();
+      return;
+    }
+    const updated = await res.json();
+    setButtonSuccess(btn, droppedZero > 0 ? `✓ Saved (dropped ${droppedZero})` : '✓ Saved');
+    setTimeout(() => resetButton(btn, 'Update stops'), 2000);
+    dynStopsFlash();
+    updateTradeDisplay(updated);
+  } catch (e) {
+    _stopValidationError = 'Save failed — retry';
+    resetButton(btn, 'Update stops');
+    renderAll && renderAll();
+  }
+}
+
+async function handleStopsToBE() {
+  const trade = _pocCurrentTrade(); if (!trade) return;
+  const be = trade.breakEven;
+  if (be == null) { _stopValidationError = 'No BE price available'; renderAll && renderAll(); return; }
+  if (!_stopRows) loadStopRows(trade.levels);
+  const editable = _stopRows.filter(r => !r.hit && Number(r.qty) > 0);
+  const payload = editable.map(r => ({ qty: Number(r.qty), price: Number(be) }));
+  const total = payload.reduce((s, r) => s + r.qty, 0);
+  if (total !== Number(trade.openQty || 0)) {
+    _stopValidationError = `Quantities must sum to ${trade.openQty} (currently ${total})`;
+    renderAll && renderAll();
+    return;
+  }
+  try {
+    const res = await fetch(`/api/live/${trade.id}/stops`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stops: payload }),
+    });
+    if (!res.ok) {
+      _stopValidationError = 'Stops → BE failed'; renderAll && renderAll(); return;
+    }
+    dynStopsFlash();
+    updateTradeDisplay(await res.json());
+  } catch (e) { _stopValidationError = 'Stops → BE failed'; renderAll && renderAll(); }
+}
+
+async function handleStopHit(levelId) {
+  const trade = _pocCurrentTrade(); if (!trade) return;
+  try {
+    const res = await fetch(`/api/live/${trade.id}/stop-hit`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ level_id: levelId }),
+    });
+    if (!res.ok) { console.error('Stop hit failed:', await res.text()); return; }
+    updateTradeDisplay(await res.json());
+  } catch (e) { console.error('Stop hit failed:', e); }
+}
+
+async function handleStopAll() {
+  const trade = _pocCurrentTrade(); if (!trade) return;
+  if (!_stopRows) loadStopRows(trade.levels);
+  // Snapshot IDs first because updateTradeDisplay rebuilds _stopRows each round.
+  const ids = _stopRows.filter(r => !r.hit && r.id != null).map(r => r.id);
+  for (const id of ids) {
+    await handleStopHit(id);
+    const t = _pocCurrentTrade();
+    if (!t || t.status === 'closed' || Number(t.openQty || 0) <= 0) break;
+  }
+}
+
+/* Legacy per-lot stubs — kept to avoid stale-binding crashes from any
+   templates still referencing the old function names. */
+function dynPerLotEnter() {
+  const trade = _pocCurrentTrade(); if (!trade) return;
+  const openQty = Number(trade.openQty != null ? trade.openQty : 0);
+  if (openQty <= 0) return;
+  const stops = _pocStopLevels(trade);
+  _perLotDraft = _pocInitDraftFromStops(stops, openQty);
+  _perLotMode = true;
+  _collapseToGlobal = false;
+  _perLotError = null;
+  renderAll && renderAll();
+}
+
+function _pocInitDraftFromStops(stops, openQty) {
+  if (stops.length === 0) {
+    return [{ qty: openQty, price: 0, isNew: true }];
+  }
+  if (stops.length === 1) {
+    const s = stops[0];
+    const total = Number(s.qty || openQty);
+    if (total < 2) return [{ qty: total, price: Number(s.price), id: s.id }];
+    const a = Math.ceil(total / 2);
+    const b = total - a;
+    return [
+      { qty: a, price: Number(s.price), id: s.id },
+      { qty: b, price: Number(s.price), isNew: true },
+    ];
+  }
+  return stops.map(s => ({ qty: Number(s.qty), price: Number(s.price), id: s.id }));
+}
+
+/* Local draft edits: qty / price inputs */
+function _dynPerLotEditQty(i, val) {
+  if (!_perLotDraft || !_perLotDraft[i]) return;
+  const n = parseInt(val, 10);
+  _perLotDraft[i].qty = Number.isFinite(n) ? n : 0;
+  _perLotError = null;
+}
+function _dynPerLotEditPrice(i, val) {
+  if (!_perLotDraft || !_perLotDraft[i]) return;
+  const n = parseFloat(val);
+  _perLotDraft[i].price = Number.isFinite(n) ? n : 0;
+  _perLotError = null;
+}
+
+/* + Add group — appends a row covering the remaining uncovered contracts. */
+function _dynPerLotAdd() {
+  const trade = _pocCurrentTrade(); if (!trade || !_perLotDraft) return;
+  const openQty = Number(trade.openQty || 0);
+  const covered = _perLotDraft.reduce((s, g) => s + Number(g.qty || 0), 0);
+  let qty = openQty - covered;
+  if (qty <= 0) qty = 1;
+  const lastPrice = _perLotDraft.length ? Number(_perLotDraft[_perLotDraft.length - 1].price) : 0;
+  _perLotDraft.push({ qty, price: lastPrice, isNew: true });
+  _perLotError = null;
+  renderAll && renderAll();
+}
+
+/* × Remove group — local-only redistribution of removed qty to the largest
+   remaining group. Auto-collapse to global when only 1 row would remain. */
+async function _dynPerLotRemove(i) {
+  const trade = _pocCurrentTrade(); if (!trade || !_perLotDraft || !_perLotDraft[i]) return;
+  const removed = _perLotDraft[i];
+  if (_perLotDraft.length === 1) {
+    // Spec: "If removing last group → revert to global stop at current price"
+    const newLevels = _pocBuildLevelsFromDraft(trade, [{ qty: Number(trade.openQty || removed.qty), price: Number(removed.price) }]);
+    try {
+      const updated = await _pocSetLevels(trade.id, newLevels);
+      _perLotMode = false; _perLotDraft = null; _perLotError = null;
+      updateTradeDisplay(updated);
+    } catch (err) { console.error('Remove last group failed:', err); }
+    return;
+  }
+  // Redistribute removed qty to the group with the most contracts (excluding removed)
+  const others = _perLotDraft.map((g, idx) => ({ g, idx })).filter(x => x.idx !== i);
+  others.sort((a, b) => Number(b.g.qty || 0) - Number(a.g.qty || 0));
+  others[0].g.qty = Number(others[0].g.qty || 0) + Number(removed.qty || 0);
+  _perLotDraft.splice(i, 1);
+  if (_perLotDraft.length === 1) {
+    // Spec: "If removing would leave only one group → auto-collapse to global"
+    const only = _perLotDraft[0];
+    const newLevels = _pocBuildLevelsFromDraft(trade, [{ qty: Number(only.qty), price: Number(only.price) }]);
+    try {
+      const updated = await _pocSetLevels(trade.id, newLevels);
+      _perLotMode = false; _perLotDraft = null; _perLotError = null;
+      updateTradeDisplay(updated);
+    } catch (err) { console.error('Auto-collapse on remove failed:', err); }
+    return;
+  }
+  _perLotError = null;
+  renderAll && renderAll();
+}
+
+/* Build the full level set payload from the draft, preserving non-stop rows. */
+function _pocBuildLevelsFromDraft(trade, groups) {
+  const out = [];
+  groups.forEach((g, idx) => {
+    out.push({
+      level_type: 'stop', portion: idx + 1,
+      qty: Math.max(0, Number(g.qty || 0)),
+      price: Number(g.price || 0),
+      risk_dollars: 0, reward_dollars: 0,
+    });
+  });
+  (trade.levels || []).filter(l => l.level_type !== 'stop').forEach(l => {
+    out.push({
+      level_type: l.level_type, portion: l.portion, qty: l.qty, price: l.price,
+      risk_dollars: l.risk_dollars || 0, reward_dollars: l.reward_dollars || 0,
+    });
+  });
+  return out;
+}
+
+function _pocValidateDraft(draft, openQty) {
+  if (!draft || draft.length === 0) return `Add at least one group`;
+  const total = draft.reduce((s, g) => s + Number(g.qty || 0), 0);
+  if (draft.some(g => Number(g.qty || 0) <= 0)) {
+    return `Groups must total ${openQty} contracts (no group can be 0)`;
+  }
+  if (total !== openQty) {
+    return `Groups must total ${openQty} contracts`;
+  }
+  return null;
+}
+
+async function dynPerLotLeaveConfirm() {
+  const trade = _pocCurrentTrade(); if (!trade) return;
+  const isLong = trade.direction === 'Long';
+  const wae = Number(trade.weightedAvgEntry || trade.entry || 0);
+  const suggest = isLong ? wae - 20 : wae + 20;
+  const newLevels = [];
+  newLevels.push({ level_type: 'stop', portion: 1, qty: trade.openQty || 0, price: suggest, risk_dollars: 0, reward_dollars: 0 });
+  (trade.levels || []).filter(l => l.level_type !== 'stop').forEach(l => newLevels.push({
+    level_type: l.level_type, portion: l.portion, qty: l.qty, price: l.price,
+    risk_dollars: l.risk_dollars || 0, reward_dollars: l.reward_dollars || 0,
+  }));
+  try {
+    const updated = await _pocSetLevels(trade.id, newLevels);
+    _perLotMode = false;
+    _collapseToGlobal = false;
+    _perLotGroups = null;
+    _perLotDraft = null;
+    _perLotError = null;
+    updateTradeDisplay(updated);
+  } catch (err) { console.error('Per-lot collapse failed:', err); }
+}
+
+function fmtPriceForHeader(p) {
+  if (p == null) return '—';
+  const n = Number(p);
+  if (Number.isNaN(n)) return String(p);
+  return n.toFixed(2);
+}
+
+function _dynStopRows(trade) {
+  return (trade.levels || [])
+    .filter(l => l.level_type === 'stop')
+    .sort((a, b) => (a.portion || 0) - (b.portion || 0));
+}
+
+function _dynExecsNewestFirst(trade) {
+  const arr = (trade.executions || []).slice();
+  arr.sort((a, b) => {
+    const ka = (a.created_at || '') + String(a.id || '').padStart(10, '0');
+    const kb = (b.created_at || '') + String(b.id || '').padStart(10, '0');
+    return kb.localeCompare(ka);
+  });
+  return arr;
+}
+
+function _dynExecsOldestFirst(trade) {
+  const arr = _dynExecsNewestFirst(trade).slice();
+  arr.reverse();
+  return arr;
+}
+
+function _dynPositionSteps(trade) {
+  // Build a sizing breakdown like "12 → −4 → +3 = 11 open" from oldest-first execs
+  const execs = _dynExecsOldestFirst(trade);
+  const opens = execs.filter(e => String(e.exec_type || '').toUpperCase() === 'OPEN');
+  const adds  = execs.filter(e => String(e.exec_type || '').toUpperCase() === 'ADD');
+  const exits = execs.filter(e => {
+    const t = String(e.exec_type || '').toUpperCase();
+    return t !== 'OPEN' && t !== 'ADD';
+  });
+  const openQty = trade.openQty != null ? trade.openQty : trade.qty;
+  const startQty = opens.reduce((s, e) => s + (e.qty || 0), 0) || trade.qty || 0;
+  let parts = [`<span class="pos-step-base">${startQty}</span>`];
+  // Interleave by chronological order so the math reads correctly
+  execs.filter(e => {
+    const t = String(e.exec_type || '').toUpperCase();
+    return t !== 'OPEN';
+  }).forEach(e => {
+    const t = String(e.exec_type || '').toUpperCase();
+    if (t === 'ADD') parts.push(`<span class="pos-step-add">+${e.qty}</span>`);
+    else             parts.push(`<span class="pos-step-exit">−${e.qty}</span>`);
+  });
+  parts.push(`<span class="pos-step-base">= ${openQty} open</span>`);
+  return parts.join(' ');
+}
+
+/* ── POC dynamic-trade-model: node diagram (replaces buildPositionStrip) ── */
+
+function _dynFmtPnl(pnl) {
+  const n = Number(pnl || 0);
+  const sign = n >= 0 ? '+' : '−';
+  return `${sign}$${Math.abs(n).toFixed(0)}`;
+}
+
+function _dynStopGroups(trade) {
+  // Bug fix: exclude hit rows — they're already-executed exits, kept in the
+  // DB for the struck-through view in Execute mode but they no longer cover
+  // any open contracts. Without this filter the stop node would double-count
+  // them and disagree with the right-panel summary.
+  const stops = (trade.levels || []).filter(l =>
+    l.level_type === 'stop' && (l.qty || 0) > 0 && !l.hit
+  );
+  const groups = {};
+  stops.forEach(s => {
+    const key = Number(s.price).toFixed(4);
+    if (!groups[key]) groups[key] = { price: Number(s.price), qty: 0 };
+    groups[key].qty += Number(s.qty || 0);
+  });
+  return Object.values(groups).sort((a, b) => a.price - b.price);
+}
+
+function buildContractDotSlots(trade) {
+  // Profitable closes first, then loss closes, then open slots — per spec.
+  const total = trade.qty || 0;
+  const exits = (trade.executions || []).filter(e => {
+    const t = String(e.exec_type || '').toUpperCase();
+    return t !== 'OPEN' && t !== 'ADD';
+  });
+  const pos  = exits.filter(e => Number(e.pnl || 0) > 0);
+  const zero = exits.filter(e => Number(e.pnl || 0) === 0);
+  const neg  = exits.filter(e => Number(e.pnl || 0) < 0);
+  const slots = [];
+  pos.forEach(e  => { for (let i = 0; i < (e.qty || 0); i++) slots.push('pos'); });
+  zero.forEach(e => { for (let i = 0; i < (e.qty || 0); i++) slots.push('zero'); });
+  neg.forEach(e  => { for (let i = 0; i < (e.qty || 0); i++) slots.push('neg'); });
+  while (slots.length < total) slots.push('open');
+  return slots;
+}
+
+function _nodeArrow(dashed) {
+  // Fix 1: wrap arrow in a node-col with empty time-lbl so all items in the row
+  // share identical vertical structure → centers (and bottoms) line up consistently.
+  return `<div class="dyn-node-col">
+    <div class="dyn-node-arrow ${dashed ? 'dashed' : ''}">
+      <div class="arrow-line"></div><div class="arrow-tip">▶</div>
+    </div>
+    <div class="node-time-lbl"></div>
+  </div>`;
+}
+
+function _nodeOpen(e) {
+  return `<div class="dyn-node-col">
+    <div class="dyn-node open-node">
+      <div class="node-type-lbl">OPEN</div>
+      <div class="node-number">+${e.qty}</div>
+      <div class="node-sub-lbl">${Number(e.price).toFixed(2)}</div>
+    </div>
+    <div class="node-time-lbl">${e.exec_time || ''}</div>
+  </div>`;
+}
+
+function _nodeAdd(e) {
+  return `<div class="dyn-node-col">
+    <div class="dyn-node add-node">
+      <div class="node-type-lbl">ADD</div>
+      <div class="node-number">+${e.qty}</div>
+      <div class="node-sub-lbl">${Number(e.price).toFixed(2)}</div>
+    </div>
+    <div class="node-time-lbl">${e.exec_time || ''}</div>
+  </div>`;
+}
+
+function _nodeExit(e) {
+  const pnl = Number(e.pnl || 0);
+  const cls = pnl > 0 ? 'exit-pos' : 'exit-neg';
+  return `<div class="dyn-node-col">
+    <div class="dyn-node ${cls}">
+      <div class="node-type-lbl">EXIT</div>
+      <div class="node-number">−${e.qty}</div>
+      <div class="node-sub-lbl">${_dynFmtPnl(pnl)}</div>
+    </div>
+    <div class="node-time-lbl">${e.exec_time || ''}</div>
+  </div>`;
+}
+
+function _nodeOpenNow(trade) {
+  const openQty = trade.openQty != null ? trade.openQty : 0;
+  const wae = Number(trade.weightedAvgEntry || trade.entry || 0);
+  return `<div class="dyn-node-col">
+    <div class="dyn-node now-node">
+      <div class="node-type-lbl">OPEN NOW</div>
+      <div class="node-number">${openQty}</div>
+      <div class="node-sub-lbl">avg ${wae.toFixed(2)}</div>
+    </div>
+    <div class="node-time-lbl"></div>
+  </div>`;
+}
+
+function _nodeStop(trade) {
+  // Plain mono lines: STOP label, one "qty× @ price" line per group, then
+  // a plain net-risk line. No badge, no total-contracts row, no bold.
+  const groups = _dynStopGroups(trade);
+  if (groups.length === 0) return '';
+  const lines = groups.map(g =>
+    `<span class="stop-line">${g.qty}× @ ${g.price.toFixed(2)}</span>`
+  ).join('');
+  const netRisk = Number(trade.netRisk || 0);
+  const netCls = netRisk > 0 ? 'pos' : netRisk < 0 ? 'neg' : '';
+  return `<div class="dyn-node-col">
+    <div class="dyn-node stop-node">
+      <span class="node-type-lbl">STOP</span>
+      ${lines}
+      <span class="stop-net ${netCls}">${_dynFmtPnl(netRisk)}</span>
+    </div>
+    <div class="node-time-lbl"></div>
+  </div>`;
+}
+
+function buildNodeSummary(trade) {
+  const execs = _dynExecsOldestFirst(trade);
+  const opens = execs.filter(e => String(e.exec_type || '').toUpperCase() === 'OPEN');
+  const adds  = execs.filter(e => String(e.exec_type || '').toUpperCase() === 'ADD');
+  const exits = execs.filter(e => {
+    const t = String(e.exec_type || '').toUpperCase();
+    return t !== 'OPEN' && t !== 'ADD';
+  });
+  const openQ = opens.reduce((s, e) => s + (e.qty || 0), 0);
+  const addQ  = adds.reduce((s, e) => s + (e.qty || 0), 0);
+  const posExits  = exits.filter(e => Number(e.pnl || 0) > 0);
+  const negExits  = exits.filter(e => Number(e.pnl || 0) < 0);
+  const zeroExits = exits.filter(e => Number(e.pnl || 0) === 0);
+  const posQ  = posExits.reduce((s, e) => s + (e.qty || 0), 0);
+  const negQ  = negExits.reduce((s, e) => s + (e.qty || 0), 0);
+  const zeroQ = zeroExits.reduce((s, e) => s + (e.qty || 0), 0);
+  const posP  = posExits.reduce((s, e) => s + Number(e.pnl || 0), 0);
+  const negP  = negExits.reduce((s, e) => s + Number(e.pnl || 0), 0);
+  const openNow = trade.openQty != null ? trade.openQty : 0;
+  const netRisk = Number(trade.netRisk || 0);
+
+  const seg = [];
+  seg.push(`<span>Open ${openQ}</span>`);
+  if (addQ > 0) seg.push(`<span class="sum-amber">+ add ${addQ}</span>`);
+  seg.push(`<span class="sum-arrow">→</span>`);
+  if (posQ > 0)  seg.push(`<span class="sum-pos">exit ${posQ} (${_dynFmtPnl(posP)})</span>`);
+  if (zeroQ > 0) seg.push(`<span>exit ${zeroQ} (${_dynFmtPnl(0)})</span>`);
+  if (negQ > 0)  seg.push(`<span class="sum-neg">exit ${negQ} (${_dynFmtPnl(negP)})</span>`);
+  seg.push(`<span class="sum-arrow">→</span>`);
+  seg.push(`<span class="sum-bold">${openNow} open</span>`);
+  if (openNow > 0) {
+    seg.push(`<span class="sum-arrow">·</span>`);
+    seg.push(`<span class="sum-neg">net risk ${_dynFmtPnl(netRisk)}</span>`);
+  }
+
+  const dots = buildContractDotSlots(trade).map(c => `<div class="dyn-dot ${c}"></div>`).join('');
+
+  return `<div class="dyn-node-summary">
+    <span class="sum-text">${seg.join(' ')}</span>
+    <span class="sum-dots">${dots}</span>
+  </div>`;
+}
+
+function buildNodeDiagram(trade) {
+  const execs = _dynExecsOldestFirst(trade);
+  const opens = execs.filter(e => String(e.exec_type || '').toUpperCase() === 'OPEN');
+  const adds  = execs.filter(e => String(e.exec_type || '').toUpperCase() === 'ADD');
+  const exits = execs.filter(e => {
+    const t = String(e.exec_type || '').toUpperCase();
+    return t !== 'OPEN' && t !== 'ADD';
+  });
+  const hasAdds = adds.length > 0;
+  const stop = _nodeStop(trade);
+  const summary = buildNodeSummary(trade);
+
+  if (!hasAdds) {
+    // Single horizontal row: chronological OPEN → EXITs → OPEN NOW --→ STOP
+    const parts = [];
+    opens.forEach(o => { parts.push(_nodeOpen(o)); parts.push(_nodeArrow(false)); });
+    exits.forEach(e => { parts.push(_nodeExit(e)); parts.push(_nodeArrow(false)); });
+    parts.push(_nodeOpenNow(trade));
+    if (stop) { parts.push(_nodeArrow(true)); parts.push(stop); }
+    return `<div class="dyn-nodes-wrap">
+      <div class="dyn-nodes-row">${parts.join('')}</div>
+      ${summary}
+    </div>`;
+  }
+
+  // Two rows: opens+adds on top, exits on bottom.
+  const topChrono = opens.concat(adds).sort((a, b) => {
+    const ka = (a.created_at || '') + String(a.id || '').padStart(10, '0');
+    const kb = (b.created_at || '') + String(b.id || '').padStart(10, '0');
+    return ka.localeCompare(kb);
+  });
+  const topParts = [];
+  topChrono.forEach(e => {
+    const t = String(e.exec_type || '').toUpperCase();
+    topParts.push(t === 'OPEN' ? _nodeOpen(e) : _nodeAdd(e));
+    topParts.push(_nodeArrow(false));
+  });
+  topParts.push(_nodeOpenNow(trade));
+  if (stop) { topParts.push(_nodeArrow(true)); topParts.push(stop); }
+
+  const bottomParts = [];
+  exits.forEach((e, i) => {
+    bottomParts.push(_nodeExit(e));
+    if (i < exits.length - 1) bottomParts.push(_nodeArrow(false));
+  });
+  const totalPnl = exits.reduce((s, e) => s + Number(e.pnl || 0), 0);
+  bottomParts.push(`<div class="dyn-exit-total-pill">total: ${_dynFmtPnl(totalPnl)}</div>`);
+
+  return `<div class="dyn-nodes-wrap">
+    <div class="dyn-nodes-two-row">
+      <div class="dyn-nodes-row top-row">
+        <span class="dyn-nodes-row-label">open<br>add</span>
+        ${topParts.join('')}
+      </div>
+      <div class="dyn-nodes-row">
+        <span class="dyn-nodes-row-label">exit</span>
+        ${bottomParts.join('')}
+      </div>
+    </div>
+    ${summary}
+  </div>`;
+}
+
+function buildPositionStrip(trade) {
+  const isLong = trade.direction === 'Long';
+  const execs = _dynExecsOldestFirst(trade);
+  const stops = _dynStopRows(trade);
+  const wae = trade.weightedAvgEntry || trade.entry;
+
+  // Collect prices for scale
+  const prices = [];
+  execs.forEach(e => { if (e.price != null) prices.push(Number(e.price)); });
+  stops.forEach(s => { if (s.price != null) prices.push(Number(s.price)); });
+  if (wae != null) prices.push(Number(wae));
+  if (prices.length === 0) return '<div class="dyn-strip-wrap"><div class="dyn-strip"></div></div>';
+
+  let minP = Math.min.apply(null, prices);
+  let maxP = Math.max.apply(null, prices);
+  if (minP === maxP) { minP -= 1; maxP += 1; }
+  const pad = (maxP - minP) * 0.10;
+  minP -= pad; maxP += pad;
+  const span = maxP - minP;
+  const pos = p => ((Number(p) - minP) / span) * 100;
+
+  // Zone tints (profit side, risk side)
+  // Long: stops are below entry (left of waeEntry %). Profit zone right of entry, risk zone left of entry.
+  // Short: profit zone left of entry, risk zone right of entry.
+  const entryPct = pos(wae);
+  const profitZoneStyle = isLong
+    ? `left:${entryPct}%; right:0;`
+    : `left:0; width:${entryPct}%;`;
+  const riskZoneStyle = isLong
+    ? `left:0; width:${entryPct}%;`
+    : `left:${entryPct}%; right:0;`;
+
+  // Markers
+  const markers = [];
+  execs.forEach(e => {
+    const t = String(e.exec_type || '').toUpperCase();
+    const cls = t === 'OPEN' ? 'dm-open' : t === 'ADD' ? 'dm-add' : 'dm-exit';
+    const label = t === 'OPEN' ? 'entry' : t === 'ADD' ? 'add' : 'exit';
+    markers.push({
+      pct: pos(e.price),
+      cls,
+      top: Number(e.price).toFixed(2),
+      bot: `${label} ${e.qty}×`,
+    });
+  });
+  // Stops aggregated by price — one marker per unique stop price showing total qty + total risk.
+  // Multiple live_trade_levels rows (S1/S2/S3) at the same price collapse into a single visual.
+  const stopGroups = {};
+  stops.forEach(s => {
+    if (!s.qty) return;
+    const key = Number(s.price).toFixed(4);
+    if (!stopGroups[key]) stopGroups[key] = { price: Number(s.price), qty: 0 };
+    stopGroups[key].qty += Number(s.qty);
+  });
+  // Bug 2b: stop badge shows trade-level NET risk (realized − total stop loss),
+  // not the gross loss of this individual stop group.
+  const netRiskVal = Number(trade.netRisk || 0);
+  const netBadge = `${netRiskVal >= 0 ? '+' : '−'}$${Math.abs(netRiskVal).toFixed(0)}`;
+  const netBadgeCls = netRiskVal >= 0 ? 'pos' : '';
+  Object.values(stopGroups).forEach(g => {
+    markers.push({
+      pct: pos(g.price),
+      cls: 'dm-stop',
+      top: g.price.toFixed(2),
+      bot: `stop ${g.qty}×`,
+      badge: netBadge,
+      badgeCls: netBadgeCls,
+    });
+  });
+
+  const markerHtml = markers.map(m => `
+    <div class="dyn-marker ${m.cls}" style="left:${m.pct.toFixed(2)}%">
+      <div class="dmk-top">${m.top}</div>
+      <div class="dmk-dot"></div>
+      <div class="dmk-line"></div>
+      <div class="dmk-bot">${m.bot}</div>
+      ${m.badge ? `<div class="dmk-badge ${m.badgeCls || ''}">${m.badge}</div>` : ''}
+    </div>`).join('');
+
+  const dirHint = isLong
+    ? 'LONG · risk ← left · profit right →'
+    : 'SHORT · profit ← left · risk right →';
+
+  return `<div class="dyn-strip-wrap">
+    <div class="dyn-strip">
+      <div class="dyn-strip-zone-profit" style="${profitZoneStyle}"></div>
+      <div class="dyn-strip-zone-risk"   style="${riskZoneStyle}"></div>
+      <div class="dyn-strip-baseline"></div>
+      ${markerHtml}
+    </div>
+    <div class="dyn-strip-legend">
+      <span><i class="leg-dot leg-open"></i>open</span>
+      <span><i class="leg-dot leg-add"></i>add</span>
+      <span><i class="leg-dot leg-exit"></i>exit</span>
+      <span><i class="leg-dot leg-stop"></i>stop</span>
+      <span class="leg-spacer"></span>
+      <span>${dirHint}</span>
+    </div>
+  </div>`;
+}
+
+function buildStopRow(trade) {
+  const stops = _dynStopRows(trade);
+  const firstStop = stops[0]?.price ?? '';
+  const isLong = trade.direction === 'Long';
+  const wae = trade.weightedAvgEntry || trade.entry;
+  const pv = trade.tickValue || 5;
+
+  let perLotPanel = '';
+  if (_dynPerLot && stops.length > 0) {
+    // Group stop rows by price — S1/S2/S3 at the same price collapse to one row.
+    // Only show separate rows when stop prices actually differ.
+    const groups = {};
+    stops.forEach(s => {
+      const key = Number(s.price).toFixed(4);
+      if (!groups[key]) groups[key] = { price: Number(s.price), qty: 0, portions: [] };
+      groups[key].qty += Number(s.qty || 0);
+      groups[key].portions.push(s.portion);
+    });
+    const groupArr = Object.values(groups).sort((a, b) => a.price - b.price);
+    perLotPanel = `<div class="dyn-stop-perlot-panel">` + groupArr.map(g => {
+      const dist = Math.abs(wae - g.price);
+      const risk = Math.round(dist * pv * g.qty);
+      const portionsAttr = g.portions.join(',');
+      return `<div class="dyn-stop-perlot-row">
+        <span class="ps-qty">${g.qty}× contracts</span>
+        <input type="number" class="dyn-stop-input" data-portions="${portionsAttr}" value="${g.price}" step="0.25" onchange="dynUpdateStopGroup(${trade.id}, '${portionsAttr}', this.value)">
+        <span class="ps-risk">−$${risk}</span>
+      </div>`;
+    }).join('') + `</div>`;
+  }
+
+  return `<div class="dyn-stop-row">
+    <span class="dyn-stop-label">STOP</span>
+    <input type="number" id="dyn-global-stop" class="dyn-stop-input" step="0.25" value="${firstStop}">
+    <button class="dyn-stop-update-btn" onclick="dynUpdateGlobalStop(${trade.id})">UPDATE ALL</button>
+    <button class="dyn-stop-perlot-btn ${_dynPerLot ? 'active' : ''}" onclick="dynTogglePerLot()">PER-LOT STOPS</button>
+  </div>${perLotPanel}`;
+}
+
+function buildTransactionFeed(trade) {
+  // Phase 3c: + Add contracts button + inline form removed from feed header
+  // (the new banner +Add button replaces it). Phase 4 wires the banner form.
+  const execs = _dynExecsNewestFirst(trade);
+  const rows = execs.length === 0
+    ? `<div class="dyn-feed-empty">No transactions yet</div>`
+    : execs.map(e => {
+        const t = String(e.exec_type || '').toUpperCase();
+        const isEntry = t === 'OPEN' || t === 'ADD';
+        const typeCls = t === 'OPEN' ? 't-open' : t === 'ADD' ? 't-add'
+                      : t === 'STOP' || t === 'STOP_HIT' ? 't-stop' : 't-exit';
+        const typeLabel = t === 'STOP_HIT' ? 'STOP' : t === 'TP_HIT' ? 'EXIT' : t === 'MANUAL_EXIT' ? 'EXIT' : t;
+        const qtyStr = isEntry ? `+${e.qty}` : `−${e.qty}`;
+        const pnlVal = Number(e.pnl || 0);
+        const pnlCls = pnlVal > 0 ? 'pos' : 'zero';
+        const pnlStr = isEntry || pnlVal === 0 ? '—' : (pnlVal > 0 ? `+$${pnlVal.toFixed(0)}` : `-$${Math.abs(pnlVal).toFixed(0)}`);
+        const openAfter = e.open_qty_after != null ? `${e.open_qty_after} open` : '';
+        return `<div class="dyn-feed-row">
+          <span class="feed-time">${e.exec_time || ''}</span>
+          <span class="feed-type ${typeCls}">${typeLabel}</span>
+          <span class="feed-qty ${isEntry ? 'qty-pos' : 'qty-neg'}">${qtyStr}</span>
+          <span class="feed-price">${Number(e.price).toFixed(2)}</span>
+          <span class="feed-pnl ${pnlCls}">${pnlStr}</span>
+          <span class="feed-open">${openAfter}</span>
+        </div>`;
+      }).join('');
+
+  return `<div class="dyn-feed-header">
+    <span class="feed-title">TRANSACTIONS</span>
+    <span class="feed-spacer"></span>
+  </div>
+  <div class="dyn-feed-cols">
+    <span>Time</span><span>Type</span><span>Qty</span><span>Price</span><span>P&amp;L</span><span style="text-align:right;">Open</span>
+  </div>
+  ${rows}`;
+}
+
+function buildAddContractsForm(trade) {
+  const dirLabel = trade.direction === 'Long' ? 'LONG' : 'SHORT';
+  const now = getCurrentTimeStr();
+  return `<div class="dyn-add-form">
+    <label>Direction</label><input type="text" value="${dirLabel}" readonly>
+    <label>Price</label><input type="number" step="0.25" id="dyn-add-price" autofocus>
+    <label>Qty</label><input type="number" min="1" step="1" id="dyn-add-qty" value="1">
+    <label>Time</label><input type="text" id="dyn-add-time" value="${now}">
+    <div class="dyn-form-actions">
+      <button class="btn-confirm" onclick="dynSubmitAdd(${trade.id})">CONFIRM</button>
+      <button class="btn-cancel"  onclick="dynToggleAddForm()">CANCEL</button>
+    </div>
+  </div>`;
+}
+
+function buildDynamicCenterHTML(trade) {
+  const openQty = trade.openQty != null ? trade.openQty : trade.qty;
+  const wae = trade.weightedAvgEntry || trade.entry;
+  const realized = Number(trade.realizedPnl || 0);
+  const netRisk = Number(trade.netRisk || 0);
+
+  const summary = `<div class="dyn-summary">
+    <div class="dyn-summary-cell">
+      <div class="dyn-summary-label">POSITION SIZE</div>
+      <div class="dyn-summary-val">${_dynPositionSteps(trade)}</div>
+      <div class="dyn-summary-sub">contracts</div>
+    </div>
+    <div class="dyn-summary-cell">
+      <div class="dyn-summary-label">AVG ENTRY</div>
+      <div class="dyn-summary-val">${fmtPriceForHeader(wae)}</div>
+      <div class="dyn-summary-sub">weighted</div>
+    </div>
+    <div class="dyn-summary-cell">
+      <div class="dyn-summary-label">REALIZED</div>
+      <div class="dyn-summary-val ${realized >= 0 ? 'green' : 'red'}">${realized >= 0 ? '+' : '-'}$${Math.abs(realized).toFixed(0)}</div>
+      <div class="dyn-summary-sub">from exits</div>
+    </div>
+    <div class="dyn-summary-cell">
+      <div class="dyn-summary-label">NET RISK</div>
+      <div class="dyn-summary-val red">${netRisk >= 0 ? '+' : '-'}$${Math.abs(netRisk).toFixed(0)}</div>
+      <div class="dyn-summary-sub">if stopped</div>
+    </div>
+  </div>`;
+
+  return `<div class="dyn-center">
+    ${summary}
+    ${buildNodeDiagram(trade)}
+    ${buildTransactionFeed(trade)}
+  </div>`;
+}
+/* Phase 3c: buildStopRow no longer called — the stop UI moved to the right panel. */
+
+/* ── POC actions ── */
+function dynToggleAddForm() {
+  _dynShowAdd = !_dynShowAdd;
+  renderAll && renderAll();
+}
+function dynTogglePerLot() {
+  _dynPerLot = !_dynPerLot;
+  renderAll && renderAll();
+}
+async function dynSubmitAdd(tradeId) {
+  const price = parseFloat(document.getElementById('dyn-add-price').value);
+  const qty   = parseInt(document.getElementById('dyn-add-qty').value, 10);
+  const time  = document.getElementById('dyn-add-time').value;
+  if (!price || !qty || qty <= 0) {
+    if (typeof showToast === 'function') showToast('Enter price and qty', 'error');
+    return;
+  }
+  try {
+    const res = await fetch(`/api/live/${tradeId}/add`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ price, qty, time })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Add failed');
+    _dynShowAdd = false;
+    if (typeof showToast === 'function') showToast(`+${qty} added @ ${price}`, 'success');
+    await refreshTradeFromServer(tradeId);
+  } catch (e) {
+    if (typeof showToast === 'function') showToast(e.message || 'Add failed', 'error');
+  }
+}
+async function dynUpdateGlobalStop(tradeId) {
+  const price = parseFloat(document.getElementById('dyn-global-stop').value);
+  if (!price) return;
+  const trade = TRADES[activeTrade];
+  if (!trade) return;
+  const levels = (trade.levels || []).map(l => ({
+    level_type: l.level_type, portion: l.portion, qty: l.qty,
+    price: l.level_type === 'stop' ? price : l.price,
+    risk_dollars: l.risk_dollars || 0, reward_dollars: l.reward_dollars || 0
+  }));
+  try {
+    const res = await fetch(`/api/live/${tradeId}/levels`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ levels })
+    });
+    if (!res.ok) throw new Error('Stop update failed');
+    await refreshTradeFromServer(tradeId);
+  } catch (e) {
+    if (typeof showToast === 'function') showToast(e.message, 'error');
+  }
+}
+async function dynUpdateStopGroup(tradeId, portionsCsv, newPrice) {
+  const price = parseFloat(newPrice);
+  if (!price) return;
+  const trade = TRADES[activeTrade];
+  if (!trade) return;
+  const portions = portionsCsv.split(',').map(p => parseInt(p, 10)).filter(n => !isNaN(n));
+  const targetSet = new Set(portions);
+  const levels = (trade.levels || []).map(l => ({
+    level_type: l.level_type, portion: l.portion, qty: l.qty,
+    price: (l.level_type === 'stop' && targetSet.has(l.portion)) ? price : l.price,
+    risk_dollars: l.risk_dollars || 0, reward_dollars: l.reward_dollars || 0
+  }));
+  try {
+    const res = await fetch(`/api/live/${tradeId}/levels`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ levels })
+    });
+    if (!res.ok) throw new Error('Stop update failed');
+    await refreshTradeFromServer(tradeId);
+  } catch (e) {
+    if (typeof showToast === 'function') showToast(e.message, 'error');
+  }
+}
+
 function computeHealth(trade) {
   const isLong = trade.direction === 'Long';
-  const entry = trade.entry;
+  // POC: prefer dynamic-trade-model fields (weighted_avg_entry, open_qty, realized_pnl, net_risk)
+  // and fall back to legacy partials-derived values for trades created before the POC.
+  const entry = (trade.weightedAvgEntry != null) ? trade.weightedAvgEntry : trade.entry;
   let remaining = 0, total = 0, realized = 0, stopExposure = 0, potential = 0;
 
   if (trade.status === 'closed' || trade.pushed) {
     total = trade.qty;
-    realized = trade.pnl || 0;
+    realized = (trade.realizedPnl != null) ? trade.realizedPnl : (trade.pnl || 0);
     return { remaining: 0, total, netRisk: 0, realized, potential: 0, rMultiple: '\u2014' };
   }
 
@@ -4777,8 +6951,11 @@ function computeHealth(trade) {
     }
   });
 
-  // Net risk = realized P&L + open position risk (negative = at risk)
-  const netRisk = realized - stopExposure;
+  // POC overrides: use API-derived dynamic state when available
+  if (trade.openQty != null)      remaining = trade.openQty;
+  if (trade.qty != null)          total     = trade.qty;
+  if (trade.realizedPnl != null)  realized  = trade.realizedPnl;
+  const netRisk = (trade.netRisk != null) ? trade.netRisk : (realized - stopExposure);
 
   const initialRisk = Math.abs(
     (isLong ? entry - (trade.partials[0]?.stop || entry) : (trade.partials[0]?.stop || entry) - entry)
@@ -4960,12 +7137,21 @@ async function flattenAll() {
   const now = new Date();
   const time = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
 
-  for (const p of trade.partials) {
-    if (p.status === 'open') {
-      await fetch(`/api/live/${trade.id}/execute`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ exec_type: 'manual_exit', portion: p.portion, qty: p.qty, price, exec_time: time })
-      });
+  // POC dynamic-trade-model: single EXIT for the whole open position.
+  if (trade.openQty != null) {
+    if (trade.openQty <= 0) { showToast('No open contracts', true); return; }
+    await fetch(`/api/live/${trade.id}/execute`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ exec_type: 'manual_exit', portion: 1, qty: trade.openQty, price, exec_time: time })
+    });
+  } else {
+    for (const p of trade.partials) {
+      if (p.status === 'open') {
+        await fetch(`/api/live/${trade.id}/execute`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ exec_type: 'manual_exit', portion: p.portion, qty: p.qty, price, exec_time: time })
+        });
+      }
     }
   }
 
@@ -4983,14 +7169,24 @@ async function manualExit() {
   const now = new Date();
   const time = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
 
-  // Find open portion matching qty
-  const partial = trade.partials.find(p => p.status === 'open');
-  if (!partial) { showToast('No open portion', true); return; }
+  // POC dynamic-trade-model: use openQty; the ledger recalc routes any non-OPEN/ADD
+  // execution as an exit and ignores `portion`. Fall back to partial routing for
+  // legacy trades that pre-date the dynamic model.
+  let exitQty, portion;
+  if (trade.openQty != null) {
+    if (trade.openQty <= 0) { showToast('No open contracts', true); return; }
+    exitQty = Math.min(qty, trade.openQty);
+    portion = 1;
+  } else {
+    const partial = trade.partials.find(p => p.status === 'open');
+    if (!partial) { showToast('No open portion', true); return; }
+    exitQty = Math.min(qty, partial.qty);
+    portion = partial.portion;
+  }
 
-  const exitQty = Math.min(qty, partial.qty);
   const res = await fetch(`/api/live/${trade.id}/execute`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ exec_type: 'manual_exit', portion: partial.portion, qty: exitQty, price, exec_time: time })
+    body: JSON.stringify({ exec_type: 'manual_exit', portion, qty: exitQty, price, exec_time: time })
   });
   const data = await res.json();
   if (!data.ok) { showToast(data.error || 'Failed', true); return; }
@@ -5731,6 +7927,46 @@ function appendLiveThumb(img) {
 
 function deleteLiveImage(imageId, el) {
   fetch(`/api/live/images/${imageId}`, {method:'DELETE'}).then(r => r.json()).then(d => { if (d.ok && el) el.remove(); });
+}
+
+/* ── CANCEL TRADE ──
+   Cancels the active live trade. Backend marks status='cancelled' (kept in
+   live_trades for audit; never journaled). Frontend drops it from TRADES,
+   picks the next sensible active trade, and refreshes session totals. */
+async function cancelActiveTrade() {
+  const trade = TRADES[activeTrade];
+  if (!trade) return;
+  const ok = window.confirm("Cancel this trade? It won't be saved to the journal.");
+  if (!ok) return;
+  try {
+    const res = await fetch(`/api/live/${trade.id}/cancel`, { method: 'POST' });
+    if (!res.ok) {
+      let msg = 'Cancel failed';
+      try { msg = (await res.json()).error || msg; } catch (e) {}
+      if (typeof showToast === 'function') showToast(msg, true);
+      return;
+    }
+    // Drop from local state — buildSidePanelHtml iterates Object.keys(TRADES)
+    // so the left-panel row + session aggregates drop on the next renderAll.
+    delete TRADES[activeTrade];
+    const remaining = Object.keys(TRADES);
+    activeTrade = remaining.find(k => !isTradeClosed(TRADES[k]) && !TRADES[k].pushed)
+               || remaining[0] || null;
+    if (activeTrade) {
+      activePhase = detectPhase ? detectPhase(TRADES[activeTrade]) : 'MANAGE';
+      activeTags = TRADES[activeTrade].tags || {};
+    } else {
+      activePhase = 'CONTEXT';
+      activeTags = {};
+      if (typeof activeContextId !== 'undefined') activeContextId = null;
+    }
+    if (typeof showToast === 'function') showToast('Trade cancelled');
+    renderAll();
+    if (typeof updateSessionSummary === 'function') updateSessionSummary().catch(()=>{});
+  } catch (e) {
+    if (typeof showToast === 'function') showToast('Cancel failed', true);
+    console.error('Cancel failed:', e);
+  }
 }
 
 /* ── PUSH TO JOURNAL ── */

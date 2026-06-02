@@ -26,6 +26,7 @@ trading_days ──< market_internals
 
 tag_config (standalone)
 app_config (standalone)
+headline_helper (standalone)
 ```
 
 `──<` = one-to-many
@@ -325,6 +326,10 @@ Market observations and notes.
 | text       | TEXT    | NOT NULL DEFAULT ''                          |
 | category   | TEXT    | NOT NULL DEFAULT 'general'                   |
 | created_at | TEXT    | NOT NULL DEFAULT datetime('now','localtime') |
+| obs_group  | TEXT    | NOT NULL DEFAULT ''                          |
+
+`category` stores a JSON array of category strings (e.g. `["general","setup"]`). Legacy single-value entries are migrated to JSON form on init.
+`obs_group` groups related observations together (free text).
 
 ---
 
@@ -399,6 +404,7 @@ Pre-trade context declarations for the Declare Setup flow.
 | headline_read    | TEXT    | NOT NULL DEFAULT ''                    |
 | confidence_score | TEXT    | NOT NULL DEFAULT ''                    |
 | bias_direction   | TEXT    | NOT NULL DEFAULT ''                    |
+| execution_headline | TEXT  | NOT NULL DEFAULT ''                    |
 
 `value_state` values: Lower, Overlapping Lower, Overlapping, Overlapping Higher, Higher.
 `mental_state` values: calm (passed mental state check).
@@ -414,6 +420,7 @@ Pre-trade context declarations for the Declare Setup flow.
 `headline_read`: Quick headline summary of market read.
 `confidence_score`: Confidence level for the context assessment.
 `bias_direction`: Directional bias — long, short, or neutral.
+`execution_headline`: Short execution-side headline summary that pairs with `headline_read`.
 
 Old fields (`mkt_read`, `setup`, `location`, `nuance`) are backfilled from new fields for backward compatibility.
 
@@ -462,6 +469,22 @@ Individual trade plan legs within a context, supporting multi-directional plans.
 | condition_text   | TEXT    |                                                       |
 | is_primary       | INTEGER | DEFAULT 0                                             |
 | sort_order       | INTEGER | DEFAULT 0                                             |
+
+---
+
+### 26. HEADLINE_HELPER
+Standalone reference rows mapping market state combinations to suggested headline copy. Used by the Context page to auto-fill the headline read / execution headline based on day_type, value_state, volume_state, and HTF trend.
+
+| Column             | Type    | Constraints                                  |
+|--------------------|---------|----------------------------------------------|
+| id                 | INTEGER | PK AUTOINCREMENT                             |
+| day_type           | TEXT    | NOT NULL DEFAULT ''                          |
+| value_state        | TEXT    | NOT NULL DEFAULT ''                          |
+| volume_state       | TEXT    | NOT NULL DEFAULT ''                          |
+| htf_trend          | TEXT    | NOT NULL DEFAULT ''                          |
+| headline_read      | TEXT    | NOT NULL DEFAULT ''                          |
+| execution_headline | TEXT    | NOT NULL DEFAULT ''                          |
+| created_at         | TEXT    | NOT NULL DEFAULT datetime('now','localtime') |
 
 ---
 

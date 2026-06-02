@@ -330,6 +330,25 @@ def init_db():
         if "initial_risk" not in lt_cols5:
             conn.execute("ALTER TABLE live_trades ADD COLUMN initial_risk REAL NOT NULL DEFAULT 0")
 
+        # Migration (POC dynamic-trade-model): add weighted_avg_entry and open_qty to live_trades
+        lt_cols_poc = [r[1] for r in conn.execute("PRAGMA table_info(live_trades)").fetchall()]
+        if "weighted_avg_entry" not in lt_cols_poc:
+            conn.execute("ALTER TABLE live_trades ADD COLUMN weighted_avg_entry REAL DEFAULT 0")
+        if "open_qty" not in lt_cols_poc:
+            conn.execute("ALTER TABLE live_trades ADD COLUMN open_qty INTEGER DEFAULT 0")
+        # Backfill existing trades
+        conn.execute("UPDATE live_trades SET open_qty = total_qty WHERE open_qty = 0 OR open_qty IS NULL")
+        conn.execute("UPDATE live_trades SET weighted_avg_entry = entry_price WHERE weighted_avg_entry = 0 OR weighted_avg_entry IS NULL")
+
+        # Migration (POC stop rebuild Part 1): add hit + sort_order to live_trade_levels
+        ltl_cols = [r[1] for r in conn.execute("PRAGMA table_info(live_trade_levels)").fetchall()]
+        if "hit" not in ltl_cols:
+            conn.execute("ALTER TABLE live_trade_levels ADD COLUMN hit INTEGER DEFAULT 0")
+        if "sort_order" not in ltl_cols:
+            conn.execute("ALTER TABLE live_trade_levels ADD COLUMN sort_order INTEGER DEFAULT 0")
+        conn.execute("UPDATE live_trade_levels SET hit = 0 WHERE hit IS NULL")
+        conn.execute("UPDATE live_trade_levels SET sort_order = 0 WHERE sort_order IS NULL")
+
         # Migration: add account profile columns to accounts
         acct_cols = [r[1] for r in conn.execute("PRAGMA table_info(accounts)").fetchall()]
         if "account_size" not in acct_cols:
@@ -1629,8 +1648,11 @@ def get_live_trade(live_trade_id):
         if not row:
             return None
         td = dict(row)
+        # POC stop rebuild: stops ordered by sort_order so the frontend rows
+        # match the persisted ordering; non-stop rows fall back to portion.
         td["levels"] = [dict(r) for r in conn.execute(
-            "SELECT * FROM live_trade_levels WHERE live_trade_id = ? ORDER BY level_type, portion",
+            "SELECT * FROM live_trade_levels WHERE live_trade_id = ? "
+            "ORDER BY level_type, sort_order, portion",
             (live_trade_id,)
         ).fetchall()]
         td["executions"] = [dict(r) for r in conn.execute(
@@ -1713,9 +1735,259 @@ def add_live_trade_execution(live_trade_id, exec_type, portion, qty, price, exec
         return cur.lastrowid
 
 
+def replace_active_stops(live_trade_id, stops):
+    """POC stop rebuild Part 2a — replace all non-hit stop rows for a trade.
+    Hit rows + non-stop levels (e.g. TPs) are preserved. `stops` is an iterable
+    of {qty, price} dicts; sort_order is assigned by position in the iterable."""
+    with get_conn() as conn:
+        conn.execute(
+            "DELETE FROM live_trade_levels "
+            "WHERE live_trade_id = ? AND level_type = 'stop' AND hit = 0",
+            (live_trade_id,),
+        )
+        for i, s in enumerate(stops):
+            conn.execute(
+                "INSERT INTO live_trade_levels "
+                "(live_trade_id, level_type, portion, qty, price, risk_dollars, reward_dollars, hit, sort_order) "
+                "VALUES (?, 'stop', ?, ?, ?, 0, 0, 0, ?)",
+                (live_trade_id, i + 1, int(s["qty"]), float(s["price"]), i),
+            )
+
+
+def mark_stop_hit(live_trade_id, level_id):
+    """POC stop rebuild Part 2b — flip hit=1 on a single stop level.
+    Returns the level dict pre-update (or None if not found/not eligible)."""
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM live_trade_levels WHERE id = ? AND live_trade_id = ?",
+            (level_id, live_trade_id),
+        ).fetchone()
+        if not row:
+            return None
+        d = dict(row)
+        if d.get("level_type") != "stop":
+            return None
+        if int(d.get("hit") or 0) != 0:
+            return None
+        if int(d.get("qty") or 0) <= 0:
+            return None
+        conn.execute("UPDATE live_trade_levels SET hit = 1 WHERE id = ?", (level_id,))
+        return d
+
+
 def delete_live_trade_execution(exec_id):
     with get_conn() as conn:
         conn.execute("DELETE FROM live_trade_executions WHERE id = ?", (exec_id,))
+
+
+# ── POC: dynamic-trade-model — transaction-ledger derived state ──────────────
+
+_POC_OPEN_TYPES = ("OPEN", "ADD")
+
+
+def _poc_point_value(instrument):
+    return 5.0 if (instrument or "MES") == "MES" else 50.0
+
+
+def _redistribute_stop_qty(conn, live_trade_id, open_qty, direction, instrument, wae):
+    """POC stop rebuild Part 2d — FIFO tightest-first, direction-agnostic.
+    Tightest is the smallest abs(price - weighted_avg_entry). Only operates
+    on non-hit rows (hit = 0). Reduces the tightest non-hit rows first so the
+    looser stops survive — when an exit reduces open_qty, the trader's biggest
+    cushion stops stay in place.
+
+    SQLite is fine doing the ABS() sort inline (we typically have 1–5 rows),
+    so we do it in the query rather than fetching all rows and sorting in
+    Python — keeps the algorithm a single tight loop.
+    """
+    is_long = str(direction).lower() == "long"
+    point_value = _poc_point_value(instrument)
+    open_qty_i = max(0, int(open_qty or 0))
+
+    rows = conn.execute(
+        "SELECT id, qty, price FROM live_trade_levels "
+        "WHERE live_trade_id = ? "
+        "AND (level_type LIKE '%stop%' OR level_type LIKE 'S%') "
+        "AND hit = 0 AND qty > 0 "
+        "ORDER BY ABS(price - ?) ASC",
+        (live_trade_id, float(wae or 0)),
+    ).fetchall()
+    if not rows:
+        return
+
+    total_non_hit = sum(int(r["qty"] or 0) for r in rows)
+    remaining_to_reduce = max(0, total_non_hit - open_qty_i)
+
+    for r in rows:
+        if remaining_to_reduce <= 0:
+            break
+        qty = int(r["qty"] or 0)
+        if qty <= remaining_to_reduce:
+            conn.execute(
+                "UPDATE live_trade_levels SET qty = 0, risk_dollars = 0 WHERE id = ?",
+                (r["id"],),
+            )
+            remaining_to_reduce -= qty
+        else:
+            new_qty = qty - remaining_to_reduce
+            price = float(r["price"] or 0)
+            if is_long:
+                loss = (wae - price) * new_qty * point_value
+            else:
+                loss = (price - wae) * new_qty * point_value
+            conn.execute(
+                "UPDATE live_trade_levels SET qty = ?, risk_dollars = ? WHERE id = ?",
+                (new_qty, round(abs(loss), 2), r["id"]),
+            )
+            remaining_to_reduce = 0
+
+    # Refresh risk_dollars on surviving non-hit rows so the cached value is
+    # consistent with the current weighted_avg_entry.
+    for r in conn.execute(
+        "SELECT id, qty, price FROM live_trade_levels "
+        "WHERE live_trade_id = ? "
+        "AND (level_type LIKE '%stop%' OR level_type LIKE 'S%') "
+        "AND hit = 0 AND qty > 0",
+        (live_trade_id,),
+    ).fetchall():
+        qty = int(r["qty"] or 0)
+        price = float(r["price"] or 0)
+        if is_long:
+            loss = (wae - price) * qty * point_value
+        else:
+            loss = (price - wae) * qty * point_value
+        conn.execute(
+            "UPDATE live_trade_levels SET risk_dollars = ? WHERE id = ?",
+            (round(abs(loss), 2), r["id"]),
+        )
+
+    # Delete fully consumed non-hit rows. Hit rows stay so the UI can show
+    # them struck-through in execute mode.
+    conn.execute(
+        "DELETE FROM live_trade_levels "
+        "WHERE live_trade_id = ? "
+        "AND (level_type LIKE '%stop%' OR level_type LIKE 'S%') "
+        "AND hit = 0 AND qty = 0",
+        (live_trade_id,),
+    )
+
+
+def recalculate_position(live_trade_id):
+    """
+    Replay the live_trade_executions ledger to derive open_qty, weighted_avg_entry,
+    and realized_pnl. Persists the result on live_trades. Treats legacy exec_types
+    (stop_hit, tp_hit, manual_exit) as exits. If no OPEN/ADD rows exist (legacy
+    trade pre-POC), seeds with entry_price * total_qty so existing trades still work.
+    After computing open_qty, redistributes live_trade_levels stop qty so total
+    stop coverage equals the remaining open contracts.
+    """
+    with get_conn() as conn:
+        trade = conn.execute(
+            "SELECT direction, instrument, entry_price, total_qty FROM live_trades WHERE id = ?",
+            (live_trade_id,),
+        ).fetchone()
+        if not trade:
+            return None
+
+        is_long = str(trade["direction"]).lower() == "long"
+        point_value = _poc_point_value(trade["instrument"])
+
+        execs = conn.execute(
+            "SELECT exec_type, qty, price FROM live_trade_executions "
+            "WHERE live_trade_id = ? ORDER BY created_at ASC, id ASC",
+            (live_trade_id,),
+        ).fetchall()
+
+        has_open = any(str(e["exec_type"]).upper() in _POC_OPEN_TYPES for e in execs)
+        if has_open:
+            open_qty = 0
+            total_cost = 0.0
+        else:
+            # Seed legacy trade with original entry so exits still calc correctly
+            open_qty = int(trade["total_qty"] or 0)
+            total_cost = float(trade["entry_price"] or 0) * open_qty
+
+        realized_pnl = 0.0
+        for ex in execs:
+            t = str(ex["exec_type"]).upper()
+            qty = int(ex["qty"] or 0)
+            price = float(ex["price"] or 0)
+            if t in _POC_OPEN_TYPES:
+                total_cost += qty * price
+                open_qty += qty
+            else:
+                avg_entry = (total_cost / open_qty) if open_qty > 0 else 0.0
+                if is_long:
+                    pnl = (price - avg_entry) * qty * point_value
+                else:
+                    pnl = (avg_entry - price) * qty * point_value
+                realized_pnl += pnl
+                total_cost -= avg_entry * qty
+                open_qty -= qty
+                if open_qty <= 0:
+                    open_qty = 0
+                    total_cost = 0.0
+
+        weighted_avg = (total_cost / open_qty) if open_qty > 0 else 0.0
+        conn.execute(
+            "UPDATE live_trades SET open_qty = ?, weighted_avg_entry = ?, realized_pnl = ? "
+            "WHERE id = ?",
+            (open_qty, round(weighted_avg, 4), round(realized_pnl, 2), live_trade_id),
+        )
+        # Bug 1: keep live_trade_levels stop qty in sync with open_qty so the
+        # strip + net risk calc see the right remaining coverage after exits.
+        _redistribute_stop_qty(
+            conn, live_trade_id, open_qty,
+            trade["direction"], trade["instrument"], weighted_avg,
+        )
+        return {
+            "open_qty": open_qty,
+            "weighted_avg_entry": round(weighted_avg, 4),
+            "realized_pnl": round(realized_pnl, 2),
+        }
+
+
+def calculate_net_risk(live_trade_id):
+    """Net risk = realized_pnl minus the loss if ALL open contracts hit their stops.
+    Sums per-stop loss magnitudes so trailing-stop locked profit on one lot doesn't
+    cancel risk on another."""
+    with get_conn() as conn:
+        trade = conn.execute(
+            "SELECT direction, instrument, weighted_avg_entry, open_qty, realized_pnl "
+            "FROM live_trades WHERE id = ?",
+            (live_trade_id,),
+        ).fetchone()
+        if not trade:
+            return 0.0
+
+        is_long = str(trade["direction"]).lower() == "long"
+        point_value = _poc_point_value(trade["instrument"])
+        wae = float(trade["weighted_avg_entry"] or 0)
+        realized = float(trade["realized_pnl"] or 0)
+
+        # POC stop rebuild Part 2c: only sum non-hit stop rows. Hit rows have
+        # already been executed (their STOP exit is in the ledger), so counting
+        # their notional loss again would double-book the risk.
+        stops = conn.execute(
+            "SELECT qty, price FROM live_trade_levels "
+            "WHERE live_trade_id = ? AND (level_type LIKE '%stop%' OR level_type LIKE 'S%') "
+            "AND hit = 0 AND qty > 0",
+            (live_trade_id,),
+        ).fetchall()
+        if not stops:
+            return round(realized, 2)
+
+        total_stop_loss = 0.0
+        for s in stops:
+            qty = int(s["qty"] or 0)
+            price = float(s["price"] or 0)
+            if is_long:
+                loss = (wae - price) * qty * point_value
+            else:
+                loss = (price - wae) * qty * point_value
+            total_stop_loss += abs(loss)
+
+        return round(realized - total_stop_loss, 2)
 
 
 # ── Shadow Trades ────────────────────────────────────────────────────────────
