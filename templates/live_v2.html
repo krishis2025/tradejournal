@@ -6470,13 +6470,16 @@ function _nodeAdd(e) {
 }
 
 function _nodeExit(e) {
+  // pnl still drives the green/red coloring; the sub-label shows the exit
+  // price so OPEN / ADD / EXIT all read as a clean price sequence. P&L is
+  // still surfaced in the summary bar + transaction feed below the diagram.
   const pnl = Number(e.pnl || 0);
   const cls = pnl > 0 ? 'exit-pos' : 'exit-neg';
   return `<div class="dyn-node-col">
     <div class="dyn-node ${cls}">
       <div class="node-type-lbl">EXIT</div>
       <div class="node-number">−${e.qty}</div>
-      <div class="node-sub-lbl">${_dynFmtPnl(pnl)}</div>
+      <div class="node-sub-lbl">${Number(e.price).toFixed(2)}</div>
     </div>
     <div class="node-time-lbl">${e.exec_time || ''}</div>
   </div>`;
@@ -6559,64 +6562,27 @@ function buildNodeSummary(trade) {
 }
 
 function buildNodeDiagram(trade) {
+  // Always a single horizontal row in chronological order:
+  //   OPEN → (ADDs/EXITs interleaved by time) → OPEN NOW --→ STOP
+  // The two-row layout was retired now that the center column is wider and
+  // .dyn-nodes-row already has overflow-x:auto for very long trades.
   const execs = _dynExecsOldestFirst(trade);
-  const opens = execs.filter(e => String(e.exec_type || '').toUpperCase() === 'OPEN');
-  const adds  = execs.filter(e => String(e.exec_type || '').toUpperCase() === 'ADD');
-  const exits = execs.filter(e => {
-    const t = String(e.exec_type || '').toUpperCase();
-    return t !== 'OPEN' && t !== 'ADD';
-  });
-  const hasAdds = adds.length > 0;
   const stop = _nodeStop(trade);
   const summary = buildNodeSummary(trade);
 
-  if (!hasAdds) {
-    // Single horizontal row: chronological OPEN → EXITs → OPEN NOW --→ STOP
-    const parts = [];
-    opens.forEach(o => { parts.push(_nodeOpen(o)); parts.push(_nodeArrow(false)); });
-    exits.forEach(e => { parts.push(_nodeExit(e)); parts.push(_nodeArrow(false)); });
-    parts.push(_nodeOpenNow(trade));
-    if (stop) { parts.push(_nodeArrow(true)); parts.push(stop); }
-    return `<div class="dyn-nodes-wrap">
-      <div class="dyn-nodes-row">${parts.join('')}</div>
-      ${summary}
-    </div>`;
-  }
-
-  // Two rows: opens+adds on top, exits on bottom.
-  const topChrono = opens.concat(adds).sort((a, b) => {
-    const ka = (a.created_at || '') + String(a.id || '').padStart(10, '0');
-    const kb = (b.created_at || '') + String(b.id || '').padStart(10, '0');
-    return ka.localeCompare(kb);
-  });
-  const topParts = [];
-  topChrono.forEach(e => {
+  const parts = [];
+  execs.forEach(e => {
     const t = String(e.exec_type || '').toUpperCase();
-    topParts.push(t === 'OPEN' ? _nodeOpen(e) : _nodeAdd(e));
-    topParts.push(_nodeArrow(false));
+    if (t === 'OPEN')     parts.push(_nodeOpen(e));
+    else if (t === 'ADD') parts.push(_nodeAdd(e));
+    else                  parts.push(_nodeExit(e));
+    parts.push(_nodeArrow(false));
   });
-  topParts.push(_nodeOpenNow(trade));
-  if (stop) { topParts.push(_nodeArrow(true)); topParts.push(stop); }
-
-  const bottomParts = [];
-  exits.forEach((e, i) => {
-    bottomParts.push(_nodeExit(e));
-    if (i < exits.length - 1) bottomParts.push(_nodeArrow(false));
-  });
-  const totalPnl = exits.reduce((s, e) => s + Number(e.pnl || 0), 0);
-  bottomParts.push(`<div class="dyn-exit-total-pill">total: ${_dynFmtPnl(totalPnl)}</div>`);
+  parts.push(_nodeOpenNow(trade));
+  if (stop) { parts.push(_nodeArrow(true)); parts.push(stop); }
 
   return `<div class="dyn-nodes-wrap">
-    <div class="dyn-nodes-two-row">
-      <div class="dyn-nodes-row top-row">
-        <span class="dyn-nodes-row-label">open<br>add</span>
-        ${topParts.join('')}
-      </div>
-      <div class="dyn-nodes-row">
-        <span class="dyn-nodes-row-label">exit</span>
-        ${bottomParts.join('')}
-      </div>
-    </div>
+    <div class="dyn-nodes-row">${parts.join('')}</div>
     ${summary}
   </div>`;
 }
