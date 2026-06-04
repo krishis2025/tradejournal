@@ -3039,14 +3039,15 @@ let intLoaded = false;
 const INT_SESSIONS = ['morning', 'midday', 'afternoon'];
 const INT_SESSION_LABELS = { morning: 'MORNING', midday: 'MID-DAY', afternoon: 'AFTERNOON' };
 const INT_SPY_SECTORS = [
-  { ticker:'XLK', short:'Tech' }, { ticker:'XLV', short:'Health' },
-  { ticker:'XLF', short:'Fin' }, { ticker:'XLY', short:'Disc' },
-  { ticker:'XLC', short:'Comm' }, { ticker:'XLI', short:'Indust' },
+  // Ordered by S&P 500 weight (descending). Heavy first (top 6), then weak.
+  { ticker:'XLK', short:'Tech' }, { ticker:'XLF', short:'Fin' },
+  { ticker:'XLC', short:'Comm' }, { ticker:'XLY', short:'Disc' },
+  { ticker:'XLI', short:'Indust' }, { ticker:'XLV', short:'Health' },
   { ticker:'XLP', short:'Staples' }, { ticker:'XLE', short:'Energy' },
-  { ticker:'XLRE',short:'RE' }, { ticker:'XLB', short:'Matls' },
-  { ticker:'XLU', short:'Utils' },
+  { ticker:'XLU', short:'Utils' }, { ticker:'XLB', short:'Matls' },
+  { ticker:'XLRE',short:'RE' },
 ];
-const INT_HEAVY = new Set(['XLK','XLV','XLF','XLY','XLC','XLI']);
+const INT_HEAVY = new Set(['XLK','XLF','XLC','XLY','XLI','XLV']);
 let intAddFormVisible = {};
 
 /* ── DATA MODEL ────────────────────────────────────────────────────────────── */
@@ -8414,25 +8415,26 @@ function renderInternalsTab(el) {
 /* ══════════════════════════════════════════════════════════════════════════════
    INTERNALS TAB — Sector Entry Modal
    ══════════════════════════════════════════════════════════════════════════════ */
+// Sector weights from the official S&P 500 sector composition (descending).
 const INT_SECTOR_META = {
-  XLK:{short:'Tech',full:'Technology',weight:'30.5%'},
-  XLV:{short:'Health',full:'Health Care',weight:'12.2%'},
-  XLF:{short:'Fin',full:'Financials',weight:'12.1%'},
-  XLY:{short:'Disc',full:'Cons Disc',weight:'10.2%'},
-  XLC:{short:'Comm',full:'Comm Svcs',weight:'9.3%'},
-  XLI:{short:'Indust',full:'Industrials',weight:'8.1%'},
-  XLP:{short:'Staples',full:'Staples',weight:'5.9%'},
-  XLE:{short:'Energy',full:'Energy',weight:'3.8%'},
-  XLRE:{short:'RE',full:'Real Estate',weight:'2.2%'},
-  XLB:{short:'Matls',full:'Materials',weight:'2.1%'},
-  XLU:{short:'Utils',full:'Utilities',weight:'2.0%'},
+  XLK:{short:'Tech',full:'Technology',weight:'39.4%'},
+  XLF:{short:'Fin',full:'Financials',weight:'11.2%'},
+  XLC:{short:'Comm',full:'Comm Svcs',weight:'10.0%'},
+  XLY:{short:'Disc',full:'Cons Disc',weight:'9.3%'},
+  XLI:{short:'Indust',full:'Industrials',weight:'8.4%'},
+  XLV:{short:'Health',full:'Health Care',weight:'8.2%'},
+  XLP:{short:'Staples',full:'Staples',weight:'4.5%'},
+  XLE:{short:'Energy',full:'Energy',weight:'3.3%'},
+  XLU:{short:'Utils',full:'Utilities',weight:'2.1%'},
+  XLB:{short:'Matls',full:'Materials',weight:'1.9%'},
+  XLRE:{short:'RE',full:'Real Estate',weight:'1.8%'},
 };
 const INT_SESS_COLORS = {
   morning:  {color:'#00c8ff',bg:'rgba(0,200,255,0.08)',bgA:'rgba(0,200,255,0.1)',border:'rgba(0,200,255,0.2)',borderA:'rgba(0,200,255,0.3)',short:'MNG'},
   midday:   {color:'#f5a623',bg:'rgba(245,166,35,0.08)',bgA:'rgba(245,166,35,0.1)',border:'rgba(245,166,35,0.2)',borderA:'rgba(245,166,35,0.3)',short:'MID'},
   afternoon:{color:'#c084fc',bg:'rgba(160,100,220,0.08)',bgA:'rgba(160,100,220,0.1)',border:'rgba(160,100,220,0.2)',borderA:'rgba(160,100,220,0.3)',short:'AFT'},
 };
-const INT_HEAVY_ORDER = ['XLK','XLV','XLF','XLY','XLC','XLI'];
+const INT_HEAVY_ORDER = ['XLK','XLF','XLC','XLY','XLI','XLV'];
 let ismOpen = false, ismSession = 'morning', ismHeavy = {}, ismWeak = [], ismSaving = false;
 
 function intSessionHasData(s) {
@@ -8540,13 +8542,19 @@ function intRenderSectorModal() {
     return `<div class="ism-heavy-row"><div class="ism-heavy-label"><span class="ism-heavy-ticker">${t}</span><span class="ism-heavy-short">${m.short}</span><span class="ism-heavy-weight">${m.weight}</span></div><input class="ism-heavy-input ${pre}" value="${val}" placeholder="0.00" maxlength="6" style="${bst}" oninput="ismHeavy['${t}']=this.value" onfocus="this.classList.remove('ism-prefilled');this.style.borderColor='${sc.borderA}'"></div>`;
   }).join('');
 
-  const weakRows = ismWeak.map((w,i) => {
-    const v = parseFloat(w.value);
-    const vc = isNaN(v) ? '' : v < 0 ? 'iwv-neg' : 'iwv-pos';
-    const st = INT_SESS_COLORS[w.session]?.short || w.session;
-    const nm = INT_SECTOR_META[w.ticker]?.short || w.ticker;
-    return `<div class="ism-weak-row"><span class="ism-weak-name">${nm} (${w.ticker})</span><span class="ism-weak-val ${vc}">${w.value}</span><span class="ism-weak-session-tag">${st}</span><button class="ism-weak-rm" onclick="intRemoveWeakModal(${i})">✕</button></div>`;
-  }).join('');
+  // Bug fix: only render weak rows belonging to the active session. The original
+  // ismWeak index is preserved on `_idx` so intRemoveWeakModal still splices the
+  // right element after filtering.
+  const weakRows = ismWeak
+    .map((w, i) => Object.assign({}, w, { _idx: i }))
+    .filter(w => w.session === ismSession)
+    .map(w => {
+      const v = parseFloat(w.value);
+      const vc = isNaN(v) ? '' : v < 0 ? 'iwv-neg' : 'iwv-pos';
+      const st = INT_SESS_COLORS[w.session]?.short || w.session;
+      const nm = INT_SECTOR_META[w.ticker]?.short || w.ticker;
+      return `<div class="ism-weak-row"><span class="ism-weak-name">${nm} (${w.ticker})</span><span class="ism-weak-val ${vc}">${w.value}</span><span class="ism-weak-session-tag">${st}</span><button class="ism-weak-rm" onclick="intRemoveWeakModal(${w._idx})">✕</button></div>`;
+    }).join('');
 
   const avail = Object.keys(INT_SECTOR_META).filter(t => !INT_HEAVY.has(t));
   const opts = `<optgroup label="Available">${avail.map(t => {const m=INT_SECTOR_META[t];return `<option value="${t}">${t} – ${m.full} (${m.weight})</option>`;}).join('')}</optgroup><optgroup label="Already tracked">${INT_HEAVY_ORDER.map(t => {const m=INT_SECTOR_META[t];return `<option value="${t}" disabled>${t} – ${m.full} (${m.weight})</option>`;}).join('')}</optgroup>`;

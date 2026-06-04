@@ -373,21 +373,22 @@ const VALUE_OPTIONS = [
   { value:'Overlapping Higher', label:'OH' },
   { value:'Higher',             label:'Higher' },
 ];
+// Ordered by S&P 500 weight (descending). Heavy first (top 6), then weak.
 const SPY_SECTORS = [
-  { ticker:'XLK', short:'Tech',    label:'XLK - Technology (30.5%)' },
-  { ticker:'XLV', short:'Health',  label:'XLV - Health Care (12.2%)' },
-  { ticker:'XLF', short:'Fin',     label:'XLF - Financials (12.1%)' },
-  { ticker:'XLY', short:'Disc',    label:'XLY - Consumer Disc (10.2%)' },
-  { ticker:'XLC', short:'Comm',    label:'XLC - Comm Services (9.3%)' },
-  { ticker:'XLI', short:'Indust',  label:'XLI - Industrials (8.1%)' },
-  { ticker:'XLP', short:'Staples', label:'XLP - Consumer Staples (5.9%)' },
-  { ticker:'XLE', short:'Energy',  label:'XLE - Energy (3.8%)' },
-  { ticker:'XLRE',short:'RE',      label:'XLRE - Real Estate (2.2%)' },
-  { ticker:'XLB', short:'Matls',   label:'XLB - Materials (2.1%)' },
-  { ticker:'XLU', short:'Utils',   label:'XLU - Utilities (2.0%)' },
+  { ticker:'XLK', short:'Tech',    label:'XLK - Technology (39.4%)' },
+  { ticker:'XLF', short:'Fin',     label:'XLF - Financials (11.2%)' },
+  { ticker:'XLC', short:'Comm',    label:'XLC - Comm Services (10.0%)' },
+  { ticker:'XLY', short:'Disc',    label:'XLY - Consumer Disc (9.3%)' },
+  { ticker:'XLI', short:'Indust',  label:'XLI - Industrials (8.4%)' },
+  { ticker:'XLV', short:'Health',  label:'XLV - Health Care (8.2%)' },
+  { ticker:'XLP', short:'Staples', label:'XLP - Consumer Staples (4.5%)' },
+  { ticker:'XLE', short:'Energy',  label:'XLE - Energy (3.3%)' },
+  { ticker:'XLU', short:'Utils',   label:'XLU - Utilities (2.1%)' },
+  { ticker:'XLB', short:'Matls',   label:'XLB - Materials (1.9%)' },
+  { ticker:'XLRE',short:'RE',      label:'XLRE - Real Estate (1.8%)' },
 ];
 
-const HEAVY_TICKERS = new Set(['XLK', 'XLV', 'XLF', 'XLY', 'XLC', 'XLI']);
+const HEAVY_TICKERS = new Set(['XLK', 'XLF', 'XLC', 'XLY', 'XLI', 'XLV']);
 
 function sectorShortName(ticker) {
   const s = SPY_SECTORS.find(x => x.ticker === ticker);
