@@ -99,7 +99,7 @@
 
 /* ── MAIN AREA ── */
 .main-area {
-  display: grid; grid-template-columns: 3fr 5fr 290px;
+  display: grid; grid-template-columns: 230px 1fr 310px;
   width: 100vw; flex: 1; min-height: 0;
   position: relative; z-index: 1;
 }
@@ -272,7 +272,7 @@
 .ladder-container {
   display: flex; flex-direction: column;
   align-items: center; justify-content: flex-start;
-  padding: 24px 8px; position: relative;
+  padding: 24px 4px; position: relative;
   overflow-y: auto;
 }
 
@@ -1509,7 +1509,9 @@
 /* ── Manage Cards Layout ── */
 .manage-cards {
   display: flex; flex-direction: column; gap: 6px;
-  max-width: 520px; width: 100%; margin: 0 auto;
+  /* max-width cap removed so the cards stretch to the full center grid cell
+     and the per-card padding reductions actually become visible. */
+  width: 100%;
   /* No flex:1 — children take their natural heights so total content height is
      known. Combined with .ladder-wrapper { overflow-y: auto } this gives a
      scrolling Manage panel when content exceeds the viewport. */
@@ -1520,7 +1522,7 @@
 /* Trade Entry Header */
 .trade-header-card {
   background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 10px; padding: 14px 8px;
+  border-radius: 10px; padding: 14px 4px;
   display: flex; justify-content: space-between; align-items: center;
 }
 .thc-title { font-family: var(--font-mono); font-size: 13px; letter-spacing: 1px; color: var(--text); }
@@ -1551,7 +1553,7 @@
 .mc-strength-chip .sc-conf.conf-high { color: var(--green); }
 /* v2 signal bar */
 .mc-signal-v2 {
-  background: #161b24; border-radius: 8px; padding: 10px 8px;
+  background: #161b24; border-radius: 8px; padding: 10px 4px;
   border: 0.5px solid rgba(255,255,255,0.08);
   font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 600;
   letter-spacing: 0.06em; text-transform: uppercase;
@@ -1725,7 +1727,7 @@
 .manage-notes-card {
   background: #161b24; border-radius: 6px;
   border: 0.5px solid rgba(255,255,255,0.08); margin-top: 8px;
-  padding: 10px 8px;
+  padding: 10px 4px;
 }
 .mn-tabs { display: flex; gap: 16px; margin-bottom: 8px; }
 .mn-tab {
@@ -1748,7 +1750,7 @@
 
 /* Position summary bar */
 .dyn-summary { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 0.5px solid var(--border); }
-.dyn-summary-cell { padding: 8px 8px; border-right: 0.5px solid var(--border); display: flex; flex-direction: column; gap: 2px; }
+.dyn-summary-cell { padding: 8px 6px; border-right: 0.5px solid var(--border); display: flex; flex-direction: column; gap: 2px; }
 .dyn-summary-cell:last-child { border-right: none; }
 .dyn-summary-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
 .dyn-summary-val  { font-size: 13px; font-family: 'Inter', monospace; color: var(--text); }
@@ -1805,7 +1807,7 @@
 .dyn-stop-perlot-row .ps-risk { color: var(--red); text-align: right; font-family: 'Inter', monospace; }
 
 /* Transaction feed */
-.dyn-feed-header { display: flex; align-items: center; padding: 10px 8px 6px; }
+.dyn-feed-header { display: flex; align-items: center; padding: 10px 4px 6px; }
 .dyn-feed-header .feed-title { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
 .dyn-feed-header .feed-spacer { flex: 1; }
 .dyn-add-btn { background: rgba(0,200,255,0.08); border: 0.5px solid rgba(0,200,255,0.3); color: #00c8ff; border-radius: 4px; padding: 5px 10px; font-size: 10px; cursor: pointer; }
@@ -1817,8 +1819,8 @@
 .dyn-add-form .dyn-form-actions { grid-column: 1 / -1; display: flex; gap: 8px; margin-top: 4px; }
 .dyn-add-form .btn-confirm { background: rgba(0,200,255,0.18); border: 0.5px solid rgba(0,200,255,0.5); color: #00c8ff; border-radius: 4px; padding: 5px 12px; font-size: 10px; cursor: pointer; }
 .dyn-add-form .btn-cancel  { background: transparent; border: 0.5px solid rgba(255,255,255,0.15); color: var(--muted); border-radius: 4px; padding: 5px 12px; font-size: 10px; cursor: pointer; }
-.dyn-feed-cols { display: grid; grid-template-columns: 52px 52px 40px 70px 60px 1fr; gap: 8px; padding: 4px 8px; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
-.dyn-feed-row  { display: grid; grid-template-columns: 52px 52px 40px 70px 60px 1fr; gap: 8px; padding: 6px 8px; font-size: 10px; color: var(--text); align-items: center; }
+.dyn-feed-cols { display: grid; grid-template-columns: 52px 52px 40px 70px 60px 1fr; gap: 8px; padding: 4px 4px; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+.dyn-feed-row  { display: grid; grid-template-columns: 52px 52px 40px 70px 60px 1fr; gap: 8px; padding: 6px 4px; font-size: 10px; color: var(--text); align-items: center; }
 .dyn-feed-row:hover { background: var(--surface2); }
 .dyn-feed-row .feed-time  { color: var(--muted); }
 .dyn-feed-row .feed-type  { font-size: 10px; padding: 1px 5px; border-radius: 3px; justify-self: start; }
@@ -2482,7 +2484,7 @@
    Replaces the position strip with chronological node cards.
    ══════════════════════════════════════════════════════════════════════════════ */
 
-.dyn-nodes-wrap { padding: 14px 8px; border-bottom: 0.5px solid var(--border); }
+.dyn-nodes-wrap { padding: 14px 4px; border-bottom: 0.5px solid var(--border); }
 .dyn-nodes-two-row { display: flex; flex-direction: column; gap: 4px; }
 .dyn-nodes-row { display: flex; align-items: center; gap: 0; overflow-x: auto; padding: 4px 0; }
 /* Two-row layout: top row sits all nodes on a common baseline (Fix 1) */
@@ -2572,7 +2574,7 @@
 /* Summary bar below the nodes */
 .dyn-node-summary {
   display: flex; align-items: center; flex-wrap: wrap;
-  padding: 6px 8px; background: var(--surface2); border-radius: 4px;
+  padding: 6px 4px; background: var(--surface2); border-radius: 4px;
   font-size: 11px; margin-top: 10px; gap: 8px;
   font-family: 'Inter', sans-serif;
 }
@@ -2627,7 +2629,7 @@
 }
 
 /* ── Stop section rebuild — Part 3 styling ── */
-.stop-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+.stop-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
 .stop-qty-inp {
   width: 60px; flex-shrink: 0; font-size: 11px; font-family: 'Inter', sans-serif;
   padding: 4px 6px; border-radius: 4px;
@@ -2662,7 +2664,7 @@
   flex-shrink: 0; padding: 0; transition: color 0.12s, border-color 0.12s;
 }
 .stop-remove-btn:hover { color: var(--poc-neg); border-color: rgba(255,77,77,0.30); }
-.stop-row-actions { display: flex; gap: 6px; margin-top: 6px; }
+.stop-row-actions { display: flex; gap: 6px; margin-top: 4px; }
 .stop-validation-err {
   font-size: 9px; color: var(--poc-neg); font-family: 'Inter', sans-serif;
   margin-top: 4px; padding: 4px 6px; background: rgba(255,77,77,0.08);
@@ -2745,9 +2747,9 @@
 .poc-banner-add-actions { display: flex; gap: 6px; }
 
 /* ── 3b — Right-panel three-section structure ── */
-.health-panel.poc-manage { padding: 0; }
+.health-panel.poc-manage { padding: 0 4px 0 0; }
 .health-panel.poc-manage .poc-section {
-  padding: 10px 16px;
+  padding: 8px 14px;
   border-bottom: 0.5px solid rgba(255,255,255,0.08);
 }
 .health-panel.poc-manage .poc-section.poc-section-stops { background: rgba(255,255,255,0.015); }
@@ -2767,13 +2769,13 @@
 /* KPIs */
 .poc-kpi-hero        { line-height: 1; }
 .poc-kpi-hero-label  { display: block; margin-bottom: 4px; }
-.poc-kpi-hero-val    { font-size: 28px; font-weight: 600; font-family: 'Inter', sans-serif; letter-spacing: -0.02em; line-height: 1; }
+.poc-kpi-hero-val    { font-size: 26px; font-weight: 600; font-family: 'Inter', sans-serif; letter-spacing: -0.02em; line-height: 1; }
 .poc-kpi-hero-val.neg { color: var(--poc-neg); }
 .poc-kpi-hero-val.pos { color: var(--poc-pos); }
 .poc-kpi-hero-sub    { font-size: 9px; color: rgba(255,255,255,0.35); font-family: 'Inter', sans-serif; margin-top: 4px; }
 [data-theme="paper"] .poc-kpi-hero-sub { color: rgba(0,0,0,0.40); }
 
-.poc-kpi-pair        { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; border-top: 0.5px solid rgba(255,255,255,0.08); padding-top: 7px; }
+.poc-kpi-pair        { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 7px; border-top: 0.5px solid rgba(255,255,255,0.08); padding-top: 7px; }
 [data-theme="paper"] .poc-kpi-pair { border-top-color: rgba(0,0,0,0.08); }
 .poc-kpi-cell        { display: flex; flex-direction: column; gap: 2px; }
 .poc-kpi-cell + .poc-kpi-cell { border-left: 0.5px solid rgba(255,255,255,0.08); padding-left: 10px; }
@@ -2787,7 +2789,7 @@
 [data-theme="paper"] .poc-kpi-be-price { color: rgba(0,0,0,0.85); }
 [data-theme="paper"] .poc-kpi-be-buf { color: rgba(0,0,0,0.35); }
 
-.poc-kpi-block       { margin-top: 8px; border-top: 0.5px solid rgba(255,255,255,0.08); padding-top: 7px; }
+.poc-kpi-block       { margin-top: 6px; border-top: 0.5px solid rgba(255,255,255,0.08); padding-top: 7px; }
 [data-theme="paper"] .poc-kpi-block { border-top-color: rgba(0,0,0,0.08); }
 .poc-kpi-row         { display: flex; align-items: center; justify-content: space-between; }
 .poc-kpi-row .count  { font-size: 10px; color: rgba(255,255,255,0.4); font-family: 'Inter', sans-serif; }
@@ -2885,7 +2887,7 @@
 /* Exit section */
 .poc-exit-grid { display: grid; grid-template-columns: 72px 1fr; gap: 6px; align-items: end; }
 .poc-exit-field { display: flex; flex-direction: column; gap: 2px; }
-.poc-exit-btn   { width: 100%; padding: 6px; font-size: 11px; font-weight: 600; margin-top: 6px; }
+.poc-exit-btn   { width: 100%; padding: 6px; font-size: 11px; font-weight: 600; margin-top: 4px; }
 {% endblock %}
 
 {% block content %}
@@ -4992,7 +4994,7 @@ function buildPocExitSection(trade) {
     </div>
     <button class="poc-btn-base poc-btn-green poc-exit-btn" onclick="dynPhase3ExitPartial()">Exit</button>
     <button class="poc-btn-base poc-btn-red   poc-exit-btn" style="margin-top:5px" onclick="dynPhase3FlattenAll()">Flatten all</button>
-    <button class="poc-btn-cancel-trade poc-exit-btn"       style="margin-top:5px" onclick="cancelActiveTrade()">Cancel trade</button>
+    <button class="poc-btn-cancel-trade poc-exit-btn"       style="margin-top:4px" onclick="cancelActiveTrade()">Cancel trade</button>
   </div>`;
 }
 
