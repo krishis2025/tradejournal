@@ -1,9 +1,13 @@
 # Trade Journal
 
-A local-first trade journaling app for ES/MES futures discretionary traders. Import fills from CSV/Excel, manage live trades with real-time risk tracking, tag trades by market context, and analyze performance across dimensions.
+A local-first trade journaling app for ES/MES futures discretionary traders. Import fills from CSV/Excel, plan and work live trades with risk tracking, tag trades by market context, capture setups/observations/market internals, and analyze performance across dimensions.
+
+> For a full architectural and feature specification, see [`SPEC.md`](SPEC.md).
+> Note: this app journals trades post-execution — it has **no live market price feed**; prices are entered by the trader.
 
 ![Python](https://img.shields.io/badge/python-3.9+-blue)
 ![Flask](https://img.shields.io/badge/flask-3.0+-green)
+![Version](https://img.shields.io/badge/version-4.0.4-blueviolet)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-orange)
 
 ---
@@ -11,10 +15,16 @@ A local-first trade journaling app for ES/MES futures discretionary traders. Imp
 ## Features
 
 - **CSV/Excel Import** — Drag-and-drop fills from your broker, auto-grouped into round-trip trades via FIFO position tracking
-- **Live Trade Entry** — Single-page "Ticket" interface: one-click exits, inline price editing, real-time risk/reward, trailing stops
+- **Live Trade Entry** — Single-page "Ticket" interface: one-click exits, inline price editing, risk/reward, trailing stops
+- **Trade V2** — Context Ribbon / Trade Plan with market signals, plan legs, and trade-strength scoring
 - **Partials Mode** — 3-way split with independent stops/targets per portion, locked-profit detection on trailing stops
 - **Tag System** — 7 tag groups (With, Against, Volume, Exit, Setup, Pre-Trade, Entry) fully customizable in Settings
-- **Portfolios** — Separate trading accounts/strategies with colored indicators
+- **Accounts & Shadow Trades** — Separate trading accounts/strategies; project a primary account's trades onto other account sizes
+- **Sizing Cheat Sheet** — Statistical position-sizing tiers (Conservative/Standard/Aggressive) per account
+- **Setups & Observations** — Reusable setup library and a dated observation log, both with screenshots
+- **Market Internals** — Per-session internals snapshots attached to a trading day
+- **Simulation** — What-if simulation view
+- **Review & Grading** — Per-trade execution scores and combined day grades
 - **Analytics** — Daily P&L chart, time-of-day analysis, win rate by setup, tag performance table
 - **9 Themes** — Mint, Amber, Cyan, Arctic Blue, Crimson, Purple, Monochrome, Paper Light, Soft Dark
 - **DB Admin** — Export/import full database as SQL backup
@@ -114,23 +124,30 @@ tradejournal/
 ├── start_windows.bat      ← Windows launcher
 ├── .gitignore
 ├── templates/
-│   ├── base.html          ← Shared layout, nav, theme engine, global styles
-│   ├── index.html         ← Dashboard: all trading days
-│   ├── day.html           ← Day view: trades for one date
-│   ├── trade.html         ← Single trade detail + tagging
-│   ├── live_ticket.html   ← Live Trade: Ticket UI (current)
-│   ├── live_entry_legacy.html  ← Live Trade: Legacy form-based UI
-│   ├── live_list_legacy.html   ← Live Trade: Legacy list view
-│   ├── analytics.html     ← Charts and tag performance
-│   ├── portfolios.html    ← Portfolio management
-│   ├── settings.html      ← Tags, themes, instruments, DB admin
+│   ├── base.html               ← Shared layout, nav, theme engine, global styles
+│   ├── index.html              ← Journal dashboard: all trading days + import
+│   ├── day.html                ← Day view: trades for one date
+│   ├── trade.html / trade_v2.html        ← Trade detail + tagging (v1 / v2)
+│   ├── live_ticket.html        ← Live Trade: Ticket UI (current)
+│   ├── live_v2.html            ← Trade V2: Context Ribbon / Trade Plan
+│   ├── live_entry_legacy.html / live_list_legacy.html  ← Legacy live UI
+│   ├── accounts.html           ← Account management + sizing cheat sheet
+│   ├── simulation.html         ← Simulation view
+│   ├── analytics.html          ← Charts and tag performance
+│   ├── setups.html / setup_detail.html   ← Setup library + detail
+│   ├── observations.html       ← Observation log
+│   ├── internals.html / internals_v2.html ← Market internals per day
+│   ├── settings.html           ← Tags, themes, instruments, DB admin
 │   └── 404.html
 ├── static/
 │   ├── css/
 │   └── js/
+├── SPEC.md                     ← Whole-project specification
+├── SCHEMA.md                   ← Full database schema
+├── CHANGELOG.md                ← Release history
 └── data/
-    ├── journal.db         ← SQLite database (auto-created, git-ignored)
-    └── images/            ← Trade screenshots (git-ignored)
+    ├── journal.db              ← SQLite database (auto-created, git-ignored)
+    └── images/                 ← Trade screenshots (git-ignored)
 ```
 
 ### Architecture
