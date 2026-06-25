@@ -73,7 +73,9 @@ def index():
 
     # Build calendar data from existing days list
     calendar_data = [
-        {"date": d["date"], "pnl": d["total_pnl"] or 0, "trades": d["trade_count"], "wins": d["wins"] or 0}
+        {"id": d["id"], "date": d["date"], "pnl": d["total_pnl"] or 0,
+         "trades": d["trade_count"], "wins": d["wins"] or 0,
+         "hold": d.get("avg_hold_secs")}
         for d in days
     ]
 
@@ -145,7 +147,14 @@ def day_view(day_id):
 
 @app.route("/day/<date_str>")
 def day_view_by_date(date_str):
-    day = db.get_day_by_date(date_str)
+    # Prefer the account-scoped day so we never land on a phantom NULL-account
+    # day. Fall back to the legacy first-match only when no account is supplied.
+    account_id = request.args.get("account") or None
+    day = None
+    if account_id:
+        day = db.get_day_by_date_account(date_str, account_id)
+    if not day:
+        day = db.get_day_by_date(date_str)
     if not day:
         return render_template("404.html", message=f"No data for {date_str}"), 404
     return redirect(url_for("day_view", day_id=day["id"]))
@@ -1675,7 +1684,8 @@ def api_upsert_internals(day_id, session):
 def api_get_today_internals():
     from datetime import date as dt_date
     today_str = dt_date.today().isoformat()
-    day_id = db.upsert_day(today_str)
+    account_id = request.args.get("account") or db.get_primary_account_id()
+    day_id = db.upsert_day(today_str, account_id)
     rows = db.get_internals_for_day(day_id)
     return jsonify({"day_id": day_id, "sessions": rows})
 
@@ -1686,7 +1696,8 @@ def api_upsert_today_internals(session):
     if session not in ("morning", "midday", "afternoon"):
         return jsonify({"error": "Invalid session"}), 400
     today_str = dt_date.today().isoformat()
-    day_id = db.upsert_day(today_str)
+    account_id = request.args.get("account") or db.get_primary_account_id()
+    day_id = db.upsert_day(today_str, account_id)
     body = request.get_json(silent=True) or {}
     db.upsert_internals(day_id, session, **body)
     return jsonify({"ok": True})

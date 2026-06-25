@@ -828,6 +828,13 @@
       const sign = v >= 0 ? '+' : '-';
       return `${sign}$${Math.abs(v).toFixed(0)}`;
     }
+    function fmtDuration(secs) {
+      if (secs == null || isNaN(secs)) return '—';
+      const totalMin = Math.max(0, Math.round(secs / 60));
+      if (totalMin < 60) return `${totalMin}m`;
+      const h = Math.floor(totalMin / 60), m = totalMin % 60;
+      return m ? `${h}h ${m}m` : `${h}h`;
+    }
 
     function renderMonth() {
       const label = document.getElementById('cal-month-label');
@@ -985,7 +992,11 @@
             cntDiv.textContent = `${data.trades} trade${data.trades !== 1 ? 's' : ''}`;
             td.appendChild(cntDiv);
 
-            td.onclick = () => { window.location.href = `/day/${dateStr}`; };
+            td.onclick = () => {
+              // Navigate by day id so we land on the right account-scoped day,
+              // never a phantom NULL-account day for the same date.
+              window.location.href = data.id ? `/day/${data.id}` : `/day/${dateStr}`;
+            };
           }
           tr.appendChild(td);
         }
@@ -1006,10 +1017,17 @@
         body.appendChild(tr);
       }
 
-      // ── Evaluation Sidebar ──
+      // ── Evaluation Sidebar (MONTH-scoped) ──
+      // Unlike the top KPI cards (which span the selected date-range preset),
+      // every metric in this panel is scoped to the visible month only.
       const evalPanel = document.getElementById('cal-eval');
       const bestDay = monthData.length ? Math.max(...monthData.map(d => d.pnl)) : 0;
       const worstDay = monthData.length ? Math.min(...monthData.map(d => d.pnl)) : 0;
+
+      const monthTrades      = monthData.reduce((s,d) => s + d.trades, 0);
+      const monthWinDays     = monthData.filter(d => d.pnl > 0).length;
+      const monthLossDays    = monthData.filter(d => d.pnl < 0).length;
+      const monthTradingDays = monthData.filter(d => d.trades > 0).length;
 
       const weeksWithTrades = new Set();
       monthData.forEach(d => {
@@ -1017,16 +1035,23 @@
         const weekNum = Math.ceil((dt.getDate() + new Date(dt.getFullYear(), dt.getMonth(), 1).getDay()) / 7);
         if (d.trades > 0) weeksWithTrades.add(weekNum);
       });
-      const tradesPerWeek = weeksWithTrades.size ? (totalTrades / weeksWithTrades.size).toFixed(1) : '—';
-      const tradesPerDay = tradingDays ? (totalTrades / tradingDays).toFixed(1) : '—';
+      const tradesPerWeek = weeksWithTrades.size ? (monthTrades / weeksWithTrades.size).toFixed(1) : '—';
+      const tradesPerDay = monthTradingDays ? (monthTrades / monthTradingDays).toFixed(1) : '—';
+
+      // Avg hold time: weight each day's avg-per-trade by its trade count → overall avg/trade.
+      let holdSecWeighted = 0, holdTradeCount = 0;
+      monthData.forEach(d => {
+        if (d.hold != null && d.trades > 0) { holdSecWeighted += d.hold * d.trades; holdTradeCount += d.trades; }
+      });
+      const avgHoldSecs = holdTradeCount ? holdSecWeighted / holdTradeCount : null;
 
       const rows = [
-        ['Total Trades', totalTrades],
-        ['Winning Days', winDays.length],
-        ['Losing Days', lossDays.length],
+        ['Total Trades', monthTrades],
+        ['Winning Days', monthWinDays],
+        ['Losing Days', monthLossDays],
         ['Best Day', bestDay !== 0 ? fmtDollar(bestDay) : '—'],
         ['Worst Day', worstDay !== 0 ? fmtDollar(worstDay) : '—'],
-        ['Avg Hold Time', '—'],
+        ['Avg Hold Time', fmtDuration(avgHoldSecs)],
         ['Trades / Day', tradesPerDay],
         ['Trades / Week', tradesPerWeek],
       ];

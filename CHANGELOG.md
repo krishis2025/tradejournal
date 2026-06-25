@@ -2,6 +2,34 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [4.0.5] — 2026-06-24
+
+### Bug fixes
+
+**Day view showed 0 trades (phantom NULL-account day)**
+- Opening Market Internals for "today" created a `trading_days` row with `account_id = NULL` (and a
+  lower id), so navigating to a date resolved to that empty row instead of the real account day holding
+  the trade — the day view read "0 trades · +$0".
+- Today-internals routes (`/api/today/internals` GET + POST) now resolve an account
+  (`?account=` → primary account fallback) via the new `db.get_primary_account_id()` helper, so they
+  upsert the real account day instead of a NULL one. `live_v2.html` passes the active nav account on
+  these calls. (`internals_v2.html` is day-scoped and unaffected.)
+- The calendar now navigates by day **id** (`calendar_data` carries `id`), and `/day/<date_str>` accepts
+  `?account=` and resolves via `get_day_by_date_account()` with a legacy fallback — so clicks land on the
+  correct account-scoped day.
+- Added a one-time, idempotent cleanup migration that merges each phantom NULL-account day into the
+  single account day for the same date (moves `market_internals` respecting `UNIQUE(day_id, session)`,
+  moves `day_images`, backfills empty reflection fields), then deletes the NULL day only when nothing
+  remains attached. Dates with zero or multiple account days are left untouched.
+
+**Monthly Evaluation panel mixed all-time and month-scoped numbers**
+- Total Trades, Winning/Losing Days, Trades/Day, and Trades/Week were computed from the full dataset
+  while Best/Worst Day used the current month. The panel is now fully **month-scoped**; the top KPI cards
+  remain scoped to the selected date-range preset.
+- **Avg Hold Time** now shows real data: `get_all_days()` returns an average trade duration per day
+  (handles both `HH:MM` and `HH:MM:SS` stored times, ignores cross-midnight artifacts); the panel
+  averages it across the month weighted by trade count.
+
 ## [1.4.2] — 2026-03-08
 
 ### Sizing Cheat Sheet — Visual Polish

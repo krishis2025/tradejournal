@@ -8018,9 +8018,18 @@ function intScheduleSave(session) {
   _intSaveTimers[session] = setTimeout(() => intSaveSession(session), 400);
 }
 
+// Append the active account so "today" internals attach to the real account
+// day, not a phantom NULL-account day. Reuses the global nav account selector.
+function intAccountQuery() {
+  const acct = (typeof getActiveAccount === 'function') ? getActiveAccount() : '';
+  return acct ? `?account=${encodeURIComponent(acct)}` : '';
+}
+
 async function intSaveSession(session) {
   try {
-    const url = intDayId ? `/api/day/${intDayId}/internals/${session}` : `/api/today/internals/${session}`;
+    const url = intDayId
+      ? `/api/day/${intDayId}/internals/${session}`
+      : `/api/today/internals/${session}${intAccountQuery()}`;
     await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(intState[session]) });
   } catch(e) { console.error('Internals save failed', e); }
 }
@@ -8033,7 +8042,7 @@ function intUpdateField(session, field, value) {
 
 async function loadInternalsData() {
   try {
-    const res = await fetch('/api/today/internals');
+    const res = await fetch(`/api/today/internals${intAccountQuery()}`);
     const json = await res.json();
     intDayId = json.day_id;
     for (const row of json.sessions) {

@@ -646,6 +646,94 @@ def init_db():
             )
         """)
 
+        # Migration: merge phantom NULL-account days into their real account day
+        _migrate_merge_null_account_days(conn)
+
+
+def _migrate_merge_null_account_days(conn):
+    """One-time, idempotent cleanup for the 'phantom NULL-account day' bug.
+
+    Today's Market Internals used to create a trading_days row with
+    account_id = NULL (lower id), so /day/<date_str> resolved to that empty row
+    instead of the real account day holding the trade. This merges each such
+    NULL day into the single account day for the same date, then deletes the
+    NULL day if it ends up empty. Dates with more than one non-NULL day are
+    ambiguous and left untouched.
+    """
+    # Reflection fields to backfill onto the target only when target is empty/default.
+    # day_score's "empty" is '0' or ''; the rest are ''.
+    reflection_cols = [
+        "day_type", "day_value", "day_volume",
+        "notes_well", "notes_improve", "notes_lessons", "notes_focus",
+        "day_score",
+    ]
+
+    null_days = conn.execute(
+        "SELECT id, date FROM trading_days WHERE account_id IS NULL"
+    ).fetchall()
+
+    for nd in null_days:
+        null_id, day_date = nd["id"], nd["date"]
+        targets = conn.execute(
+            "SELECT id FROM trading_days WHERE date = ? AND account_id IS NOT NULL",
+            (day_date,)
+        ).fetchall()
+        if len(targets) != 1:
+            continue  # 0 = nothing to merge into; >1 = ambiguous, skip
+        target_id = targets[0]["id"]
+
+        # Move market_internals, respecting UNIQUE(day_id, session)
+        existing_sessions = {
+            r["session"] for r in conn.execute(
+                "SELECT session FROM market_internals WHERE day_id = ?", (target_id,)
+            ).fetchall()
+        }
+        for mi in conn.execute(
+            "SELECT id, session FROM market_internals WHERE day_id = ?", (null_id,)
+        ).fetchall():
+            if mi["session"] in existing_sessions:
+                continue  # target already has this session; leave the source row in place
+            conn.execute(
+                "UPDATE market_internals SET day_id = ? WHERE id = ?",
+                (target_id, mi["id"])
+            )
+
+        # Move day_images
+        conn.execute(
+            "UPDATE day_images SET day_id = ? WHERE day_id = ?",
+            (target_id, null_id)
+        )
+
+        # Backfill reflection fields only where target is empty/default
+        src = conn.execute(
+            "SELECT * FROM trading_days WHERE id = ?", (null_id,)
+        ).fetchone()
+        tgt = conn.execute(
+            "SELECT * FROM trading_days WHERE id = ?", (target_id,)
+        ).fetchone()
+        if src and tgt:
+            src, tgt = dict(src), dict(tgt)
+            for col in reflection_cols:
+                src_val = (src.get(col) or "").strip()
+                tgt_val = (tgt.get(col) or "").strip()
+                tgt_empty = (tgt_val == "") or (col == "day_score" and tgt_val == "0")
+                src_has = (src_val != "") and not (col == "day_score" and src_val == "0")
+                if tgt_empty and src_has:
+                    conn.execute(
+                        f"UPDATE trading_days SET {col} = ? WHERE id = ?",
+                        (src.get(col), target_id)
+                    )
+
+        # Delete the NULL day only if nothing remains attached to it
+        remaining = conn.execute("""
+            SELECT
+              (SELECT COUNT(*) FROM trades           WHERE day_id = ?) +
+              (SELECT COUNT(*) FROM market_internals WHERE day_id = ?) +
+              (SELECT COUNT(*) FROM day_images       WHERE day_id = ?)
+        """, (null_id, null_id, null_id)).fetchone()[0]
+        if remaining == 0:
+            conn.execute("DELETE FROM trading_days WHERE id = ?", (null_id,))
+
 
 # ── Accounts ─────────────────────────────────────────────────────────────────
 
@@ -734,7 +822,25 @@ def get_all_days(date_from=None, date_to=None, account_id=None):
                    a.color as account_color,
                    COUNT(t.id)  as trade_count,
                    ROUND(COALESCE(SUM(t.pnl), 0), 2) as total_pnl,
-                   SUM(CASE WHEN t.pnl > 0 THEN 1 ELSE 0 END) as wins
+                   SUM(CASE WHEN t.pnl > 0 THEN 1 ELSE 0 END) as wins,
+                   -- avg trade duration (seconds) for this day. Times are stored as
+                   -- 'HH:MM' (live-pushed) or 'HH:MM:SS' (imported); both have HH at
+                   -- pos 1-2 and MM at 4-5, with optional SS at 7-8. Rows that don't
+                   -- match either shape, or that go negative (cross-midnight artifacts),
+                   -- yield NULL and are ignored by AVG.
+                   AVG(
+                     CASE WHEN length(t.entry_time) IN (5,8) AND length(t.exit_time) IN (5,8)
+                               AND substr(t.entry_time,3,1) = ':' AND substr(t.exit_time,3,1) = ':'
+                          THEN NULLIF(MAX(-1,
+                              (CAST(substr(t.exit_time,1,2) AS INTEGER)*3600
+                             + CAST(substr(t.exit_time,4,2) AS INTEGER)*60
+                             + CASE WHEN length(t.exit_time)=8 THEN CAST(substr(t.exit_time,7,2) AS INTEGER) ELSE 0 END)
+                            - (CAST(substr(t.entry_time,1,2) AS INTEGER)*3600
+                             + CAST(substr(t.entry_time,4,2) AS INTEGER)*60
+                             + CASE WHEN length(t.entry_time)=8 THEN CAST(substr(t.entry_time,7,2) AS INTEGER) ELSE 0 END)
+                          ), -1)
+                     END
+                   ) as avg_hold_secs
             FROM trading_days d
             LEFT JOIN accounts a ON a.id = d.account_id
             LEFT JOIN trades t     ON t.day_id = d.id
@@ -2040,6 +2146,16 @@ def get_primary_account():
     with get_conn() as conn:
         row = conn.execute("SELECT * FROM accounts WHERE is_primary = 1").fetchone()
         return dict(row) if row else None
+
+
+def get_primary_account_id():
+    """Resolve a default account id: the primary account, else the first by name,
+    else None (no accounts exist yet)."""
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT id FROM accounts ORDER BY is_primary DESC, name LIMIT 1"
+        ).fetchone()
+        return row["id"] if row else None
 
 
 def get_all_account_summaries():
