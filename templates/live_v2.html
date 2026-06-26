@@ -671,6 +671,8 @@
   font-family: var(--font-mono); font-size: 13px; outline: none;
 }
 .ef-input:focus { border-color: var(--accent); }
+.ef-risk-readout { flex: 1; font-family: var(--font-mono); font-size: 13px; color: var(--text); }
+.ef-risk-readout.default-risk { color: #ffb347; }
 .ef-enter-btn {
   width: 100%; padding: 14px; border: none; border-radius: 6px;
   background: var(--accent); color: var(--btn-text); font-weight: 700;
@@ -1819,8 +1821,8 @@
 .dyn-add-form .dyn-form-actions { grid-column: 1 / -1; display: flex; gap: 8px; margin-top: 4px; }
 .dyn-add-form .btn-confirm { background: rgba(0,200,255,0.18); border: 0.5px solid rgba(0,200,255,0.5); color: #00c8ff; border-radius: 4px; padding: 5px 12px; font-size: 10px; cursor: pointer; }
 .dyn-add-form .btn-cancel  { background: transparent; border: 0.5px solid rgba(255,255,255,0.15); color: var(--muted); border-radius: 4px; padding: 5px 12px; font-size: 10px; cursor: pointer; }
-.dyn-feed-cols { display: grid; grid-template-columns: 52px 52px 40px 70px 60px 1fr; gap: 8px; padding: 4px 4px; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
-.dyn-feed-row  { display: grid; grid-template-columns: 52px 52px 40px 70px 60px 1fr; gap: 8px; padding: 6px 4px; font-size: 10px; color: var(--text); align-items: center; }
+.dyn-feed-cols { display: grid; grid-template-columns: 46px 48px 32px 62px 150px 80px 52px 1fr; gap: 6px; padding: 4px 4px; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+.dyn-feed-row  { display: grid; grid-template-columns: 46px 48px 32px 62px 150px 80px 52px 1fr; gap: 6px; padding: 6px 4px; font-size: 10px; color: var(--text); align-items: center; }
 .dyn-feed-row:hover { background: var(--surface2); }
 .dyn-feed-row .feed-time  { color: var(--muted); }
 .dyn-feed-row .feed-type  { font-size: 10px; padding: 1px 5px; border-radius: 3px; justify-self: start; }
@@ -1836,6 +1838,35 @@
 .dyn-feed-row .feed-pnl.zero { color: var(--muted); }
 .dyn-feed-row .feed-open  { color: var(--muted); text-align: right; font-size: 10px; }
 .dyn-feed-empty { padding: 14px 8px; font-size: 10px; color: var(--muted); text-align: center; }
+
+/* ── Per-tranche risk stop capture (ledger Stop + Risk columns) ── */
+.feed-stop-wrap { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.feed-stop-input { width: 62px; flex: 0 0 auto; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.12); border-radius: 3px;
+  padding: 2px 4px; font-family: 'Inter', monospace; font-size: 10px; color: var(--text); }
+.feed-stop-input:focus { border-color: var(--accent2); outline: none; }
+.feed-stop-icon { font-size: 9px; line-height: 1; }
+.feed-stop-icon.captured { color: var(--accent); }            /* mint check */
+.feed-stop-icon.default  { color: #ffb347; }                  /* amber dot  */
+.feed-pull-chip { font-size: 8px; letter-spacing: .5px; text-transform: uppercase; color: var(--muted2);
+  background: rgba(255,255,255,0.05); border: 0.5px solid rgba(255,255,255,0.12); border-radius: 3px;
+  padding: 1px 4px; cursor: pointer; white-space: nowrap; }
+.feed-pull-chip:hover { color: var(--accent2); border-color: var(--accent2); }
+.feed-pull-picker { position: absolute; z-index: 40; background: var(--surface3); border: 0.5px solid var(--border2);
+  border-radius: 5px; padding: 4px; display: flex; flex-direction: column; gap: 2px; box-shadow: 0 4px 14px rgba(0,0,0,0.4); }
+.feed-pull-picker button { background: transparent; border: 0; color: var(--text); font-size: 10px; font-family: 'Inter', monospace;
+  padding: 3px 8px; text-align: left; cursor: pointer; border-radius: 3px; }
+.feed-pull-picker button:hover { background: var(--surface2); color: var(--accent2); }
+.feed-risk { font-family: 'Inter', monospace; }
+.feed-risk.default { color: #ffb347; }
+.feed-risk-warn { font-size: 9px; color: #ffb347; margin-left: 2px; }
+.feed-inert { color: var(--muted2); opacity: 0.5; }
+.dyn-idea-risk { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 8px 6px 4px; margin-top: 4px;
+  border-top: 0.5px solid var(--border); font-size: 10px; }
+.dyn-idea-risk .ir-label { text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-size: 9px; }
+.dyn-idea-risk .ir-total { font-family: 'Inter', monospace; font-weight: 600; color: var(--text); font-size: 12px; }
+.dyn-idea-risk .ir-breakdown { color: var(--muted2); font-family: 'Inter', monospace; }
+.dyn-idea-risk .ir-default-note { color: #ffb347; font-size: 9px; }
+.feed-risk-input-row { display:flex; align-items:center; gap:8px; }
 
 /* ── Paper / Light mode for strip ── */
 [data-theme="paper"] .price-strip-card { background: var(--surface2); border: 1px solid var(--border); }
@@ -4583,11 +4614,19 @@ function renderEntryForm(el) {
       </div>
       <div class="ef-row">
         <span class="ef-label">Price</span>
-        <input type="number" step="0.25" class="ef-input" id="ef-price" placeholder="6900" autocomplete="off" value="${formPrice}">
+        <input type="number" step="0.25" class="ef-input" id="ef-price" placeholder="6900" autocomplete="off" value="${formPrice}" oninput="efUpdateRisk()">
       </div>
       <div class="ef-row">
         <span class="ef-label">Qty</span>
-        <input type="number" min="1" class="ef-input" id="ef-qty" placeholder="6" autocomplete="off" value="${formQty}">
+        <input type="number" min="1" class="ef-input" id="ef-qty" placeholder="6" autocomplete="off" value="${formQty}" oninput="efUpdateRisk()">
+      </div>
+      <div class="ef-row">
+        <span class="ef-label">Stop</span>
+        <input type="number" step="0.25" class="ef-input" id="ef-stop" placeholder="auto −20pt" autocomplete="off" oninput="efUpdateRisk()">
+      </div>
+      <div class="ef-row">
+        <span class="ef-label">Risk</span>
+        <span class="ef-risk-readout" id="ef-risk">—</span>
       </div>
       <div class="ef-row">
         <span class="ef-label">Time</span>
@@ -4616,11 +4655,32 @@ function renderEntryForm(el) {
     }
   }
 
-  // Enter key on price/qty fields
-  ['ef-price','ef-qty'].forEach(id => {
+  // Enter key on price/qty/stop fields
+  ['ef-price','ef-qty','ef-stop'].forEach(id => {
     const inp = document.getElementById(id);
     if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') handleEnterClick(); });
   });
+
+  efUpdateRisk();
+}
+
+// Live risk readout for the entry form. Stop defaults to entry ∓20pt (direction-aware)
+// until the trader types one; risk = |price − stop| × qty × $/point.
+function efUpdateRisk() {
+  const el = document.getElementById('ef-risk');
+  if (!el) return;
+  const price = parseFloat(document.getElementById('ef-price')?.value);
+  const qty = parseInt(document.getElementById('ef-qty')?.value, 10);
+  const stopInp = document.getElementById('ef-stop');
+  const pv = (INST_CONFIG[formInst]?.dollars_per_point) || 5;
+  if (!price || !qty) { el.textContent = '—'; el.classList.remove('default-risk'); return; }
+  const defStop = formDir === 'Long' ? price - 20 : price + 20;
+  if (stopInp && !stopInp.value) stopInp.placeholder = String(defStop);
+  const typed = stopInp && stopInp.value !== '';
+  const stop = typed ? parseFloat(stopInp.value) : defStop;
+  const risk = Math.abs(price - stop) * qty * pv;
+  el.textContent = _fmtRisk(risk) + (typed ? '' : ' · 20pt default');
+  el.classList.toggle('default-risk', !typed);
 }
 
 function saveEntryFields() {
@@ -6727,6 +6787,20 @@ function buildStopRow(trade) {
   </div>${perLotPanel}`;
 }
 
+// Per-tranche risk: |exec_price − stop_price| × the row's own entry qty × $/point.
+// Always derived on read; uses entry qty (full committed size), not open qty.
+function _trancheRisk(trade, e) {
+  if (e.stop_price == null || e.stop_price === '') return null;
+  const pv = trade.tickValue || 5;
+  return Math.abs(Number(e.price) - Number(e.stop_price)) * Number(e.qty) * pv;
+}
+
+function _fmtRisk(v) {
+  if (v == null) return '—';
+  const r = Math.round(Math.abs(v));
+  return (v < 0 ? '-$' : '$') + r.toLocaleString();
+}
+
 function buildTransactionFeed(trade) {
   // Phase 3c: + Add contracts button + inline form removed from feed header
   // (the new banner +Add button replaces it). Phase 4 wires the banner form.
@@ -6744,24 +6818,148 @@ function buildTransactionFeed(trade) {
         const pnlCls = pnlVal > 0 ? 'pos' : 'zero';
         const pnlStr = isEntry || pnlVal === 0 ? '—' : (pnlVal > 0 ? `+$${pnlVal.toFixed(0)}` : `-$${Math.abs(pnlVal).toFixed(0)}`);
         const openAfter = e.open_qty_after != null ? `${e.open_qty_after} open` : '';
+
+        // Stop + Risk cells. OPEN/ADD rows capture a sticky risk stop; EXIT rows are inert.
+        let stopCell, riskCell;
+        if (isEntry) {
+          const isDefault = String(e.stop_source || 'default') === 'default';
+          const stopVal = (e.stop_price != null && e.stop_price !== '') ? Number(e.stop_price) : '';
+          const icon = isDefault
+            ? `<span class="feed-stop-icon default" title="20-pt default — not your intended stop">●</span>`
+            : `<span class="feed-stop-icon captured" title="captured">✓</span>`;
+          stopCell = `<span class="feed-stop-wrap">
+            <input class="feed-stop-input" type="number" step="0.25" value="${stopVal}"
+                   onchange="dynEditTrancheStop(${trade.id}, ${e.id}, this.value)" title="Intended stop for this entry">
+            ${icon}
+            <span class="feed-pull-chip" onclick="dynPullStop(event, ${trade.id}, ${e.id})" title="Pull price from working stops">pull</span>
+          </span>`;
+          const risk = _trancheRisk(trade, e);
+          const warn = isDefault ? `<span class="feed-risk-warn" title="20-pt default">⚠</span>` : '';
+          riskCell = `<span class="feed-risk ${isDefault ? 'default' : ''}">${_fmtRisk(risk)}${warn}</span>`;
+        } else {
+          stopCell = `<span class="feed-inert">—</span>`;
+          riskCell = `<span class="feed-inert">—</span>`;
+        }
+
         return `<div class="dyn-feed-row">
           <span class="feed-time">${e.exec_time || ''}</span>
           <span class="feed-type ${typeCls}">${typeLabel}</span>
           <span class="feed-qty ${isEntry ? 'qty-pos' : 'qty-neg'}">${qtyStr}</span>
           <span class="feed-price">${Number(e.price).toFixed(2)}</span>
+          ${stopCell}
+          ${riskCell}
           <span class="feed-pnl ${pnlCls}">${pnlStr}</span>
           <span class="feed-open">${openAfter}</span>
         </div>`;
       }).join('');
+
+  // Footer: IDEA RISK total + core/add breakdown + default-stop discipline note.
+  const entryExecs = execs.filter(e => ['OPEN', 'ADD'].includes(String(e.exec_type || '').toUpperCase()));
+  let coreRisk = 0, addRisk = 0, defaultCount = 0;
+  entryExecs.forEach(e => {
+    const r = _trancheRisk(trade, e) || 0;
+    if (String(e.exec_type || '').toUpperCase() === 'OPEN') coreRisk += r; else addRisk += r;
+    if (String(e.stop_source || 'default') === 'default') defaultCount++;
+  });
+  const footer = entryExecs.length ? `<div class="dyn-idea-risk">
+    <span class="ir-label">Idea Risk</span>
+    <span class="ir-total">${_fmtRisk(coreRisk + addRisk)}</span>
+    <span class="ir-breakdown">core ${_fmtRisk(coreRisk)} · add ${_fmtRisk(addRisk)}</span>
+    ${defaultCount ? `<span class="ir-default-note">${defaultCount} stop${defaultCount !== 1 ? 's' : ''} on 20-pt default</span>` : ''}
+  </div>` : '';
 
   return `<div class="dyn-feed-header">
     <span class="feed-title">TRANSACTIONS</span>
     <span class="feed-spacer"></span>
   </div>
   <div class="dyn-feed-cols">
-    <span>Time</span><span>Type</span><span>Qty</span><span>Price</span><span>P&amp;L</span><span style="text-align:right;">Open</span>
+    <span>Time</span><span>Type</span><span>Qty</span><span>Price</span><span>Stop</span><span>Risk</span><span>P&amp;L</span><span style="text-align:right;">Open</span>
   </div>
-  ${rows}`;
+  ${rows}
+  ${footer}`;
+}
+
+/* ── Per-tranche risk stop: edit + tap-to-pull from working stops ── */
+async function dynEditTrancheStop(tradeId, execId, value) {
+  const price = parseFloat(value);
+  if (isNaN(price)) return;
+  try {
+    const res = await fetch(`/api/live/${tradeId}/execution/${execId}/stop`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stop_price: price })
+    });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+    await refreshTradeFromServer(tradeId);
+  } catch (e) {
+    if (typeof showToast === 'function') showToast(e.message || 'Stop update failed', true);
+  }
+}
+
+function _workingStopRows(trade) {
+  return (trade.levels || [])
+    .filter(l => l.level_type === 'stop' && Number(l.qty) > 0)
+    .map(l => ({ qty: Number(l.qty), price: Number(l.price) }));
+}
+
+// Per-tranche open qty via FIFO (entry qty minus exits applied oldest-first).
+function _trancheOpenQty(trade) {
+  const queue = [];   // {id, remaining}
+  const map = {};
+  for (const e of _dynExecsOldestFirst(trade)) {
+    const t = String(e.exec_type || '').toUpperCase();
+    const qty = Number(e.qty || 0);
+    if (t === 'OPEN' || t === 'ADD') {
+      queue.push({ id: e.id, remaining: qty });
+      map[e.id] = qty;
+    } else {
+      let toExit = qty;
+      for (const tr of queue) {
+        if (toExit <= 0) break;
+        const take = Math.min(tr.remaining, toExit);
+        tr.remaining -= take; toExit -= take;
+        map[tr.id] = tr.remaining;
+      }
+    }
+  }
+  return map;
+}
+
+function dynPullStop(ev, tradeId, execId) {
+  ev.stopPropagation();
+  document.querySelectorAll('.feed-pull-picker').forEach(p => p.remove());
+  const trade = TRADES[activeTrade];
+  if (!trade) return;
+  const stops = _workingStopRows(trade);
+  if (!stops.length) {
+    if (typeof showToast === 'function') showToast('No working stops to pull from', true);
+    return;
+  }
+  // 1. exactly one distinct working-stop price → use it.
+  const distinct = [...new Set(stops.map(s => s.price))];
+  if (distinct.length === 1) { dynEditTrancheStop(tradeId, execId, distinct[0]); return; }
+  // 2. working-stop level whose qty equals this tranche's currently-open qty.
+  const openMap = _trancheOpenQty(trade);
+  const myOpen = openMap[execId];
+  const match = stops.find(s => s.qty === myOpen);
+  if (match) { dynEditTrancheStop(tradeId, execId, match.price); return; }
+  // 3. expand a small picker listing the live stop rows.
+  _showPullPicker(ev.currentTarget, tradeId, execId, stops);
+}
+
+function _showPullPicker(anchor, tradeId, execId, stops) {
+  const picker = document.createElement('div');
+  picker.className = 'feed-pull-picker';
+  picker.innerHTML = stops.map(s =>
+    `<button onclick="dynEditTrancheStop(${tradeId}, ${execId}, ${s.price}); this.closest('.feed-pull-picker').remove();">${s.qty} @ ${s.price}</button>`
+  ).join('');
+  document.body.appendChild(picker);
+  const r = anchor.getBoundingClientRect();
+  picker.style.left = `${r.left}px`;
+  picker.style.top = `${r.bottom + 4}px`;
+  const close = (e) => {
+    if (!picker.contains(e.target)) { picker.remove(); document.removeEventListener('mousedown', close); }
+  };
+  setTimeout(() => document.addEventListener('mousedown', close), 0);
 }
 
 function buildAddContractsForm(trade) {
@@ -6769,14 +6967,36 @@ function buildAddContractsForm(trade) {
   const now = getCurrentTimeStr();
   return `<div class="dyn-add-form">
     <label>Direction</label><input type="text" value="${dirLabel}" readonly>
-    <label>Price</label><input type="number" step="0.25" id="dyn-add-price" autofocus>
-    <label>Qty</label><input type="number" min="1" step="1" id="dyn-add-qty" value="1">
+    <label>Price</label><input type="number" step="0.25" id="dyn-add-price" autofocus oninput="dynAddUpdateRisk()">
+    <label>Qty</label><input type="number" min="1" step="1" id="dyn-add-qty" value="1" oninput="dynAddUpdateRisk()">
+    <label>Stop</label><input type="number" step="0.25" id="dyn-add-stop" placeholder="auto −20pt" oninput="dynAddUpdateRisk()">
+    <label>Risk</label><span class="ef-risk-readout" id="dyn-add-risk" style="font-size:11px;">—</span>
     <label>Time</label><input type="text" id="dyn-add-time" value="${now}">
     <div class="dyn-form-actions">
       <button class="btn-confirm" onclick="dynSubmitAdd(${trade.id})">CONFIRM</button>
       <button class="btn-cancel"  onclick="dynToggleAddForm()">CANCEL</button>
     </div>
   </div>`;
+}
+
+// Live risk readout for the Add form (same rules as the entry form).
+function dynAddUpdateRisk() {
+  const el = document.getElementById('dyn-add-risk');
+  if (!el) return;
+  const trade = TRADES[activeTrade];
+  const price = parseFloat(document.getElementById('dyn-add-price')?.value);
+  const qty = parseInt(document.getElementById('dyn-add-qty')?.value, 10);
+  const stopInp = document.getElementById('dyn-add-stop');
+  const pv = (trade && trade.tickValue) || 5;
+  const isLong = trade && trade.direction === 'Long';
+  if (!price || !qty) { el.textContent = '—'; el.classList.remove('default-risk'); return; }
+  const defStop = isLong ? price - 20 : price + 20;
+  if (stopInp && !stopInp.value) stopInp.placeholder = String(defStop);
+  const typed = stopInp && stopInp.value !== '';
+  const stop = typed ? parseFloat(stopInp.value) : defStop;
+  const risk = Math.abs(price - stop) * qty * pv;
+  el.textContent = _fmtRisk(risk) + (typed ? '' : ' · 20pt default');
+  el.classList.toggle('default-risk', !typed);
 }
 
 function buildDynamicCenterHTML(trade) {
@@ -6829,6 +7049,8 @@ async function dynSubmitAdd(tradeId) {
   const price = parseFloat(document.getElementById('dyn-add-price').value);
   const qty   = parseInt(document.getElementById('dyn-add-qty').value, 10);
   const time  = document.getElementById('dyn-add-time').value;
+  const stopRaw = document.getElementById('dyn-add-stop')?.value;
+  const stop_price = (stopRaw !== undefined && stopRaw !== '') ? parseFloat(stopRaw) : null;
   if (!price || !qty || qty <= 0) {
     if (typeof showToast === 'function') showToast('Enter price and qty', 'error');
     return;
@@ -6836,7 +7058,7 @@ async function dynSubmitAdd(tradeId) {
   try {
     const res = await fetch(`/api/live/${tradeId}/add`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ price, qty, time })
+      body: JSON.stringify(stop_price != null ? { price, qty, time, stop_price } : { price, qty, time })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Add failed');
@@ -7575,8 +7797,12 @@ function handleEnterClick() {
   const time = document.getElementById('ef-time')?.value;
   if (!price || !qty || !time) { showToast('Fill price, qty & time', true); return; }
 
+  // Optional typed risk stop; omit so the server applies the 20-pt default.
+  const stopRaw = document.getElementById('ef-stop')?.value;
+  const stop_price = (stopRaw !== undefined && stopRaw !== '') ? parseFloat(stopRaw) : null;
+
   // Store form values early (needed by both paths)
-  window._pendingEntry = { price, qty, time };
+  window._pendingEntry = { price, qty, time, stop_price };
 
   const hasOpenTrades = Object.values(TRADES).some(t => !isTradeClosed(t) && !t.pushed);
 
@@ -7631,7 +7857,7 @@ function useNewContext() {
 }
 
 async function createTradeFromForm() {
-  const { price, qty, time } = window._pendingEntry || {};
+  const { price, qty, time, stop_price } = window._pendingEntry || {};
   if (!price || !qty || !time) return;
 
   const pid = document.getElementById('global-account-select')?.value || null;
@@ -7646,6 +7872,7 @@ async function createTradeFromForm() {
     body: JSON.stringify({
       direction: formDir, instrument: formInst, entry_price: price,
       entry_time: time, total_qty: qty, mode: formMode,
+      stop_price: (stop_price != null ? stop_price : undefined),
       notes: '', tags: {}, account_id: pid ? parseInt(pid) : null,
       strength_id: activeStrengthId, context_id: activeContextId
     })

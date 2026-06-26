@@ -296,6 +296,21 @@ def init_db():
         fill_cols = [r[1] for r in conn.execute("PRAGMA table_info(fills)").fetchall()]
         if "exit_type" not in fill_cols:
             conn.execute("ALTER TABLE fills ADD COLUMN exit_type TEXT")
+
+        # Migration: per-tranche risk-stop capture (sticky intended stop per entry
+        # decision). Distinct from the working stop in live_trade_levels. Risk is
+        # always derived on read from stop_price; nothing computed is persisted.
+        # stop_source: 'default' (auto 20-pt), 'entered' (typed on form), 'edited'.
+        fill_cols = [r[1] for r in conn.execute("PRAGMA table_info(fills)").fetchall()]
+        if "stop_price" not in fill_cols:
+            conn.execute("ALTER TABLE fills ADD COLUMN stop_price REAL")
+        if "stop_source" not in fill_cols:
+            conn.execute("ALTER TABLE fills ADD COLUMN stop_source TEXT NOT NULL DEFAULT 'default'")
+        lte_cols = [r[1] for r in conn.execute("PRAGMA table_info(live_trade_executions)").fetchall()]
+        if "stop_price" not in lte_cols:
+            conn.execute("ALTER TABLE live_trade_executions ADD COLUMN stop_price REAL")
+        if "stop_source" not in lte_cols:
+            conn.execute("ALTER TABLE live_trade_executions ADD COLUMN stop_source TEXT NOT NULL DEFAULT 'default'")
         # Migration: add execution_json to trades
         trade_cols = [r[1] for r in conn.execute("PRAGMA table_info(trades)").fetchall()]
         if "execution_json" not in trade_cols:
@@ -1002,11 +1017,13 @@ def insert_trade(day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, en
         return cur.lastrowid
 
 
-def insert_fill(trade_id, fill_time, side, qty, price, exit_type=None):
+def insert_fill(trade_id, fill_time, side, qty, price, exit_type=None,
+                stop_price=None, stop_source='default'):
     with get_conn() as conn:
         conn.execute(
-            "INSERT INTO fills (trade_id, fill_time, side, qty, price, exit_type) VALUES (?, ?, ?, ?, ?, ?)",
-            (trade_id, fill_time, side, qty, price, exit_type)
+            "INSERT INTO fills (trade_id, fill_time, side, qty, price, exit_type, stop_price, stop_source) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (trade_id, fill_time, side, qty, price, exit_type, stop_price, stop_source)
         )
 
 
@@ -1831,14 +1848,25 @@ def set_live_trade_levels(live_trade_id, levels):
                   lv["price"], lv.get("risk_dollars", 0), lv.get("reward_dollars", 0)))
 
 
-def add_live_trade_execution(live_trade_id, exec_type, portion, qty, price, exec_time, pnl):
+def add_live_trade_execution(live_trade_id, exec_type, portion, qty, price, exec_time, pnl,
+                             stop_price=None, stop_source='default'):
     with get_conn() as conn:
         cur = conn.execute("""
             INSERT INTO live_trade_executions
-                (live_trade_id, exec_type, portion, qty, price, exec_time, pnl)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (live_trade_id, exec_type, portion, qty, price, exec_time, pnl))
+                (live_trade_id, exec_type, portion, qty, price, exec_time, pnl, stop_price, stop_source)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (live_trade_id, exec_type, portion, qty, price, exec_time, pnl, stop_price, stop_source))
         return cur.lastrowid
+
+
+def update_live_trade_execution_stop(exec_id, stop_price, stop_source='edited'):
+    """Update only the risk-stop on one live_trade_executions row (ledger edit or
+    tap-to-pull). Does not touch the working stop in live_trade_levels."""
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE live_trade_executions SET stop_price = ?, stop_source = ? WHERE id = ?",
+            (stop_price, stop_source, exec_id)
+        )
 
 
 def replace_active_stops(live_trade_id, stops):

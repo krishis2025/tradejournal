@@ -1101,11 +1101,22 @@ def api_create_live_trade():
         )
         db.set_live_trade_levels(live_id, levels)
 
+        # Per-tranche risk stop: use the typed stop if provided, else a 20-pt default.
+        if body.get("stop_price") not in (None, ""):
+            open_stop_price = float(body["stop_price"])
+            open_stop_source = "entered"
+        else:
+            open_stop_price = logic.compute_default_risk_stop(
+                body["direction"], float(body["entry_price"])
+            )
+            open_stop_source = "default"
+
         # POC dynamic-trade-model: record OPEN transaction + derive position state
         db.add_live_trade_execution(
             live_id, "OPEN", 1,
             int(body["total_qty"]), float(body["entry_price"]),
-            body["entry_time"], 0
+            body["entry_time"], 0,
+            stop_price=open_stop_price, stop_source=open_stop_source
         )
         db.recalculate_position(live_id)
 
@@ -1283,8 +1294,17 @@ def api_live_add_contracts(live_id):
     if qty <= 0:
         return jsonify({"error": "qty must be positive"}), 400
 
+    # Per-tranche risk stop: typed stop if provided, else 20-pt default.
+    if body.get("stop_price") not in (None, ""):
+        add_stop_price = float(body["stop_price"])
+        add_stop_source = "entered"
+    else:
+        add_stop_price = logic.compute_default_risk_stop(trade["direction"], price)
+        add_stop_source = "default"
+
     exec_id = db.add_live_trade_execution(
-        live_id, "ADD", 1, qty, price, body["time"], 0
+        live_id, "ADD", 1, qty, price, body["time"], 0,
+        stop_price=add_stop_price, stop_source=add_stop_source
     )
     # Keep total_qty in sync so legacy code paths still report the right denominator
     db.update_live_trade(live_id, total_qty=int(trade["total_qty"]) + qty)
@@ -1548,6 +1568,17 @@ def api_update_review_score(live_id):
     updated = logic.update_review_score(score_json, management_state, exit_quality)
     db.update_live_trade(live_id, execution_score_json=json.dumps(updated))
     return jsonify({"ok": True, "execution_score_json": updated})
+
+
+@app.route("/api/live/<int:live_id>/execution/<int:exec_id>/stop", methods=["PATCH"])
+def api_update_execution_stop(live_id, exec_id):
+    """Edit the per-tranche risk stop on one OPEN/ADD execution row (ledger edit or
+    tap-to-pull). Risk is derived on read; only stop_price/stop_source change here."""
+    body = request.get_json(silent=True) or {}
+    if body.get("stop_price") in (None, ""):
+        return jsonify({"error": "stop_price is required"}), 400
+    db.update_live_trade_execution_stop(exec_id, float(body["stop_price"]), "edited")
+    return jsonify({"ok": True})
 
 
 @app.route("/api/live/<int:live_id>/execution/<int:exec_id>", methods=["DELETE"])

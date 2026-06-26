@@ -2,6 +2,21 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [4.1.0] — 2026-06-25
+
+### Per-tranche stop & risk capture (Manage tab)
+
+Capture the **intended stop price for each entry decision** (the OPEN and every ADD) so the journal can show, per trade idea, how much was risked — separate from the live working stop that drives the right-panel net-risk number. Risk is always derived on read; nothing computed is persisted.
+
+- **Schema:** added nullable `stop_price` + `stop_source` (`'default'`/`'entered'`/`'edited'`) to both `fills` and `live_trade_executions` (additive, guarded migration). Updated `SCHEMA.md`.
+- **Data layer:** `insert_fill` / `add_live_trade_execution` accept `stop_price`/`stop_source`; new `update_live_trade_execution_stop()`.
+- **Logic:** `compute_default_risk_stop()` (direction-aware 20-pt default) and `compute_tranche_risk()` (`|exec − stop| × entry_qty × $/point`, using the row's full committed qty).
+- **Routes:** `POST /api/live` and `POST /api/live/<id>/add` accept optional `stop_price` (else 20-pt default); new `PATCH /api/live/<id>/execution/<exec_id>/stop`.
+- **Entry & Add forms:** Stop field (defaults to entry ∓20 pts) with a live risk readout.
+- **Transactions ledger:** new **Stop** (editable on OPEN/ADD) and **Risk** (derived) columns. Captured stops show a mint check; 20-pt defaults show an amber dot + amber warning on the risk value. Footer strip: `IDEA RISK $X · core $Y · add $Z` with a discipline note when any stop is still on the 20-pt default.
+- **Tap-to-pull:** per-row `pull` chip pulls a price from the working stops (single distinct price → tranche-open-qty match → picker), applied to the row's full entry qty and frozen as `'edited'`.
+- **Carry-through:** push to journal copies each entry-side execution's `stop_price`/`stop_source` into `fills`; risk stays derivable journal-side.
+
 ## [4.0.5] — 2026-06-24
 
 ### Bug fixes
