@@ -1,0 +1,432 @@
+{% extends "base.html" %}
+{% block title %}Weekly Review — Trade Journal{% endblock %}
+
+{% macro money(v) -%}
+{%- if v is none -%}—{%- else -%}{{ '+' if v >= 0 else '-' }}${{ '{:,.0f}'.format(v|abs) }}{%- endif -%}
+{%- endmacro %}
+
+{% macro traj_row(r) -%}
+<div class="wr-traj-row">
+  <div class="wr-traj-main">
+    <div class="wr-traj-label">{{ r.label }}
+      <span class="wr-badge wr-badge-{{ r.badge }}">{{ r.display_state }}</span>
+    </div>
+    <div class="wr-traj-sub">{{ r.subtext }}</div>
+  </div>
+  <span class="wr-spark" data-spark="{{ r.sparkline|join(',') }}" data-fired="{{ r.series|map(attribute='fired')|join(',') }}" data-polarity="{{ r.polarity }}"></span>
+  <span class="wr-traj-val">{{ money(r.latest_magnitude) }}</span>
+</div>
+{%- endmacro %}
+
+{% block extra_styles %}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+.wr-wrap { max-width: 1080px; margin: 0 auto; padding: 18px; font-family: 'Inter', sans-serif; }
+.wr-mono { font-family: 'JetBrains Mono', monospace; }
+
+/* Header */
+.wr-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.wr-head-title { font-size: 18px; font-weight: 600; color: var(--text); }
+.wr-head-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.wr-nav-btn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px;
+  border: 0.5px solid var(--border2); border-radius: 6px; color: var(--text); text-decoration: none;
+  background: var(--surface2); font-size: 14px; }
+.wr-nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.wr-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 16px; }
+.wr-kpi { background: var(--surface); border: 0.5px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.wr-kpi-label { font-size: 8.5px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); }
+.wr-kpi-val { font-size: 17px; font-weight: 600; margin-top: 3px; font-family: 'JetBrains Mono', monospace; color: var(--text); }
+.wr-kpi-val.pos { color: var(--green); } .wr-kpi-val.neg { color: var(--red); }
+
+.wr-zone { background: var(--surface); border: 0.5px solid var(--border); border-radius: 10px; padding: 16px 18px; margin-bottom: 14px; }
+.wr-zone-title { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+
+/* Story */
+.wr-story p { font-size: 15px; line-height: 1.7; color: var(--text); margin: 0 0 8px; }
+.wr-story p.lead { font-size: 16px; font-weight: 500; }
+.wr-story .empty { color: var(--muted); font-style: italic; }
+
+/* Behavior */
+.wr-beh-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+.wr-beh-card { background: var(--surface2); border: 0.5px solid var(--border); border-radius: 8px; padding: 11px 12px; }
+.wr-beh-card .lbl { font-size: 8.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+.wr-beh-card .val { font-size: 15px; font-weight: 600; margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
+.wr-beh-card .sub { font-size: 10px; color: var(--muted2); margin-top: 2px; }
+.pos { color: var(--green); } .neg { color: var(--red); }
+
+table.wr-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.wr-table th { text-align: left; font-size: 8.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted);
+  padding: 6px 8px; border-bottom: 0.5px solid var(--border); font-weight: 500; }
+table.wr-table td { padding: 7px 8px; border-bottom: 0.5px solid var(--border); color: var(--text); }
+table.wr-table td.num { font-family: 'JetBrains Mono', monospace; text-align: right; }
+.wr-row-op { background: rgba(255,77,109,0.07); }
+.wr-row-rev { background: rgba(255,179,71,0.07); }
+.wr-flag { font-size: 8px; letter-spacing: .5px; text-transform: uppercase; padding: 1px 5px; border-radius: 3px; margin-left: 6px; }
+.wr-flag.op { background: rgba(255,77,109,0.18); color: var(--red); }
+.wr-flag.rev { background: rgba(255,179,71,0.18); color: #ffb347; }
+.wr-sub-title { font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted2); margin: 16px 0 8px; }
+
+/* Lessons filmstrip */
+.wr-film { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; }
+.wr-film-card { flex: 0 0 150px; background: var(--surface2); border: 0.5px solid var(--border); border-radius: 8px; overflow: hidden; }
+.wr-film-card img { width: 100%; height: 90px; object-fit: cover; display: block; }
+.wr-film-card .meta { padding: 7px 9px; }
+.wr-film-card .grp { font-size: 8px; letter-spacing: .5px; text-transform: uppercase; color: var(--accent2); }
+.wr-film-card .theme { font-size: 9px; color: var(--muted2); margin-top: 2px; }
+.wr-film-card .txt { font-size: 10px; color: var(--text); margin-top: 4px; line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.wr-theme-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.wr-theme-chip { font-size: 10px; padding: 3px 8px; border-radius: 12px; background: var(--surface2);
+  border: 0.5px solid var(--border2); color: var(--text); }
+.wr-theme-chip b { color: var(--accent); }
+.wr-note { background: var(--surface2); border-left: 2px solid var(--accent2); border-radius: 0 6px 6px 0;
+  padding: 8px 12px; margin-bottom: 8px; }
+.wr-note .h { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted2); }
+.wr-note .b { font-size: 12px; color: var(--text); margin-top: 3px; line-height: 1.5; }
+
+/* Planning */
+.wr-intention { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid var(--border); }
+.wr-intention .txt { flex: 1; font-size: 13px; color: var(--text); }
+.wr-intention .src { font-size: 8px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted2);
+  border: 0.5px solid var(--border2); border-radius: 3px; padding: 1px 5px; }
+.wr-grade-btns { display: flex; gap: 4px; }
+.wr-grade-btn { font-size: 9px; text-transform: uppercase; letter-spacing: .5px; padding: 3px 8px; border-radius: 4px;
+  border: 0.5px solid var(--border2); background: var(--surface2); color: var(--muted2); cursor: pointer; }
+.wr-grade-btn.held.on { background: rgba(52,211,153,0.2); color: var(--green); border-color: var(--green); }
+.wr-grade-btn.broke.on { background: rgba(255,77,109,0.2); color: var(--red); border-color: var(--red); }
+.wr-grade-btn.partial.on { background: rgba(255,179,71,0.2); color: #ffb347; border-color: #ffb347; }
+.wr-proposed { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
+.wr-proposed .txt { flex: 1; font-size: 13px; color: var(--text); }
+.wr-accept { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; padding: 4px 10px; border-radius: 5px;
+  border: 0.5px solid var(--accent); background: transparent; color: var(--accent); cursor: pointer; }
+.wr-accept:hover { background: var(--accent); color: var(--btn-text); }
+.wr-add-row { display: flex; gap: 8px; margin-top: 10px; }
+.wr-add-row input { flex: 1; background: var(--surface2); border: 0.5px solid var(--border2); border-radius: 6px;
+  padding: 8px 10px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 13px; }
+.wr-add-row button, .wr-save-btn { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; padding: 8px 14px;
+  border-radius: 6px; border: none; background: var(--accent); color: var(--btn-text); cursor: pointer; font-weight: 600; }
+.wr-reflect { width: 100%; min-height: 90px; background: var(--surface2); border: 0.5px solid var(--border2);
+  border-radius: 8px; padding: 10px 12px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 13px;
+  line-height: 1.6; resize: vertical; margin-bottom: 8px; }
+.wr-empty { font-size: 12px; color: var(--muted); font-style: italic; padding: 6px 0; }
+
+/* Trajectory band */
+.wr-traj { border-color: var(--accent2); box-shadow: inset 0 0 0 0.5px var(--accent2); }
+.wr-traj-window { font-size: 9px; letter-spacing: 1px; color: var(--muted); text-transform: none; margin-left: 8px; }
+.wr-building { font-size: 12px; color: var(--muted2); font-style: italic; padding: 10px 2px; }
+.wr-building b { color: var(--accent2); font-style: normal; }
+.wr-traj-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.wr-strengths-title { margin-top: 14px; padding-top: 12px; border-top: 0.5px solid var(--border); }
+.wr-traj-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 0.5px solid var(--border); }
+.wr-traj-row:last-child { border-bottom: 0; }
+.wr-traj-main { flex: 1; min-width: 0; }
+.wr-traj-label { font-size: 13px; color: var(--text); font-weight: 500; }
+.wr-traj-sub { font-size: 10px; color: var(--muted2); margin-top: 2px; }
+.wr-spark { display: inline-block; width: 96px; height: 26px; flex: 0 0 auto; }
+.wr-traj-val { font-family: 'JetBrains Mono', monospace; font-size: 12px; min-width: 58px; text-align: right; }
+.wr-badge { font-size: 8.5px; letter-spacing: .5px; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; white-space: nowrap; }
+.wr-badge-cyan  { background: rgba(0,207,255,0.16);  color: var(--accent2); }
+.wr-badge-amber { background: rgba(255,179,71,0.18); color: #ffb347; }
+.wr-badge-red   { background: rgba(255,77,109,0.18); color: var(--red); }
+.wr-badge-mint  { background: rgba(79,255,176,0.18); color: var(--accent); }
+.wr-badge-green { background: rgba(52,211,153,0.18); color: var(--green); }
+.wr-card { background: var(--surface2); border: 0.5px solid var(--border2); border-left-width: 2px; border-radius: 0 6px 6px 0; padding: 9px 12px; margin-bottom: 8px; }
+.wr-card-rule { font-size: 13px; color: var(--text); }
+.wr-card-meta { font-size: 10px; color: var(--muted2); margin-top: 3px; }
+.wr-card-verdict { font-size: 11px; margin-top: 5px; }
+.wr-card.v-working { border-left-color: var(--green); } .wr-card.v-working .wr-card-verdict { color: var(--green); }
+.wr-card.v-not_working { border-left-color: var(--red); } .wr-card.v-not_working .wr-card-verdict { color: var(--red); }
+.wr-card.v-mixed { border-left-color: #ffb347; } .wr-card.v-mixed .wr-card-verdict { color: #ffb347; }
+.wr-card.v-too_soon, .wr-card.v-no_target { border-left-color: var(--border2); } .wr-card.v-too_soon .wr-card-verdict, .wr-card.v-no_target .wr-card-verdict { color: var(--muted2); }
+.wr-target-select { background: var(--surface2); border: 0.5px solid var(--border2); border-radius: 6px; padding: 8px 10px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 12px; }
+{% endblock %}
+
+{% block content %}
+{% set k = data.kpis %}
+<div class="wr-wrap" id="wr-root" data-account="{{ account_id or '' }}">
+
+  <!-- Zone 0 — Header KPIs -->
+  <div class="wr-head">
+    <div>
+      <div class="wr-head-title">{{ data.week_label }}</div>
+      <div class="wr-head-sub">{{ data.week_start }} → {{ data.week_end }}</div>
+    </div>
+    <div style="display:flex; gap:6px;">
+      <a class="wr-nav-btn" href="/weekly-review?week={{ data.prev_week }}{{ ('&account=' + account_id) if account_id }}" title="Previous week">‹</a>
+      <a class="wr-nav-btn" href="/weekly-review?week={{ data.next_week }}{{ ('&account=' + account_id) if account_id }}" title="Next week">›</a>
+    </div>
+  </div>
+
+  <div class="wr-kpis">
+    <div class="wr-kpi"><div class="wr-kpi-label">Net (all)</div><div class="wr-kpi-val {{ 'pos' if k.net_all >= 0 else 'neg' }}">{{ money(k.net_all) }}</div></div>
+    <div class="wr-kpi"><div class="wr-kpi-label">Discretionary</div><div class="wr-kpi-val {{ 'pos' if k.discretionary >= 0 else 'neg' }}">{{ money(k.discretionary) }}</div></div>
+    <div class="wr-kpi"><div class="wr-kpi-label">Operational</div><div class="wr-kpi-val {{ 'neg' if k.operational < 0 else '' }}">{{ money(k.operational) }}</div></div>
+    <div class="wr-kpi"><div class="wr-kpi-label">Win Rate</div><div class="wr-kpi-val">{{ '{:.0f}'.format(k.win_rate) }}%</div><div class="wr-kpi-label" style="margin-top:2px;">{{ k.wins }}W / {{ k.losses }}L</div></div>
+    <div class="wr-kpi"><div class="wr-kpi-label">Trades</div><div class="wr-kpi-val">{{ k.trades }}</div></div>
+    <div class="wr-kpi"><div class="wr-kpi-label">Days</div><div class="wr-kpi-val">{{ k.days }}</div></div>
+  </div>
+
+  <!-- Zone 1 — The Story -->
+  <div class="wr-zone wr-story">
+    <div class="wr-zone-title">The Story</div>
+    {% if data.story %}
+      {% for s in data.story %}<p class="{{ 'lead' if loop.first }}">{{ s }}</p>{% endfor %}
+    {% else %}
+      <p class="empty">No trades this week — nothing to reconstruct.</p>
+    {% endif %}
+  </div>
+
+  <!-- Zone 4 — Behavior & Process -->
+  <div class="wr-zone">
+    <div class="wr-zone-title">Behavior &amp; Process</div>
+    {% set b = data.behavior %}
+    <div class="wr-beh-grid">
+      <div class="wr-beh-card"><div class="lbl">Came to me</div><div class="val {{ 'pos' if b.came_to_me.net >= 0 else 'neg' }}">{{ money(b.came_to_me.net) }}</div><div class="sub">{{ b.came_to_me.count }} trades</div></div>
+      <div class="wr-beh-card"><div class="lbl">Impulsive</div><div class="val {{ 'pos' if b.impulse.net >= 0 else 'neg' }}">{{ money(b.impulse.net) }}</div><div class="sub">{{ b.impulse.count }} trades</div></div>
+      <div class="wr-beh-card"><div class="lbl">Avg Exec Score</div><div class="val">{% if b.avg_exec_score is not none %}{{ b.avg_exec_score }}{% else %}—{% endif %}</div><div class="sub">{{ b.scored_count }} scored</div></div>
+      <div class="wr-beh-card"><div class="lbl">Planned vs Fear</div><div class="val"><span class="pos">{{ money(b.planned_net) }}</span> / <span class="neg">{{ money(b.fear_bail_net) }}</span></div><div class="sub">exit discipline</div></div>
+    </div>
+
+    <div class="wr-sub-title">Setup performance</div>
+    {% if b.setup_table %}
+    <table class="wr-table">
+      <thead><tr><th>Setup</th><th class="num">Trades</th><th class="num">Win %</th><th class="num">Net</th></tr></thead>
+      <tbody>
+        {% for r in b.setup_table %}
+        <tr><td>{{ r.setup }}</td><td class="num">{{ r.count }}</td><td class="num">{{ '{:.0f}'.format(r.win_rate) }}%</td><td class="num {{ 'pos' if r.net >= 0 else 'neg' }}">{{ money(r.net) }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<div class="wr-empty">No setup-tagged trades this week.</div>{% endif %}
+
+    <div class="wr-sub-title">Trade ledger</div>
+    {% if data.ledger %}
+    <table class="wr-table">
+      <thead><tr><th>Date</th><th>Dir</th><th class="num">Qty</th><th class="num">P&amp;L</th><th>Read</th><th>Setup</th></tr></thead>
+      <tbody>
+        {% for r in data.ledger %}
+        <tr class="{{ 'wr-row-op' if r.operational }}{{ 'wr-row-rev' if r.revenge and not r.operational }}">
+          <td>{{ r.date }}</td>
+          <td>{{ r.direction }}</td>
+          <td class="num">{{ r.qty }}</td>
+          <td class="num {{ 'pos' if r.pnl >= 0 else 'neg' }}">{{ money(r.pnl) }}</td>
+          <td>{{ r.read }}{% if r.operational %}<span class="wr-flag op">operational</span>{% endif %}{% if r.revenge %}<span class="wr-flag rev">revenge</span>{% endif %}</td>
+          <td>{{ r.setup }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<div class="wr-empty">No trades this week.</div>{% endif %}
+  </div>
+
+  <!-- Zone 5 — Lessons -->
+  <div class="wr-zone">
+    <div class="wr-zone-title">Lessons</div>
+
+    {% if data.theme_week or data.theme_month %}
+    <div class="wr-sub-title">Recurring themes</div>
+    <div class="wr-theme-chips" style="margin-bottom:14px;">
+      {% for t in data.theme_week %}<span class="wr-theme-chip">{{ t.theme }} <b>×{{ t.count }}</b> <span style="color:var(--muted)">wk</span></span>{% endfor %}
+      {% for t in data.theme_month %}<span class="wr-theme-chip">{{ t.theme }} <b>×{{ t.count }}</b> <span style="color:var(--muted)">mo</span></span>{% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="wr-sub-title">Observations this week</div>
+    {% if data.observations %}
+    <div class="wr-film">
+      {% for o in data.observations %}
+      <div class="wr-film-card">
+        {% if o.images %}<img src="/images/{{ o.images[0].filename }}" alt="">{% endif %}
+        <div class="meta">
+          <div class="grp">{{ o.group_list|join(', ') if o.group_list else o.category_list|join(', ') }}</div>
+          {% if o.theme %}<div class="theme">{{ o.theme }}</div>{% endif %}
+          <div class="txt">{{ o.text }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}<div class="wr-empty">No observations logged this week.</div>{% endif %}
+
+    {% if data.review_notes or data.day_reflections %}
+    <div class="wr-sub-title">Review notes &amp; reflections</div>
+    {% for o in data.review_notes %}
+    <div class="wr-note"><div class="h">Review</div><div class="b">{{ o.text }}</div></div>
+    {% endfor %}
+    {% for r in data.day_reflections %}
+    <div class="wr-note"><div class="h">{{ r.date }} · {{ r.label }}</div><div class="b">{{ r.text }}</div></div>
+    {% endfor %}
+    {% endif %}
+  </div>
+
+  <!-- Trajectory (cross-week, trailing window; only on the most-recent week) -->
+  {% set tj = data.trajectory %}
+  {% if tj.is_current %}
+  <div class="wr-zone wr-traj">
+    <div class="wr-zone-title">Trajectory<span class="wr-traj-window">trailing window · as of {{ tj.anchor_week }}</span></div>
+    {% if not tj.visible %}
+      <div class="wr-building">Building your trajectory — <b>{{ tj.qualifying_weeks }}</b> of {{ tj.needed }} qualifying weeks. Patterns appear once there's enough history to tell trend from noise.</div>
+    {% else %}
+      <div class="wr-traj-cols">
+        <div>
+          <div class="wr-sub-title">Still repeating</div>
+          {% for r in tj.repeating %}{{ traj_row(r) }}{% else %}<div class="wr-empty">Nothing repeating — clean week-over-week.</div>{% endfor %}
+        </div>
+        <div>
+          <div class="wr-sub-title">Improving / beaten</div>
+          {% for r in tj.improving %}{{ traj_row(r) }}{% else %}<div class="wr-empty">No clear improvements yet.</div>{% endfor %}
+        </div>
+      </div>
+      {% if tj.strengths %}
+      <div class="wr-sub-title wr-strengths-title">Strengths</div>
+      {% for r in tj.strengths %}{{ traj_row(r) }}{% endfor %}
+      {% endif %}
+      {% if tj.intentions %}
+      <div class="wr-sub-title">Are your rules working?</div>
+      {% for c in tj.intentions %}
+      <div class="wr-card v-{{ c.verdict }}">
+        <div class="wr-card-rule">{{ c.text }}</div>
+        <div class="wr-card-meta">
+          {%- if c.has_target %}targets <b>{{ c.label }}</b> · set week of {{ c.set_week }}{% else %}self-graded only — no detector linked{% endif -%}
+        </div>
+        <div class="wr-card-verdict">{{ c.summary }}</div>
+      </div>
+      {% endfor %}
+      {% endif %}
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Planning -->
+  <div class="wr-zone">
+    <div class="wr-zone-title">Planning — the loop</div>
+
+    <div class="wr-sub-title">Last week's intentions</div>
+    {% if data.last_week.intentions %}
+      {% for it in data.last_week.intentions %}
+      <div class="wr-intention" data-intention="{{ it.id }}">
+        <span class="txt">{{ it.text }}</span>
+        <span class="src">{{ it.source }}</span>
+        <div class="wr-grade-btns">
+          <button class="wr-grade-btn held {{ 'on' if it.result == 'held' }}"    onclick="wrGrade({{ it.id }}, 'held', this)">Held</button>
+          <button class="wr-grade-btn partial {{ 'on' if it.result == 'partial' }}" onclick="wrGrade({{ it.id }}, 'partial', this)">Partial</button>
+          <button class="wr-grade-btn broke {{ 'on' if it.result == 'broke' }}"  onclick="wrGrade({{ it.id }}, 'broke', this)">Broke</button>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}<div class="wr-empty">No intentions set last week.</div>{% endif %}
+
+    {% if data.proposed %}
+    <div class="wr-sub-title">Proposed rules for this week</div>
+    {% for p in data.proposed %}
+    <div class="wr-proposed" data-text="{{ p.text }}">
+      <span class="txt">{{ p.text }}</span>
+      <button class="wr-accept" onclick="wrAcceptProposed(this, '{{ p.text|e }}', '{{ p.detector_key }}')">Accept</button>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="wr-sub-title">This week's intentions</div>
+    <div id="wr-intentions-list">
+      {% for it in data.intentions %}
+      <div class="wr-intention"><span class="txt">{{ it.text }}</span><span class="src">{{ it.source }}</span></div>
+      {% endfor %}
+    </div>
+    <div class="wr-add-row">
+      <input id="wr-new-intention" type="text" placeholder="Add your own intention…" onkeydown="if(event.key==='Enter')wrAddIntention()">
+      <select id="wr-new-target" class="wr-target-select" title="Link this rule to a pattern so it can be auto-verified">
+        <option value="">general / none</option>
+        {% for d in data.tracked_detectors %}<option value="{{ d.id }}">{{ d.label }}</option>{% endfor %}
+      </select>
+      <button onclick="wrAddIntention()">Add</button>
+    </div>
+
+    <div class="wr-sub-title">Weekly reflection</div>
+    <textarea id="wr-reflection" class="wr-reflect" placeholder="One weekly note — what to remember, what to change…">{{ data.reflection_text }}</textarea>
+    <button class="wr-save-btn" onclick="wrSaveReflection()">Save reflection</button>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const WR = {{ data_json|safe }};
+const WR_ACCT = document.getElementById('wr-root').dataset.account || '';
+
+async function wrPost(url, method, body) {
+  const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+async function wrSaveReflection() {
+  try {
+    await wrPost('/api/weekly-review', 'POST', { review_id: WR.review_id, reflection_text: document.getElementById('wr-reflection').value });
+    if (typeof showToast === 'function') showToast('Reflection saved');
+  } catch (e) { if (typeof showToast === 'function') showToast(e.message, true); }
+}
+
+async function wrAddIntention(text, source, targets) {
+  const input = document.getElementById('wr-new-intention');
+  const sel = document.getElementById('wr-new-target');
+  const val = text || (input ? input.value.trim() : '');
+  if (!val) return;
+  const tgt = (targets !== undefined) ? targets : (sel ? sel.value : '');
+  try {
+    await wrPost('/api/weekly-intention', 'POST',
+      { review_id: WR.review_id, text: val, source: source || 'self', targets: tgt || '' });
+    const row = document.createElement('div');
+    row.className = 'wr-intention';
+    row.innerHTML = `<span class="txt"></span><span class="src">${source || 'self'}</span>`;
+    row.querySelector('.txt').textContent = val;
+    document.getElementById('wr-intentions-list').appendChild(row);
+    if (input && !text) input.value = '';
+    if (sel && targets === undefined) sel.value = '';
+    if (typeof showToast === 'function') showToast('Intention added');
+  } catch (e) { if (typeof showToast === 'function') showToast(e.message, true); }
+}
+
+function wrAcceptProposed(btn, text, targets) {
+  wrAddIntention(text, 'proposed', targets || '');
+  const row = btn.closest('.wr-proposed');
+  if (row) row.style.display = 'none';
+}
+
+async function wrGrade(id, result, btn) {
+  try {
+    await wrPost('/api/weekly-intention/' + id, 'PATCH', { result });
+    btn.parentElement.querySelectorAll('.wr-grade-btn').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+  } catch (e) { if (typeof showToast === 'function') showToast(e.message, true); }
+}
+
+// Tiny theme-adaptive sparklines: bars of |magnitude| across the trend window,
+// colored by direction (leak loss = red, gain = green), fired weeks at full opacity.
+function wrRenderSparklines() {
+  const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || '#888';
+  const red = cssVar('--red'), green = cssVar('--green'), muted = cssVar('--muted');
+  document.querySelectorAll('.wr-spark').forEach(el => {
+    const mags = (el.dataset.spark || '').split(',').filter(s => s !== '').map(Number);
+    const fired = (el.dataset.fired || '').split(',').map(s => s === '1' || s === 'True');
+    if (!mags.length) return;
+    const W = 96, H = 26, n = mags.length, gap = 2;
+    const bw = Math.max(2, (W - gap * (n - 1)) / n);
+    const maxAbs = Math.max(1, ...mags.map(Math.abs));
+    let svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+    const mid = H - 1;
+    mags.forEach((m, i) => {
+      const h = Math.max(1, Math.abs(m) / maxAbs * (H - 2));
+      const x = i * (bw + gap);
+      const color = m >= 0 ? green : red;
+      const op = fired[i] ? 1 : 0.28;
+      svg += `<rect x="${x.toFixed(1)}" y="${(mid - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="1" fill="${color}" opacity="${op}"></rect>`;
+    });
+    svg += `</svg>`;
+    el.innerHTML = svg;
+  });
+}
+document.addEventListener('DOMContentLoaded', wrRenderSparklines);
+</script>
+{% endblock %}

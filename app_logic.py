@@ -6,6 +6,7 @@ No HTTP, no SQL — only pure domain logic.
 
 import csv
 import io
+import json
 from datetime import datetime
 
 try:
@@ -1127,3 +1128,886 @@ def close_live_trade_to_journal(live_trade_id):
     generate_shadow_trades(trade_id)
 
     return trade_id
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  WEEKLY REVIEW (V1) — config + deterministic story engine
+#  Pure Python, local-first, no model/network. Same input → same output.
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Tunable config (defaults calibrated to the real data). Tag lists are editable in
+# Settings via app_config; the numeric knobs live here so they can be tuned in code.
+DEFAULT_IMPULSE_TAGS = ["Eager to trade", "Revenge Mindset", "Quick Profit Attitude"]
+DEFAULT_OPERATIONAL_TAGS = ["Operational Error"]
+OUTLIER_LOSS_MULT = 5      # single-trade loss vs trailing avg loss
+MATERIAL_USD = 200         # buckets/insights below this absolute impact don't fire
+STORY_MAX_SENTENCES = 4
+WEEKLY_REVIEW_OBS_GROUP = "Review"   # extra allowed obs_group for collated review notes
+
+# ── Trajectory tracking config + detector registry ───────────────────────────
+# Qualifying-week floor: a week counts toward fired/not-fired only if it had ≥ this
+# many trades. Configurable via app_config.
+DEFAULT_QUALIFYING_FLOOR = 5
+RECURRENCE_WINDOW_WEEKS = 4   # rolling (qualifying weeks)
+TREND_WINDOW_WEEKS = 8        # rolling (qualifying weeks)
+CHRONIC_PCT = 0.60           # fired in ≥60% of qualifying weeks across trend window
+RESOLVED_SILENCE_WEEKS = 3   # qualifying weeks silent → a former leak counts as resolved
+MIN_QUALIFYING_FOR_TREND = 4 # below this, classification is suppressed ("building")
+IMPROVING_MIN_FIRINGS = 3    # need ≥ this many firings to call a magnitude trend
+
+
+def _cfg_int(key, default, minimum=1):
+    raw = db.get_config(key, "")
+    try:
+        v = int(raw)
+        if v >= minimum:
+            return v
+    except (ValueError, TypeError):
+        pass
+    return default
+
+
+def get_qualifying_floor():
+    return _cfg_int("wr_qualifying_floor", DEFAULT_QUALIFYING_FLOOR)
+
+
+def get_recurrence_window():
+    return _cfg_int("wr_recurrence_window", RECURRENCE_WINDOW_WEEKS, minimum=2)
+
+
+def get_trend_window():
+    return _cfg_int("wr_trend_window", TREND_WINDOW_WEEKS, minimum=4)
+
+
+def get_chronic_pct():
+    raw = db.get_config("wr_chronic_pct", "")
+    try:
+        v = float(raw)
+        if 0 < v <= 1:
+            return v
+    except (ValueError, TypeError):
+        pass
+    return CHRONIC_PCT
+
+
+# Single source of truth: detector id → {label, polarity, tracked}. The trajectory
+# zone iterates this; adding/removing a tracked pattern is a one-line edit here.
+# net_result and concentration are weekly-only (not tracked).
+DETECTOR_REGISTRY = {
+    "net_result":        {"label": "Net result",            "polarity": "neutral",  "tracked": False},
+    "operational_error": {"label": "Operational error",     "polarity": "leak",     "tracked": True},
+    "impulsive_bucket":  {"label": "Impulsive trades",      "polarity": "leak",     "tracked": True},
+    "revenge_chain":     {"label": "Revenge after loss",    "polarity": "leak",     "tracked": True},
+    "oversized_loss":    {"label": "Oversized loss",        "polarity": "leak",     "tracked": True},
+    "weak_exits":        {"label": "Weak exits",            "polarity": "leak",     "tracked": True},
+    "expectancy_gap":    {"label": "Expectancy gap",        "polarity": "leak",     "tracked": True},
+    "no_setup_leak":     {"label": "No-setup leak",         "polarity": "leak",     "tracked": True},
+    "concentration":     {"label": "Concentration",         "polarity": "neutral",  "tracked": False},
+    "came_to_me":        {"label": "Came to me",            "polarity": "strength", "tracked": True},
+}
+
+
+def tracked_detectors():
+    """Detector ids that are tracked for trajectory, in registry order."""
+    return [did for did, m in DETECTOR_REGISTRY.items() if m["tracked"]]
+
+
+def get_impulse_tags():
+    raw = db.get_config("wr_impulse_tags", "")
+    if raw:
+        try:
+            val = json.loads(raw)
+            if isinstance(val, list) and val:
+                return val
+        except (ValueError, TypeError):
+            pass
+    return list(DEFAULT_IMPULSE_TAGS)
+
+
+def get_operational_tags():
+    raw = db.get_config("wr_operational_tags", "")
+    if raw:
+        try:
+            val = json.loads(raw)
+            if isinstance(val, list) and val:
+                return val
+        except (ValueError, TypeError):
+            pass
+    return list(DEFAULT_OPERATIONAL_TAGS)
+
+
+def _all_tags(trade):
+    """Flatten a trade's {group_id: [tags]} into a flat set of tag strings."""
+    out = set()
+    for tags in (trade.get("tags") or {}).values():
+        for t in tags:
+            out.add(t)
+    return out
+
+
+def _money(v):
+    """Signed dollar string, e.g. +$1,954 / -$8,000 (whole dollars)."""
+    v = v or 0
+    sign = "+" if v >= 0 else "-"
+    return f"{sign}${abs(round(v)):,}"
+
+
+def _money_abs(v):
+    return f"${abs(round(v or 0)):,}"
+
+
+def compute_weekly_summary(trades):
+    """Reduce a week's trades into the buckets the story engine + zones consume.
+    Operational-tagged trades are split out of all 'discretionary' stats."""
+    impulse_tags = set(get_impulse_tags())
+    operational_tags = set(get_operational_tags())
+
+    for t in trades:
+        t["_tagset"] = _all_tags(t)
+        t["_operational"] = bool(t["_tagset"] & operational_tags)
+        t["_impulse"] = bool(t["_tagset"] & impulse_tags)
+
+    disc = [t for t in trades if not t["_operational"]]
+    oper = [t for t in trades if t["_operational"]]
+
+    def _net(ts):
+        return round(sum(t["pnl"] for t in ts), 2)
+
+    net_all = _net(trades)
+    operational_pnl = _net(oper)
+    discretionary_pnl = round(net_all - operational_pnl, 2)
+
+    wins = [t for t in trades if t["pnl"] > 0]
+    losses = [t for t in trades if t["pnl"] < 0]
+    decided = len(wins) + len(losses)
+    win_rate = round(100.0 * len(wins) / decided, 1) if decided else 0.0
+
+    disc_losses = [t for t in disc if t["pnl"] < 0]
+    avg_loss = round(sum(abs(t["pnl"]) for t in disc_losses) / len(disc_losses), 2) if disc_losses else 0.0
+    disc_wins = [t for t in disc if t["pnl"] > 0]
+    avg_win = round(sum(t["pnl"] for t in disc_wins) / len(disc_wins), 2) if disc_wins else 0.0
+
+    days = sorted({t["date"] for t in trades})
+
+    impulse = [t for t in disc if t["_impulse"]]
+    came_to_me = [t for t in disc if "Trade came to me" in t["_tagset"]]
+    no_setup = [t for t in disc if "No Setup" in (t.get("tags") or {}).get("setup", [])]
+
+    # Exit discipline buckets (exit-group tags)
+    planned = [t for t in disc if any("Planned" in x for x in (t.get("tags") or {}).get("exit", []))]
+    fear_bail = [t for t in disc if any(("Fear" in x or "Bailed" in x) for x in (t.get("tags") or {}).get("exit", []))]
+
+    # Execution scores (present on a subset)
+    scored = [t for t in trades if t.get("exec_score") is not None]
+    avg_exec_score = round(sum(t["exec_score"] for t in scored) / len(scored), 1) if scored else None
+
+    # Revenge-after-loss chain: an impulse/revenge trade immediately after a same-day loss
+    # bigger than the trailing avg loss.
+    revenge_chain = None
+    by_day = {}
+    for t in trades:
+        by_day.setdefault(t["date"], []).append(t)
+    threshold = avg_loss if avg_loss > 0 else 0
+    for day, ts in by_day.items():
+        ts_sorted = sorted(ts, key=lambda x: x.get("trade_num", 0))
+        for i in range(1, len(ts_sorted)):
+            cur, prev = ts_sorted[i], ts_sorted[i - 1]
+            is_revenge = bool(cur["_tagset"] & {"Revenge Mindset", "Eager to trade"})
+            if is_revenge and prev["pnl"] < 0 and abs(prev["pnl"]) > threshold:
+                if revenge_chain is None or abs(prev["pnl"]) > revenge_chain["prior_loss"]:
+                    revenge_chain = {"prior_loss": abs(prev["pnl"]), "date": day,
+                                     "trade_id": cur["id"], "prior_trade_id": prev["id"]}
+
+    # Outlier loss: a single non-operational loss > OUTLIER_LOSS_MULT × trailing avg loss
+    outlier = None
+    if avg_loss > 0:
+        for t in disc_losses:
+            if abs(t["pnl"]) > OUTLIER_LOSS_MULT * avg_loss:
+                if outlier is None or abs(t["pnl"]) > abs(outlier["pnl"]):
+                    outlier = t
+
+    # Sign-flip concentration on discretionary trades
+    concentration = None
+    if disc:
+        biggest = max(disc, key=lambda t: abs(t["pnl"]))
+        without = round(discretionary_pnl - biggest["pnl"], 2)
+        if discretionary_pnl != 0 and (without >= 0) != (discretionary_pnl >= 0):
+            concentration = {"without": without, "biggest_pnl": biggest["pnl"],
+                         "swing": abs(biggest["pnl"])}
+
+    return {
+        "trades": trades,
+        "discretionary": disc,
+        "operational": oper,
+        "net_all": net_all,
+        "operational_pnl": operational_pnl,
+        "discretionary_pnl": discretionary_pnl,
+        "wins": len(wins), "losses": len(losses), "win_rate": win_rate,
+        "trade_count": len(trades), "day_count": len(days), "days": days,
+        "avg_loss": avg_loss, "avg_win": avg_win,
+        "impulse": impulse, "impulse_net": _net(impulse),
+        "came_to_me": came_to_me, "came_to_me_net": _net(came_to_me),
+        "no_setup": no_setup, "no_setup_net": _net(no_setup),
+        "planned": planned, "planned_net": _net(planned),
+        "fear_bail": fear_bail, "fear_bail_net": _net(fear_bail),
+        "avg_exec_score": avg_exec_score, "scored_count": len(scored),
+        "revenge_chain": revenge_chain, "outlier": outlier, "concentration": concentration,
+    }
+
+
+# ── Detectors: each returns dict {key, fired, salience, sentence} or None ──────
+
+def _det_net_result(s):
+    wl = f"{s['wins']}W/{s['losses']}L"
+    sentence = (f"You netted {_money(s['net_all'])} over {s['trade_count']} "
+                f"trade{'s' if s['trade_count'] != 1 else ''} and {s['day_count']} "
+                f"day{'s' if s['day_count'] != 1 else ''} — a {wl} week "
+                f"({s['win_rate']:.0f}% win rate).")
+    return {"key": "net_result", "fired": True, "salience": float("inf"), "sentence": sentence}
+
+
+def _det_operational_error(s):
+    if not s["operational"]:
+        return None
+    sentence = (f"{_money_abs(s['operational_pnl'])} of that was an operational error, "
+                f"not a trading decision — your discretionary trading was "
+                f"{_money(s['discretionary_pnl'])}.")
+    return {"key": "operational_error", "fired": True, "salience": abs(s["operational_pnl"]),
+            "sentence": sentence, "pinned": 2}
+
+
+def _det_impulsive_bucket(s):
+    imp = s["impulse"]
+    if not imp:
+        return None
+    net = s["impulse_net"]
+    if not (net < 0 or abs(net) >= MATERIAL_USD):
+        return None
+    base = (f"{len(imp)} impulsive trade{'s' if len(imp) != 1 else ''} netted {_money(net)}")
+    if net < 0:
+        without = round(s["discretionary_pnl"] - net, 2)
+        base += f"; without them your discretionary week was {_money(without)}."
+    else:
+        base += "."
+    return {"key": "impulsive_bucket", "fired": True, "salience": abs(net), "sentence": base}
+
+
+def _det_revenge_chain(s):
+    rc = s["revenge_chain"]
+    if not rc:
+        return None
+    sentence = (f"After the {_money_abs(rc['prior_loss'])} loss you took a revenge trade "
+                f"right after — the classic tilt pattern.")
+    return {"key": "revenge_chain", "fired": True, "salience": rc["prior_loss"], "sentence": sentence}
+
+
+def _det_oversized_loss(s):
+    o = s["outlier"]
+    if not o:
+        return None
+    sentence = (f"A single trade lost {_money_abs(o['pnl'])} — more than "
+                f"{OUTLIER_LOSS_MULT}× your average loss, the kind of outlier that defines a week.")
+    return {"key": "oversized_loss", "fired": True, "salience": abs(o["pnl"]), "sentence": sentence}
+
+
+def _det_concentration(s):
+    sf = s["concentration"]
+    if not sf or sf["swing"] < MATERIAL_USD:
+        return None
+    sentence = (f"Without your single biggest trade, the discretionary week was "
+                f"{_money(sf['without'])} — one position carried the result.")
+    return {"key": "concentration", "fired": True, "salience": sf["swing"], "sentence": sentence}
+
+
+def _det_expectancy_gap(s):
+    # Win rate is "lying": ≥50% wins but discretionary net negative.
+    if s["win_rate"] < 50 or s["discretionary_pnl"] >= 0:
+        return None
+    if abs(s["discretionary_pnl"]) < MATERIAL_USD:
+        return None
+    mult = round(s["avg_loss"] / s["avg_win"], 1) if s["avg_win"] else 0
+    tail = f" — avg loss {_money_abs(s['avg_loss'])} is {mult}× avg win {_money_abs(s['avg_win'])}" if mult else ""
+    sentence = (f"You won {s['win_rate']:.0f}% of trades but still lost money{tail}.")
+    return {"key": "expectancy_gap", "fired": True, "salience": abs(s["discretionary_pnl"]), "sentence": sentence}
+
+
+def _det_weak_exits(s):
+    if not s["fear_bail"] or s["fear_bail_net"] >= 0 or abs(s["fear_bail_net"]) < MATERIAL_USD:
+        return None
+    sentence = (f"Fear/bail-out exits cost {_money(s['fear_bail_net'])} while planned exits ran "
+                f"{_money(s['planned_net'])} — the exits were emotional.")
+    return {"key": "weak_exits", "fired": True, "salience": abs(s["fear_bail_net"]), "sentence": sentence}
+
+
+def _det_no_setup_leak(s):
+    if not s["no_setup"] or s["no_setup_net"] >= 0 or abs(s["no_setup_net"]) < MATERIAL_USD:
+        return None
+    sentence = (f"Trades with no named setup leaked {_money(s['no_setup_net'])} — "
+                f"the no-setup trades are a recurring drain.")
+    return {"key": "no_setup_leak", "fired": True, "salience": abs(s["no_setup_net"]), "sentence": sentence}
+
+
+def _det_came_to_me(s):
+    if not s["came_to_me"] or s["discretionary_pnl"] <= 0 or s["came_to_me_net"] < MATERIAL_USD:
+        return None
+    sentence = (f"Your 'came to me' trades netted {_money(s['came_to_me_net'])} — "
+                f"the patient, setup-driven entries paid.")
+    return {"key": "came_to_me", "fired": True, "salience": abs(s["came_to_me_net"]), "sentence": sentence}
+
+
+_STORY_DETECTORS = [
+    _det_net_result, _det_operational_error, _det_impulsive_bucket, _det_revenge_chain,
+    _det_oversized_loss, _det_concentration, _det_expectancy_gap, _det_weak_exits,
+    _det_no_setup_leak, _det_came_to_me,
+]
+
+
+def generate_story(summary):
+    """Run all detectors, lead with net, pin operational to slot 2, then sort the
+    rest by salience (absolute dollar impact). Returns (sentences, fired_keys)."""
+    fired = [d(summary) for d in _STORY_DETECTORS]
+    fired = [f for f in fired if f]
+
+    lead = next((f for f in fired if f["key"] == "net_result"), None)
+    pinned = next((f for f in fired if f.get("pinned") == 2), None)
+    rest = [f for f in fired if f is not lead and f is not pinned]
+    rest.sort(key=lambda f: f["salience"], reverse=True)
+
+    ordered = []
+    if lead:
+        ordered.append(lead)
+    if pinned:
+        ordered.append(pinned)
+    ordered.extend(rest)
+    ordered = ordered[:STORY_MAX_SENTENCES]
+
+    return [f["sentence"] for f in ordered], [f["key"] for f in fired]
+
+
+# ── Proposed intentions: fired detectors → candidate rules ────────────────────
+
+_INTENTION_MAP = {
+    "operational_error": "Confirm contract = MES before every entry.",
+    "revenge_chain": "No new trade for 10 min after a hard loss.",
+    "no_setup_leak": "No trade without a named setup.",
+    "impulsive_bucket": "Name the trigger out loud before any impulsive entry.",
+    "oversized_loss": "Predefine the max loss; cap single-trade risk.",
+    "weak_exits": "Exit on the plan, not on fear — set the exit before entry.",
+    "expectancy_gap": "Cut losers faster — your average loss dwarfs your average win.",
+}
+
+
+def propose_intentions(fired_keys):
+    """Map fired detector keys → candidate rules (deduped, deterministic order).
+    Each proposed rule is stamped with its target detector id (the proposing
+    detector *is* the target) so linkage is free."""
+    out, seen = [], set()
+    for key in fired_keys:
+        rule = _INTENTION_MAP.get(key)
+        if rule and rule not in seen:
+            seen.add(rule)
+            out.append({"text": rule, "source": "proposed", "detector_key": key, "targets": key})
+    return out
+
+
+# ── Weekly logging hook: persist each tracked detector to insight_log ─────────
+# Signed magnitude + count per tracked detector, read from the canonical summary
+# buckets (never re-deriving the fired condition — that comes from the detectors).
+
+def _signal_for(detector_id, summary):
+    """Return (signed_magnitude, count) for one tracked detector from the summary."""
+    s = summary
+    if detector_id == "operational_error":
+        return s["operational_pnl"], len(s["operational"])
+    if detector_id == "impulsive_bucket":
+        return s["impulse_net"], len(s["impulse"])
+    if detector_id == "revenge_chain":
+        rc = s.get("revenge_chain")
+        return (-rc["prior_loss"], 1) if rc else (0.0, 0)
+    if detector_id == "oversized_loss":
+        o = s.get("outlier")
+        return (o["pnl"], 1) if o else (0.0, 0)
+    if detector_id == "weak_exits":
+        return s["fear_bail_net"], len(s["fear_bail"])
+    if detector_id == "expectancy_gap":
+        return s["discretionary_pnl"], s["losses"]
+    if detector_id == "no_setup_leak":
+        return s["no_setup_net"], len(s["no_setup"])
+    if detector_id == "came_to_me":
+        return s["came_to_me_net"], len(s["came_to_me"])
+    return 0.0, 0
+
+
+def persist_insight_log(account_id, week_start, summary, fired_keys):
+    """Idempotent: write one insight_log row per tracked detector for this week.
+    `fired` is reused from the detectors' own output (fired_keys); magnitude/count
+    come from the summary. qualifying = week met the trade floor. A zero-trade week
+    is not logged (no signal)."""
+    if summary["trade_count"] < 1:
+        return 0
+    qualifying = 1 if summary["trade_count"] >= get_qualifying_floor() else 0
+    fired_set = set(fired_keys)
+    n = 0
+    for detector_id in tracked_detectors():
+        magnitude, count = _signal_for(detector_id, summary)
+        db.upsert_insight_log(
+            account_id, week_start, detector_id,
+            1 if detector_id in fired_set else 0,
+            magnitude, count, qualifying,
+        )
+        n += 1
+    return n
+
+
+def log_week_insights(account_id, week_start):
+    """Compute a week's summary + story and persist its tracked-detector results.
+    Standalone entry point for backfill; build_weekly_review_data also calls
+    persist_insight_log inline so navigating a week keeps the log truthful."""
+    mon, _sun = week_bounds(week_start)
+    trades = db.get_trades_in_range(account_id, *week_bounds(week_start))
+    summary = compute_weekly_summary(trades)
+    _story, fired = generate_story(summary)
+    return persist_insight_log(account_id, mon, summary, fired)
+
+
+# ── State classification (§4) — pure functions over insight_log ──────────────
+# Windows are over QUALIFYING weeks only (≥ floor trades). Light/no-trade weeks are
+# skipped, never counted as "didn't fire". Rolling, not calendar.
+
+def _qualifying_series(account_id, detector_id, as_of_week):
+    """Qualifying insight_log rows for one detector up to as_of_week, oldest-first."""
+    rows = db.get_insight_history(account_id, detector_id, "2000-01-01")
+    return [r for r in rows if r["week_start"] <= as_of_week and r["qualifying"]]
+
+
+def _slope(values):
+    """Least-squares slope sign helper over an evenly-spaced series."""
+    n = len(values)
+    if n < 2:
+        return 0.0
+    xs = list(range(n))
+    mx = sum(xs) / n
+    my = sum(values) / n
+    num = sum((x - mx) * (y - my) for x, y in zip(xs, values))
+    den = sum((x - mx) ** 2 for x in xs)
+    return (num / den) if den else 0.0
+
+
+def _is_improving(firing_mags, polarity):
+    """Magnitude trending the 'good' way across the last few firings.
+    Leak → |magnitude| falling; strength → magnitude rising. Uses the last
+    IMPROVING_MIN_FIRINGS firings; needs at least that many (avoids w-o-w noise)."""
+    if len(firing_mags) < IMPROVING_MIN_FIRINGS:
+        return False
+    recent = firing_mags[-IMPROVING_MIN_FIRINGS:]
+    if polarity == "strength":
+        return _slope(recent) > 0
+    return _slope([abs(m) for m in recent]) < 0
+
+
+def classify_detector_state(account_id, detector_id, as_of_week):
+    """Classify one detector as of a week. Returns a dict with state (or None when
+    history is too thin / the pattern is dormant) plus the data the UI needs."""
+    meta = DETECTOR_REGISTRY.get(detector_id, {"label": detector_id, "polarity": "leak"})
+    series = _qualifying_series(account_id, detector_id, as_of_week)
+    n_qual = len(series)
+
+    trend = series[-get_trend_window():]
+    recur = series[-get_recurrence_window():]
+    fired_flags = [r["fired"] for r in trend]
+    fired_now = bool(trend and trend[-1]["fired"])
+    fired_trend = sum(fired_flags)
+    fired_recur = sum(r["fired"] for r in recur)
+    firing_mags = [r["magnitude"] for r in trend if r["fired"]]
+    last3 = trend[-RESOLVED_SILENCE_WEEKS:]
+    latest_firing = next((r["magnitude"] for r in reversed(series) if r["fired"]), None)
+
+    out = {
+        "detector_id": detector_id,
+        "label": meta["label"],
+        "polarity": meta["polarity"],
+        "qualifying_weeks": n_qual,
+        "weeks_fired": fired_trend,
+        "fired_now": fired_now,
+        "latest_magnitude": latest_firing,
+        "series": [{"week_start": r["week_start"], "magnitude": r["magnitude"],
+                    "fired": r["fired"], "count": r["count"]} for r in trend],
+        "enough_history": n_qual >= MIN_QUALIFYING_FOR_TREND,
+        "state": None,
+    }
+    if n_qual < MIN_QUALIFYING_FOR_TREND:
+        return out  # building — don't label noise as trend
+
+    chronic = (fired_trend / len(trend)) >= get_chronic_pct()
+    # was active earlier then silent for the last N qualifying weeks
+    resolved = (len(trend) >= MIN_QUALIFYING_FOR_TREND
+                and len(last3) == RESOLVED_SILENCE_WEEKS
+                and not any(r["fired"] for r in last3)
+                and fired_trend >= 2)
+    improving = fired_now and _is_improving(firing_mags, meta["polarity"])
+    recurring = fired_now and fired_recur >= 2
+    new = fired_now and fired_recur == 1
+
+    # Precedence: Resolved > Improving > Chronic > Recurring > New
+    if resolved:
+        out["state"] = "Resolved"
+    elif improving:
+        out["state"] = "Improving"
+    elif chronic:
+        out["state"] = "Chronic"
+    elif recurring:
+        out["state"] = "Recurring"
+    elif new:
+        out["state"] = "New"
+    return out
+
+
+def classify_all(account_id, as_of_week):
+    """Classify every tracked detector as of a week. Returns {detector_id: result}."""
+    return {did: classify_detector_state(account_id, did, as_of_week)
+            for did in tracked_detectors()}
+
+
+# ── Intention linkage (§5) — is the rule working? ────────────────────────────
+
+def intention_linkage(account_id, targets, since_week, as_of_week):
+    """Summarize the targeted detector's trajectory since an intention was set.
+    `targets` is a detector id, or ''/'general' for manual-grade-only intentions.
+    Evaluates qualifying weeks strictly AFTER since_week (the week the rule was set)."""
+    if not targets or targets in ("general",) or targets not in DETECTOR_REGISTRY:
+        return {"targets": targets or "", "has_target": False, "verdict": "no_target",
+                "summary": "Self-graded only — no detector linked, so there's no automatic verdict.",
+                "post_weeks": 0, "fired_after": 0}
+
+    polarity = DETECTOR_REGISTRY[targets]["polarity"]
+    series = _qualifying_series(account_id, targets, as_of_week)
+    post = [r for r in series if r["week_start"] > since_week]
+    fired_post = [r for r in post if r["fired"]]
+    label = DETECTOR_REGISTRY[targets]["label"]
+
+    base = {"targets": targets, "has_target": True, "label": label, "polarity": polarity,
+            "post_weeks": len(post), "fired_after": len(fired_post),
+            "series": [{"week_start": r["week_start"], "magnitude": r["magnitude"],
+                        "fired": r["fired"]} for r in post]}
+
+    if len(post) == 0:
+        base["verdict"] = "too_soon"
+        base["summary"] = "Set recently — not enough qualifying weeks yet to verify."
+        return base
+
+    if polarity == "strength":
+        # working = the good behavior keeps showing up (and ideally growing)
+        if fired_post:
+            mags = [r["magnitude"] for r in fired_post]
+            growing = _slope(mags) > 0 if len(mags) >= 2 else True
+            base["verdict"] = "working" if growing else "mixed"
+            base["summary"] = (f"'{label}' showed up in {len(fired_post)} of {len(post)} weeks since"
+                               + (" and is growing." if growing else ", but isn't growing."))
+        else:
+            base["verdict"] = "not_working"
+            base["summary"] = f"'{label}' hasn't shown up in the {len(post)} weeks since — the habit has slipped."
+        return base
+
+    # leak polarity
+    if not fired_post:
+        base["verdict"] = "working"
+        base["summary"] = f"'{label}' hasn't recurred in the {len(post)} qualifying weeks since you set this. ✓"
+    else:
+        mags = [abs(r["magnitude"]) for r in fired_post]
+        shrinking = _slope(mags) < 0 if len(mags) >= 2 else False
+        if shrinking:
+            base["verdict"] = "mixed"
+            base["summary"] = (f"'{label}' still fired {len(fired_post)}× since, but the damage is shrinking.")
+        else:
+            base["verdict"] = "not_working"
+            base["summary"] = (f"'{label}' fired {len(fired_post)} of {len(post)} weeks since — still leaking.")
+    return base
+
+
+# ── Trajectory zone builder (§6) ─────────────────────────────────────────────
+
+def latest_trading_week(account_id):
+    """Monday of the account's most recent trading day, or None."""
+    d = db.get_latest_trade_date(account_id)
+    if not d:
+        return None
+    return week_bounds(d)[0]
+
+
+def _account_trading_mondays(account_id, up_to_week):
+    """Distinct Mondays (ISO) the account traded on, ≤ up_to_week, oldest-first."""
+    trades = db.get_trades_in_range(account_id, "2000-01-01", up_to_week)
+    mondays = {week_bounds(t["date"])[0] for t in trades}
+    return sorted(m for m in mondays if m <= up_to_week)
+
+
+def backfill_insight_log(account_id, up_to_week=None, max_weeks=None):
+    """Explicit, idempotent one-time backfill: log the account's trading weeks up to
+    up_to_week (default = its latest trading week), so the trajectory has history from
+    existing data. `max_weeks=None` backfills the full history; pass an int to limit to
+    the most recent N weeks. Recompute is deterministic, so this derives history rather
+    than inventing it. Re-running overwrites the same rows (UNIQUE upsert)."""
+    if up_to_week is None:
+        up_to_week = latest_trading_week(account_id)
+        if up_to_week is None:
+            return 0
+    mondays = _account_trading_mondays(account_id, up_to_week)
+    if max_weeks:
+        mondays = mondays[-max_weeks:]
+    for mon in mondays:
+        log_week_insights(account_id, mon)
+    return len(mondays)
+
+
+# Display badge colors per LEAK state (CSS class suffixes).
+STATE_BADGE = {
+    "New": "cyan", "Recurring": "amber", "Chronic": "red",
+    "Improving": "mint", "Resolved": "green",
+}
+
+# Strength patterns live in their own section and use their own display vocabulary
+# (Building / Holding / Slipping) — never the leak words. This is display-only; the
+# underlying computed state and the stored detector_id are unchanged.
+STRENGTH_STATE = {
+    "Improving": ("Building", "mint",  "strength building"),
+    "New":       ("Building", "cyan",  "strength building"),
+    "Chronic":   ("Holding",  "green", "holding steady"),
+    "Recurring": ("Holding",  "green", "holding steady"),
+    "Resolved":  ("Slipping", "amber", "good habit slipping"),
+}
+
+
+def _traj_row(result):
+    """Shape one classification result into a trajectory display row. Leaks fall into
+    the repeating / improving buckets; strengths get their own bucket with a Building /
+    Holding / Slipping label so a declining strength reads as slipping, not 'repeating'."""
+    state = result["state"]
+    if state is None:
+        return None
+    pol = result["polarity"]
+    mags = [p["magnitude"] for p in result["series"]]
+    wf = result["weeks_fired"]
+    # Frequency = qualifying weeks the pattern fired WITHIN the trailing window. The
+    # denominator is the window size (= number of qualifying weeks of history seen,
+    # capped at the trend window). Worded "X of N wks" so it can't read as weeks-ago.
+    window = len(result["series"]) or 1
+    freq = f"fired {wf} of {window} wks"
+    if pol == "strength":
+        disp = STRENGTH_STATE.get(state)
+        if not disp:
+            return None
+        disp_state, badge, word = disp
+        bucket, subtext = "strengths", f"{word} · {freq}"
+    else:
+        # Leak: Chronic/Recurring = repeating; Improving/Resolved = improving/beaten;
+        # New leaks stay queryable but out of the two visible buckets (per brief).
+        if state in ("Chronic", "Recurring"):
+            bucket = "repeating"
+        elif state in ("Improving", "Resolved"):
+            bucket = "improving"
+        else:
+            return None
+        disp_state, badge, subtext = state, STATE_BADGE[state], freq
+    return {
+        "detector_id": result["detector_id"], "label": result["label"],
+        "polarity": pol, "state": state, "display_state": disp_state, "badge": badge,
+        "subtext": subtext, "slipping": (pol == "strength" and state == "Resolved"),
+        "weeks_fired": wf, "latest_magnitude": result["latest_magnitude"],
+        "sparkline": mags, "series": result["series"], "bucket": bucket,
+    }
+
+
+def build_trajectory(account_id, anchor_week):
+    """Assemble the trajectory zone anchored at anchor_week (most recent week).
+    Two visible buckets capped at 2 each; plus intention-linkage cards."""
+    classified = classify_all(account_id, anchor_week)
+
+    # Gating: count qualifying weeks of history (max across detectors == weeks seen).
+    qual_weeks = max((c["qualifying_weeks"] for c in classified.values()), default=0)
+    needed = MIN_QUALIFYING_FOR_TREND
+    if qual_weeks < needed:
+        return {"visible": False, "qualifying_weeks": qual_weeks, "needed": needed,
+                "anchor_week": anchor_week, "repeating": [], "improving": [],
+                "strengths": [], "intentions": []}
+
+    rows = [r for r in (_traj_row(c) for c in classified.values()) if r]
+    repeating = sorted([r for r in rows if r["bucket"] == "repeating"],
+                       key=lambda r: abs(r["latest_magnitude"] or 0), reverse=True)[:2]
+    # Improving/beaten: Resolved (fully beaten) first, then by magnitude of what was tamed.
+    improving = sorted([r for r in rows if r["bucket"] == "improving"],
+                       key=lambda r: (r["state"] == "Resolved", abs(r["latest_magnitude"] or 0)),
+                       reverse=True)[:2]
+    # Strengths get their own section: slipping (caution) first, then by magnitude.
+    strengths = sorted([r for r in rows if r["bucket"] == "strengths"],
+                       key=lambda r: (r["slipping"], abs(r["latest_magnitude"] or 0)),
+                       reverse=True)[:2]
+
+    # Intention → pattern cards: intentions set in the trend window that target a
+    # tracked detector, evaluated as of the anchor week.
+    from datetime import date as _date, timedelta
+    y, m, d = (int(x) for x in anchor_week.split("-"))
+    since = (_date(y, m, d) - timedelta(weeks=get_trend_window())).isoformat()
+    cards = []
+    for it in db.get_intentions_in_range(account_id, since, anchor_week):
+        link = intention_linkage(account_id, it.get("targets") or "", it["review_week"], anchor_week)
+        cards.append({"id": it["id"], "text": it["text"], "source": it["source"],
+                      "result": it["result"], "set_week": it["review_week"], **link})
+
+    return {"visible": True, "qualifying_weeks": qual_weeks, "needed": needed,
+            "anchor_week": anchor_week, "repeating": repeating, "improving": improving,
+            "strengths": strengths, "intentions": cards}
+
+
+# ── Weekly review data assembler (called by the route; thin SQL via db) ───────
+
+def week_bounds(week_start):
+    """Given a Monday ISO date string, return (monday, sunday) ISO strings."""
+    from datetime import date as _date, timedelta
+    y, m, d = (int(x) for x in week_start.split("-"))
+    mon = _date(y, m, d)
+    mon = mon - timedelta(days=mon.weekday())   # snap to Monday defensively
+    sun = mon + timedelta(days=6)
+    return mon.isoformat(), sun.isoformat()
+
+
+def current_week_monday():
+    from datetime import date as _date, timedelta
+    today = _date.today()
+    return (today - timedelta(days=today.weekday())).isoformat()
+
+
+def _shift_week(week_start, weeks):
+    from datetime import date as _date, timedelta
+    y, m, d = (int(x) for x in week_start.split("-"))
+    return (_date(y, m, d) + timedelta(weeks=weeks)).isoformat()
+
+
+def _setup_table(disc_trades):
+    by = {}
+    for t in disc_trades:
+        for setup in (t.get("tags") or {}).get("setup", []) or ["(none)"]:
+            b = by.setdefault(setup, {"setup": setup, "count": 0, "net": 0.0, "wins": 0})
+            b["count"] += 1
+            b["net"] = round(b["net"] + t["pnl"], 2)
+            if t["pnl"] > 0:
+                b["wins"] += 1
+    rows = list(by.values())
+    for b in rows:
+        b["win_rate"] = round(100.0 * b["wins"] / b["count"], 0) if b["count"] else 0
+    rows.sort(key=lambda b: b["net"], reverse=True)
+    return rows
+
+
+def build_weekly_review_data(account_id, week_start):
+    """Assemble the full weekly-review payload (KPIs, story, behavior, ledger,
+    observations, themes, intentions). Pure read + deterministic story."""
+    mon, sun = week_bounds(week_start)
+    trades = db.get_trades_in_range(account_id, mon, sun)
+    summary = compute_weekly_summary(trades)
+    story, fired = generate_story(summary)
+
+    # Hook: persist ONLY the week being viewed (idempotent upsert), so the log stays
+    # truthful as weeks are viewed/recomputed. Historical backfill is a separate,
+    # explicit step (run backfill_insights.py) — never triggered by viewing a page.
+    persist_insight_log(account_id, mon, summary, fired)
+
+    # Trajectory zone is a cross-week, trailing-window view anchored at the most
+    # recent week — independent of the viewed week. Only surface it when viewing
+    # that most-recent week, so a cross-week band never appears to belong to a past
+    # week. It reads whatever is already in insight_log; until the hook has logged
+    # ≥4 qualifying weeks (or you run the backfill), it shows the "building" state.
+    latest_week = latest_trading_week(account_id) or mon
+    is_current = mon >= latest_week
+    if is_current:
+        trajectory = build_trajectory(account_id, latest_week)
+    else:
+        trajectory = {"visible": False, "is_current": False,
+                      "anchor_week": latest_week, "repeating": [], "improving": [],
+                      "intentions": [], "qualifying_weeks": 0, "needed": MIN_QUALIFYING_FOR_TREND}
+    trajectory["is_current"] = is_current
+
+    impulse_tags = set(get_impulse_tags())
+    operational_tags = set(get_operational_tags())
+
+    # Ledger rows
+    ledger = []
+    for t in trades:
+        tagset = t.get("_tagset") or _all_tags(t)
+        pre = (t.get("tags") or {}).get("pre", [])
+        setup = (t.get("tags") or {}).get("setup", [])
+        ledger.append({
+            "id": t["id"], "date": t["date"], "direction": t["direction"],
+            "qty": t["qty"], "pnl": t["pnl"],
+            "read": ", ".join(pre) if pre else "—",
+            "setup": ", ".join(setup) if setup else "—",
+            "operational": bool(tagset & operational_tags),
+            "revenge": bool(tagset & {"Revenge Mindset", "Eager to trade"}),
+            "exec_score": t.get("exec_score"),
+        })
+
+    # Observations in the week + review-group collation + theme counts
+    observations = db.get_observations_in_range(mon, sun)
+    review_notes = [o for o in observations if WEEKLY_REVIEW_OBS_GROUP in (o.get("group_list") or [])]
+
+    # Daily reflection notes that exist (rare, but collate when present)
+    day_reflections = []
+    for day in db.get_all_days(mon, sun, account_id):
+        full = db.get_day_by_id(day["id"]) or {}
+        for fld, label in (("notes_well", "What went well"), ("notes_improve", "To improve"),
+                           ("notes_lessons", "Lessons"), ("notes_focus", "Focus")):
+            val = (full.get(fld) or "").strip()
+            if val:
+                day_reflections.append({"date": day["date"], "label": label, "text": val})
+
+    theme_week = db.get_theme_counts(account_id, mon, sun)
+    month_start = mon[:8] + "01"
+    theme_month = db.get_theme_counts(account_id, month_start, sun)
+
+    # Intentions: this week + last week (for grading the loop)
+    review = db.get_or_create_weekly_review(account_id, mon)
+    this_intentions = db.get_weekly_intentions(review["id"])
+    last_mon = _shift_week(mon, -1)
+    last_review = db.get_or_create_weekly_review(account_id, last_mon)
+    last_intentions = db.get_weekly_intentions(last_review["id"])
+
+    from datetime import date as _date
+    y, m, d = (int(x) for x in mon.split("-"))
+    months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    week_label = f"Week of {months[m-1]} {d}, {y}"
+
+    return {
+        "account_id": account_id,
+        "week_start": mon, "week_end": sun,
+        "prev_week": _shift_week(mon, -1), "next_week": _shift_week(mon, 1),
+        "week_label": week_label,
+        "kpis": {
+            "net_all": summary["net_all"],
+            "discretionary": summary["discretionary_pnl"],
+            "operational": summary["operational_pnl"],
+            "win_rate": summary["win_rate"],
+            "wins": summary["wins"], "losses": summary["losses"],
+            "trades": summary["trade_count"], "days": summary["day_count"],
+        },
+        "story": story,
+        "behavior": {
+            "came_to_me": {"count": len(summary["came_to_me"]), "net": summary["came_to_me_net"]},
+            "impulse": {"count": len(summary["impulse"]), "net": summary["impulse_net"]},
+            "avg_exec_score": summary["avg_exec_score"], "scored_count": summary["scored_count"],
+            "planned_net": summary["planned_net"], "fear_bail_net": summary["fear_bail_net"],
+            "setup_table": _setup_table(summary["discretionary"]),
+        },
+        "ledger": ledger,
+        "observations": observations,
+        "review_notes": review_notes,
+        "day_reflections": day_reflections,
+        "theme_week": theme_week, "theme_month": theme_month,
+        "review_id": review["id"], "reflection_text": review["reflection_text"],
+        "intentions": this_intentions,
+        "last_week": {"week_start": last_mon, "review_id": last_review["id"],
+                      "intentions": last_intentions},
+        "proposed": propose_intentions(fired),
+        "fired": fired,
+        "trajectory": trajectory,
+        "tracked_detectors": [{"id": did, "label": DETECTOR_REGISTRY[did]["label"]}
+                              for did in tracked_detectors()],
+    }

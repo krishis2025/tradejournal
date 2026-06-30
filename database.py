@@ -482,6 +482,9 @@ def init_db():
         obs_cols = [r[1] for r in conn.execute("PRAGMA table_info(observations)").fetchall()]
         if "obs_group" not in obs_cols:
             conn.execute("ALTER TABLE observations ADD COLUMN obs_group TEXT NOT NULL DEFAULT ''")
+        # Migration: add theme (editable trend tag) to observations — weekly review V1
+        if "theme" not in obs_cols:
+            conn.execute("ALTER TABLE observations ADD COLUMN theme TEXT NOT NULL DEFAULT ''")
 
         # Migration: create market_internals table
         conn.execute("""
@@ -660,6 +663,53 @@ def init_db():
                 created_at          TEXT NOT NULL DEFAULT (datetime('now','localtime'))
             )
         """)
+
+        # Migration: weekly review tables (weekly review V1)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS weekly_reviews (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id      INTEGER REFERENCES accounts(id) ON DELETE CASCADE,
+                week_start      TEXT    NOT NULL,                       -- Monday, ISO (YYYY-MM-DD)
+                reflection_text TEXT    NOT NULL DEFAULT '',
+                created_at      TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+                updated_at      TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+                UNIQUE(account_id, week_start)
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS weekly_intentions (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                weekly_review_id INTEGER NOT NULL REFERENCES weekly_reviews(id) ON DELETE CASCADE,
+                text             TEXT    NOT NULL DEFAULT '',
+                source           TEXT    NOT NULL DEFAULT 'self',       -- 'proposed' | 'self'
+                result           TEXT    NOT NULL DEFAULT 'pending',    -- 'pending' | 'held' | 'broke' | 'partial'
+                created_at       TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_weekly_intentions ON weekly_intentions(weekly_review_id)")
+
+        # Migration: trajectory tracking — add targets (detector id this intention aims at)
+        wi_cols = [r[1] for r in conn.execute("PRAGMA table_info(weekly_intentions)").fetchall()]
+        if "targets" not in wi_cols:
+            conn.execute("ALTER TABLE weekly_intentions ADD COLUMN targets TEXT NOT NULL DEFAULT ''")
+
+        # Migration: insight_log — one row per tracked detector per week, for trajectory.
+        # Magnitude is the signed $ impact; qualifying = week met the trade floor.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS insight_log (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id  INTEGER REFERENCES accounts(id) ON DELETE CASCADE,
+                week_start  TEXT    NOT NULL,                       -- Monday, ISO (YYYY-MM-DD)
+                detector_id TEXT    NOT NULL,
+                fired       INTEGER NOT NULL DEFAULT 0,             -- 0/1
+                magnitude   REAL    NOT NULL DEFAULT 0,             -- signed $ impact that week
+                count       INTEGER NOT NULL DEFAULT 0,            -- e.g. # impulsive trades
+                qualifying  INTEGER NOT NULL DEFAULT 0,             -- 0/1, week met trade floor
+                created_at  TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+                UNIQUE(account_id, week_start, detector_id)
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_insight_log ON insight_log(account_id, detector_id, week_start)")
 
         # Migration: merge phantom NULL-account days into their real account day
         _migrate_merge_null_account_days(conn)
@@ -2583,6 +2633,230 @@ def delete_observation_image(image_id):
         filename = row["filename"] if row else None
         conn.execute("DELETE FROM observation_images WHERE id=?", (image_id,))
         return filename
+
+
+# ── Weekly Review (V1) ───────────────────────────────────────────────────────
+
+def get_trades_in_range(account_id, date_from, date_to):
+    """All trades (with tags + execution score) for an account in [date_from, date_to].
+    Used by the weekly-review story engine. Returns dicts ordered by date then trade_num."""
+    import json as _json
+    with get_conn() as conn:
+        wheres = ["d.date >= ?", "d.date <= ?"]
+        params = [date_from, date_to]
+        if account_id:
+            wheres.append("d.account_id = ?")
+            params.append(int(account_id))
+        rows = conn.execute(f"""
+            SELECT t.*, d.date AS date, d.account_id AS account_id
+            FROM trades t
+            JOIN trading_days d ON d.id = t.day_id
+            WHERE {' AND '.join(wheres)}
+            ORDER BY d.date, t.trade_num
+        """, params).fetchall()
+        result = []
+        for r in rows:
+            td = dict(r)
+            es_raw = td.get("execution_score_json")
+            td["exec_score"] = None
+            if es_raw:
+                try:
+                    td["exec_score"] = _json.loads(es_raw).get("score")
+                except (ValueError, TypeError, AttributeError):
+                    pass
+            td["tags"] = {}
+            for tag_row in conn.execute(
+                "SELECT group_id, tag FROM trade_tags WHERE trade_id = ?", (r["id"],)
+            ).fetchall():
+                td["tags"].setdefault(tag_row["group_id"], []).append(tag_row["tag"])
+            result.append(td)
+        return result
+
+
+def get_or_create_weekly_review(account_id, week_start):
+    aid = int(account_id) if account_id else None
+    with get_conn() as conn:
+        if aid is None:
+            row = conn.execute(
+                "SELECT * FROM weekly_reviews WHERE account_id IS NULL AND week_start = ?",
+                (week_start,)
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT * FROM weekly_reviews WHERE account_id = ? AND week_start = ?",
+                (aid, week_start)
+            ).fetchone()
+        if row:
+            return dict(row)
+        conn.execute(
+            "INSERT INTO weekly_reviews (account_id, week_start) VALUES (?, ?)",
+            (aid, week_start)
+        )
+        row = conn.execute(
+            "SELECT * FROM weekly_reviews WHERE id = last_insert_rowid()"
+        ).fetchone()
+        return dict(row)
+
+
+def update_weekly_review(review_id, reflection_text):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE weekly_reviews SET reflection_text = ?, updated_at = datetime('now','localtime') WHERE id = ?",
+            (reflection_text, review_id)
+        )
+
+
+def add_weekly_intention(review_id, text, source="self", targets=""):
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO weekly_intentions (weekly_review_id, text, source, targets) VALUES (?, ?, ?, ?)",
+            (review_id, text, source, targets or "")
+        )
+        return cur.lastrowid
+
+
+def set_intention_result(intention_id, result):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE weekly_intentions SET result = ? WHERE id = ?",
+            (result, intention_id)
+        )
+
+
+def get_weekly_intentions(review_id):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM weekly_intentions WHERE weekly_review_id = ? ORDER BY created_at, id",
+            (review_id,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_observations_in_range(date_from, date_to):
+    """Thin range wrapper over get_observations (observations are not account-scoped)."""
+    return get_observations(date_from=date_from, date_to=date_to)
+
+
+def get_theme_counts(account_id, date_from, date_to):
+    """Count observation themes in a date range (observations have no account scope;
+    account_id is accepted for signature symmetry but not filtered). Returns
+    [{theme, count}] sorted desc, blank themes excluded."""
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT TRIM(theme) AS theme, COUNT(*) AS count
+            FROM observations
+            WHERE date >= ? AND date <= ? AND TRIM(COALESCE(theme,'')) != ''
+            GROUP BY TRIM(theme)
+            ORDER BY count DESC, theme
+        """, (date_from, date_to)).fetchall()
+        return [dict(r) for r in rows]
+
+
+# ── Trajectory tracking (insight_log) ────────────────────────────────────────
+
+def upsert_insight_log(account_id, week_start, detector_id, fired, magnitude, count, qualifying):
+    """Idempotent upsert keyed on (account_id, week_start, detector_id) so recomputing
+    a week overwrites cleanly. Handles NULL account_id (UNIQUE treats NULLs as distinct,
+    so we upsert manually)."""
+    aid = int(account_id) if account_id else None
+    with get_conn() as conn:
+        if aid is None:
+            existing = conn.execute(
+                "SELECT id FROM insight_log WHERE account_id IS NULL AND week_start = ? AND detector_id = ?",
+                (week_start, detector_id)
+            ).fetchone()
+        else:
+            existing = conn.execute(
+                "SELECT id FROM insight_log WHERE account_id = ? AND week_start = ? AND detector_id = ?",
+                (aid, week_start, detector_id)
+            ).fetchone()
+        vals = (1 if fired else 0, round(float(magnitude or 0), 2), int(count or 0), 1 if qualifying else 0)
+        if existing:
+            conn.execute(
+                "UPDATE insight_log SET fired = ?, magnitude = ?, count = ?, qualifying = ? WHERE id = ?",
+                (*vals, existing["id"])
+            )
+        else:
+            conn.execute(
+                "INSERT INTO insight_log (account_id, week_start, detector_id, fired, magnitude, count, qualifying) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (aid, week_start, detector_id, *vals)
+            )
+
+
+def get_insight_history(account_id, detector_id, since_week):
+    """Rows for one detector at/after since_week, oldest-first."""
+    aid = int(account_id) if account_id else None
+    with get_conn() as conn:
+        if aid is None:
+            rows = conn.execute(
+                "SELECT * FROM insight_log WHERE account_id IS NULL AND detector_id = ? AND week_start >= ? "
+                "ORDER BY week_start",
+                (detector_id, since_week)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM insight_log WHERE account_id = ? AND detector_id = ? AND week_start >= ? "
+                "ORDER BY week_start",
+                (aid, detector_id, since_week)
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_latest_trade_date(account_id):
+    """Most recent trading-day date for an account (ISO), or None."""
+    with get_conn() as conn:
+        if account_id:
+            row = conn.execute(
+                "SELECT MAX(d.date) FROM trading_days d JOIN trades t ON t.day_id = d.id "
+                "WHERE d.account_id = ?", (int(account_id),)
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT MAX(d.date) FROM trading_days d JOIN trades t ON t.day_id = d.id"
+            ).fetchone()
+        return row[0] if row and row[0] else None
+
+
+def get_intentions_in_range(account_id, since_week, until_week):
+    """Intentions across an account's weekly reviews in [since_week, until_week],
+    each carrying its review's week_start. Oldest review first."""
+    aid = int(account_id) if account_id else None
+    with get_conn() as conn:
+        if aid is None:
+            rows = conn.execute("""
+                SELECT i.*, r.week_start AS review_week
+                FROM weekly_intentions i JOIN weekly_reviews r ON r.id = i.weekly_review_id
+                WHERE r.account_id IS NULL AND r.week_start >= ? AND r.week_start <= ?
+                ORDER BY r.week_start, i.id
+            """, (since_week, until_week)).fetchall()
+        else:
+            rows = conn.execute("""
+                SELECT i.*, r.week_start AS review_week
+                FROM weekly_intentions i JOIN weekly_reviews r ON r.id = i.weekly_review_id
+                WHERE r.account_id = ? AND r.week_start >= ? AND r.week_start <= ?
+                ORDER BY r.week_start, i.id
+            """, (aid, since_week, until_week)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_insight_window(account_id, start_week, end_week):
+    """All insight_log rows in [start_week, end_week], oldest-first."""
+    aid = int(account_id) if account_id else None
+    with get_conn() as conn:
+        if aid is None:
+            rows = conn.execute(
+                "SELECT * FROM insight_log WHERE account_id IS NULL AND week_start >= ? AND week_start <= ? "
+                "ORDER BY week_start, detector_id",
+                (start_week, end_week)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM insight_log WHERE account_id = ? AND week_start >= ? AND week_start <= ? "
+                "ORDER BY week_start, detector_id",
+                (aid, start_week, end_week)
+            ).fetchall()
+        return [dict(r) for r in rows]
 
 
 # ── Market Internals ─────────────────────────────────────────────────────────

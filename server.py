@@ -1937,6 +1937,95 @@ def api_delete_obs_image(image_id):
     return jsonify({"ok": True})
 
 
+# ── Weekly Review (V1) ───────────────────────────────────────────────────────
+
+@app.route("/weekly-review")
+def weekly_review_view():
+    account_id = request.args.get("account") or None
+    week = request.args.get("week") or logic.current_week_monday()
+    data = logic.build_weekly_review_data(account_id, week)
+    accounts = db.get_all_accounts()
+    return render_template(
+        "weekly_review.html",
+        data=data,
+        data_json=json.dumps(data),
+        accounts=accounts,
+        account_id=account_id,
+    )
+
+
+@app.route("/api/weekly-review", methods=["GET"])
+def api_weekly_review():
+    account_id = request.args.get("account") or None
+    week = request.args.get("week") or logic.current_week_monday()
+    return jsonify(logic.build_weekly_review_data(account_id, week))
+
+
+@app.route("/api/weekly-review", methods=["POST"])
+def api_save_weekly_review():
+    body = request.get_json(silent=True) or {}
+    review_id = body.get("review_id")
+    if not review_id:
+        return jsonify({"error": "review_id is required"}), 400
+    db.update_weekly_review(int(review_id), body.get("reflection_text", ""))
+    return jsonify({"ok": True})
+
+
+@app.route("/api/weekly-intention", methods=["POST"])
+def api_add_weekly_intention():
+    body = request.get_json(silent=True) or {}
+    review_id = body.get("review_id")
+    text = (body.get("text") or "").strip()
+    if not review_id or not text:
+        return jsonify({"error": "review_id and text are required"}), 400
+    source = body.get("source") if body.get("source") in ("proposed", "self") else "self"
+    targets = body.get("targets") or ""
+    # Only accept a real tracked detector id (or '' / 'general') as a target.
+    if targets and targets != "general" and targets not in logic.DETECTOR_REGISTRY:
+        targets = ""
+    iid = db.add_weekly_intention(int(review_id), text, source, targets)
+    return jsonify({"ok": True, "id": iid})
+
+
+@app.route("/api/weekly-intention/<int:intention_id>", methods=["PATCH"])
+def api_set_weekly_intention_result(intention_id):
+    body = request.get_json(silent=True) or {}
+    result = body.get("result")
+    if result not in ("pending", "held", "broke", "partial"):
+        return jsonify({"error": "invalid result"}), 400
+    db.set_intention_result(intention_id, result)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/weekly-review/config", methods=["POST"])
+def api_weekly_review_config():
+    """Settings: edit IMPULSE_TAGS, observation theme list, and the trajectory knobs
+    (recurrence window, trend window, chronic %, qualifying-week floor)."""
+    body = request.get_json(silent=True) or {}
+    if "impulse_tags" in body and isinstance(body["impulse_tags"], list):
+        db.set_config("wr_impulse_tags", json.dumps(body["impulse_tags"]))
+    if "theme_list" in body and isinstance(body["theme_list"], list):
+        db.set_config("wr_theme_list", json.dumps(body["theme_list"]))
+    # Trajectory knobs (validated; ignored if out of range)
+    for key, cfg in (("qualifying_floor", "wr_qualifying_floor"),
+                     ("recurrence_window", "wr_recurrence_window"),
+                     ("trend_window", "wr_trend_window")):
+        if key in body:
+            try:
+                if int(body[key]) >= 2:
+                    db.set_config(cfg, int(body[key]))
+            except (ValueError, TypeError):
+                pass
+    if "chronic_pct" in body:
+        try:
+            v = float(body["chronic_pct"])
+            if 0 < v <= 1:
+                db.set_config("wr_chronic_pct", v)
+        except (ValueError, TypeError):
+            pass
+    return jsonify({"ok": True})
+
+
 # ── Entry Point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":

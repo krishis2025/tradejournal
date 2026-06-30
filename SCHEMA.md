@@ -16,7 +16,9 @@ accounts ──┬──< trading_days ──┬──< trades ──┬──< 
             │                  └──< live_trade_images
             │
             ├──< developing_context ──< trade_strength
-            └──< trade_strength
+            ├──< trade_strength
+            ├──< weekly_reviews ──< weekly_intentions
+            └──< insight_log
 
 setups ──< setup_images
 
@@ -335,9 +337,11 @@ Market observations and notes.
 | category   | TEXT    | NOT NULL DEFAULT 'general'                   |
 | created_at | TEXT    | NOT NULL DEFAULT datetime('now','localtime') |
 | obs_group  | TEXT    | NOT NULL DEFAULT ''                          |
+| theme      | TEXT    | NOT NULL DEFAULT ''                          |
 
 `category` stores a JSON array of category strings (e.g. `["general","setup"]`). Legacy single-value entries are migrated to JSON form on init.
-`obs_group` groups related observations together (free text).
+`obs_group` groups related observations together (JSON array; `Review` is an allowed value used by the weekly review).
+`theme` is an editable trend tag used by the weekly review's recurring-theme counts.
 
 ---
 
@@ -351,6 +355,56 @@ Images attached to observations.
 | filename       | TEXT    | NOT NULL                                           |
 | caption        | TEXT    | NOT NULL DEFAULT ''                                |
 | uploaded_at    | TEXT    | NOT NULL DEFAULT datetime('now')                   |
+
+---
+
+### 19a. WEEKLY_REVIEWS
+One review per account per week (Monday-anchored). Holds the single weekly written reflection.
+
+| Column          | Type    | Constraints                                       |
+|-----------------|---------|---------------------------------------------------|
+| id              | INTEGER | PK AUTOINCREMENT                                  |
+| account_id      | INTEGER | FK → accounts(id) ON DELETE CASCADE              |
+| week_start      | TEXT    | NOT NULL — Monday, ISO (YYYY-MM-DD)              |
+| reflection_text | TEXT    | NOT NULL DEFAULT ''                              |
+| created_at      | TEXT    | NOT NULL DEFAULT datetime('now','localtime')     |
+| updated_at      | TEXT    | NOT NULL DEFAULT datetime('now','localtime')     |
+
+`UNIQUE(account_id, week_start)`.
+
+---
+
+### 19b. WEEKLY_INTENTIONS
+Per-review intentions (proposed rules accepted, or self-added); graded the following week.
+
+| Column           | Type    | Constraints                                              |
+|------------------|---------|----------------------------------------------------------|
+| id               | INTEGER | PK AUTOINCREMENT                                         |
+| weekly_review_id | INTEGER | NOT NULL, FK → weekly_reviews(id) ON DELETE CASCADE     |
+| text             | TEXT    | NOT NULL DEFAULT ''                                      |
+| source           | TEXT    | NOT NULL DEFAULT 'self' — 'proposed' \| 'self'          |
+| result           | TEXT    | NOT NULL DEFAULT 'pending' — 'pending'\|'held'\|'broke'\|'partial' |
+| created_at       | TEXT    | NOT NULL DEFAULT datetime('now','localtime')             |
+| targets          | TEXT    | NOT NULL DEFAULT '' — detector id this intention aims at (or ''/'general' for self-graded-only) |
+
+---
+
+### 19c. INSIGHT_LOG
+Trajectory tracking: one row per tracked detector per week (Monday-anchored). Reuses the story-engine detector output; magnitude is the signed $ impact and is never re-derived at read time.
+
+| Column      | Type    | Constraints                                       |
+|-------------|---------|---------------------------------------------------|
+| id          | INTEGER | PK AUTOINCREMENT                                  |
+| account_id  | INTEGER | FK → accounts(id) ON DELETE CASCADE              |
+| week_start  | TEXT    | NOT NULL — Monday, ISO (YYYY-MM-DD)             |
+| detector_id | TEXT    | NOT NULL — one of the 8 tracked detector ids    |
+| fired       | INTEGER | NOT NULL DEFAULT 0 — 0/1                         |
+| magnitude   | REAL    | NOT NULL DEFAULT 0 — signed $ impact that week   |
+| count       | INTEGER | NOT NULL DEFAULT 0 — e.g. # impulsive trades     |
+| qualifying  | INTEGER | NOT NULL DEFAULT 0 — 0/1, week met the trade floor (≥5 trades, configurable) |
+| created_at  | TEXT    | NOT NULL DEFAULT datetime('now','localtime')     |
+
+`UNIQUE(account_id, week_start, detector_id)` — idempotent upsert so recomputing a week overwrites cleanly. Trackable-set membership, polarity (leak/strength), and labels live in the `DETECTOR_REGISTRY` code constant, not the DB.
 
 ---
 

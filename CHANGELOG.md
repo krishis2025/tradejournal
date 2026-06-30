@@ -2,6 +2,87 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [4.3.0] — 2026-06-29
+
+### Trajectory tracking + intention linkage
+
+Turns the Weekly Review from a mirror (this week's insights) into a coach (your
+trajectory): which leaks you're repeating, which you're improving/have beaten, and
+whether the intentions you set are actually working — over a rolling multi-week
+window. Deterministic, local, built on the existing story-engine detectors.
+
+- **Detector ID rename** (one canonical spelling everywhere, no aliases): story-engine
+  keys now match the trajectory spec — `impulse_bucket`→`impulsive_bucket`,
+  `operational`→`operational_error`, `outlier_loss`→`oversized_loss`,
+  `exit_discipline`→`weak_exits`, `expectancy`→`expectancy_gap`,
+  `sign_flip`→`concentration`. No persisted data existed under the old keys.
+- **Schema (additive, guarded):** `insight_log` (one row per tracked detector per
+  week: `fired`, signed `magnitude`, `count`, `qualifying`,
+  `UNIQUE(account_id, week_start, detector_id)`); `targets` column on
+  `weekly_intentions`. `SCHEMA.md` updated.
+- **Detector registry** (`DETECTOR_REGISTRY`): single source of truth — id →
+  `{label, polarity, tracked}`. 8 tracked patterns (7 leaks + `came_to_me` strength);
+  `net_result`/`concentration` not tracked.
+- **Weekly logging hook:** `persist_insight_log` / `log_week_insights` — `fired`
+  reused from the detectors, `magnitude`/`count` from the canonical summary,
+  `qualifying = 1` when the week met the trade floor (default 5). Idempotent upsert,
+  wired into `build_weekly_review_data`; backfills trailing history from existing
+  trades so trajectory works on day one. Zero-trade weeks aren't logged.
+- **State classification:** New / Recurring / Chronic / Improving / Resolved over
+  rolling windows of *qualifying weeks only* (recurrence 4, trend 8, chronic ≥60%,
+  improving = magnitude slope over last ≥3 firings, resolved = 3 qualifying weeks
+  silent). Precedence Resolved > Improving > Chronic > Recurring > New; suppressed
+  below 4 qualifying weeks. Strength polarity flips ("improving" = magnitude up).
+- **Intention linkage:** proposed rules auto-stamp their `targets` detector; self
+  rules pick one from a dropdown. "Is it working?" reads the targeted detector's
+  trajectory since the rule was set → working / mixed / not_working / too_soon;
+  `targets=''` falls back to manual grading only.
+- **Trajectory zone (Weekly Review page):** a band above Planning, shown only when
+  viewing the most-recent week (anchored to a trailing window independent of the
+  viewed week; hidden on past weeks). Two buckets — Repeating and Improving/beaten —
+  capped at 2 rows each, with state badges, theme-adaptive magnitude sparklines,
+  weeks-fired, latest value, and intention→pattern verdict cards. A faded strength
+  reads as a warning, not a win. "Building — N of 4 weeks" placeholder before enough
+  history. New tunables (recurrence/trend windows, chronic %, qualifying floor) via
+  the weekly-review config endpoint.
+
+## [4.2.0] — 2026-06-26
+
+### Weekly Review dashboard + story engine (V1)
+
+A weekend-friendly weekly review that reconstructs the week's story from structured
+data already captured during trading — so it works even on weeks with no written
+notes. New **Weekly** tab in the top nav.
+
+- **Schema:** `weekly_reviews` and `weekly_intentions` tables; `theme` column on
+  `observations` (additive, guarded migrations). Updated `SCHEMA.md`.
+- **Data layer:** `get_trades_in_range`, `get_or_create_weekly_review`,
+  `update_weekly_review`, `add_weekly_intention`, `set_intention_result`,
+  `get_weekly_intentions`, `get_observations_in_range`, `get_theme_counts`.
+- **Story engine (`app_logic.py`):** deterministic, local, no model/network. 10
+  detectors (net result, operational separation, impulsive bucket, revenge-after-loss
+  chain, outlier loss, sign-flip concentration, expectancy, exit discipline,
+  no-setup leak, came-to-me payoff) → an assembler that leads with the net result,
+  pins operational separation to slot 2, then ranks the rest by absolute dollar
+  impact (max 4 sentences). Same input → same output. `propose_intentions()` maps
+  fired detectors → candidate rules. Tunable config (`IMPULSE_TAGS`,
+  `OPERATIONAL_TAGS`, `OUTLIER_LOSS_MULT`, `MATERIAL_USD`, `STORY_MAX_SENTENCES`);
+  tag lists editable via `app_config`.
+- **Zones:** header KPIs (Net / Discretionary / Operational split, win rate, trades,
+  days), the story paragraph, behavior & process (came-to-me vs impulsive, avg exec
+  score, exit discipline, setup table, trade ledger with operational/revenge flags),
+  lessons (observation filmstrip, review notes & day reflections, recurring-theme
+  counts), and the planning loop (grade last week's intentions, accept proposed
+  rules, add your own, weekly reflection).
+- **Routes:** `GET /weekly-review`, `GET/POST /api/weekly-review`,
+  `POST /api/weekly-intention`, `PATCH /api/weekly-intention/<id>`,
+  `POST /api/weekly-review/config`.
+- Discretionary stats everywhere exclude `Operational Error`-tagged trades and show
+  the operational amount separately; the trade is never deleted.
+
+Fast-follow (not in V1): equity-curve chart (zone 2) and risk/R visuals (zone 3,
+which needs forward-captured stops).
+
 ## [4.1.0] — 2026-06-25
 
 ### Per-tranche stop & risk capture (Manage tab)
