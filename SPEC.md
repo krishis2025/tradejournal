@@ -158,7 +158,7 @@ Analytics · Setups · Observations · Settings**, plus a global account selecto
 | `/day/<id>` · `/day/<date>` | `day.html` | Day view: expandable trade trays, fills, tags, day notes/images. |
 | `/trade/<id>` | `trade.html` | Trade Execution view: single trade detail + tagging. |
 | `/trade/<id>/v2` | `trade_v2.html` | V2 trade detail. |
-| `/live` | `live_ticket.html` | Live Trade "Ticket" UI (current primary live entry). |
+| `/live` | `legacy_trade_exe.html` | Live Trade "Ticket" UI (retired from nav; route kept but unlinked). |
 | `/live-v2` | `live_v2.html` | Trade V2 live view (Context Ribbon / Headline Bar). |
 | `/live-legacy`, `/live-legacy/new`, `/live-legacy/<id>` | `live_*_legacy.html` | Legacy form/list live UI. |
 | `/accounts` | `accounts.html` | Account management + sizing cheat sheet. |

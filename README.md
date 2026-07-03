@@ -128,7 +128,7 @@ tradejournal/
 │   ├── index.html              ← Journal dashboard: all trading days + import
 │   ├── day.html                ← Day view: trades for one date
 │   ├── trade.html / trade_v2.html        ← Trade detail + tagging (v1 / v2)
-│   ├── live_ticket.html        ← Live Trade: Ticket UI (current)
+│   ├── legacy_trade_exe.html   ← Live Trade: Ticket UI (retired; route /live kept, unlinked)
 │   ├── live_v2.html            ← Trade V2: Context Ribbon / Trade Plan
 │   ├── live_entry_legacy.html / live_list_legacy.html  ← Legacy live UI
 │   ├── accounts.html           ← Account management + sizing cheat sheet

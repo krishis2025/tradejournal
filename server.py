@@ -391,7 +391,7 @@ def live_trade_page():
     contexts = db.get_developing_contexts(date_from, date_to, account_id)
 
     return render_template(
-        "live_ticket.html",
+        "legacy_trade_exe.html",
         open_trades=open_trades,
         closed_trades=closed_trades,
         tag_groups=logic.get_tag_groups(),
