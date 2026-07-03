@@ -2023,6 +2023,97 @@ def api_weekly_review_config():
                 db.set_config("wr_chronic_pct", v)
         except (ValueError, TypeError):
             pass
+    # Cockpit knobs
+    for key, cfg in (("verdict_window", "wr_verdict_window"),
+                     ("sparkline_window", "wr_sparkline_window"),
+                     ("focus_max", "wr_focus_max")):
+        if key in body:
+            try:
+                if int(body[key]) >= 1:
+                    db.set_config(cfg, int(body[key]))
+            except (ValueError, TypeError):
+                pass
+    return jsonify({"ok": True})
+
+
+@app.route("/api/weekly-focus", methods=["POST"])
+def api_weekly_focus():
+    """Focus a detector = create a targeted intention on the current week's review.
+    Enforces the focus cap (block, don't silently bump)."""
+    body = request.get_json(silent=True) or {}
+    account_id = request.args.get("account") or body.get("account") or None
+    detector_id = body.get("detector_id")
+    if detector_id not in logic.DETECTOR_REGISTRY or not logic.DETECTOR_REGISTRY[detector_id]["tracked"]:
+        return jsonify({"error": "unknown detector"}), 400
+    focused = db.get_focus_targets(account_id)
+    if detector_id in [f["targets"] for f in focused]:
+        return jsonify({"ok": True, "already": True})
+    if len(focused) >= logic.get_focus_max(account_id):
+        return jsonify({"error": "focus_full",
+                        "message": f"Already focused on {len(focused)}. Release one first.",
+                        "focused": [f["targets"] for f in focused]}), 409
+    week = logic.latest_trading_week(account_id) or logic.current_week_monday()
+    review = db.get_or_create_weekly_review(account_id, week)
+    label = logic.DETECTOR_REGISTRY[detector_id]["label"]
+    text = (body.get("note") or "").strip() or f"Focus: {label}"
+    iid = db.add_weekly_intention(review["id"], text, "focus", detector_id)
+    return jsonify({"ok": True, "id": iid})
+
+
+@app.route("/api/trajectory-settings", methods=["POST"])
+def api_trajectory_settings():
+    """Per-account trajectory settings (gear panel). Everyday: qualifying_floor,
+    focus_max. Advanced: freq_deadband_pts, severity_deadband. {reset: true} clears
+    them back to code defaults."""
+    account_id = request.args.get("account") or (request.get_json(silent=True) or {}).get("account")
+    if not account_id:
+        return jsonify({"error": "account required"}), 400
+    aid = int(account_id)
+    body = request.get_json(silent=True) or {}
+    if body.get("reset"):
+        db.clear_account_config(aid, prefix="traj_")
+        return jsonify({"ok": True, "reset": True})
+    # Validate + store (freq deadband entered in percentage points → stored as fraction)
+    if "qualifying_floor" in body:
+        try:
+            v = int(body["qualifying_floor"])
+            if 1 <= v <= 100:
+                db.set_account_config(aid, "traj_qualifying_floor", v)
+        except (ValueError, TypeError):
+            pass
+    if "focus_max" in body:
+        try:
+            v = int(body["focus_max"])
+            if 1 <= v <= 8:
+                db.set_account_config(aid, "traj_focus_max", v)
+        except (ValueError, TypeError):
+            pass
+    if "freq_deadband_pts" in body:
+        try:
+            v = float(body["freq_deadband_pts"])
+            if 0 <= v <= 100:
+                db.set_account_config(aid, "traj_freq_deadband", v / 100.0)
+        except (ValueError, TypeError):
+            pass
+    if "severity_deadband" in body:
+        try:
+            v = float(body["severity_deadband"])
+            if 0 <= v <= 100000:
+                db.set_account_config(aid, "traj_severity_deadband", v)
+        except (ValueError, TypeError):
+            pass
+    return jsonify({"ok": True})
+
+
+@app.route("/api/weekly-focus", methods=["DELETE"])
+def api_weekly_unfocus():
+    """Release focus = delete the active focus intention(s) for that detector."""
+    body = request.get_json(silent=True) or {}
+    account_id = request.args.get("account") or body.get("account") or None
+    detector_id = body.get("detector_id")
+    for f in db.get_focus_targets(account_id):
+        if f["targets"] == detector_id:
+            db.delete_weekly_intention(f["id"])
     return jsonify({"ok": True})
 
 

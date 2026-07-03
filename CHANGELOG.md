@@ -2,6 +2,53 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [4.4.0] — 2026-06-30
+
+### Trajectory cockpit — frequency-first verdicts, focus
+
+Replaces the 2+2 trajectory zone with an all-detectors cockpit: every tracked
+detector as a tile with a frequency trend, a computed verdict, and a dollar readout.
+
+- **Schema (additive, guarded):** `weekly_meta` (per-week `total_trades` + `qualifying`),
+  written by the weekly hook so behavior **frequency** = `count / total_trades` is
+  computable. `SCHEMA.md` updated.
+- **Frequency-first verdict engine (pure Python):** per detector over the trailing 8
+  qualifying weeks, the verdict is driven **solely by frequency %** (first-4 vs last-4,
+  trend only when |Δ| *exceeds* `FREQ_DEADBAND`) — frequency is size/luck/account-proof
+  and needs no stop data. Leak: down → Improving, up → Worsening, within band → Holding
+  steady; strength (`came_to_me`) inverts (up → Building, down → Slipping). Severity
+  ($/occurrence) is demoted to a title-line **"⚠ costlier each time"** flag (fires when
+  frequency isn't worsening but per-occurrence cost rose beyond `SEVERITY_DEADBAND`).
+  A single week > `OUTLIER_SD` (2.0) SDs from the window mean *in the bad direction*
+  raises a **"⚠ Week N spiked/dipped"** flag (good-direction outliers are never flagged);
+  this replaces the old relapse flag. Generated frequency-led verdict sentence.
+- **Windows:** verdict = 8 qualifying weeks (4-vs-4), so a verdict needs **8** qualifying
+  weeks of history (`MIN_QUALIFYING_FOR_TREND`); below that the tile shows
+  "Not enough data — N of 8 weeks". Sparkline display = 12 weeks. All rolling, configurable.
+- **Single badge:** the verdict is the only badge (the earlier subordinate recency-state
+  badge was dropped to keep the title line unambiguous).
+- **Cockpit UI:** Strengths section first, then Leaks (focused pinned → active by
+  urgency → collapsed "quiet" strip of non-firing detectors). Each tile: verdict badge
+  (+ relapse + recency), frequency sparkline, verdict sentence, and dollar readout
+  (`this wk` headline + `8-wk avg`; `—` when the current week is non-qualifying). No cap
+  on active tiles.
+- **Focus = intention:** tapping a tile's focus toggle creates/deletes a targeted
+  intention (`weekly_intentions.targets`); max 2 enforced (a 3rd is blocked, not bumped).
+  New `POST/DELETE /api/weekly-focus`; new `db.delete_weekly_intention`,
+  `db.get_focus_targets`, `db.upsert_weekly_meta`, `db.get_weekly_meta_map`.
+- **Settings:** verdict window, sparkline window, focus max (+ existing floor/thresholds)
+  via the config endpoint. Deadband/material thresholds are code constants, tunable.
+- **Trajectory gear panel (per-account):** a ⚙ settings panel on the cockpit exposing
+  **Qualifying floor** and **Focus max** (everyday) plus **Frequency deadband** and
+  **Severity deadband** under an "Advanced — these change how trends are judged" section
+  with a caution note. Each field has an always-visible plain-language helper; the
+  deadband fields show this window's live movement for the reference detector
+  ("impulsive frequency moved 4 pts", "severity moved $53"). Persisted per-account in
+  `account_config` (`traj_*` keys), with a **Reset to defaults** button. New
+  `POST /api/trajectory-settings` (+ `{reset:true}`); getters are account-aware and
+  fall back to code defaults. Other constants (chronic %, relapse multiplier, windows,
+  recurrence) stay in code.
+
 ## [4.3.0] — 2026-06-29
 
 ### Trajectory tracking + intention linkage

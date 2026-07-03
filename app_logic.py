@@ -1152,8 +1152,24 @@ RECURRENCE_WINDOW_WEEKS = 4   # rolling (qualifying weeks)
 TREND_WINDOW_WEEKS = 8        # rolling (qualifying weeks)
 CHRONIC_PCT = 0.60           # fired in ≥60% of qualifying weeks across trend window
 RESOLVED_SILENCE_WEEKS = 3   # qualifying weeks silent → a former leak counts as resolved
-MIN_QUALIFYING_FOR_TREND = 4 # below this, classification is suppressed ("building")
+MIN_QUALIFYING_FOR_TREND = 8 # need two full 4-week halves before a verdict; else "not enough data"
 IMPROVING_MIN_FIRINGS = 3    # need ≥ this many firings to call a magnitude trend
+
+# Trajectory cockpit (frequency-first verdict) — all in qualifying weeks, rolling.
+VERDICT_WINDOW_WEEKS = 8     # 4-vs-4 split drives the verdict
+SPARKLINE_WINDOW_WEEKS = 12  # the picture can show more history than the verdict
+FREQ_DEADBAND = 0.05        # frequency change (fraction); trend only when |Δ| EXCEEDS this
+SEVERITY_DEADBAND = 100.0   # $/occurrence change gating the "⚠ costlier" flag (not the verdict)
+OUTLIER_SD = 2.0            # a single week > this many SDs from window mean (bad dir) → flag
+FOCUS_MAX = 2               # max simultaneously-focused detectors
+
+
+def get_verdict_window():
+    return _cfg_int("wr_verdict_window", VERDICT_WINDOW_WEEKS, minimum=4)
+
+
+def get_sparkline_window():
+    return _cfg_int("wr_sparkline_window", SPARKLINE_WINDOW_WEEKS, minimum=4)
 
 
 def _cfg_int(key, default, minimum=1):
@@ -1167,8 +1183,46 @@ def _cfg_int(key, default, minimum=1):
     return default
 
 
-def get_qualifying_floor():
-    return _cfg_int("wr_qualifying_floor", DEFAULT_QUALIFYING_FLOOR)
+# Per-account trajectory settings (stored in account_config under 'traj_*'), with a
+# code-default fallback. These four are user-tunable in the cockpit gear panel; every
+# other threshold stays in code.
+TRAJ_SETTING_KEYS = ("traj_qualifying_floor", "traj_focus_max",
+                     "traj_freq_deadband", "traj_severity_deadband")
+
+
+def _acct_num(account_id, key, cast):
+    """Read a per-account numeric setting, or None if unset/invalid/no account."""
+    if not account_id:
+        return None
+    cfg = db.get_account_config(int(account_id))
+    if key in cfg:
+        try:
+            return cast(cfg[key])
+        except (ValueError, TypeError):
+            return None
+    return None
+
+
+def get_focus_max(account_id=None):
+    v = _acct_num(account_id, "traj_focus_max", int)
+    return v if (v and v >= 1) else _cfg_int("wr_focus_max", FOCUS_MAX, minimum=1)
+
+
+def get_qualifying_floor(account_id=None):
+    v = _acct_num(account_id, "traj_qualifying_floor", int)
+    return v if (v and v >= 1) else _cfg_int("wr_qualifying_floor", DEFAULT_QUALIFYING_FLOOR)
+
+
+def get_freq_deadband(account_id=None):
+    """Frequency deadband as a fraction (e.g. 0.05 = 5 percentage points)."""
+    v = _acct_num(account_id, "traj_freq_deadband", float)
+    return v if (v is not None and v >= 0) else FREQ_DEADBAND
+
+
+def get_severity_deadband(account_id=None):
+    """Severity deadband in dollars per occurrence."""
+    v = _acct_num(account_id, "traj_severity_deadband", float)
+    return v if (v is not None and v >= 0) else SEVERITY_DEADBAND
 
 
 def get_recurrence_window():
@@ -1545,7 +1599,9 @@ def persist_insight_log(account_id, week_start, summary, fired_keys):
     is not logged (no signal)."""
     if summary["trade_count"] < 1:
         return 0
-    qualifying = 1 if summary["trade_count"] >= get_qualifying_floor() else 0
+    qualifying = 1 if summary["trade_count"] >= get_qualifying_floor(account_id) else 0
+    # Per-week meta (total trades) so the cockpit can compute behavior frequency.
+    db.upsert_weekly_meta(account_id, week_start, summary["trade_count"], qualifying)
     fired_set = set(fired_keys)
     n = 0
     for detector_id in tracked_detectors():
@@ -1858,6 +1914,291 @@ def build_trajectory(account_id, anchor_week):
             "strengths": strengths, "intentions": cards}
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+#  TRAJECTORY COCKPIT — two-slope verdict engine (frequency × severity)
+#  Replaces the 2+2 zone. All series over QUALIFYING weeks only, anchored to the
+#  most recent week. Deterministic; nothing derived is stored.
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _detector_qual_weeks(account_id, detector_id, anchor_week, window):
+    """Last `window` qualifying weeks for a detector up to anchor_week, with the
+    per-week frequency and severity joined from weekly_meta. Oldest-first.
+    frequency = count / total_trades; severity = magnitude / count ($/occurrence)."""
+    rows = db.get_insight_history(account_id, detector_id, "2000-01-01")
+    rows = [r for r in rows if r["week_start"] <= anchor_week and r["qualifying"]]
+    meta = db.get_weekly_meta_map(account_id, "2000-01-01", anchor_week)
+    out = []
+    for r in rows:
+        tt = (meta.get(r["week_start"]) or {}).get("total_trades", 0) or 0
+        cnt = int(r["count"] or 0)
+        out.append({
+            "week_start": r["week_start"], "fired": int(r["fired"] or 0),
+            "magnitude": float(r["magnitude"] or 0), "count": cnt, "total_trades": tt,
+            "frequency": (cnt / tt) if tt else 0.0,
+            "severity": (float(r["magnitude"] or 0) / cnt) if cnt else 0.0,
+        })
+    return out[-window:]
+
+
+def _direction(vals, deadband):
+    """first-half vs last-half mean → 'up' / 'down' / 'flat'. §1 boundary = EXCEED:
+    a trend requires |Δ| strictly GREATER than the deadband; |Δ| ≤ deadband is flat.
+    Returns (direction, from_mean, to_mean)."""
+    n = len(vals)
+    if n < 2:
+        return "flat", (vals[0] if vals else 0.0), (vals[0] if vals else 0.0)
+    half = n // 2
+    first = vals[:half] if half else vals[:1]
+    last = vals[-half:] if half else vals[-1:]
+    mf = sum(first) / len(first)
+    ml = sum(last) / len(last)
+    if abs(ml - mf) <= deadband:          # EXCEED rule: at-or-within band = flat
+        return "flat", mf, ml
+    return ("up" if ml > mf else "down"), mf, ml
+
+
+def _severity_direction(weeks, deadband):
+    """Severity ($/occurrence) direction, first-half vs last-half by calendar position,
+    averaged over ONLY the weeks the behavior fired (cost-per-occurrence is undefined
+    on non-behavior weeks, so a 0 there must not drag the trend). EXCEED boundary.
+    Used only for the '⚠ costlier' flag — not the verdict. Returns (dir, from, to)."""
+    n = len(weeks)
+    half = n // 2 or 1
+    first = [abs(w["severity"]) for w in weeks[:half] if w["fired"]]
+    last = [abs(w["severity"]) for w in weeks[-half:] if w["fired"]]
+    if not first or not last:
+        allf = [abs(w["severity"]) for w in weeks if w["fired"]]
+        v = (sum(allf) / len(allf)) if allf else 0.0
+        return "flat", v, v
+    mf, ml = sum(first) / len(first), sum(last) / len(last)
+    if abs(ml - mf) <= deadband:
+        return "flat", mf, ml
+    return ("up" if ml > mf else "down"), mf, ml
+
+
+def _freq_outlier(freq, polarity):
+    """§4: index (1-based, oldest = 1) of the single most-extreme week that is > OUTLIER_SD
+    standard deviations from the window mean IN THE BAD DIRECTION (leak → high, strength →
+    low). Good-direction outliers are never flagged. None if no bad-direction outlier."""
+    n = len(freq)
+    if n < 3:
+        return None
+    mean = sum(freq) / n
+    sd = (sum((x - mean) ** 2 for x in freq) / n) ** 0.5
+    if sd <= 0:
+        return None
+    worst = None
+    for i, f in enumerate(freq):
+        dev = (f - mean) if polarity == "leak" else (mean - f)  # bad direction only
+        if dev > OUTLIER_SD * sd and (worst is None or dev > worst[1]):
+            worst = (i, dev)
+    return (worst[0] + 1) if worst else None
+
+
+# §7 sentence copy. "{N} of {Y} trades {mid}" for the fired leak clause; the zero-week
+# form names the plural noun. Denominator Y = total trades that week (same as frequency).
+_BEHAVIOR_MID = {
+    "impulsive_bucket":  "were impulsive",
+    "revenge_chain":     "were revenge trades",
+    "no_setup_leak":     "had no setup",
+    "oversized_loss":    "were oversized",
+    "weak_exits":        "were fear/bail exits",
+    "expectancy_gap":    "lost",
+    "operational_error": "were operational errors",
+}
+_BEHAVIOR_ZERO = {
+    "impulsive_bucket":  "impulsive trades",
+    "revenge_chain":     "revenge trades",
+    "no_setup_leak":     "no-setup trades",
+    "oversized_loss":    "oversized losses",
+    "weak_exits":        "fear/bail exits",
+    "expectancy_gap":    "losing trades",
+    "operational_error": "operational errors",
+}
+
+
+def _trend_clause(verdict, pol, fp, ft):
+    """Rate-based trend clause. UNCHANGED is a direction-agnostic 'Flat: X → Y.'"""
+    fpct = f"{fp*100:.0f}% → {ft*100:.0f}%"
+    if verdict == "Unchanged":
+        return f"Flat: {fpct}."
+    if pol == "strength":
+        if verdict == "Strengthening":
+            return f"Showing up more often ({fpct}) — the good habit is strengthening."
+        return f"Showing up less ({fpct}) — the good habit is slipping."   # Slipping
+    if verdict == "Improving":
+        return f"Doing it less often ({fpct}) — improving."
+    return f"Doing it more often ({fpct}) — worsening."                    # Worsening
+
+
+def _this_week_clause(detector_id, pol, n, y, pnl):
+    """Concrete this-week ground truth with a profit/loss-conditional verb so the
+    sentence never contradicts its own sign. Zero-behavior weeks read as 'clean'."""
+    amt = abs(round(pnl))
+    if pol == "strength":
+        if n <= 0:
+            return "No ‘came to me’ trades this week."
+        verb = f"earning +${amt:,}" if pnl >= 0 else f"costing ${amt:,}"
+        return f"This week: you waited on {n} of {y} trades, {verb}."
+    if n <= 0:
+        return f"No {_BEHAVIOR_ZERO.get(detector_id, 'such trades')} this week — clean."
+    verb = f"making +${amt:,}" if pnl >= 0 else f"costing ${amt:,}"
+    return f"This week: {n} of {y} trades {_BEHAVIOR_MID.get(detector_id, 'fired')}, {verb}."
+
+
+def _verdict_sentence(detector_id, verdict, pol, fp, ft, n, y, pnl):
+    return f"{_trend_clause(verdict, pol, fp, ft)} {_this_week_clause(detector_id, pol, n, y, pnl)}"
+
+
+def compute_verdict(detector_id, weeks, freq_deadband=None, sev_deadband=None):
+    """Frequency-only verdict over the verdict window (qualifying weeks). Severity is
+    computed but only raises a '⚠ costlier' flag; a >2SD bad-direction week raises an
+    outlier flag. Deadbands default to code constants; callers pass per-account values."""
+    fdb = FREQ_DEADBAND if freq_deadband is None else freq_deadband
+    sdb = SEVERITY_DEADBAND if sev_deadband is None else sev_deadband
+    meta = DETECTOR_REGISTRY.get(detector_id, {"polarity": "leak"})
+    pol = meta["polarity"]
+    freq = [w["frequency"] for w in weeks]          # defined every qualifying week
+    fdir, fp, ft = _direction(freq, fdb)
+    sdir, sp, st = _severity_direction(weeks, sdb)  # fired weeks only (flag input only)
+
+    # §7 vocabulary: UNCHANGED for both polarities; STRENGTHENING for a rising strength.
+    if pol == "strength":
+        verdict = {"up": "Strengthening", "down": "Slipping", "flat": "Unchanged"}[fdir]
+    else:
+        verdict = {"down": "Improving", "up": "Worsening", "flat": "Unchanged"}[fdir]
+    badge = {"Improving": "mint", "Strengthening": "mint", "Worsening": "red",
+             "Slipping": "amber", "Unchanged": "slate"}[verdict]
+
+    # Severity flag (leaks only): frequency NOT worsening, but each occurrence got costlier.
+    costlier = (pol == "leak" and fdir != "up" and sdir == "up")
+    outlier_week = _freq_outlier(freq, pol)
+
+    # This-week ground truth from the latest qualifying week in the window.
+    tw = weeks[-1] if weeks else {"count": 0, "total_trades": 0, "magnitude": 0}
+    sentence = _verdict_sentence(detector_id, verdict, pol, fp, ft,
+                                 int(tw.get("count") or 0), int(tw.get("total_trades") or 0),
+                                 float(tw.get("magnitude") or 0))
+
+    return {"verdict": verdict, "badge": badge, "sentence": sentence,
+            "costlier": costlier, "outlier_week": outlier_week,
+            "freq_dir": fdir, "sev_dir": sdir,
+            "freq_from": fp, "freq_to": ft, "sev_from": sp, "sev_to": st}
+
+
+_URGENCY = {"Worsening": 0, "Unchanged": 1, "Improving": 2}
+
+
+def _leak_urgency(tile):
+    """Sort key (lower = top): Worsening → Holding steady → Improving. A '⚠ costlier'
+    or outlier flag nudges a non-worsening tile up; ties break on this-week drag."""
+    v = _URGENCY.get(tile["verdict"], 1)
+    if tile.get("costlier") or tile.get("outlier_week"):
+        v -= 0.5
+    return (v, -abs(tile.get("this_week_drag") or 0))
+
+
+def _build_tile(account_id, detector_id, anchor_week, focus_targets):
+    """One cockpit tile for a tracked detector (verdict, sparkline, dollars, focus)."""
+    meta = DETECTOR_REGISTRY[detector_id]
+    vw = get_verdict_window()
+    verdict_weeks = _detector_qual_weeks(account_id, detector_id, anchor_week, vw)
+    spark_weeks = _detector_qual_weeks(account_id, detector_id, anchor_week, get_sparkline_window())
+    n_qual = len(verdict_weeks)
+
+    fired_count = sum(w["fired"] for w in verdict_weeks)
+    # Dollars: this-week drag (None if current week is non-qualifying), and 8wk avg.
+    this_week = verdict_weeks[-1] if verdict_weeks else None
+    this_week_drag = this_week["magnitude"] if this_week else 0.0
+    total_drag = sum(w["magnitude"] for w in verdict_weeks)
+    avg_drag = (total_drag / n_qual) if n_qual else 0.0
+
+    tile = {
+        "detector_id": detector_id, "label": meta["label"], "polarity": meta["polarity"],
+        "qualifying_weeks": n_qual, "fired_count": fired_count, "window_size": n_qual,
+        "this_week_drag": this_week_drag, "avg_drag": round(avg_drag, 2),
+        "this_week_qualifying": bool(this_week),
+        "frequency_series": [{"week_start": w["week_start"], "frequency": round(w["frequency"], 4),
+                               "fired": w["fired"]} for w in spark_weeks],
+        "focused": detector_id in focus_targets,
+        "fired_window": fired_count > 0,
+    }
+    if n_qual < MIN_QUALIFYING_FOR_TREND:
+        tile.update({"verdict": None, "badge": "slate", "verdict_sentence": None,
+                     "costlier": False, "outlier_week": None, "outlier_text": None,
+                     "building": True})
+        return tile
+    v = compute_verdict(detector_id, verdict_weeks,
+                        get_freq_deadband(account_id), get_severity_deadband(account_id))
+    # §4: name the outlier week in the title ("spiked" for leaks, "dipped" for strengths).
+    outlier_text = None
+    if v["outlier_week"]:
+        verb = "dipped" if meta["polarity"] == "strength" else "spiked"
+        outlier_text = f"Week {v['outlier_week']} {verb}"
+    tile.update({"verdict": v["verdict"], "badge": v["badge"],
+                 "verdict_sentence": v["sentence"], "costlier": v["costlier"],
+                 "outlier_week": v["outlier_week"], "outlier_text": outlier_text,
+                 "building": False, "freq_from": v["freq_from"], "freq_to": v["freq_to"],
+                 "sev_from": v["sev_from"], "sev_to": v["sev_to"]})
+    return tile
+
+
+def build_cockpit(account_id, anchor_week):
+    """All-detectors trajectory cockpit: strengths first, then leaks (focused pinned,
+    active by urgency, quiet collapsed). Gated below 4 qualifying weeks."""
+    focus_rows = db.get_focus_targets(account_id)
+    focus_targets = [f["targets"] for f in focus_rows]
+
+    qmap = db.get_weekly_meta_map(account_id, "2000-01-01", anchor_week)
+    qual_weeks = sum(1 for v in qmap.values() if v["qualifying"])
+    needed = MIN_QUALIFYING_FOR_TREND
+
+    tiles = {d: _build_tile(account_id, d, anchor_week, focus_targets) for d in tracked_detectors()}
+    window_label = (f"last {get_verdict_window()} trading weeks · through {anchor_week}")
+
+    # Settings block for the gear panel: current per-account values + code defaults,
+    # plus this window's live movement for the reference detector (impulsive_bucket),
+    # so the deadband inputs can show "frequency moved N pts / severity moved $X".
+    ref = tiles.get("impulsive_bucket") or {}
+    ref_freq_pts = round(abs((ref.get("freq_to") or 0) - (ref.get("freq_from") or 0)) * 100)
+    ref_sev_usd = round(abs((ref.get("sev_to") or 0) - (ref.get("sev_from") or 0)))
+    settings = {
+        "qualifying_floor": get_qualifying_floor(account_id),
+        "focus_max": get_focus_max(account_id),
+        "freq_deadband_pts": round(get_freq_deadband(account_id) * 100, 1),
+        "severity_deadband": round(get_severity_deadband(account_id), 0),
+        "defaults": {"qualifying_floor": DEFAULT_QUALIFYING_FLOOR, "focus_max": FOCUS_MAX,
+                     "freq_deadband_pts": round(FREQ_DEADBAND * 100, 1),
+                     "severity_deadband": round(SEVERITY_DEADBAND, 0)},
+        "ref_label": ref.get("label", "impulsive"),
+        "ref_freq_moved_pts": ref_freq_pts, "ref_sev_moved_usd": ref_sev_usd,
+    }
+
+    if qual_weeks < needed:
+        return {"visible": False, "qualifying_weeks": qual_weeks, "needed": needed,
+                "anchor_week": anchor_week, "window_label": window_label,
+                "strengths": [], "leaks_focused": [], "leaks_active": [], "quiet": [],
+                "focus_max": get_focus_max(account_id), "focused_count": len(focus_targets),
+                "settings": settings}
+
+    strengths = [t for did, t in tiles.items() if t["polarity"] == "strength"]
+    strengths.sort(key=lambda t: (t["verdict"] != "Slipping", -abs(t.get("this_week_drag") or 0)))
+
+    leak_tiles = [t for did, t in tiles.items() if t["polarity"] == "leak"]
+    focused = [t for t in leak_tiles if t["focused"]]
+    focused.sort(key=lambda t: focus_targets.index(t["detector_id"]))  # stable focus order
+    rest = [t for t in leak_tiles if not t["focused"]]
+    active = sorted([t for t in rest if t["fired_window"]], key=_leak_urgency)
+    quiet = [{"detector_id": t["detector_id"], "label": t["label"]}
+             for t in rest if not t["fired_window"]]
+
+    return {"visible": True, "qualifying_weeks": qual_weeks, "needed": needed,
+            "anchor_week": anchor_week, "window_label": window_label,
+            "strengths": strengths, "leaks_focused": focused, "leaks_active": active,
+            "quiet": quiet, "focus_max": get_focus_max(account_id),
+            "focused_count": len(focus_targets), "settings": settings}
+
+
 # ── Weekly review data assembler (called by the route; thin SQL via db) ───────
 
 def week_bounds(week_start):
@@ -1919,11 +2260,13 @@ def build_weekly_review_data(account_id, week_start):
     latest_week = latest_trading_week(account_id) or mon
     is_current = mon >= latest_week
     if is_current:
-        trajectory = build_trajectory(account_id, latest_week)
+        trajectory = build_cockpit(account_id, latest_week)
     else:
         trajectory = {"visible": False, "is_current": False,
-                      "anchor_week": latest_week, "repeating": [], "improving": [],
-                      "intentions": [], "qualifying_weeks": 0, "needed": MIN_QUALIFYING_FOR_TREND}
+                      "anchor_week": latest_week, "window_label": "",
+                      "strengths": [], "leaks_focused": [], "leaks_active": [], "quiet": [],
+                      "qualifying_weeks": 0, "needed": MIN_QUALIFYING_FOR_TREND,
+                      "focus_max": get_focus_max(account_id), "focused_count": 0, "settings": {}}
     trajectory["is_current"] = is_current
 
     impulse_tags = set(get_impulse_tags())

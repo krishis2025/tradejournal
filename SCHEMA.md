@@ -18,7 +18,8 @@ accounts ──┬──< trading_days ──┬──< trades ──┬──< 
             ├──< developing_context ──< trade_strength
             ├──< trade_strength
             ├──< weekly_reviews ──< weekly_intentions
-            └──< insight_log
+            ├──< insight_log
+            └──< weekly_meta
 
 setups ──< setup_images
 
@@ -405,6 +406,22 @@ Trajectory tracking: one row per tracked detector per week (Monday-anchored). Re
 | created_at  | TEXT    | NOT NULL DEFAULT datetime('now','localtime')     |
 
 `UNIQUE(account_id, week_start, detector_id)` — idempotent upsert so recomputing a week overwrites cleanly. Trackable-set membership, polarity (leak/strength), and labels live in the `DETECTOR_REGISTRY` code constant, not the DB.
+
+---
+
+### 19d. WEEKLY_META
+Per-week totals for the trajectory cockpit — the denominator that turns `insight_log.count` into a behavior **frequency** (`count / total_trades`). Written once per week alongside the insight-log hook.
+
+| Column       | Type    | Constraints                                   |
+|--------------|---------|-----------------------------------------------|
+| id           | INTEGER | PK AUTOINCREMENT                             |
+| account_id   | INTEGER | FK → accounts(id) ON DELETE CASCADE         |
+| week_start   | TEXT    | NOT NULL — Monday, ISO                       |
+| total_trades | INTEGER | NOT NULL DEFAULT 0                           |
+| qualifying   | INTEGER | NOT NULL DEFAULT 0 — 0/1, week met the trade floor |
+| created_at   | TEXT    | NOT NULL DEFAULT datetime('now','localtime') |
+
+`UNIQUE(account_id, week_start)`. Frequency %, severity ($/occurrence), slopes, and verdicts are all computed on read — never stored.
 
 ---
 

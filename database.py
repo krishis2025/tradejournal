@@ -711,6 +711,21 @@ def init_db():
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_insight_log ON insight_log(account_id, detector_id, week_start)")
 
+        # Migration: weekly_meta — per-week total trades + qualifying flag, so the
+        # trajectory cockpit can compute behavior frequency (count / total_trades).
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS weekly_meta (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id   INTEGER REFERENCES accounts(id) ON DELETE CASCADE,
+                week_start   TEXT    NOT NULL,                      -- Monday, ISO
+                total_trades INTEGER NOT NULL DEFAULT 0,
+                qualifying   INTEGER NOT NULL DEFAULT 0,            -- 0/1, week met trade floor
+                created_at   TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+                UNIQUE(account_id, week_start)
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_weekly_meta ON weekly_meta(account_id, week_start)")
+
         # Migration: merge phantom NULL-account days into their real account day
         _migrate_merge_null_account_days(conn)
 
@@ -2857,6 +2872,70 @@ def get_insight_window(account_id, start_week, end_week):
                 (aid, start_week, end_week)
             ).fetchall()
         return [dict(r) for r in rows]
+
+
+def upsert_weekly_meta(account_id, week_start, total_trades, qualifying):
+    """Idempotent per-week meta (total trades + qualifying flag) for frequency math."""
+    aid = int(account_id) if account_id else None
+    with get_conn() as conn:
+        if aid is None:
+            existing = conn.execute(
+                "SELECT id FROM weekly_meta WHERE account_id IS NULL AND week_start = ?",
+                (week_start,)).fetchone()
+        else:
+            existing = conn.execute(
+                "SELECT id FROM weekly_meta WHERE account_id = ? AND week_start = ?",
+                (aid, week_start)).fetchone()
+        if existing:
+            conn.execute("UPDATE weekly_meta SET total_trades = ?, qualifying = ? WHERE id = ?",
+                         (int(total_trades), 1 if qualifying else 0, existing["id"]))
+        else:
+            conn.execute(
+                "INSERT INTO weekly_meta (account_id, week_start, total_trades, qualifying) VALUES (?, ?, ?, ?)",
+                (aid, week_start, int(total_trades), 1 if qualifying else 0))
+
+
+def get_weekly_meta_map(account_id, start_week, end_week):
+    """{week_start: {total_trades, qualifying}} in [start_week, end_week]."""
+    aid = int(account_id) if account_id else None
+    with get_conn() as conn:
+        if aid is None:
+            rows = conn.execute(
+                "SELECT * FROM weekly_meta WHERE account_id IS NULL AND week_start >= ? AND week_start <= ?",
+                (start_week, end_week)).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM weekly_meta WHERE account_id = ? AND week_start >= ? AND week_start <= ?",
+                (aid, start_week, end_week)).fetchall()
+        return {r["week_start"]: {"total_trades": r["total_trades"], "qualifying": r["qualifying"]}
+                for r in rows}
+
+
+def get_focus_targets(account_id):
+    """Detector ids currently focused = active (pending) focus intentions for the
+    account. Returns [{id, targets, text, review_week}] oldest-first (focus order)."""
+    aid = int(account_id) if account_id else None
+    with get_conn() as conn:
+        if aid is None:
+            rows = conn.execute("""
+                SELECT i.id, i.targets, i.text, r.week_start AS review_week
+                FROM weekly_intentions i JOIN weekly_reviews r ON r.id = i.weekly_review_id
+                WHERE r.account_id IS NULL AND i.source = 'focus' AND i.result = 'pending'
+                  AND i.targets != '' ORDER BY i.id
+            """).fetchall()
+        else:
+            rows = conn.execute("""
+                SELECT i.id, i.targets, i.text, r.week_start AS review_week
+                FROM weekly_intentions i JOIN weekly_reviews r ON r.id = i.weekly_review_id
+                WHERE r.account_id = ? AND i.source = 'focus' AND i.result = 'pending'
+                  AND i.targets != '' ORDER BY i.id
+            """, (aid,)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def delete_weekly_intention(intention_id):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM weekly_intentions WHERE id = ?", (intention_id,))
 
 
 # ── Market Internals ─────────────────────────────────────────────────────────
