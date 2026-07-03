@@ -158,9 +158,9 @@ Analytics · Setups · Observations · Settings**, plus a global account selecto
 | `/day/<id>` · `/day/<date>` | `day.html` | Day view: expandable trade trays, fills, tags, day notes/images. |
 | `/trade/<id>` | `trade.html` | Trade Execution view: single trade detail + tagging. |
 | `/trade/<id>/v2` | `trade_v2.html` | V2 trade detail. |
-| `/live` | `legacy_trade_exe.html` | Live Trade "Ticket" UI (retired from nav; route kept but unlinked). |
-| `/live-v2` | `live_v2.html` | Trade V2 live view (Context Ribbon / Headline Bar). |
-| `/live-legacy`, `/live-legacy/new`, `/live-legacy/<id>` | `live_*_legacy.html` | Legacy form/list live UI. |
+| `/live-v2` | `live_v2.html` | Trade V2 live view (Context Ribbon / Headline Bar) — the current live workflow. |
+
+> _Retired (v4.4.1): the old Ticket UI (`/live` → `live_ticket.html`/`legacy_trade_exe.html`) and the legacy form UI (`/live-legacy*` → `live_list_legacy.html` / `live_entry_legacy.html`) were removed — routes + templates deleted. The shared live-trade backend (`/api/live/*`, `live_trades*` tables, risk math) is untouched and still powers Trade V2._
 | `/accounts` | `accounts.html` | Account management + sizing cheat sheet. |
 | `/simulation` | `simulation.html` | Simulation view. |
 | `/analytics` | `analytics.html` | P&L chart, time-of-day, win-rate-by-setup, tag performance. |

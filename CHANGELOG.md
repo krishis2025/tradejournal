@@ -2,6 +2,26 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [4.4.1] — 2026-07-03
+
+### Retire the old Live Trade (Ticket) and Legacy View UIs
+
+Removed two unused live-trade UI layers now that **Trade V2** (`/live-v2`) is the sole
+live workflow. Done in stages: hidden from nav first, then deleted after confirming the
+shared/exclusive split.
+
+- **Deleted (exclusively reachable from the retired views):** templates
+  `live_ticket.html` (Ticket UI, renamed to `legacy_trade_exe.html` before deletion),
+  `live_list_legacy.html`, `live_entry_legacy.html`; routes `/live` (`live_trade_page`),
+  `/live-legacy`, `/live-legacy/new`, `/live-legacy/<id>`.
+- **Untouched (shared with Trade V2 and/or the journal):** the entire `/api/live/*`
+  API, all live-trade backend (`close_live_trade_to_journal`, `recalculate_live_trade`,
+  `compute_live_trade_plan`, `get_all_live_trades`, `INSTRUMENT_CONFIG`, risk math, …),
+  `/api/session/summary`, and the `live_trades` / `live_trade_levels` /
+  `live_trade_executions` / `live_trade_images` tables. **No database changes** — all
+  existing live-trade data is preserved.
+- Trade V2, the journal, and Weekly Review verified working after the removal.
+
 ## [4.4.0] — 2026-06-30
 
 ### Trajectory cockpit — frequency-first verdicts, focus

@@ -349,64 +349,6 @@ def settings_view():
     )
 
 
-@app.route("/live")
-def live_trade_page():
-    """New Ticket UI — single-page live trade interface with date range filter."""
-    from datetime import date as dt_date, timedelta
-
-    # Parse date range from query params
-    range_key = request.args.get("range", "today")
-    custom_from = request.args.get("from", "")
-    custom_to = request.args.get("to", "")
-
-    today = dt_date.today()
-    if range_key == "today":
-        date_from = date_to = today.isoformat()
-    elif range_key == "yesterday":
-        yd = today - timedelta(days=1)
-        date_from = date_to = yd.isoformat()
-    elif range_key == "week":
-        date_from = (today - timedelta(days=7)).isoformat()
-        date_to = today.isoformat()
-    elif range_key == "month":
-        date_from = (today - timedelta(days=30)).isoformat()
-        date_to = today.isoformat()
-    elif range_key == "custom" and custom_from and custom_to:
-        date_from = custom_from
-        date_to = custom_to
-    else:
-        date_from = date_to = today.isoformat()
-
-    account_id = request.args.get("account")
-    open_trades  = db.get_all_live_trades(status="open", date_from=date_from, date_to=date_to, account_id=account_id)
-    closed_trades = db.get_all_live_trades(status="closed", date_from=date_from, date_to=date_to, account_id=account_id)
-
-    # Pre-compute calc for each trade (open and closed)
-    for t in open_trades + closed_trades:
-        full = db.get_live_trade(t["id"])
-        t["levels"] = full.get("levels", [])
-        t["executions"] = full.get("executions", [])
-        t["calc"] = logic.recalculate_live_trade(full)
-
-    contexts = db.get_developing_contexts(date_from, date_to, account_id)
-
-    return render_template(
-        "legacy_trade_exe.html",
-        open_trades=open_trades,
-        closed_trades=closed_trades,
-        tag_groups=logic.get_tag_groups(),
-        tags_json=json.dumps(logic.get_tag_groups()),
-        trade_defaults=logic.get_trade_defaults(),
-        trade_defaults_json=json.dumps(logic.get_trade_defaults()),
-        instrument_config_json=json.dumps(logic.get_instrument_config()),
-        active_range=range_key,
-        date_from=date_from,
-        date_to=date_to,
-        contexts=contexts,
-        contexts_json=json.dumps(contexts),
-    )
-
-
 @app.route("/live-v2")
 def live_trade_v2_page():
     """Ladder-based trade companion tool — phase-driven UI."""
@@ -458,52 +400,6 @@ def live_trade_v2_page():
         closed_trades_json=json.dumps(closed_trades),
         strength_json=json.dumps(strength_map),
         signal_library_json=json.dumps(signal_library),
-    )
-
-
-# ── Legacy Live Trade routes (fully functional, accessible at /live-legacy) ──
-
-@app.route("/live-legacy")
-def live_trade_list_legacy():
-    open_trades  = db.get_all_live_trades(status="open")
-    closed_trades = db.get_all_live_trades(status="closed")
-    return render_template(
-        "live_list_legacy.html",
-        open_trades=open_trades,
-        closed_trades=closed_trades,
-    )
-
-
-@app.route("/live-legacy/new")
-def live_trade_new_legacy():
-    account_id = request.args.get("account") or None
-    return render_template(
-        "live_entry_legacy.html",
-        trade=None,
-        tag_groups=logic.get_tag_groups(),
-        tags_json=json.dumps(logic.get_tag_groups()),
-        trade_defaults=logic.get_trade_defaults(),
-        instrument_config_json=json.dumps(logic.get_instrument_config()),
-        account_id=account_id,
-    )
-
-
-@app.route("/live-legacy/<int:live_trade_id>")
-def live_trade_view_legacy(live_trade_id):
-    trade = db.get_live_trade(live_trade_id)
-    if not trade:
-        return render_template("404.html", message=f"Live trade #{live_trade_id} not found"), 404
-    calc = logic.recalculate_live_trade(trade)
-    return render_template(
-        "live_entry_legacy.html",
-        trade=trade,
-        calc=calc,
-        calc_json=json.dumps(calc),
-        tag_groups=logic.get_tag_groups(),
-        tags_json=json.dumps(logic.get_tag_groups()),
-        trade_defaults=logic.get_trade_defaults(),
-        instrument_config_json=json.dumps(logic.get_instrument_config()),
-        account_id=trade.get("account_id") or None,
     )
 
 

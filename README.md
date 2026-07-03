@@ -128,9 +128,7 @@ tradejournal/
 │   ├── index.html              ← Journal dashboard: all trading days + import
 │   ├── day.html                ← Day view: trades for one date
 │   ├── trade.html / trade_v2.html        ← Trade detail + tagging (v1 / v2)
-│   ├── legacy_trade_exe.html   ← Live Trade: Ticket UI (retired; route /live kept, unlinked)
-│   ├── live_v2.html            ← Trade V2: Context Ribbon / Trade Plan
-│   ├── live_entry_legacy.html / live_list_legacy.html  ← Legacy live UI
+│   ├── live_v2.html            ← Trade V2: Context Ribbon / Trade Plan (current live workflow)
 │   ├── accounts.html           ← Account management + sizing cheat sheet
 │   ├── simulation.html         ← Simulation view
 │   ├── analytics.html          ← Charts and tag performance
@@ -184,15 +182,16 @@ The included `Orders19.csv` is a sample you can import immediately.
 
 ## Live Trade Entry
 
-The Ticket UI (`/live`) is a single-page interface designed for speed during active trading:
+Live trades are entered and managed in **Trade V2** (`/live-v2`) — the current workflow
+(Context Ribbon / Trade Plan, per-tranche stops, push-to-journal, trajectory tracking):
 
 - **Command Bar** — Toggle direction/instrument/mode, enter price + qty, press Enter
-- **One-Click Exits** — TP1/TP2/TP3 buttons pre-filled with price, qty, and P&L estimate
-- **Inline Price Editing** — Click any stop/target price in the position map to edit
+- **One-Click Exits** — TP buttons pre-filled with price, qty, and P&L estimate
+- **Inline Price Editing** — Click any stop/target price to edit
 - **Trail Stops** — Per-portion stop adjustment with instant risk recalculation
 - **Push to Journal** — Explicitly saves trade with fills, tags, and notes to the main journal
 
-The legacy form-based UI is still available at `/live-legacy`.
+> The old Ticket UI (`/live`) and the legacy form UI (`/live-legacy`) were retired in v4.4.1.
 
 ---
 
