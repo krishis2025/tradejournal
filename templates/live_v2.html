@@ -2919,6 +2919,93 @@
 .poc-exit-grid { display: grid; grid-template-columns: 72px 1fr; gap: 6px; align-items: end; }
 .poc-exit-field { display: flex; flex-direction: column; gap: 2px; }
 .poc-exit-btn   { width: 100%; padding: 6px; font-size: 11px; font-weight: 600; margin-top: 4px; }
+
+/* ══ Market State strip (Context tab) — forest green / brick red / slate only ══ */
+/* §7 dark-theme reference values as page-local custom properties. */
+.ms-strip {
+  --ms-green:#3d8b66; --ms-green-bright:#5cab82; --ms-green-dim:#457a5f;
+  --ms-red:#9a4a55;   --ms-red-bright:#bd6f78;   --ms-red-dim:#8a5a60;
+  --ms-slate-fill:#14171d; --ms-slate:#8492aa; --ms-slate-dim:#525b6b;
+  --ms-trend-border:#4fb488; --ms-trend-bright:#6ec79a; --ms-trend-glow:rgba(61,139,102,.10);
+  --ms-label:#4d5666; --ms-chip-bg:#161a22; --ms-chip-text:#525b6b;
+  --ms-amber:#d99a5c; --ms-amber-strong:#e07a5f;
+  --ms-green-track:rgba(92,171,130,.20); --ms-red-track:rgba(189,111,120,.20);
+}
+/* Paper Light: keep bullish=green / bearish=red / neutral=slate readable on white */
+[data-theme="paper"] .ms-strip {
+  --ms-green:#0d7c3e; --ms-green-bright:#0a6a34; --ms-green-dim:#3f8a5f;
+  --ms-red:#b23644;   --ms-red-bright:#8f2833;   --ms-red-dim:#a05560;
+  --ms-slate-fill:#e8e4dd; --ms-slate:#6b665c; --ms-slate-dim:#8a8478;
+  --ms-trend-border:#0d7c3e; --ms-trend-bright:#0a6a34; --ms-trend-glow:rgba(13,124,62,.08);
+  --ms-label:#8a8478; --ms-chip-bg:#efece6; --ms-chip-text:#6b665c;
+  --ms-amber:#b5741f; --ms-amber-strong:#b8442e;
+  --ms-green-track:rgba(13,124,62,.18); --ms-red-track:rgba(178,54,68,.18);
+}
+.ms-strip { border:0.5px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:14px;
+  background:var(--surface); font-family:'Inter',sans-serif; }
+.ms-strip-title { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--ms-label); margin-bottom:10px; }
+.ms-row { display:grid; grid-template-columns:1fr 1fr 1fr 1fr 168px; gap:10px; align-items:stretch; }
+.ms-factor { border-right:0.5px solid var(--border); padding-right:10px; min-width:0; }
+.ms-factor:nth-child(4){ border-right:0; }
+.ms-factor-label { font-size:8.5px; letter-spacing:1px; text-transform:uppercase; color:var(--ms-label); margin-bottom:6px; }
+.ms-arrow-wrap { display:flex; align-items:center; gap:6px; cursor:pointer; }
+.ms-arrow { font-size:22px; line-height:1; font-weight:700; }
+.ms-word { font-size:11px; }
+.ms-up   { color:var(--ms-green-bright); }
+.ms-down { color:var(--ms-red-bright); }
+.ms-neutral { color:var(--ms-slate); }
+.ms-coil { color:var(--ms-slate); animation:msPulse 1.4s ease-in-out infinite; }
+@keyframes msPulse { 0%,100%{opacity:.35} 50%{opacity:1} }
+/* chip pickers (expanded) */
+.ms-chips { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+.ms-chip { font-size:10px; padding:3px 7px; border-radius:4px; cursor:pointer; white-space:nowrap;
+  background:var(--ms-chip-bg); color:var(--ms-chip-text); border:0.5px solid transparent; }
+.ms-chip:hover { border-color:var(--border2); }
+.ms-chip.lit-up   { background:var(--ms-green); color:#08130d; }
+.ms-chip.lit-down { background:var(--ms-red);   color:#1a0c0f; }
+.ms-chip.lit-neutral { background:#5a6477; color:#0d0f13; }
+.ms-sub-chips { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
+.ms-sub-chips.ms-disabled { opacity:.35; pointer-events:none; }
+/* keep an open picker above its neighbours so chips are never covered if they spill */
+.ms-factor:has(.ms-chips), .ms-factor:has(.ms-sub-chips) { position:relative; z-index:2; }
+/* strength fill-bar inline with arrow: ⅓=weak ⅔=moderate full=strong; coiling = no bar.
+   Fill is the factor's direction color; the dim track keeps the "out of full" reference visible. */
+.ms-bar { display:inline-block; width:46px; height:9px; border-radius:5px; overflow:hidden;
+  vertical-align:middle; box-sizing:border-box; }
+.ms-bar.ms-up   { background:var(--ms-green-track); }
+.ms-bar.ms-down { background:var(--ms-red-track); }
+.ms-bar-fill { display:block; height:100%; border-radius:5px; }
+.ms-bar.ms-up   .ms-bar-fill { background:var(--ms-green-bright); }
+.ms-bar.ms-down .ms-bar-fill { background:var(--ms-red-bright); }
+/* hero badge — descriptive alignment-quality label (no multipliers). Headline COLOR is the
+   signal: the two CORE ALIGNED states share words but differ by color (green vs slate). */
+.ms-badge { display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+  border-radius:9px; padding:9px 10px; border:1px solid var(--border2); gap:4px; }
+.ms-badge-head { font-size:11px; font-weight:800; letter-spacing:.6px; line-height:1.25;
+  font-family:'Inter',sans-serif; text-transform:uppercase; }
+.ms-badge-reason { font-size:8.5px; letter-spacing:.6px; text-transform:uppercase; color:var(--ms-slate-dim);
+  display:flex; align-items:center; gap:4px; }
+.ms-badge-ic { font-size:10px; line-height:1; }
+.ms-badge-ic.ms-ic-rot { color:var(--ms-amber); }
+.ms-badge-ic.ms-ic-opp { color:var(--ms-amber-strong); font-weight:700; }
+/* FULL ALIGNMENT · TREND DAY — boldest, lifted border + glow */
+.ms-badge.ms-b-full.long  { border-color:var(--ms-trend-border); background:var(--ms-trend-glow);
+  box-shadow:0 0 0 1px var(--ms-trend-glow); } .ms-badge.ms-b-full.long  .ms-badge-head { color:var(--ms-trend-bright); }
+.ms-badge.ms-b-full.short { border-color:var(--ms-red-bright);   background:rgba(154,74,85,.10);
+  box-shadow:0 0 0 1px rgba(154,74,85,.10); } .ms-badge.ms-b-full.short .ms-badge-head { color:var(--ms-red-bright); }
+/* STRONG ALIGNMENT — solid forest green / brick red */
+.ms-badge.ms-b-strong.long  { border-color:var(--ms-green); background:rgba(61,139,102,.06); }
+.ms-badge.ms-b-strong.long  .ms-badge-head { color:var(--ms-green-bright); }
+.ms-badge.ms-b-strong.short { border-color:var(--ms-red);   background:rgba(154,74,85,.06); }
+.ms-badge.ms-b-strong.short .ms-badge-head { color:var(--ms-red-bright); }
+/* CORE ALIGNED · rotational — forest green ~70% (a visible step down from STRONG) */
+.ms-badge.ms-b-corerot.long  { border-color:var(--ms-green-dim); background:transparent; }
+.ms-badge.ms-b-corerot.long  .ms-badge-head { color:var(--ms-green-dim); }
+.ms-badge.ms-b-corerot.short { border-color:var(--ms-red-dim);   background:transparent; }
+.ms-badge.ms-b-corerot.short .ms-badge-head { color:var(--ms-red-dim); }
+/* CORE ALIGNED · opposite AND MIXED — slate (opposite = breadth fighting the move) */
+.ms-badge.ms-b-slate { border-color:var(--border2); background:var(--ms-slate-fill); }
+.ms-badge.ms-b-slate .ms-badge-head { color:var(--ms-slate); }
 {% endblock %}
 
 {% block content %}
@@ -3784,32 +3871,25 @@ function buildProminentContextHtml(ctx) {
 /* ── SPLIT-CARD FORM (center panel during CONTEXT) ── */
 let selectedTrend = '';
 let pendingNuances = [];
-let formState = { dayType: '', valueState: 'Overlapping', volumeState: '', marketStory: '', planText: '', headlineRead: '', executionHeadline: '' };
+// Value lives in the Market State strip (msState); removed fields (Market Story,
+// Execution Headline) no longer exist — dropped from form-state save/restore.
+let formState = { dayType: '', volumeState: '', planText: '', headlineRead: '' };
 
 function saveFormState() {
   formState.dayType = document.getElementById('ds-day-type')?.value || '';
-  formState.valueState = document.getElementById('ds-value-state')?.value || 'Overlapping';
   formState.volumeState = document.getElementById('ds-volume-state')?.value || '';
-  formState.marketStory = document.getElementById('ds-notes')?.value || '';
   formState.planText = document.getElementById('ds-plan-text')?.value || '';
   formState.headlineRead = document.getElementById('ds-headline-read')?.value || '';
-  formState.executionHeadline = document.getElementById('ds-execution-headline')?.value || '';
 }
 function restoreFormState() {
   const dt = document.getElementById('ds-day-type');
-  const vs = document.getElementById('ds-value-state');
   const vol = document.getElementById('ds-volume-state');
-  const nt = document.getElementById('ds-notes');
   const pt = document.getElementById('ds-plan-text');
   const hr = document.getElementById('ds-headline-read');
   if (dt) dt.value = formState.dayType;
-  if (vs) vs.value = formState.valueState;
   if (vol) vol.value = formState.volumeState;
-  if (nt) nt.value = formState.marketStory;
   if (pt) pt.value = formState.planText;
   if (hr) hr.value = formState.headlineRead;
-  const eh = document.getElementById('ds-execution-headline');
-  if (eh) eh.value = formState.executionHeadline;
   renderSignalPills();
   renderPendingLegs();
 }
@@ -3864,6 +3944,193 @@ function renderInlineNuancePills() {
     return `<span class="nuance-pill nuance-pill-${i % COLORS}">${escHtml(n)}<span class="nuance-x" onclick="removeInlineNuance(${i})">×</span></span>`;
   }).join('');
 }
+/* ══ Market State strip — tap-to-set read + computed badge (Context tab) ══
+   JS mirror of app_logic.compute_market_state — keep the two in sync. */
+let msState = { adhZone:'', adhStrength:'', techZone:'', techStrength:'', value:'', sectorsZone:'', sectorsBreadth:'' };
+let msOpen = null;  // which factor's chip picker is expanded
+
+const MS_VALUE_LABEL = { OL:'Overlapping Lower', Lo:'Lower', Ov:'Overlapping', Hi:'Higher', OH:'Overlapping Higher' };
+function msValueCode(v){ // stored long-name -> short code
+  const m = {'Overlapping Lower':'OL','Lower':'Lo','Overlapping':'Ov','Higher':'Hi','Overlapping Higher':'OH'};
+  return m[v] || (['OL','Lo','Ov','Hi','OH'].includes(v) ? v : '');
+}
+// ADH & Tech share the zone model. STRENGTH is display-only — never in the badge.
+function _zoneDir(z){ return ({strong_plus:'up', strong_minus:'down', coiling:'coil'})[z] || 'none'; }
+// Sectors shares the zone grammar; its neutral middle is 'rotational' (static, no pulse).
+function _sectorDir(z){ return ({strong_plus:'up', strong_minus:'down', rotational:'neutral'})[z] || 'none'; }
+function msValueDir(v){ const c=msValueCode(v); return ({OH:'up',Hi:'up',OL:'down',Lo:'down',Ov:'neutral'})[c] || 'none'; }
+// Core-first, direction-agnostic. Emits a DESCRIPTIVE quality label (no multipliers) —
+// strength never feeds it. Mirrors app_logic.compute_market_state — keep in sync.
+function msComputeBadge(s){
+  const a=_zoneDir(s.adhZone), t=_zoneDir(s.techZone), v=msValueDir(s.value);   // strength ignored
+  const core=[a,t,v];
+  const long = core.every(d=>d==='up'), short = core.every(d=>d==='down');
+  if (!(long || short))                                      // Step 1: core must all agree
+    return { state:'mixed', headline:'MIXED', cls:'ms-b-slate', icon:'', iconCls:'', reason:'core factors disagree' };
+  const side = long?'long':'short', dirText = side.toUpperCase(), coreDir = long?'up':'down';
+  const sec = _sectorDir(s.sectorsZone);
+  if (sec===coreDir){                                        // sectors confirm the move
+    if (s.sectorsBreadth==='all')
+      return { state:'full', side, headline:`FULL ALIGNMENT · TREND DAY · ${dirText}`, cls:`ms-b-full ${side}`, icon:'', iconCls:'', reason:'' };
+    return { state:'strong', side, headline:`STRONG ALIGNMENT · ${dirText}`, cls:`ms-b-strong ${side}`, icon:'', iconCls:'', reason:'' };
+  }
+  if (sec==='up' || sec==='down')                            // sectors opposite the move → slate
+    return { state:'coreopp', side, headline:`CORE ALIGNED · ${dirText}`, cls:'ms-b-slate', icon:'⇅', iconCls:'ms-ic-opp', reason:'sectors not agreeing' };
+  // rotational / unset → forest-green ~70% (careful long)
+  return { state:'corerot', side, headline:`CORE ALIGNED · ${dirText}`, cls:`ms-b-corerot ${side}`, icon:'⚠', iconCls:'ms-ic-rot', reason:'sectors rotational' };
+}
+// Has the trader engaged the strip at all? (all factors empty → capture nothing, stays NULL)
+function msHasState(){ const s=msState; return !!(s.adhZone||s.techZone||s.value||s.sectorsZone); }
+// Frozen photograph of the strip at entry — full factors + the computed badge (enough to
+// reproduce it exactly). Immutable once stored; display reads this, never live msState.
+function msSnapshot(){
+  if (!msHasState()) return null;
+  const s=msState, b=msComputeBadge(s);
+  return { v:1, captured_at:new Date().toISOString(),
+    adh:{zone:s.adhZone, strength:s.adhStrength},
+    tech:{zone:s.techZone, strength:s.techStrength},
+    value:s.value,
+    sectors:{zone:s.sectorsZone, breadth:s.sectorsBreadth},
+    badge:{state:b.state, headline:b.headline, cls:b.cls, icon:b.icon||'', iconCls:b.iconCls||'', reason:b.reason||''} };
+}
+function _msArrow(dir){ return dir==='up'?'↑':dir==='down'?'↓':dir==='coil'?'◦':'→'; }
+function _msCls(dir){ return dir==='up'?'ms-up':dir==='down'?'ms-down':dir==='coil'?'ms-coil':'ms-neutral'; }
+function _chip(factor,key,val,label,litClass,active){
+  return `<span class="ms-chip ${active?('lit-'+litClass):''}" onclick="event.stopPropagation();msTap('${factor}','${key}','${val}')">${label}</span>`;
+}
+// strength fill-bar inline: ⅓=weak ⅔=moderate full=strong, direction-colored fill over a dim track.
+function _msBar(strength, dirCls){
+  const pct = ({strong:100, moderate:66, weak:33})[strength] || 0;
+  return `<span class="ms-bar ${dirCls}"><span class="ms-bar-fill" style="width:${pct}%"></span></span>`;
+}
+// ADH/Tech cell: zone (arrow+color) + strength (inline fill-bar). Coiling => no bar + "coiling".
+function msZoneCell(label, factor, zone, strength){
+  const dir=_zoneDir(zone), cls=_msCls(dir), open=(msOpen===factor);
+  const coiling = zone==='coiling';
+  const litCls = dir==='up'?'up':dir==='down'?'down':'neutral';
+  const readout = coiling ? '<span class="ms-word ms-neutral">coiling</span>'
+                : (zone ? _msBar(strength, cls) : '');
+  const zoneChips = `<div class="ms-chips">
+      ${_chip(factor,'zone','strong_minus','–','down',zone==='strong_minus')}
+      ${_chip(factor,'zone','coiling','◦','neutral',zone==='coiling')}
+      ${_chip(factor,'zone','strong_plus','+','up',zone==='strong_plus')}
+    </div>`;
+  const strChips = `<div class="ms-sub-chips${coiling?' ms-disabled':''}" title="${coiling?'coiling has no strength':''}">
+      ${_chip(factor,'strength','weak','weak',litCls,strength==='weak')}
+      ${_chip(factor,'strength','moderate','moderate',litCls,strength==='moderate')}
+      ${_chip(factor,'strength','strong','strong',litCls,strength==='strong')}
+    </div>`;
+  return `<div class="ms-factor">
+    <div class="ms-factor-label">${label}</div>
+    <div class="ms-arrow-wrap" onclick="msTogglePicker('${factor}')">
+      <span class="ms-arrow ${cls}">${_msArrow(dir)}</span>
+      ${readout}
+    </div>
+    ${open ? (zoneChips+strChips) : ''}
+  </div>`;
+}
+// Sectors cell: zone (−/rotational/+) + breadth (Heavy/All) sub-select, category word (no dots).
+// Rotational is STATIC (→, neutral slate, no pulse) — pulse stays exclusive to coiling ADH/Tech.
+function msSectorCell(){
+  const s=msState, zone=s.sectorsZone, dir=_sectorDir(zone), open=(msOpen==='sectors');
+  const rot = zone==='rotational';
+  const aligned = (zone==='strong_plus'||zone==='strong_minus');
+  const word = rot ? 'rotational'
+             : aligned ? (s.sectorsBreadth==='all' ? 'all aligned' : 'heavy aligned') : '';
+  const litCls = dir==='up'?'up':dir==='down'?'down':'neutral';
+  const zoneChips = `<div class="ms-chips">
+      ${_chip('sectors','zone','strong_minus','–','down',zone==='strong_minus')}
+      ${_chip('sectors','zone','rotational','◦','neutral',zone==='rotational')}
+      ${_chip('sectors','zone','strong_plus','+','up',zone==='strong_plus')}
+    </div>`;
+  const brChips = `<div class="ms-sub-chips${rot?' ms-disabled':''}" title="${rot?'rotational has no breadth':''}">
+      ${_chip('sectors','breadth','heavy','Heavy',litCls,s.sectorsBreadth==='heavy')}
+      ${_chip('sectors','breadth','all','All',litCls,s.sectorsBreadth==='all')}
+    </div>`;
+  return `<div class="ms-factor">
+    <div class="ms-factor-label">Sectors</div>
+    <div class="ms-arrow-wrap" onclick="msTogglePicker('sectors')">
+      <span class="ms-arrow ${_msCls(dir)}">${_msArrow(dir)}</span>
+      <span class="ms-word ${_msCls(dir)}">${word||'—'}</span>
+    </div>
+    ${open ? (zoneChips+brChips) : ''}
+  </div>`;
+}
+// Value cell: direction/category only (no dots, no strength).
+function msWordCell(label, factor, dir, word, chips){
+  const open = msOpen===factor;
+  return `<div class="ms-factor">
+    <div class="ms-factor-label">${label}</div>
+    <div class="ms-arrow-wrap" onclick="msTogglePicker('${factor}')">
+      <span class="ms-arrow ${_msCls(dir)}">${_msArrow(dir)}</span>
+      <span class="ms-word ${_msCls(dir)}">${word||'—'}</span>
+    </div>
+    ${open ? chips : ''}
+  </div>`;
+}
+function msRenderStrip(){
+  const s = msState;
+  // Value
+  const valD = msValueDir(s.value), valCode = msValueCode(s.value);
+  const valWord = s.value ? (({OL:'Overlap Lo',Lo:'Lower',Ov:'Overlap',Hi:'Higher',OH:'Overlap Hi'})[valCode] || s.value) : '';
+  const valChips = `<div class="ms-chips">
+      ${_chip('value','v','OL','OL','down',valCode==='OL')}
+      ${_chip('value','v','Lo','Lo','down',valCode==='Lo')}
+      ${_chip('value','v','Ov','Ov','neutral',valCode==='Ov')}
+      ${_chip('value','v','Hi','Hi','up',valCode==='Hi')}
+      ${_chip('value','v','OH','OH','up',valCode==='OH')}
+    </div>`;
+  const b = msComputeBadge(s);
+  const badge = `<div class="ms-badge ${b.cls}">
+      <div class="ms-badge-head">${b.headline}</div>
+      ${b.reason ? `<div class="ms-badge-reason">${b.icon?`<span class="ms-badge-ic ${b.iconCls}">${b.icon}</span>`:''}${b.reason}</div>` : ''}
+    </div>`;
+
+  return `<div class="ms-strip-title">Context · Market State · tap to set</div>
+    <div class="ms-row">
+      ${msZoneCell('ADH','adh',s.adhZone,s.adhStrength)}
+      ${msZoneCell('Tech · XLK','tech',s.techZone,s.techStrength)}
+      ${msWordCell('Value','value',valD,valWord,valChips)}
+      ${msSectorCell()}
+      ${badge}
+    </div>`;
+}
+function msRender(){ const el=document.getElementById('ms-strip'); if(el) el.innerHTML = msRenderStrip(); }
+function msTogglePicker(factor){ msOpen = (msOpen===factor?null:factor); msRender(); }
+function msTap(factor,key,val){
+  if (factor==='adh'){ if(key==='zone') msState.adhZone=val;
+    if(key==='strength' && msState.adhZone!=='coiling') msState.adhStrength=val; }   // coiling disables strength
+  if (factor==='tech'){ if(key==='zone') msState.techZone=val;
+    if(key==='strength' && msState.techZone!=='coiling') msState.techStrength=val; }
+  if (factor==='value' && key==='v') msState.value = MS_VALUE_LABEL[val] || val;
+  if (factor==='sectors'){ if(key==='zone') msState.sectorsZone=val;
+    if(key==='breadth' && msState.sectorsZone!=='rotational') msState.sectorsBreadth=val; }  // rotational disables breadth
+  msRender();          // recompute badge instantly (strength never affects it)
+  msPersist();         // live overwrite (only if a context exists)
+}
+function msSeed(ctx){
+  ctx = ctx || {};
+  msState = {
+    adhZone: ctx.ms_adh_zone||'', adhStrength: ctx.ms_adh_strength||'',
+    techZone: ctx.ms_tech_zone||'', techStrength: ctx.ms_tech_strength||'',
+    value: ctx.value_state || ctx.valueState || '',
+    sectorsZone: ctx.ms_sectors_zone||'', sectorsBreadth: ctx.ms_sectors_breadth||'',
+  };
+  msOpen = null;
+}
+function msPersist(){
+  if (!activeContextId) return;  // new context: taps saved on commit
+  fetch(`/api/context/${activeContextId}`, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      ms_adh_zone: msState.adhZone, ms_adh_strength: msState.adhStrength,
+      ms_tech_zone: msState.techZone, ms_tech_strength: msState.techStrength,
+      ms_sectors_zone: msState.sectorsZone, ms_sectors_breadth: msState.sectorsBreadth,
+      value_state: msState.value,
+    })
+  }).catch(()=>{});
+}
+
 function renderContextSplitCard(el) {
   const now = new Date();
   const timeLabel = formatTime12h(String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0'));
@@ -3886,23 +4153,16 @@ function renderContextSplitCard(el) {
     <div style="max-width:600px;margin:0 auto;display:flex;flex-direction:column;gap:0;">
       ${topBtn}
 
-      <!-- SECTION 1: Context -->
+      <!-- Market State strip (Value + directional read + computed badge) -->
+      <div class="ms-strip" id="ms-strip"></div>
+
+      <!-- SECTION 1: Context (Value now lives in the strip) -->
       <div class="ctx-form-section">
         <div class="ctx-form-section-title">CONTEXT <span style="float:right;color:var(--muted);font-weight:400;">${timeLabel}</span></div>
         <div class="ctx-form-2col">
           <div>
             <div class="ds-field-label">Day Type</div>
             <input type="text" class="ds-input" id="ds-day-type" placeholder="e.g. Liquidation break...">
-          </div>
-          <div>
-            <div class="ds-field-label">Value</div>
-            <select class="ds-select" id="ds-value-state">
-              <option value="Lower">Lower</option>
-              <option value="Overlapping Lower">Overlapping Lower (OL)</option>
-              <option value="Overlapping" selected>Overlapping</option>
-              <option value="Overlapping Higher">Overlapping Higher (OH)</option>
-              <option value="Higher">Higher</option>
-            </select>
           </div>
           <div>
             <div class="ds-field-label">Volume</div>
@@ -3924,46 +4184,36 @@ function renderContextSplitCard(el) {
         </div>
       </div>
 
-      <!-- SECTION 2: Bias / Read -->
+      <!-- SECTION 2: Read (Playbook = Trade Plan title, right panel) -->
       <div class="ctx-form-section">
-        <div class="ctx-form-section-title">BIAS / READ</div>
-        <div class="ds-field-label" style="margin-top:10px;">Market Story</div>
-        <textarea class="ds-textarea" id="ds-notes" rows="2" placeholder="Longer narrative..."></textarea>
-        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;">
-          <div class="ds-field-label" style="margin:0;">Headline Read</div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <div class="ctx-form-section-title" style="margin:0;">HEADLINE READ</div>
           <div class="ds-helper-links"><span onclick="getHeadlineRead()">↓ load</span> · <span onclick="saveHeadlineRead()">↑ save</span></div>
         </div>
-        <input type="text" class="ds-input" id="ds-headline-read" placeholder="e.g. Sellers in control, testing lows...">
-        <div class="ds-field-label" style="margin-top:10px;">Execution Headline</div>
-        <input type="text" class="ds-input" id="ds-execution-headline" placeholder="e.g. Fade sellers into support, wait for reclaim">
-        <div class="ds-field-label" style="margin-top:10px;">Bias Direction</div>
-        <div class="bias-pills" style="margin-bottom:10px;">
-          <button type="button" class="bias-pill${selectedBias==='long'?' active long':''}" onclick="setBias('long')">LONG</button>
-          <button type="button" class="bias-pill${selectedBias==='short'?' active short':''}" onclick="setBias('short')">SHORT</button>
-          <button type="button" class="bias-pill${selectedBias==='neutral'?' active neutral':''}" onclick="setBias('neutral')">NEUTRAL</button>
-        </div>
+        <input type="text" class="ds-input" id="ds-headline-read" style="margin-top:8px;" placeholder="e.g. Sellers in control, testing lows...">
       </div>
 
-      <!-- SECTION 3: Signals -->
-      <div class="ctx-form-section">
-        <div class="ctx-form-section-title">SIGNALS</div>
-        <div class="ctx-form-row" style="gap:6px;">
+      <!-- Signals — demoted to one optional line -->
+      <div style="margin-top:12px;">
+        <div class="ctx-form-row" style="gap:6px;align-items:center;">
+          <span class="ds-field-label" style="margin:0;white-space:nowrap;">Signals</span>
           <input type="text" class="ds-input" id="ds-signal-input" style="flex:1;"
-                 placeholder="e.g. Buyers failed at ONH"
+                 placeholder="optional — e.g. Buyers failed at ONH"
                  onkeydown="if(event.key==='Enter'){event.preventDefault();addSignal();}">
-          <select class="ds-select" id="ds-signal-polarity" style="width:110px;">
+          <select class="ds-select" id="ds-signal-polarity" style="width:100px;">
             <option value="bullish">Bullish</option>
             <option value="bearish">Bearish</option>
             <option value="neutral" selected>Neutral</option>
           </select>
           <button type="button" class="ds-add-nuance-btn" onclick="addSignal()">ADD</button>
         </div>
-        <div id="ds-signal-pills" class="ctx-signal-group" style="margin-top:8px;"></div>
+        <div id="ds-signal-pills" class="ctx-signal-group" style="margin-top:6px;"></div>
       </div>
 
       ${bottomBtns}
     </div>
   `;
+  msRender();
   restoreFormState();
 }
 
@@ -4037,7 +4287,7 @@ function renderSignalPills() {
 
 async function getHeadlineRead() {
   const dayType = document.getElementById('ds-day-type')?.value.trim() || '';
-  const valueState = document.getElementById('ds-value-state')?.value || '';
+  const valueState = msState.value || '';
   const volumeState = document.getElementById('ds-volume-state')?.value || '';
   const htfTrend = selectedTrend || '';
   const params = new URLSearchParams({ day_type: dayType, value_state: valueState, volume_state: volumeState, htf_trend: htfTrend });
@@ -4058,7 +4308,7 @@ async function getHeadlineRead() {
 
 async function saveHeadlineRead() {
   const dayType = document.getElementById('ds-day-type')?.value.trim() || '';
-  const valueState = document.getElementById('ds-value-state')?.value || '';
+  const valueState = msState.value || '';
   const volumeState = document.getElementById('ds-volume-state')?.value || '';
   const htfTrend = selectedTrend || '';
   const headlineRead = document.getElementById('ds-headline-read')?.value.trim() || '';
@@ -4396,12 +4646,14 @@ function populateFormFromContext(ctx) {
     entry_zone_low: l.entry_zone_low, entry_zone_high: l.entry_zone_high,
     trigger_text: l.trigger_text || '', is_primary: l.is_primary || 0
   }));
+  msSeed(ctx);   // seed the Market State strip from the loaded context
 }
 
 function startNewContext() {
   saveFormState();
   contextFormMode = 'create';
   formState = { dayType: '', valueState: 'Overlapping', volumeState: '', marketStory: '', planText: '', headlineRead: '', executionHeadline: '' };
+  msSeed({});   // reset the Market State strip for a new context
   pendingSignals = [];
   pendingLegs = [];
   selectedTrend = '';
@@ -4420,23 +4672,21 @@ function cancelNewContext() {
 
 async function updateExistingContext() {
   const dayType = document.getElementById('ds-day-type')?.value.trim() || '';
-  const valueState = document.getElementById('ds-value-state')?.value || '';
+  const valueState = msState.value || '';
   const volumeState = document.getElementById('ds-volume-state')?.value || '';
   const trend = selectedTrend || '';
-  const notes = document.getElementById('ds-notes')?.value.trim() || '';
   const planText = document.getElementById('ds-plan-text')?.value.trim() || '';
   const headlineRead = document.getElementById('ds-headline-read')?.value.trim() || '';
-  const executionHeadline = document.getElementById('ds-execution-headline')?.value.trim() || '';
-  const biasDirection = selectedBias || '';
 
   // PATCH the existing context
   await fetch(`/api/context/${activeContextId}`, {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       day_type: dayType, value_state: valueState, volume_state: volumeState,
-      HTF_Trend: trend, market_story: notes, plan_text: planText,
-      headline_read: headlineRead, bias_direction: biasDirection,
-      execution_headline: executionHeadline,
+      HTF_Trend: trend, plan_text: planText, headline_read: headlineRead,
+      ms_adh_zone: msState.adhZone, ms_adh_strength: msState.adhStrength,
+      ms_tech_zone: msState.techZone, ms_tech_strength: msState.techStrength,
+      ms_sectors_zone: msState.sectorsZone, ms_sectors_breadth: msState.sectorsBreadth,
     })
   });
 
@@ -4464,11 +4714,14 @@ async function updateExistingContext() {
   // Update local state
   const updatedCtx = {
     id: activeContextId, day_type: dayType, value_state: valueState,
-    volume_state: volumeState, HTF_Trend: trend, market_story: notes,
-    plan_text: planText, headline_read: headlineRead, bias_direction: biasDirection,
-    execution_headline: executionHeadline,
+    volume_state: volumeState, HTF_Trend: trend,
+    plan_text: planText, headline_read: headlineRead,
+    // Market State strip taps — must round-trip so the strip re-seeds correctly.
+    ms_adh_zone: msState.adhZone, ms_adh_strength: msState.adhStrength,
+    ms_tech_zone: msState.techZone, ms_tech_strength: msState.techStrength,
+      ms_sectors_zone: msState.sectorsZone, ms_sectors_breadth: msState.sectorsBreadth,
     signals: [...pendingSignals], legs: savedLegs,
-    mkt_read: dayType, setup: planText, nuance: notes,
+    mkt_read: dayType, setup: planText, nuance: '',
     time: lastCommittedContext.time || '',
   };
   lastCommittedContext = updatedCtx;
@@ -7470,15 +7723,12 @@ async function refreshTradeFromServer(tradeId) {
 
 async function commitContext() {
   const dayType = document.getElementById('ds-day-type')?.value.trim() || '';
-  const valueState = document.getElementById('ds-value-state')?.value || '';
+  const valueState = msState.value || '';
   const volumeState = document.getElementById('ds-volume-state')?.value || '';
   const trend = selectedTrend || '';
   const nuancesJson = JSON.stringify(pendingNuances);
-  const notes = document.getElementById('ds-notes')?.value.trim() || '';
   const planText = document.getElementById('ds-plan-text')?.value.trim() || '';
   const headlineRead = document.getElementById('ds-headline-read')?.value.trim() || '';
-  const executionHeadline = document.getElementById('ds-execution-headline')?.value.trim() || '';
-  const biasDirection = selectedBias || '';
 
   if (!dayType && !planText && !headlineRead) { showToast('Fill at least Day Type, Headline, or Plan', true); return; }
 
@@ -7492,10 +7742,10 @@ async function commitContext() {
     body: JSON.stringify({
       date: dateStr, time: timeStr, value_state: valueState,
       day_type: dayType, volume_state: volumeState, HTF_Trend: trend,
-      nuances_json: nuancesJson, market_story: notes,
-      plan_text: planText,
-      headline_read: headlineRead, bias_direction: biasDirection,
-      execution_headline: executionHeadline,
+      nuances_json: nuancesJson, plan_text: planText, headline_read: headlineRead,
+      ms_adh_zone: msState.adhZone, ms_adh_strength: msState.adhStrength,
+      ms_tech_zone: msState.techZone, ms_tech_strength: msState.techStrength,
+      ms_sectors_zone: msState.sectorsZone, ms_sectors_breadth: msState.sectorsBreadth,
       mental_state: guardState.mental_state || 'calm',
       account_id: pid ? parseInt(pid) : null,
     })
@@ -7531,12 +7781,14 @@ async function commitContext() {
   lastCommittedContext = {
     id: ctxId, time: timeStr, value_state: valueState,
     day_type: dayType, volume_state: volumeState, HTF_Trend: trend,
-    nuances_json: nuancesJson, market_story: notes, nuances: [...pendingNuances],
-    plan_text: planText,
-    headline_read: headlineRead, bias_direction: biasDirection,
-    execution_headline: executionHeadline,
+    nuances_json: nuancesJson, nuances: [...pendingNuances],
+    plan_text: planText, headline_read: headlineRead,
+    // Market State strip taps — round-trip so the strip re-seeds correctly.
+    ms_adh_zone: msState.adhZone, ms_adh_strength: msState.adhStrength,
+    ms_tech_zone: msState.techZone, ms_tech_strength: msState.techStrength,
+      ms_sectors_zone: msState.sectorsZone, ms_sectors_breadth: msState.sectorsBreadth,
     signals: savedSignals, legs: savedLegs,
-    mkt_read: dayType, setup: planText, nuance: notes
+    mkt_read: dayType, setup: planText, nuance: ''
   };
 
   // Add to SERVER_CONTEXTS for reference
@@ -7874,7 +8126,9 @@ async function createTradeFromForm() {
       entry_time: time, total_qty: qty, mode: formMode,
       stop_price: (stop_price != null ? stop_price : undefined),
       notes: '', tags: {}, account_id: pid ? parseInt(pid) : null,
-      strength_id: activeStrengthId, context_id: activeContextId
+      strength_id: activeStrengthId, context_id: activeContextId,
+      // Freeze the Context Market State strip onto this trade at entry (immutable snapshot).
+      market_state_json: (() => { const snap = msSnapshot(); return snap ? JSON.stringify(snap) : undefined; })()
     })
   });
   const data = await res.json();

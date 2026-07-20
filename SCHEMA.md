@@ -102,6 +102,11 @@ Individual trades recorded per day.
 | notes_exit       | TEXT    | NOT NULL DEFAULT ''                        |
 | execution_score_json | TEXT | nullable                                  |
 | context_id       | INTEGER | nullable, FK → developing_context(id)     |
+| market_state_json | TEXT   | nullable — frozen Market State snapshot at entry (JSON) |
+
+`market_state_json`: immutable photograph of the Context Market State strip at the entry fill
+(full factors + strength + computed badge). Written once; carried over from `live_trades` on the
+push-to-journal. NULL for imports / pre-feature trades. See LIVE_TRADES below.
 
 ---
 
@@ -197,6 +202,7 @@ Active live trades during trading sessions.
 | realized_pnl     | REAL    | NOT NULL DEFAULT 0                     |
 | initial_risk     | REAL    | NOT NULL DEFAULT 0                     |
 | journal_trade_id | INTEGER |                                        |
+| market_state_json | TEXT   | nullable — frozen Market State snapshot at entry (JSON) |
 | notes_monitoring | TEXT    | NOT NULL DEFAULT ''                    |
 | notes_exit       | TEXT    | NOT NULL DEFAULT ''                    |
 | guard_json       | TEXT    | NOT NULL DEFAULT ''                    |
@@ -484,6 +490,21 @@ Pre-trade context declarations for the Declare Setup flow.
 | confidence_score | TEXT    | NOT NULL DEFAULT ''                    |
 | bias_direction   | TEXT    | NOT NULL DEFAULT ''                    |
 | execution_headline | TEXT  | NOT NULL DEFAULT ''                    |
+| ms_adh_zone      | TEXT    | NOT NULL DEFAULT '' (Market State strip) |
+| ms_adh_strength  | TEXT    | NOT NULL DEFAULT '' (renamed from ms_adh_trend) |
+| ms_tech_zone     | TEXT    | NOT NULL DEFAULT '' (renamed from ms_tech_dir) |
+| ms_tech_strength | TEXT    | NOT NULL DEFAULT '' (renamed from ms_tech_mom) |
+| ms_sectors       | TEXT    | NOT NULL DEFAULT '' (legacy single-field; superseded by zone+breadth) |
+| ms_sectors_zone  | TEXT    | DEFAULT '' (Market State strip)        |
+| ms_sectors_breadth | TEXT  | DEFAULT '' (Market State strip)        |
+
+**Market State strip** (Context tab, Trade V2 — the trader's discretionary read; `value_state`
+above doubles as the strip's Value factor):
+- `ms_adh_zone` / `ms_tech_zone`: `strong_plus` (+ve), `strong_minus` (−ve), or `coiling`.
+- `ms_adh_strength` / `ms_tech_strength`: `weak`, `moderate`, `strong` — display-only (never feeds
+  the sizing/verdict badge).
+- `ms_sectors_zone`: `strong_plus`, `strong_minus`, or `rotational`; `ms_sectors_breadth`:
+  `heavy` or `all` (disabled when rotational). Supersedes the legacy `ms_sectors` single field.
 
 `value_state` values: Lower, Overlapping Lower, Overlapping, Overlapping Higher, Higher.
 `mental_state` values: calm (passed mental state check).

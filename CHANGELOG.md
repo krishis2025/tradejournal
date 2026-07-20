@@ -2,6 +2,44 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [4.5.0] — 2026-07-19
+
+### Context "Market State" strip + trade-state capture
+
+Redesigned the Context tab's market read into a compact **Market State strip** (ADH, Tech·XLK,
+Value, Sectors + a computed alignment badge) on Trade V2, and stamped that read onto each trade
+at entry for later review. The live strip, its badge logic, and colors are shared via page-local
+CSS custom properties (dark + Paper-Light).
+
+**Market State strip (Context tab):**
+- **ADH & Tech·XLK** share one control: **Zone** (−ve / coiling / +ve) + **Strength**
+  (weak / moderate / strong). Strength renders as a single continuous **fill-bar** (⅓/⅔/full) in
+  the factor's direction color over a dim track; coiling shows no bar. Strength is **display-only** —
+  it never feeds the sizing/verdict.
+- **Sectors** uses the same grammar: **Zone** (−ve / rotational / +ve) + **Breadth** (Heavy / All);
+  rotational is static (no pulse) and disables breadth.
+- **Badge** is **descriptive, not prescriptive** — no multipliers. Core-first, direction-agnostic
+  (long/short mirror): `FULL ALIGNMENT · TREND DAY`, `STRONG ALIGNMENT`, `CORE ALIGNED` (forest-green
+  when sectors rotational ⚠, slate when sectors opposite ⇅), or `MIXED`. The two CORE ALIGNED states
+  share words and differ only by headline color.
+- Fixed a persistence bug (ADH/Tech/Sectors taps lost on "Update Context & Plan") and a layout bug
+  (the "strong" strength chip was unclickable when the row overflowed its column).
+
+**Trade-state capture (review):**
+- At the entry fill, the strip is frozen into an immutable `market_state_json` snapshot (full factors
+  + strength + badge) on the trade — a photograph, not a live link. Changing the live strip afterward
+  never alters an entered trade's snapshot.
+- The snapshot lives on both `live_trades` and `trades` and **survives the push-to-journal**. The
+  trade detail view reconstructs the captured badge from the stored blob; trades with no snapshot show
+  "No market state captured".
+- Group-by-regime P&L analytics are deferred to a later pass (data captured now).
+
+**Schema (additive, guarded migrations):**
+- `developing_context`: `ms_adh_zone`, `ms_adh_strength` (renamed from `ms_adh_trend`), `ms_tech_zone`
+  (from `ms_tech_dir`), `ms_tech_strength` (from `ms_tech_mom`), `ms_sectors_zone`, `ms_sectors_breadth`
+  (legacy `ms_sectors` retained, best-effort backfilled).
+- `live_trades` and `trades`: `market_state_json` (nullable). Existing rows unaffected.
+
 ## [4.4.1] — 2026-07-03
 
 ### Retire the old Live Trade (Ticket) and Legacy View UIs

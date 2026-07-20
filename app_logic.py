@@ -740,6 +740,92 @@ def compute_execution_pnl(direction, instrument, entry_price, exec_price, qty):
         return round((entry_price - exec_price) * qty * dpp, 2)
 
 
+# ── Market State strip — badge/sizing verdict (Context tab, Trade V2) ─────────
+# Pure, deterministic. The strip captures the trader's discretionary read as taps;
+# this judges *agreement* only. The app describes, never prescribes. Mirrored in
+# live_v2.html JS for instant client-side recompute — keep the two in sync.
+
+# Each factor resolves to a direction: 'up' | 'down' | 'neutral' | 'coiling'.
+def _zone_direction(zone):
+    """ADH/Tech/Sectors share a zone model: +ve → up, −ve → down. The neutral middle is
+    'coiling' for ADH/Tech and 'rotational' for Sectors — both resolve to no clean
+    direction, so they can never contribute to core alignment."""
+    return {"strong_plus": "up", "strong_minus": "down",
+            "coiling": "coiling", "rotational": "neutral"}.get(zone, "neutral")
+
+
+def _value_direction(value):
+    # Accepts strip codes (OL/Lower/Overlap/Higher/OH) and the stored long names.
+    v = (value or "").strip().lower()
+    if v in ("oh", "overlapping higher", "higher", "hi"):
+        return "up"
+    if v in ("ol", "overlapping lower", "lower", "lo"):
+        return "down"
+    if v in ("ov", "overlap", "overlapping"):
+        return "neutral"
+    return "neutral"
+
+
+def compute_market_state(adh_zone=None, adh_strength=None, tech_zone=None, tech_strength=None,
+                         value=None, sectors_zone=None, sectors_breadth=None):
+    """Core-first, direction-agnostic verdict (mirrors long and short).
+
+    The badge DESCRIBES alignment quality — it emits no multipliers/sizing (that decision
+    is the trader's). The sizing *conditions* are unchanged; only the output is a label.
+
+    Step 1 — core alignment: ADH, Tech and Value must ALL agree (all up, or all down).
+    If not → MIXED; Sectors can never create alignment on its own (coiling counts as
+    disagreement).
+
+    Step 2 — core agreed, Sectors vs. the core direction sets the quality:
+      same + All   → FULL ALIGNMENT · TREND DAY   (boldest green/red)
+      same + Heavy → STRONG ALIGNMENT             (solid forest green / brick red)
+      rotational   → CORE ALIGNED (⚠ rotational)  (forest green ~70% — careful long)
+      opposite     → CORE ALIGNED (⇅ not agreeing) (SLATE — breadth fighting the move)
+
+    The two CORE ALIGNED states share words and differ only by headline color. STRENGTH on
+    ADH/Tech is display-only and never affects the badge. Mirrored in live_v2.html JS."""
+    adh_d = _zone_direction(adh_zone)
+    tech_d = _zone_direction(tech_zone)
+    val_d = _value_direction(value)
+    sec_d = _zone_direction(sectors_zone)   # up | down | neutral (rotational/unset)
+
+    factor_dir = {"adh": adh_d, "tech": tech_d, "value": val_d, "sectors": sec_d}
+
+    core = [adh_d, tech_d, val_d]
+    aligned_long = all(d == "up" for d in core)
+    aligned_short = all(d == "down" for d in core)
+    if not (aligned_long or aligned_short):
+        return {"state": "mixed", "direction": "mixed", "headline": "MIXED",
+                "cls": "ms-b-slate", "icon": "", "reason": "core factors disagree",
+                "factor_dir": factor_dir}
+
+    direction = "long" if aligned_long else "short"
+    core_dir = "up" if aligned_long else "down"
+    dir_text = direction.upper()
+
+    if sec_d == core_dir:                        # sectors confirm the move
+        if sectors_breadth == "all":
+            return {"state": "full", "direction": direction,
+                    "headline": f"FULL ALIGNMENT · TREND DAY · {dir_text}",
+                    "cls": f"ms-b-full {direction}", "icon": "", "reason": "",
+                    "factor_dir": factor_dir}
+        return {"state": "strong", "direction": direction,
+                "headline": f"STRONG ALIGNMENT · {dir_text}",
+                "cls": f"ms-b-strong {direction}", "icon": "", "reason": "",
+                "factor_dir": factor_dir}
+
+    if sec_d in ("up", "down"):                  # sectors opposite → slate warning
+        return {"state": "coreopp", "direction": direction,
+                "headline": f"CORE ALIGNED · {dir_text}", "cls": "ms-b-slate",
+                "icon": "⇅", "reason": "sectors not agreeing", "factor_dir": factor_dir}
+
+    # rotational / unset → forest-green ~70% (careful long)
+    return {"state": "corerot", "direction": direction,
+            "headline": f"CORE ALIGNED · {dir_text}", "cls": f"ms-b-corerot {direction}",
+            "icon": "⚠", "reason": "sectors rotational", "factor_dir": factor_dir}
+
+
 def recalculate_live_trade(live_trade):
     """
     Given a full live_trade dict (with levels + executions),
@@ -1064,7 +1150,8 @@ def close_live_trade_to_journal(live_trade_id):
         lt["entry_time"], exit_time, is_open=(calc["remaining_qty"] > 0),
         execution_json=execution_json_str,
         execution_score_json=lt.get("execution_score_json"),
-        context_id=lt.get("context_id")
+        context_id=lt.get("context_id"),
+        market_state_json=lt.get("market_state_json"),  # carry the frozen snapshot onto the journaled trade
     )
 
     # Save tags from live trade

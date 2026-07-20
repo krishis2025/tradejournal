@@ -98,6 +98,9 @@ def day_view(day_id):
         return render_template("404.html", message=f"Day #{day_id} not found"), 404
     trades = db.get_trades_for_day(day_id)
     for trade in trades:
+        # Frozen market-state snapshot captured at entry (read the stored blob, never live state).
+        ms_raw = trade.get("market_state_json")
+        trade["market_state"] = json.loads(ms_raw) if ms_raw else None
         ctx_id = trade.get("context_id")
         if ctx_id:
             ctx = db.get_developing_context_by_id(ctx_id)
@@ -816,6 +819,11 @@ def api_create_context():
         bias_direction=bias_direction,
         execution_headline=execution_headline,
     )
+    # Market State strip taps (Context redesign + strength/sectors amendments) — persist after create.
+    ms = {k: body[k] for k in ("ms_adh_zone", "ms_adh_strength", "ms_tech_zone",
+                               "ms_tech_strength", "ms_sectors_zone", "ms_sectors_breadth") if k in body}
+    if ms:
+        db.update_developing_context(ctx_id, **ms)
     return jsonify({"ok": True, "id": ctx_id})
 
 
@@ -989,6 +997,7 @@ def api_create_live_trade():
             guard_json=json.dumps(body.get("guard", {})) if body.get("guard") else "",
             context_id=body.get("context_id") or None,
             strength_id=body.get("strength_id") or None,
+            market_state_json=body.get("market_state_json") or None,  # frozen Context-strip snapshot at entry
         )
         # Compute and save default levels
         levels = logic.compute_live_trade_plan(

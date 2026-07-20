@@ -27,6 +27,22 @@
 .trade-detail { max-height:0;overflow:hidden;transition:max-height 0.5s cubic-bezier(0.4,0,0.2,1);border-top:0px solid var(--border); }
 .trade-row-card.expanded .trade-detail { max-height:2400px;border-top-width:1px; }
 
+/* ── Captured Market-State badge (review of the frozen entry snapshot) ── */
+.ms-cap { display:inline-flex; align-items:center; gap:10px; border:1px solid var(--border2);
+  border-radius:8px; padding:7px 12px; font-family:'Inter',sans-serif; }
+.ms-cap-head { font-size:11px; font-weight:800; letter-spacing:.6px; text-transform:uppercase; }
+.ms-cap-reason { font-size:8.5px; letter-spacing:.6px; text-transform:uppercase; color:#6b7488;
+  display:inline-flex; align-items:center; gap:4px; }
+.ms-cap-ic.ms-ic-rot { color:#d99a5c; }
+.ms-cap-ic.ms-ic-opp { color:#e07a5f; font-weight:700; }
+.ms-cap.ms-b-full.long    { border-color:#4fb488; } .ms-cap.ms-b-full.long   .ms-cap-head { color:#6ec79a; }
+.ms-cap.ms-b-strong.long  { border-color:#3d8b66; } .ms-cap.ms-b-strong.long .ms-cap-head { color:#5cab82; }
+.ms-cap.ms-b-full.short   { border-color:#bd6f78; } .ms-cap.ms-b-full.short  .ms-cap-head { color:#bd6f78; }
+.ms-cap.ms-b-strong.short { border-color:#9a4a55; } .ms-cap.ms-b-strong.short .ms-cap-head { color:#bd6f78; }
+.ms-cap.ms-b-corerot.long { border-color:#457a5f; } .ms-cap.ms-b-corerot.long .ms-cap-head { color:#457a5f; }
+.ms-cap.ms-b-corerot.short{ border-color:#8a5a60; } .ms-cap.ms-b-corerot.short .ms-cap-head { color:#8a5a60; }
+.ms-cap.ms-b-slate        { border-color:var(--border2); } .ms-cap.ms-b-slate .ms-cap-head { color:#8492aa; }
+
 /* ── Trade Context Card ── */
 .trade-context-card {
   background: var(--surface2); border: 1px solid var(--border);
@@ -486,6 +502,20 @@
       <a href="/trade/{{ trade.id }}" class="trade-view-link">Trade Execution ↗</a>
       {% if trade.execution_json %}
         <a href="/trade/{{ trade.id }}/v2" class="trade-view-link" style="margin-left:8px">Ladder ↗</a>
+      {% endif %}
+    </div>
+
+    <!-- Market State at entry (frozen snapshot, reconstructed from stored blob) -->
+    <div style="padding:0 20px 16px;background:var(--bg);">
+      <div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Market State at Entry</div>
+      {% if trade.market_state and trade.market_state.badge %}
+        {% set msb = trade.market_state.badge %}
+        <div class="ms-cap {{ msb.cls }}">
+          <span class="ms-cap-head">{{ msb.headline }}</span>
+          {% if msb.reason %}<span class="ms-cap-reason">{% if msb.icon %}<span class="ms-cap-ic {{ msb.iconCls }}">{{ msb.icon }}</span>{% endif %}{{ msb.reason }}</span>{% endif %}
+        </div>
+      {% else %}
+        <div style="color:var(--border2);font-size:10px;letter-spacing:1px;text-transform:uppercase;">No market state captured</div>
       {% endif %}
     </div>
 

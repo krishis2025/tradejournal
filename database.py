@@ -340,6 +340,16 @@ def init_db():
         if "execution_score_json" not in lt_cols4:
             conn.execute("ALTER TABLE live_trades ADD COLUMN execution_score_json TEXT DEFAULT NULL")
 
+        # Migration (trade-state capture): frozen snapshot of the Context Market State strip
+        # at entry. Immutable photograph — written once, never updated. Lives on live_trades
+        # AND trades so it survives the live→journal push. NULL = no captured state (imports).
+        lt_ms = [r[1] for r in conn.execute("PRAGMA table_info(live_trades)").fetchall()]
+        if "market_state_json" not in lt_ms:
+            conn.execute("ALTER TABLE live_trades ADD COLUMN market_state_json TEXT DEFAULT NULL")
+        tr_ms = [r[1] for r in conn.execute("PRAGMA table_info(trades)").fetchall()]
+        if "market_state_json" not in tr_ms:
+            conn.execute("ALTER TABLE trades ADD COLUMN market_state_json TEXT DEFAULT NULL")
+
         # Migration: add initial_risk to live_trades (pinned at creation for risk-left bar reference)
         lt_cols5 = [r[1] for r in conn.execute("PRAGMA table_info(live_trades)").fetchall()]
         if "initial_risk" not in lt_cols5:
@@ -608,6 +618,41 @@ def init_db():
         ]:
             if col not in ctx_cols:
                 conn.execute(f"ALTER TABLE developing_context ADD COLUMN {col} TEXT NOT NULL DEFAULT {default}")
+
+        # Migration: Market State strip taps (Context tab redesign). Value reuses the
+        # existing value_state column; these hold the other factors' taps.
+        ctx_cols = [r[1] for r in conn.execute("PRAGMA table_info(developing_context)").fetchall()]
+        for col in ("ms_adh_zone", "ms_sectors"):
+            if col not in ctx_cols:
+                conn.execute(f"ALTER TABLE developing_context ADD COLUMN {col} TEXT NOT NULL DEFAULT ''")
+
+        # Migration (strength amendment): ADH/Tech move to zone + strength. Rename the
+        # old trend/dir/momentum columns cleanly (guarded; feature is new, near-zero data).
+        ctx_cols = [r[1] for r in conn.execute("PRAGMA table_info(developing_context)").fetchall()]
+        for old_name, new_name in [("ms_adh_trend", "ms_adh_strength"),
+                                    ("ms_tech_dir", "ms_tech_zone"),
+                                    ("ms_tech_mom", "ms_tech_strength")]:
+            if old_name in ctx_cols and new_name not in ctx_cols:
+                conn.execute(f"ALTER TABLE developing_context RENAME COLUMN {old_name} TO {new_name}")
+        ctx_cols = [r[1] for r in conn.execute("PRAGMA table_info(developing_context)").fetchall()]
+        for col in ("ms_adh_strength", "ms_tech_zone", "ms_tech_strength"):
+            if col not in ctx_cols:
+                conn.execute(f"ALTER TABLE developing_context ADD COLUMN {col} TEXT NOT NULL DEFAULT ''")
+
+        # Migration (sectors amendment): Sectors splits from one jammed field (ms_sectors:
+        # rotational/heavy/all) into zone (−/rotational/+) + breadth (heavy/all). Additive:
+        # add the two new columns, then best-effort backfill the old (up-only) reading so
+        # existing rows stay coherent. ms_sectors is left in place (never dropped).
+        ctx_cols = [r[1] for r in conn.execute("PRAGMA table_info(developing_context)").fetchall()]
+        newly_added = [c for c in ("ms_sectors_zone", "ms_sectors_breadth") if c not in ctx_cols]
+        for col in newly_added:
+            conn.execute(f"ALTER TABLE developing_context ADD COLUMN {col} TEXT NOT NULL DEFAULT ''")
+        if newly_added and "ms_sectors" in ctx_cols:
+            # old model was direction-less (rendered as up); map heavy/all → +ve, rotational → rotational.
+            conn.execute("UPDATE developing_context SET ms_sectors_zone='strong_plus', "
+                         "ms_sectors_breadth=ms_sectors WHERE ms_sectors IN ('heavy','all')")
+            conn.execute("UPDATE developing_context SET ms_sectors_zone='rotational' "
+                         "WHERE ms_sectors='rotational'")
 
         # Migration: create signal_library table
         conn.execute("DROP TABLE IF EXISTS signal_library")
@@ -1072,13 +1117,13 @@ def get_trade_by_id(trade_id):
         return td
 
 
-def insert_trade(day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open=False, execution_json=None, execution_score_json=None, context_id=None):
+def insert_trade(day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open=False, execution_json=None, execution_score_json=None, context_id=None, market_state_json=None):
     with get_conn() as conn:
         cur = conn.execute("""
             INSERT INTO trades
-                (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open, execution_json, execution_score_json, context_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, 1 if is_open else 0, execution_json, execution_score_json, context_id))
+                (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open, execution_json, execution_score_json, context_id, market_state_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, 1 if is_open else 0, execution_json, execution_score_json, context_id, market_state_json))
         return cur.lastrowid
 
 
@@ -1813,15 +1858,18 @@ def clear_account_config(account_id, prefix=None):
 def create_live_trade(account_id, direction, instrument, entry_price, entry_time,
                       total_qty, mode, notes="", tags_json="{}",
                       notes_monitoring="", notes_exit="", guard_json="",
-                      context_id=None, strength_id=None):
+                      context_id=None, strength_id=None, market_state_json=None):
+    # market_state_json: frozen snapshot of the Context strip at entry (immutable photograph).
     with get_conn() as conn:
         cur = conn.execute("""
             INSERT INTO live_trades
                 (account_id, direction, instrument, entry_price, entry_time,
-                 total_qty, mode, notes, tags_json, notes_monitoring, notes_exit, guard_json, context_id, strength_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 total_qty, mode, notes, tags_json, notes_monitoring, notes_exit, guard_json,
+                 context_id, strength_id, market_state_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (account_id, direction, instrument, entry_price, entry_time,
-              total_qty, mode, notes, tags_json, notes_monitoring, notes_exit, guard_json, context_id, strength_id))
+              total_qty, mode, notes, tags_json, notes_monitoring, notes_exit, guard_json,
+              context_id, strength_id, market_state_json))
         return cur.lastrowid
 
 
@@ -3014,7 +3062,10 @@ def update_developing_context(ctx_id, **fields):
                "plan_text", "plan_location", "plan_trigger",
                "nuances_json", "market_story",
                "headline_read", "confidence_score", "bias_direction",
-               "execution_headline"}
+               "execution_headline",
+               # Market State strip taps (Context redesign + strength/sectors amendments)
+               "ms_adh_zone", "ms_adh_strength", "ms_tech_zone", "ms_tech_strength",
+               "ms_sectors", "ms_sectors_zone", "ms_sectors_breadth"}
     updates = {k: v for k, v in fields.items() if k in allowed}
     if not updates:
         return

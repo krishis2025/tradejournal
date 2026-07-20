@@ -55,7 +55,9 @@ ehthumbs.db
 
 # ── Root-level DB (legacy location) ──────────────────
 trade_journal.db
+*.db
 
 # ── Handoff spec / brief docs (kept local, not tracked) ──
 *_brief.md
 *_changeset.md
+*_amendment.md
