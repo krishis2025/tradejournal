@@ -2921,8 +2921,8 @@
 .poc-exit-btn   { width: 100%; padding: 6px; font-size: 11px; font-weight: 600; margin-top: 4px; }
 
 /* ══ Market State strip (Context tab) — forest green / brick red / slate only ══ */
-/* §7 dark-theme reference values as page-local custom properties. */
-.ms-strip {
+/* §7 dark-theme reference values as page-local custom properties (shared by strip + rail). */
+.ms-strip, .ms-rail {
   --ms-green:#3d8b66; --ms-green-bright:#5cab82; --ms-green-dim:#457a5f;
   --ms-red:#9a4a55;   --ms-red-bright:#bd6f78;   --ms-red-dim:#8a5a60;
   --ms-slate-fill:#14171d; --ms-slate:#8492aa; --ms-slate-dim:#525b6b;
@@ -2932,7 +2932,7 @@
   --ms-green-track:rgba(92,171,130,.20); --ms-red-track:rgba(189,111,120,.20);
 }
 /* Paper Light: keep bullish=green / bearish=red / neutral=slate readable on white */
-[data-theme="paper"] .ms-strip {
+[data-theme="paper"] .ms-strip, [data-theme="paper"] .ms-rail {
   --ms-green:#0d7c3e; --ms-green-bright:#0a6a34; --ms-green-dim:#3f8a5f;
   --ms-red:#b23644;   --ms-red-bright:#8f2833;   --ms-red-dim:#a05560;
   --ms-slate-fill:#e8e4dd; --ms-slate:#6b665c; --ms-slate-dim:#8a8478;
@@ -3006,6 +3006,26 @@
 /* CORE ALIGNED · opposite AND MIXED — slate (opposite = breadth fighting the move) */
 .ms-badge.ms-b-slate { border-color:var(--border2); background:var(--ms-slate-fill); }
 .ms-badge.ms-b-slate .ms-badge-head { color:var(--ms-slate); }
+
+/* ── Vertical Market State rail (left panel — persistent everywhere-view) ── */
+.ms-rail { font-family:'Inter',sans-serif; padding:2px 0 10px; border-bottom:0.5px solid var(--border); margin-bottom:12px; }
+.ms-rail-title { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--ms-label); margin-bottom:8px; }
+/* rail badge reuses .ms-badge color rules; this just makes it full-width and wrap ~2 lines */
+.ms-rail-badge { width:100%; box-sizing:border-box; align-items:flex-start; text-align:left; margin-bottom:10px; }
+.ms-rail-badge .ms-badge-head { font-size:10.5px; line-height:1.3; white-space:normal; }
+.ms-rail-factors { display:flex; flex-direction:column; gap:2px; }
+.ms-rail-row { border-radius:6px; }
+.ms-rail-row.open { background:var(--ms-slate-fill); }
+.ms-rail-head { display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding:5px 6px; cursor:pointer; border-radius:6px; }
+.ms-rail-head:hover { background:var(--ms-slate-fill); }
+.ms-rail-label { font-size:8.5px; letter-spacing:1px; text-transform:uppercase; color:var(--ms-label); white-space:nowrap; }
+.ms-rail-readout { display:flex; align-items:center; gap:6px; min-height:16px; }
+.ms-rail-readout .ms-arrow { font-size:16px; }
+.ms-rail-readout .ms-word { font-size:10px; }
+.ms-rail-picker { padding:2px 6px 8px; }
+.ms-rail-picker .ms-chips { flex-wrap:wrap; }
+
 {% endblock %}
 
 {% block content %}
@@ -3515,24 +3535,12 @@ function buildSidePanelHtml() {
   const volumeState = ctx ? (ctx.volume_state || ctx.volumeState || '') : '';
   const biasDirection = ctx ? (ctx.bias_direction || '') : '';
 
-  html += `<div class="sp-zone">`;
-  if (headlineRead) html += `<div class="sp-headline">${escHtml(headlineRead)}</div>`;
-  if (executionHeadline) html += `<div class="sp-exec-headline">${escHtml(executionHeadline)}</div>`;
-  html += `<div class="sp-pills" style="margin-top:6px">`;
-  if (valueState) {
-    const vCls = valueState.toLowerCase().includes('above') || valueState.toLowerCase().includes('upper') ? 'sp-pill-up'
-      : valueState.toLowerCase().includes('below') || valueState.toLowerCase().includes('lower') ? 'sp-pill-down' : 'sp-pill-neutral';
-    html += `<span class="sp-pill ${vCls}">Value: ${escHtml(valueState)}</span>`;
+  // Zone 1 \u2014 Market State vertical rail (Entry/Manage only). On Context the horizontal strip
+  // in the center panel is the market-state surface, so the rail is hidden there. Same
+  // component + shared msState/msTap \u2014 just not shown on Context.
+  if (activePhase !== 'CONTEXT') {
+    html += `<div class="ms-rail" id="ms-rail">${msRailInner()}</div>`;
   }
-  if (volumeState) {
-    html += `<span class="sp-pill sp-pill-neutral">Vol: ${escHtml(volumeState)}</span>`;
-  }
-  if (trendStr) {
-    const tCls = trendStr === 'Up' ? 'sp-pill-up' : trendStr === 'Down' ? 'sp-pill-down' : 'sp-pill-flat';
-    const prefix = (trendStr !== 'Up' && trendStr !== 'Down') ? '\u25CF ' : '';
-    html += `<span class="sp-pill ${tCls}">${prefix}Trend: ${escHtml(trendStr)}</span>`;
-  }
-  html += `</div></div>`;
 
   // Zone 2 — Session Summary
   // Phase 4: prefer trade.openQty / trade.realizedPnl (dynamic model) for the
@@ -4099,7 +4107,11 @@ function msRenderStrip(){
     </div>`;
 }
 function msRender(){ const el=document.getElementById('ms-strip'); if(el) el.innerHTML = msRenderStrip(); }
-function msTogglePicker(factor){ msOpen = (msOpen===factor?null:factor); msRender(); }
+function msRailRender(){ const el=document.getElementById('ms-rail'); if(el) el.innerHTML = msRailInner(); }
+// ONE market state, two views: re-render the horizontal strip (Context) AND the vertical rail
+// (everywhere) so a tap from either stays in lockstep and the badge recomputes on both.
+function msSyncViews(){ msRender(); msRailRender(); }
+function msTogglePicker(factor){ msOpen = (msOpen===factor?null:factor); msSyncViews(); }
 function msTap(factor,key,val){
   if (factor==='adh'){ if(key==='zone') msState.adhZone=val;
     if(key==='strength' && msState.adhZone!=='coiling') msState.adhStrength=val; }   // coiling disables strength
@@ -4108,8 +4120,79 @@ function msTap(factor,key,val){
   if (factor==='value' && key==='v') msState.value = MS_VALUE_LABEL[val] || val;
   if (factor==='sectors'){ if(key==='zone') msState.sectorsZone=val;
     if(key==='breadth' && msState.sectorsZone!=='rotational') msState.sectorsBreadth=val; }  // rotational disables breadth
-  msRender();          // recompute badge instantly (strength never affects it)
-  msPersist();         // live overwrite (only if a context exists)
+  msSyncViews();       // strip + rail re-render; badge recomputes on both (strength never affects it)
+  msPersist();         // auto-save (also syncs in-memory caches so tab switches don't revert)
+}
+
+// ── Vertical rail: same msState/msTap, laid out for the narrow left column ──
+function _msRailRow(label, factor, arrowCls, arrow, readout, chips){
+  const open = (msOpen===factor);
+  return `<div class="ms-rail-row${open?' open':''}">
+      <div class="ms-rail-head" onclick="msTogglePicker('${factor}')">
+        <span class="ms-rail-label">${label}</span>
+        <span class="ms-rail-readout"><span class="ms-arrow ${arrowCls}">${arrow}</span>${readout}</span>
+      </div>
+      ${open ? `<div class="ms-rail-picker">${chips}</div>` : ''}
+    </div>`;
+}
+function msRailZoneRow(label, factor, zone, strength){
+  const dir=_zoneDir(zone), cls=_msCls(dir), coiling=(zone==='coiling');
+  const litCls = dir==='up'?'up':dir==='down'?'down':'neutral';
+  const readout = coiling ? '<span class="ms-word ms-neutral">coiling</span>' : (zone ? _msBar(strength, cls) : '');
+  const zoneChips = `<div class="ms-chips">
+      ${_chip(factor,'zone','strong_minus','–','down',zone==='strong_minus')}
+      ${_chip(factor,'zone','coiling','◦','neutral',zone==='coiling')}
+      ${_chip(factor,'zone','strong_plus','+','up',zone==='strong_plus')}
+    </div>`;
+  const strChips = `<div class="ms-sub-chips${coiling?' ms-disabled':''}">
+      ${_chip(factor,'strength','weak','weak',litCls,strength==='weak')}
+      ${_chip(factor,'strength','moderate','moderate',litCls,strength==='moderate')}
+      ${_chip(factor,'strength','strong','strong',litCls,strength==='strong')}
+    </div>`;
+  return _msRailRow(label, factor, cls, _msArrow(dir), readout, zoneChips+strChips);
+}
+function msRailValueRow(){
+  const s=msState, valCode=msValueCode(s.value), dir=msValueDir(s.value);
+  const word = s.value ? (({OL:'Overlap Lo',Lo:'Lower',Ov:'Overlap',Hi:'Higher',OH:'Overlap Hi'})[valCode]||s.value) : '';
+  const chips = `<div class="ms-chips">
+      ${_chip('value','v','OL','OL','down',valCode==='OL')}
+      ${_chip('value','v','Lo','Lo','down',valCode==='Lo')}
+      ${_chip('value','v','Ov','Ov','neutral',valCode==='Ov')}
+      ${_chip('value','v','Hi','Hi','up',valCode==='Hi')}
+      ${_chip('value','v','OH','OH','up',valCode==='OH')}
+    </div>`;
+  return _msRailRow('Value','value',_msCls(dir),_msArrow(dir),`<span class="ms-word ${_msCls(dir)}">${word||'—'}</span>`,chips);
+}
+function msRailSectorRow(){
+  const s=msState, zone=s.sectorsZone, dir=_sectorDir(zone), rot=(zone==='rotational');
+  const aligned=(zone==='strong_plus'||zone==='strong_minus');
+  const word = rot?'rotational':(aligned?(s.sectorsBreadth==='all'?'all aligned':'heavy aligned'):'');
+  const litCls = dir==='up'?'up':dir==='down'?'down':'neutral';
+  const zoneChips = `<div class="ms-chips">
+      ${_chip('sectors','zone','strong_minus','–','down',zone==='strong_minus')}
+      ${_chip('sectors','zone','rotational','◦','neutral',zone==='rotational')}
+      ${_chip('sectors','zone','strong_plus','+','up',zone==='strong_plus')}
+    </div>`;
+  const brChips = `<div class="ms-sub-chips${rot?' ms-disabled':''}">
+      ${_chip('sectors','breadth','heavy','Heavy',litCls,s.sectorsBreadth==='heavy')}
+      ${_chip('sectors','breadth','all','All',litCls,s.sectorsBreadth==='all')}
+    </div>`;
+  return _msRailRow('Sectors','sectors',_msCls(dir),_msArrow(dir),`<span class="ms-word ${_msCls(dir)}">${word||'—'}</span>`,zoneChips+brChips);
+}
+function msRailInner(){
+  const s=msState, b=msComputeBadge(s);
+  const badge = `<div class="ms-badge ms-rail-badge ${b.cls}">
+      <div class="ms-badge-head">${b.headline}</div>
+      ${b.reason ? `<div class="ms-badge-reason">${b.icon?`<span class="ms-badge-ic ${b.iconCls}">${b.icon}</span>`:''}${b.reason}</div>` : ''}
+    </div>`;
+  return `<div class="ms-rail-title">Market State</div>
+    ${badge}
+    <div class="ms-rail-factors">
+      ${msRailZoneRow('ADH','adh',s.adhZone,s.adhStrength)}
+      ${msRailZoneRow('Tech · XLK','tech',s.techZone,s.techStrength)}
+      ${msRailValueRow()}
+      ${msRailSectorRow()}
+    </div>`;
 }
 function msSeed(ctx){
   ctx = ctx || {};
@@ -4121,16 +4204,34 @@ function msSeed(ctx){
   };
   msOpen = null;
 }
+// Seed msState from the active context's persisted record. Caches (lastCommittedContext /
+// SERVER_CONTEXTS) are kept in lockstep with taps by msPersist, so re-seeding here never
+// clobbers a live edit. Skipped for an uncommitted new context (no id) so taps aren't lost.
+function msSeedFromActive(){
+  if (!activeContextId) return;
+  const ctx = getLatestContext();
+  if (ctx && ctx.id === activeContextId) msSeed(ctx);
+}
 function msPersist(){
   if (!activeContextId) return;  // new context: taps saved on commit
+  const patch = {
+    ms_adh_zone: msState.adhZone, ms_adh_strength: msState.adhStrength,
+    ms_tech_zone: msState.techZone, ms_tech_strength: msState.techStrength,
+    ms_sectors_zone: msState.sectorsZone, ms_sectors_breadth: msState.sectorsBreadth,
+    value_state: msState.value,
+  };
+  // Keep the in-memory context caches in lockstep with the server. Tab switches re-seed
+  // the strip via getLatestContext() (lastCommittedContext / SERVER_CONTEXTS); if these
+  // aren't updated, returning to Context re-seeds stale ms_* and the tap appears reverted
+  // (only a full reload fetched the truth). Update them here so display == saved everywhere.
+  const idx = (typeof SERVER_CONTEXTS !== 'undefined' && SERVER_CONTEXTS)
+    ? SERVER_CONTEXTS.findIndex(c => c.id === activeContextId) : -1;
+  if (idx >= 0) SERVER_CONTEXTS[idx] = { ...SERVER_CONTEXTS[idx], ...patch };
+  if (lastCommittedContext && lastCommittedContext.id === activeContextId)
+    lastCommittedContext = { ...lastCommittedContext, ...patch };
   fetch(`/api/context/${activeContextId}`, {
     method:'PATCH', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      ms_adh_zone: msState.adhZone, ms_adh_strength: msState.adhStrength,
-      ms_tech_zone: msState.techZone, ms_tech_strength: msState.techStrength,
-      ms_sectors_zone: msState.sectorsZone, ms_sectors_breadth: msState.sectorsBreadth,
-      value_state: msState.value,
-    })
+    body: JSON.stringify(patch)
   }).catch(()=>{});
 }
 
@@ -4138,10 +4239,9 @@ function renderContextSplitCard(el) {
   const now = new Date();
   const timeLabel = formatTime12h(String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0'));
 
-  // Mode-aware top button and bottom buttons
+  // Mode-aware bottom buttons. "Create New Context" retired (update-in-place model).
   const isModify = contextFormMode === 'modify';
   const hasExistingContext = !!activeContextId;
-  const topBtn = isModify ? `<button class="ds-create-new-btn" onclick="startNewContext()">+ CREATE NEW CONTEXT</button>` : '';
   let bottomBtns = '';
   if (isModify) {
     bottomBtns = `<button class="ds-commit-btn" style="margin-top:16px;" onclick="updateExistingContext()">UPDATE CONTEXT & PLAN</button>`;
@@ -4154,8 +4254,6 @@ function renderContextSplitCard(el) {
 
   el.innerHTML = `
     <div style="max-width:600px;margin:0 auto;display:flex;flex-direction:column;gap:0;">
-      ${topBtn}
-
       <!-- Market State strip (Value + directional read + computed badge) -->
       <div class="ms-strip" id="ms-strip"></div>
 
@@ -4193,7 +4291,7 @@ function renderContextSplitCard(el) {
           <div class="ctx-form-section-title" style="margin:0;">HEADLINE READ</div>
           <div class="ds-helper-links"><span onclick="getHeadlineRead()">↓ load</span> · <span onclick="saveHeadlineRead()">↑ save</span></div>
         </div>
-        <input type="text" class="ds-input" id="ds-headline-read" style="margin-top:8px;" placeholder="e.g. Sellers in control, testing lows...">
+        <textarea class="ds-input" id="ds-headline-read" rows="4" style="margin-top:8px;height:auto;min-height:88px;line-height:1.45;resize:vertical;overflow-y:auto;" placeholder="e.g. Sellers in control, testing lows..."></textarea>
       </div>
 
       <!-- Signals — demoted to one optional line -->
@@ -4681,15 +4779,15 @@ async function updateExistingContext() {
   const planText = document.getElementById('ds-plan-text')?.value.trim() || '';
   const headlineRead = document.getElementById('ds-headline-read')?.value.trim() || '';
 
-  // PATCH the existing context
+  // PATCH the existing context — FORM FIELDS ONLY.
+  // Market State (ADH/Tech/Value/Sectors) is UNBUNDLED: it auto-saves on every tap via
+  // msPersist and this button must NOT write it. Sending ms_*/value_state here would let the
+  // button revert live taps to stale values — auto-save owns market state exclusively.
   await fetch(`/api/context/${activeContextId}`, {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      day_type: dayType, value_state: valueState, volume_state: volumeState,
+      day_type: dayType, volume_state: volumeState,
       HTF_Trend: trend, plan_text: planText, headline_read: headlineRead,
-      ms_adh_zone: msState.adhZone, ms_adh_strength: msState.adhStrength,
-      ms_tech_zone: msState.techZone, ms_tech_strength: msState.techStrength,
-      ms_sectors_zone: msState.sectorsZone, ms_sectors_breadth: msState.sectorsBreadth,
     })
   });
 
@@ -4719,7 +4817,8 @@ async function updateExistingContext() {
     id: activeContextId, day_type: dayType, value_state: valueState,
     volume_state: volumeState, HTF_Trend: trend,
     plan_text: planText, headline_read: headlineRead,
-    // Market State strip taps — must round-trip so the strip re-seeds correctly.
+    // Carry the LIVE msState (already auto-saved via msPersist) so the post-Update re-render
+    // re-seeds identical values — the button never reverts market state.
     ms_adh_zone: msState.adhZone, ms_adh_strength: msState.adhStrength,
     ms_tech_zone: msState.techZone, ms_tech_strength: msState.techStrength,
       ms_sectors_zone: msState.sectorsZone, ms_sectors_breadth: msState.sectorsBreadth,
@@ -9094,6 +9193,11 @@ function renderAll() {
   }
   renderTabs();
   document.querySelector('.main-area').classList.toggle('internals-mode', activePhase === 'INTERNALS');
+  // Seed the single market-state source BEFORE any view paints, so the rail (side panel) and
+  // the strip (center) both render from the same seeded state on every tab. Without this the
+  // rail painted first from stale/empty msState (flat defaults) while the strip painted after
+  // the Context-path seed — the two views disagreed.
+  msSeedFromActive();
   renderContextPanel(trade);
   renderCenter(trade);
   renderHealthPanel(trade);

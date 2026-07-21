@@ -2,6 +2,36 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [4.6.0] — 2026-07-20
+
+### Market State: vertical rail + unbundled auto-save (Trade V2)
+
+Relocated the Market State into a persistent, always-editable **vertical rail** in the left
+panel and split its save model from the Context form. The factor/badge/color design is unchanged
+— this is relocation + a save-model change. Restore point: tag `market-state-center-panel-v1`.
+
+- **Unbundled auto-save:** market state (ADH / Tech / Value / Sectors) now persists on **every
+  tap** via auto-save. **"Update Context & Plan" no longer writes market state** — it saves only
+  the form fields (Day Type, Volume, HTF Trend, Headline Read, Playbook, Signals). Pressing Update
+  after changing market state no longer reverts it; auto-save owns market state exclusively.
+- **Vertical rail** (`msRailInner`) on **Entry and Manage** left panels: badge on top, then ADH ·
+  Tech · Value · Sectors stacked, each editable inline. It and the horizontal Context strip are
+  **two views of one `msState`** — a tap on either re-renders both and recomputes the badge
+  identically (`msSyncViews`). On **Context** the rail is hidden (the horizontal strip is the
+  surface there); left panel is Session → Open Trades.
+- **One-source-of-truth fixes:** `msPersist` now keeps the in-memory context caches
+  (`lastCommittedContext` / `SERVER_CONTEXTS`) in lockstep with taps, so tab switches no longer
+  revert to stale state; `renderAll` seeds `msState` from the active context **before** any view
+  paints (`msSeedFromActive`), so the rail/strip never disagree on load.
+- Removed the unused "+ Create New Context" button (update-in-place model). The Headline Read
+  lives only in its form tile, now a ~4-line auto-scrolling textarea. `startNewContext()` is left
+  in place but is now unreferenced (flagged; backend create path still used by first-time commit).
+
+## [4.5.1] — 2026-07-20
+
+- Strength indicator on ADH/Tech: replaced the continuous fill-bar with a segmented 3-cell bar
+  (weak=1 / moderate=2 / strong=3 cells filled). Rendering-only.
+
 ## [4.5.0] — 2026-07-19
 
 ### Context "Market State" strip + trade-state capture
