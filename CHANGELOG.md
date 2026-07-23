@@ -2,6 +2,28 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [4.7.0] — 2026-07-23
+
+### Market State hero badge → two-part banner (Trade V2)
+
+Moved the Market State hero badge into the top banner and made the banner two-part on every tab.
+
+- **Two-part banner:** hero badge (left) · vertical divider · playbook headline (right). The trade
+  plan legs were removed from the banner (they live in the Trade Plan panel) — playbook headline
+  only. Playbook recolored gold → steel blue (`#7fa8d4`; `#3d648f` on light themes).
+- **Badge is one shared view:** a single `msBadgeHtml()` builder feeds both the Context strip and
+  the banner from the shared `msState`; a factor tap re-renders all visible badges (`msSyncViews`
+  now also refreshes the banner) so they never disagree. No new state, no new recompute path.
+- **Banner goes dark** (`--banner-bg #101319`, border `#1e222b`, divider `#262b35`) so the badge's
+  green/red/slate read as designed; all via CSS custom properties. Light themes keep a light banner
+  with the badge darkened for contrast (green `#1f5138`, red `#7a3540`, slate `#4a5262`, ⚠ `#8a5a1f`,
+  ⇅ `#7a3540`, reason `#6a6a5a`) — the CORE ALIGNED green-headline vs slate-headline distinction
+  survives on both themes.
+- **Rail badge removed:** the Entry/Manage vertical rail now shows the four factors only (ADH,
+  Tech·XLK, Value, Sectors); it's shorter, so Session and Open Trades move up.
+- The badge also stays in the Context center-panel strip (unchanged) — on Context it shows in both
+  the strip and the banner, intentionally.
+
 ## [4.6.0] — 2026-07-20
 
 ### Market State: vertical rail + unbundled auto-save (Trade V2)

@@ -2094,28 +2094,58 @@
 
 /* ── CONTEXT RIBBON ── */
 .context-ribbon {
-  width:100%; padding:12px 0; display:flex; justify-content:center;
+  /* Banner + badge colors as custom properties (dark-theme defaults). The badge uses the
+     SAME --ms-* names as the strip so the .ms-badge.* rules resolve here identically. */
+  --banner-bg:#101319; --banner-border:#1e222b; --banner-divider:#262b35; --banner-playbook:#7fa8d4;
+  --ms-green:#3d8b66; --ms-green-bright:#5cab82; --ms-green-dim:#457a5f;
+  --ms-red:#9a4a55; --ms-red-bright:#bd6f78; --ms-red-dim:#8a5a60;
+  --ms-slate:#8492aa; --ms-slate-fill:#14171d; --ms-slate-dim:#525b6b;
+  --ms-trend-border:#4fb488; --ms-trend-bright:#6ec79a; --ms-trend-glow:rgba(61,139,102,.10);
+  --ms-amber:#d99a5c; --ms-amber-strong:#e07a5f;
+  width:100%; padding:0 24px; display:flex; justify-content:center;
   align-items:center; flex-wrap:nowrap; gap:40px;
   font-family:'Inter', sans-serif; font-size:0.75rem; text-transform:uppercase;
   letter-spacing:1.5px;
   border-bottom:1px solid var(--border); min-height:48px; max-height:48px; box-sizing:border-box;
   transition:background 0.3s, color 0.3s;
 }
-.ctx-locked, .ctx-ready, .ctx-managing {
-  background: #EFE7B3; color: #1a1d23; font-weight: 800;
+/* No context yet — keep the cream "monitoring" warning bar (no badge here). */
+.ctx-locked { background: #EFE7B3; color: #1a1d23; font-weight: 800; }
+/* Context committed (ready) or trade live (managing) — dark banner so the badge reads as designed. */
+.ctx-ready, .ctx-managing {
+  background: var(--banner-bg); color: var(--text); font-weight: 800;
+  border-bottom-color: var(--banner-border);
 }
+/* Two-part: hero badge (left) · divider · playbook headline (right). */
+.ribbon-2part { display:flex; align-items:center; gap:16px; width:100%; max-width:1100px; }
+.ribbon-badge-slot { flex:0 0 auto; display:flex; align-items:center; }
+.ribbon-divider { flex:0 0 1px; align-self:stretch; margin:7px 0; background:var(--banner-divider); }
+.ribbon-playbook { flex:1 1 auto; min-width:0; text-align:left;
+  color:var(--banner-playbook); font-weight:800; font-size:0.8rem; letter-spacing:1.5px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* Banner badge = the designed hero badge, laid out compactly (one row) for the 48px bar. */
+.ms-badge.ms-banner-badge { flex-direction:row; align-items:center; justify-content:flex-start;
+  text-align:left; gap:9px; padding:4px 12px; border-radius:6px; }
+.ms-badge.ms-banner-badge .ms-badge-head { font-size:11px; white-space:nowrap; line-height:1.2; }
+.ms-badge.ms-banner-badge .ms-badge-reason { font-size:8.5px; white-space:nowrap; }
 .ribbon-item { display:flex; align-items:center; gap:8px; white-space:nowrap; }
 .ribbon-label { font-size:0.55rem; font-weight:400; color:#888; letter-spacing:1.5px; }
 .ctx-locked .ribbon-label { color:#888; }
 .ribbon-value { font-size:0.8rem; font-weight:700; color:#1a1d23; letter-spacing:1.5px; }
-.ribbon-leg-chip {
-  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.3px; text-transform: none;
-}
-.ribbon-leg-chip.long { color: #2e7d32; }
-.ribbon-leg-chip.short { color: #c62828; }
 .ribbon-val-red { color:#d32f2f; }
 .ribbon-val-blue { color:#1976d2; }
 .ribbon-val-green { color:#2e7d32; }
+/* Light themes (Paper Light): banner is light, so the badge is darkened for contrast. The
+   green-vs-slate CORE ALIGNED distinction survives (dark green #1f5138 vs slate #4a5262). */
+[data-theme="paper"] .context-ribbon {
+  --banner-bg:#e8e4dd; --banner-border:#d8d3ca; --banner-divider:#c5bfb3; --banner-playbook:#3d648f;
+  --ms-green:#1f5138; --ms-green-bright:#1f5138; --ms-green-dim:#1f5138;
+  --ms-trend-border:#1f5138; --ms-trend-bright:#1f5138; --ms-trend-glow:rgba(31,81,56,.08);
+  --ms-red:#7a3540; --ms-red-bright:#7a3540; --ms-red-dim:#7a3540;
+  --ms-slate:#4a5262; --ms-slate-fill:transparent; --ms-slate-dim:#6a6a5a;
+  --ms-amber:#8a5a1f; --ms-amber-strong:#7a3540;
+}
+[data-theme="paper"] .ctx-ready, [data-theme="paper"] .ctx-managing { color:#2c2c2c; }
 .setback-box {
   background:rgba(0,0,0,0.06); padding:3px 10px; border-radius:3px;
   font-size:0.65rem; color:#888; white-space:nowrap;
@@ -3010,9 +3040,7 @@
 /* ── Vertical Market State rail (left panel — persistent everywhere-view) ── */
 .ms-rail { font-family:'Inter',sans-serif; padding:2px 0 10px; border-bottom:0.5px solid var(--border); margin-bottom:12px; }
 .ms-rail-title { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--ms-label); margin-bottom:8px; }
-/* rail badge reuses .ms-badge color rules; this just makes it full-width and wrap ~2 lines */
-.ms-rail-badge { width:100%; box-sizing:border-box; align-items:flex-start; text-align:left; margin-bottom:10px; }
-.ms-rail-badge .ms-badge-head { font-size:10.5px; line-height:1.3; white-space:normal; }
+/* (rail badge removed — the hero badge now lives in the top banner) */
 .ms-rail-factors { display:flex; flex-direction:column; gap:2px; }
 .ms-rail-row { border-radius:6px; }
 .ms-rail-row.open { background:var(--ms-slate-fill); }
@@ -3360,45 +3388,17 @@ function getLatestContext() {
 }
 
 function updateRibbonValues(el, ctx) {
+  // Two-part banner: hero Market State badge (left) · divider · playbook headline (right).
+  // Legs/location/trigger live in the Trade Plan panel — playbook headline only here.
   const planText = ctx.plan_text || ctx.planText || ctx.setup || '';
-  const planLoc = ctx.plan_location || ctx.planLocation || ctx.location || '';
-  const planTrigger = ctx.plan_trigger || ctx.planTrigger || '';
-
-  // Show plan-only ribbon
-  if (planText) {
-    let ribbonParts = [`<span style="color:#8B6914">★ ${escHtml(planText).toUpperCase()}</span>`];
-    if (planLoc) ribbonParts.push(escHtml(planLoc));
-    if (planTrigger) ribbonParts.push(escHtml(planTrigger));
-    // Append compact leg summaries
-    const legs = ctx.legs || [];
-    legs.forEach(leg => {
-      const side = (leg.execution_side || '');
-      if (!side) return;
-      let zone = '';
-      if (leg.entry_zone_low != null && leg.entry_zone_high != null) {
-        const lo = String(leg.entry_zone_low), hi = String(leg.entry_zone_high);
-        // Abbreviate high if same leading digits (e.g. 6827-30 instead of 6827-6830)
-        const prefix = lo.length >= 2 && hi.length >= 2 && lo.slice(0, -2) === hi.slice(0, -2)
-          ? hi.slice(-2) : hi;
-        zone = `${lo}-${prefix}`;
-      } else if (leg.entry_zone_low != null) {
-        zone = String(leg.entry_zone_low);
-      }
-      const sideClass = side.toLowerCase();
-      const text = zone ? `${side} @ ${zone}` : side;
-      ribbonParts.push(`<span class="ribbon-leg-chip ${sideClass}">${text}</span>`);
-    });
-    el.innerHTML = `<div class="ribbon-item"><span class="ribbon-value">${ribbonParts.join(' · ')}</span></div>`;
-  } else {
-    // Fallback for old records without plan fields
-    const setup = ctx.setup || '';
-    const loc = ctx.location || '';
-    if (setup) {
-      el.innerHTML = `<div class="ribbon-item"><span class="ribbon-value"><span style="color:#8B6914">★ ${escHtml(setup).toUpperCase()}</span>${loc ? ' · ' + escHtml(loc) : ''}</span></div>`;
-    } else {
-      el.innerHTML = `<div class="ribbon-item"><span class="ribbon-value" style="color:var(--muted)">No plan set</span></div>`;
-    }
-  }
+  const playbook = planText
+    ? `<div class="ribbon-playbook">★ ${escHtml(planText).toUpperCase()}</div>`
+    : `<div class="ribbon-playbook" style="opacity:.55">No plan set</div>`;
+  el.innerHTML = `<div class="ribbon-2part">
+      <div class="ribbon-badge-slot" id="ms-banner-badge">${msBadgeHtml('ms-banner-badge')}</div>
+      <div class="ribbon-divider"></div>
+      ${playbook}
+    </div>`;
 }
 
 function detectPhase(trade) {
@@ -4091,26 +4091,32 @@ function msRenderStrip(){
       ${_chip('value','v','Hi','Hi','up',valCode==='Hi')}
       ${_chip('value','v','OH','OH','up',valCode==='OH')}
     </div>`;
-  const b = msComputeBadge(s);
-  const badge = `<div class="ms-badge ${b.cls}">
-      <div class="ms-badge-head">${b.headline}</div>
-      ${b.reason ? `<div class="ms-badge-reason">${b.icon?`<span class="ms-badge-ic ${b.iconCls}">${b.icon}</span>`:''}${b.reason}</div>` : ''}
-    </div>`;
-
   return `<div class="ms-strip-title">Context · Market State · tap to set</div>
     <div class="ms-row">
       ${msZoneCell('ADH','adh',s.adhZone,s.adhStrength)}
       ${msZoneCell('Tech · XLK','tech',s.techZone,s.techStrength)}
       ${msWordCell('Value','value',valD,valWord,valChips)}
       ${msSectorCell()}
-      ${badge}
+      ${msBadgeHtml()}
+    </div>`;
+}
+// Single badge builder — the ONE source of the hero badge markup. Every badge instance (strip,
+// banner) is this exact output from the shared msState, so they can never disagree.
+function msBadgeHtml(extraCls){
+  const b = msComputeBadge(msState);
+  return `<div class="ms-badge ${extraCls?extraCls+' ':''}${b.cls}">
+      <div class="ms-badge-head">${b.headline}</div>
+      ${b.reason ? `<div class="ms-badge-reason">${b.icon?`<span class="ms-badge-ic ${b.iconCls}">${b.icon}</span>`:''}${b.reason}</div>` : ''}
     </div>`;
 }
 function msRender(){ const el=document.getElementById('ms-strip'); if(el) el.innerHTML = msRenderStrip(); }
 function msRailRender(){ const el=document.getElementById('ms-rail'); if(el) el.innerHTML = msRailInner(); }
-// ONE market state, two views: re-render the horizontal strip (Context) AND the vertical rail
-// (everywhere) so a tap from either stays in lockstep and the badge recomputes on both.
-function msSyncViews(){ msRender(); msRailRender(); }
+// Banner badge lives in the top ribbon (left half). Re-render just that slot from shared state.
+function msBannerRender(){ const el=document.getElementById('ms-banner-badge'); if(el) el.innerHTML = msBadgeHtml('ms-banner-badge'); }
+// ONE market state, multiple live views: strip (Context center), rail factors (Entry/Manage
+// left) and the banner badge (every tab). A tap from any of them re-renders all instantly so
+// every visible badge recomputes identically and never disagrees.
+function msSyncViews(){ msRender(); msRailRender(); msBannerRender(); }
 function msTogglePicker(factor){ msOpen = (msOpen===factor?null:factor); msSyncViews(); }
 function msTap(factor,key,val){
   if (factor==='adh'){ if(key==='zone') msState.adhZone=val;
@@ -4180,13 +4186,10 @@ function msRailSectorRow(){
   return _msRailRow('Sectors','sectors',_msCls(dir),_msArrow(dir),`<span class="ms-word ${_msCls(dir)}">${word||'—'}</span>`,zoneChips+brChips);
 }
 function msRailInner(){
-  const s=msState, b=msComputeBadge(s);
-  const badge = `<div class="ms-badge ms-rail-badge ${b.cls}">
-      <div class="ms-badge-head">${b.headline}</div>
-      ${b.reason ? `<div class="ms-badge-reason">${b.icon?`<span class="ms-badge-ic ${b.iconCls}">${b.icon}</span>`:''}${b.reason}</div>` : ''}
-    </div>`;
+  const s=msState;
+  // Rail shows the four factors only — the hero badge now lives in the top banner. Rail is
+  // shorter, so Session and Open Trades move up.
   return `<div class="ms-rail-title">Market State</div>
-    ${badge}
     <div class="ms-rail-factors">
       ${msRailZoneRow('ADH','adh',s.adhZone,s.adhStrength)}
       ${msRailZoneRow('Tech · XLK','tech',s.techZone,s.techStrength)}
