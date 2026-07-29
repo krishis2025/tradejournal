@@ -999,13 +999,6 @@ def api_create_live_trade():
             strength_id=body.get("strength_id") or None,
             market_state_json=body.get("market_state_json") or None,  # frozen Context-strip snapshot at entry
         )
-        # Compute and save default levels
-        levels = logic.compute_live_trade_plan(
-            body["direction"], body["instrument"],
-            float(body["entry_price"]), int(body["total_qty"]), body["mode"]
-        )
-        db.set_live_trade_levels(live_id, levels)
-
         # Per-tranche risk stop: use the typed stop if provided, else a 20-pt default.
         if body.get("stop_price") not in (None, ""):
             open_stop_price = float(body["stop_price"])
@@ -1015,6 +1008,16 @@ def api_create_live_trade():
                 body["direction"], float(body["entry_price"])
             )
             open_stop_source = "default"
+
+        # Compute and save the working levels. The Entry-tab stop seeds them so the
+        # right panel's initial stop/risk and the OPEN transaction's stop agree on
+        # trade open; with no typed stop the points default applies as before.
+        levels = logic.compute_live_trade_plan(
+            body["direction"], body["instrument"],
+            float(body["entry_price"]), int(body["total_qty"]), body["mode"],
+            entered_stop=(open_stop_price if open_stop_source == "entered" else None)
+        )
+        db.set_live_trade_levels(live_id, levels)
 
         # POC dynamic-trade-model: record OPEN transaction + derive position state
         db.add_live_trade_execution(

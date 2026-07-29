@@ -678,21 +678,29 @@ def compute_tranche_risk(direction, instrument, exec_price, stop_price, entry_qt
     return round(abs(float(exec_price) - float(stop_price)) * int(entry_qty) * dpp, 2)
 
 
-def compute_live_trade_plan(direction, instrument, entry_price, total_qty, mode):
+def compute_live_trade_plan(direction, instrument, entry_price, total_qty, mode,
+                            entered_stop=None):
     """
     Compute stop/TP levels with risk/reward for a new live trade.
     Returns list of level dicts ready for DB insertion.
+
+    entered_stop: the stop typed on the Entry tab, if any. When present it seeds
+    every working stop level so the right panel's initial stop/risk matches the
+    OPEN transaction's stop instead of diverging onto the points default. When
+    absent, the configured default distance applies (original behaviour).
     """
     inst = get_instrument_config().get(instrument, INSTRUMENT_CONFIG["MES"])
     dpp = inst["dollars_per_point"]
     defaults = get_trade_defaults()
     is_long = direction == "Long"
+    seeded_stop = None if entered_stop in (None, "") else round(float(entered_stop), 2)
     levels = []
 
     if mode == "full":
         stop_dist = float(defaults["full_stop_points"])
 
-        stop_price = entry_price - stop_dist if is_long else entry_price + stop_dist
+        stop_price = seeded_stop if seeded_stop is not None else (
+            entry_price - stop_dist if is_long else entry_price + stop_dist)
         risk = abs(entry_price - stop_price) * total_qty * dpp
 
         levels.append({"level_type": "stop", "portion": 1, "qty": total_qty,
@@ -715,7 +723,8 @@ def compute_live_trade_plan(direction, instrument, entry_price, total_qty, mode)
         tp_dists = [tp1_dist, tp2_dist, tp3_dist]
 
         for i in range(3):
-            stop_price = entry_price - stop_dist if is_long else entry_price + stop_dist
+            stop_price = seeded_stop if seeded_stop is not None else (
+                entry_price - stop_dist if is_long else entry_price + stop_dist)
             risk = abs(entry_price - stop_price) * qtys[i] * dpp
 
             levels.append({"level_type": "stop", "portion": i + 1, "qty": qtys[i],
