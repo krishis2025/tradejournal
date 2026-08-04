@@ -529,6 +529,7 @@
 <script>
 const DAY_ID = {{ day.id }};
 const DAY_DATE = '{{ day.date }}';
+const SESSION_WINDOWS = {{ session_windows_json|safe }};
 const SESSIONS = ['morning', 'midday', 'afternoon'];
 const SESSION_LABELS = { morning: 'MORNING', midday: 'MID-DAY', afternoon: 'AFTERNOON' };
 
@@ -1169,11 +1170,12 @@ let smHeavyInputs = {};
 let smWeakEntries = [];
 let smSaving = false;
 
+// "Recorded" = the Record-session-data modal was completed for this session, which means
+// sectors were saved. VITALS (vix/trin/vol_pct/adh/vold/add) autosave on blur as they're
+// typed into the grid, so counting them here made the modal skip past a session that
+// hadn't actually been recorded yet.
 function sessionHasData(session) {
-  const sectors = parseSectors(session);
-  if (sectors.length > 0) return true;
-  const s = state[session];
-  return !!(s.vix || s.trin || s.vol_pct || s.adh || s.vold_nyse || s.add_nyse);
+  return parseSectors(session).length > 0;
 }
 
 function getSessionTime(session) {
@@ -1188,7 +1190,41 @@ function getSessionTime(session) {
   return `${h}:${m} ${ampm}`;
 }
 
+function sessionMins(hhmm) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || '').trim());
+  if (!m) return null;
+  const h = +m[1], mi = +m[2];
+  return (h > 23 || mi > 59) ? null : h * 60 + mi;
+}
+
+// Mirror of intSessionByTime in live_v2.html — keep the two in sync. Windows are
+// inclusive at minute granularity, so a 09:00 end and an 09:01 start leave no gap.
+// Resolution is total: the first window containing "now" wins, otherwise clamp to the
+// last session whose start has passed (and to morning before the earliest start).
+function sessionByTime(now) {
+  const w = SESSION_WINDOWS || {};
+  const order = [['morning','mng'], ['midday','mid'], ['afternoon','aft']];
+  const cur = now.getHours() * 60 + now.getMinutes();
+  for (const [name, p] of order) {
+    const a = sessionMins(w[p + '_start']), b = sessionMins(w[p + '_end']);
+    if (a === null || b === null) continue;
+    if (cur >= a && cur <= b) return name;
+  }
+  let fallback = 'morning';
+  for (const [name, p] of order) {
+    const a = sessionMins(w[p + '_start']);
+    if (a !== null && cur >= a) fallback = name;
+  }
+  return fallback;
+}
+
+// Unlike the Trade V2 tab, this page also renders historical days, where the current
+// clock says nothing useful. Use the configured windows only when viewing today; for a
+// past day fall back to the first session with no sectors recorded.
 function getDefaultModalSession() {
+  const n = new Date();
+  const local = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+  if (local === DAY_DATE) return sessionByTime(n);
   for (const s of SESSIONS) { if (!sessionHasData(s)) return s; }
   return 'morning';
 }

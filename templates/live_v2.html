@@ -3153,6 +3153,7 @@
 const TAG_GROUPS = {{ tags_json|safe }};
 const INST_CONFIG = {{ instrument_config_json|safe }};
 const TRADE_DEFAULTS = {{ trade_defaults_json|safe }};
+const SESSION_WINDOWS = {{ session_windows_json|safe }};
 const SERVER_CONTEXTS = {{ contexts_json|safe }};
 const SERVER_OPEN = {{ open_trades_json|safe }};
 const SERVER_CLOSED = {{ closed_trades_json|safe }};
@@ -9000,11 +9001,12 @@ const INT_SESS_COLORS = {
 const INT_HEAVY_ORDER = ['XLK','XLF','XLC','XLY','XLI','XLV'];
 let ismOpen = false, ismSession = 'morning', ismHeavy = {}, ismWeak = [], ismSaving = false;
 
+// "Recorded" = the Record-session-data modal was completed for this session, which means
+// sectors were saved. VITALS (vix/trin/vol_pct/adh/vold/add) autosave on blur as they're
+// typed into the grid, so counting them here made the modal skip past a session that
+// hadn't actually been recorded yet.
 function intSessionHasData(s) {
-  const sec = intParseSectors(s);
-  if (sec.length > 0) return true;
-  const d = intState[s];
-  return !!(d.vix || d.trin || d.vol_pct || d.adh || d.vold_nyse || d.add_nyse);
+  return intParseSectors(s).length > 0;
 }
 
 function intGetSessionTime(s) {
@@ -9018,9 +9020,42 @@ function intGetSessionTime(s) {
   return `${h}:${m} ${ampm}`;
 }
 
+function intMins(hhmm) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || '').trim());
+  if (!m) return null;
+  const h = +m[1], mi = +m[2];
+  return (h > 23 || mi > 59) ? null : h * 60 + mi;
+}
+
+// Which tab the Record-session-data modal opens on, decided by the clock against the
+// windows configured in Settings → Live Trade. Windows are inclusive at minute
+// granularity, so a 09:00 end and an 09:01 start leave no gap. Resolution is total:
+// the first window containing "now" wins, otherwise we clamp to the last session whose
+// start has passed (and to morning before the earliest start). Comparing against the
+// browser's local clock is what makes this timezone-proof — the trader configures the
+// windows in whatever local time their machine shows.
+function intSessionByTime(now) {
+  const w = SESSION_WINDOWS || {};
+  const order = [['morning','mng'], ['midday','mid'], ['afternoon','aft']];
+  const cur = now.getHours() * 60 + now.getMinutes();
+  for (const [name, p] of order) {
+    const a = intMins(w[p + '_start']), b = intMins(w[p + '_end']);
+    if (a === null || b === null) continue;
+    if (cur >= a && cur <= b) return name;
+  }
+  let fallback = 'morning';
+  for (const [name, p] of order) {
+    const a = intMins(w[p + '_start']);
+    if (a !== null && cur >= a) fallback = name;
+  }
+  return fallback;
+}
+
+// The Trade V2 internals tab is always today, so the clock alone decides. What has
+// already been recorded no longer influences the tab — reopening a recorded session to
+// amend it is expected.
 function intGetDefaultSession() {
-  for (const s of INT_SESSIONS) { if (!intSessionHasData(s)) return s; }
-  return 'morning';
+  return intSessionByTime(new Date());
 }
 
 function intLoadSessionModal(session) {

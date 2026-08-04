@@ -640,6 +640,23 @@ def get_trade_defaults():
     return result
 
 
+# Internals session windows, as browser-local HH:MM. These decide which tab the
+# Record-session-data modal opens on. Configurable rather than hardcoded so the
+# feature works in any timezone without the app doing timezone conversion — the
+# trader sets the windows in whatever local time their machine shows.
+DEFAULT_SESSION_WINDOWS = {
+    "mng_start": "06:30", "mng_end": "09:00",
+    "mid_start": "09:01", "mid_end": "11:30",
+    "aft_start": "11:31", "aft_end": "13:00",
+}
+
+
+def get_session_windows():
+    """Get internals session windows, merging DB config over hardcoded defaults."""
+    config = db.get_all_config()
+    return {k: config.get(f"sw_{k}", v) for k, v in DEFAULT_SESSION_WINDOWS.items()}
+
+
 def get_instrument_config():
     """Get instrument tick values, with DB overrides."""
     config = db.get_all_config()

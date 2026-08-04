@@ -344,6 +344,7 @@ def settings_view():
         grade_cat_group=grade_cat_group,
         trade_defaults=trade_defaults,
         instrument_config=instrument_config,
+        session_windows=logic.get_session_windows(),
         accounts=accounts,
         accounts_json=json.dumps(accounts),
         signals=db.get_all_signals(),
@@ -399,6 +400,7 @@ def live_trade_v2_page():
         tags_json=json.dumps(logic.get_tag_groups()),
         trade_defaults_json=json.dumps(logic.get_trade_defaults()),
         instrument_config_json=json.dumps(logic.get_instrument_config()),
+        session_windows_json=json.dumps(logic.get_session_windows()),
         open_trades_json=json.dumps(open_trades),
         closed_trades_json=json.dumps(closed_trades),
         strength_json=json.dumps(strength_map),
@@ -712,6 +714,16 @@ def api_save_trade_defaults():
     for key in logic.DEFAULT_TRADE_DEFAULTS:
         if key in body:
             db.set_config(f"td_{key}", body[key])
+    return jsonify({"ok": True})
+
+
+@app.route("/api/settings/session-windows", methods=["POST"])
+def api_save_session_windows():
+    """Internals session windows — the DEFAULT dict doubles as the key allowlist."""
+    body = request.get_json(silent=True) or {}
+    for key in logic.DEFAULT_SESSION_WINDOWS:
+        if key in body:
+            db.set_config(f"sw_{key}", body[key])
     return jsonify({"ok": True})
 
 
@@ -1601,7 +1613,8 @@ def internals_v2_view(day_id):
     day = db.get_day_by_id(day_id)
     if not day:
         return render_template("404.html", message=f"Day #{day_id} not found"), 404
-    return render_template("internals_v2.html", day=day)
+    return render_template("internals_v2.html", day=day,
+                           session_windows_json=json.dumps(logic.get_session_windows()))
 
 
 @app.route("/api/day/<int:day_id>/internals", methods=["GET"])

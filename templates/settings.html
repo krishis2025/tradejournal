@@ -738,6 +738,41 @@
         {% endfor %}
       </div>
 
+      <!-- Internals Session Times -->
+      <div class="tag-config-card" style="margin-bottom:24px;">
+        <div class="tag-config-header">
+          <div class="tag-config-title">
+            <span class="tg-dot" style="background:var(--accent2);"></span>
+            Internals Sectors Session Times
+          </div>
+        </div>
+        <div class="tag-config-body">
+          <div style="font-size:10px;color:var(--muted);line-height:1.6;margin-bottom:16px;">
+            Decides which tab the Internals <strong style="color:var(--text);">Record session data</strong> modal opens on.
+            Times are read from this machine's clock, so set them in your own local time — no timezone conversion is applied.
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;">
+            {% for key, label in [('mng', 'Morning (MNG)'), ('mid', 'Mid-Day (MID)'), ('aft', 'Afternoon (AFT)')] %}
+            <div>
+              <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:6px;">{{ label }}</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div>
+                  <label style="display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Start</label>
+                  <input type="time" class="add-tag-input" style="width:100%;padding:6px 8px;"
+                         id="sw-{{ key }}_start" value="{{ session_windows[key ~ '_start'] }}">
+                </div>
+                <div>
+                  <label style="display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">End</label>
+                  <input type="time" class="add-tag-input" style="width:100%;padding:6px 8px;"
+                         id="sw-{{ key }}_end" value="{{ session_windows[key ~ '_end'] }}">
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
       <!-- Trade Defaults -->
       <div class="tag-config-card" style="margin-bottom:24px;">
         <div class="tag-config-header">
@@ -1370,6 +1405,12 @@
       defaults[key] = document.getElementById('td-' + key).value;
     });
 
+    // Internals session windows
+    const windows = {};
+    ['mng_start','mng_end','mid_start','mid_end','aft_start','aft_end'].forEach(key => {
+      windows[key] = document.getElementById('sw-' + key).value;
+    });
+
     try {
       await fetch('/api/settings/instruments', {
         method:'POST', headers:{'Content-Type':'application/json'},
@@ -1378,6 +1419,10 @@
       await fetch('/api/settings/trade-defaults', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify(defaults)
+      });
+      await fetch('/api/settings/session-windows', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(windows)
       });
       showToast('Live trade config saved ✓');
     } catch(e) {
