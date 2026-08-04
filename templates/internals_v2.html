@@ -580,10 +580,22 @@ async function saveSession(session) {
   } catch(e) { console.error('Save failed', e); }
 }
 
+let _repaintTimer = null;
 function updateField(session, field, value) {
+  if (state[session][field] === value) return;   // no-op blur: leave the DOM alone
   state[session][field] = value;
   scheduleSave(session);
-  renderAll();
+  // Repainting here would destroy the box the user is moving into and swallow the click,
+  // which is what made data entry need two clicks. Defer it, and skip entirely while
+  // focus is still in the grid — derived cells (DELTA, sparkline, Vol%/ADH pills) catch
+  // up once focus leaves. A 0ms defer is not enough: mousedown/blur and click are
+  // separate tasks, so a zero timer still beats the Vol%/ADH pill's onclick swap.
+  clearTimeout(_repaintTimer);
+  _repaintTimer = setTimeout(() => {
+    const a = document.activeElement;
+    if (a && a.classList.contains('mi2-input')) return;
+    renderAll();
+  }, 600);
 }
 
 function num(v) {
@@ -663,10 +675,10 @@ function renderAlerts() {
 /* ═══════════════════════════════════════════════════════════════════════
    VITALS CARD
    ═══════════════════════════════════════════════════════════════════════ */
-function inputHTML(session, field, val, extraClass) {
+function inputHTML(session, field, val, extraClass, extraAttrs) {
   const display = val !== '' && val !== null && val !== undefined ? val : '';
   return `<input class="mi2-input ${extraClass || ''}" value="${display}"
-    placeholder="—" data-session="${session}" data-field="${field}"
+    placeholder="—" data-session="${session}" data-field="${field}" ${extraAttrs || ''}
     onblur="updateField('${session}','${field}',this.value)">`;
 }
 
@@ -875,33 +887,32 @@ function addColor(v) {
   return 'sec-v-dr';
 }
 
+// VOLD/ADD render as real inputs at all times. They used to show the value as a bare
+// unpadded span that swapped to a hidden input on click — the hit area was the width of
+// the digits, so entering values took two precise clicks. The colour class moves onto the
+// input instead (.sec-v-* are colour-only rules, so they apply unchanged).
 function pairCell(session, f1, f2, colorFn) {
-  const v1 = num(state[session][f1]);
-  const v2 = num(state[session][f2]);
-  if (isNaN(v1) && isNaN(v2)) {
-    return `<td>
-      <div class="mi2-pair">
-        <div class="mi2-pair-values">
-          ${inputHTML(session, f1, '', '')}
-          <span style="color:var(--muted)">:</span>
-          ${inputHTML(session, f2, '', '')}
-        </div>
-        <div class="mi2-pair-label">NYSE : NQ</div>
-      </div>
-    </td>`;
-  }
-  const c1 = colorFn(v1), c2 = colorFn(v2);
-  const d1 = isNaN(v1) ? '—' : v1, d2 = isNaN(v2) ? '—' : v2;
+  const cell = f => inputHTML(session, f, state[session][f],
+                              colorFn(num(state[session][f])),
+                              'oninput="pairRecolor(this)"');
   return `<td>
     <div class="mi2-pair">
       <div class="mi2-pair-values">
-        <span class="${c1}" style="cursor:pointer;" onclick="this.style.display='none';this.nextElementSibling.style.display='';this.nextElementSibling.querySelector('input').focus()">${d1}</span><span style="display:none">${inputHTML(session, f1, state[session][f1], '')}</span>
+        ${cell(f1)}
         <span style="color:var(--muted); font-weight:400;">:</span>
-        <span class="${c2}" style="cursor:pointer;" onclick="this.style.display='none';this.nextElementSibling.style.display='';this.nextElementSibling.querySelector('input').focus()">${d2}</span><span style="display:none">${inputHTML(session, f2, state[session][f2], '')}</span>
+        ${cell(f2)}
       </div>
       <div class="mi2-pair-label">NYSE : NQ</div>
     </div>
   </td>`;
+}
+
+// The grid no longer repaints on every blur, so recolour as the value is typed.
+function pairRecolor(el) {
+  const fn = (el.dataset.field || '').startsWith('vold') ? voldColor : addColor;
+  el.classList.remove('sec-v-dg', 'sec-v-lg', 'sec-v-lr', 'sec-v-dr');
+  const c = fn(num(el.value));
+  if (c) el.classList.add(c);
 }
 
 function renderInternals() {

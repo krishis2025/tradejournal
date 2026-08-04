@@ -8621,10 +8621,22 @@ async function intSaveSession(session) {
   } catch(e) { console.error('Internals save failed', e); }
 }
 
+let _intRepaintTimer = null;
 function intUpdateField(session, field, value) {
+  if (intState[session][field] === value) return;   // no-op blur: leave the DOM alone
   intState[session][field] = value;
   intScheduleSave(session);
-  if (activePhase === 'INTERNALS') renderInternalsTab(document.getElementById('ladder'));
+  // Repainting here would destroy the box the user is moving into and swallow the click,
+  // which is what made data entry need two clicks. Defer it, and skip entirely while
+  // focus is still in the grid — derived cells (DELTA, sparkline, Vol%/ADH pills) catch
+  // up once focus leaves. A 0ms defer is not enough: mousedown/blur and click are
+  // separate tasks, so a zero timer still beats the Vol%/ADH pill's onclick swap.
+  clearTimeout(_intRepaintTimer);
+  _intRepaintTimer = setTimeout(() => {
+    const a = document.activeElement;
+    if (a && a.classList.contains('int-input')) return;
+    if (activePhase === 'INTERNALS') renderInternalsTab(document.getElementById('ladder'));
+  }, 600);
 }
 
 async function loadInternalsData() {
@@ -8643,9 +8655,9 @@ async function loadInternalsData() {
   } catch(e) { console.error('Failed to load internals', e); }
 }
 
-function intInputHTML(session, field, val) {
+function intInputHTML(session, field, val, extraClass, extraAttrs) {
   const display = (val !== '' && val !== null && val !== undefined) ? val : '';
-  return `<input class="int-input" value="${display}" placeholder="—" onblur="intUpdateField('${session}','${field}',this.value)">`;
+  return `<input class="int-input ${extraClass || ''}" value="${display}" placeholder="—" data-session="${session}" data-field="${field}" ${extraAttrs || ''} onblur="intUpdateField('${session}','${field}',this.value)">`;
 }
 
 function intVolPillCls(v) {
@@ -8754,14 +8766,23 @@ function intAddColor(v) {
   if (v >= -500) return 'is-v-lr'; return 'is-v-dr';
 }
 
+// VOLD/ADD render as real inputs at all times. They used to show the value as a bare
+// unpadded span that swapped to a hidden input on click — the hit area was the width of
+// the digits, so entering values took two precise clicks. The colour class moves onto the
+// input instead (.is-v-* are colour-only rules, so they apply unchanged).
 function intPairCell(session, f1, f2, colorFn) {
-  const v1 = intNum(intState[session][f1]), v2 = intNum(intState[session][f2]);
-  if (isNaN(v1) && isNaN(v2)) {
-    return `<td><div class="int-pair"><div class="int-pair-vals">${intInputHTML(session, f1, '')}<span style="color:var(--muted)">:</span>${intInputHTML(session, f2, '')}</div><div class="int-pair-lbl">NYSE : NQ</div></div></td>`;
-  }
-  const c1 = colorFn(v1), c2 = colorFn(v2);
-  const d1 = isNaN(v1) ? '—' : v1, d2 = isNaN(v2) ? '—' : v2;
-  return `<td><div class="int-pair"><div class="int-pair-vals"><span class="${c1}" style="cursor:pointer" onclick="this.style.display='none';this.nextElementSibling.style.display='';this.nextElementSibling.querySelector('input').focus()">${d1}</span><span style="display:none">${intInputHTML(session, f1, intState[session][f1])}</span><span style="color:var(--muted);font-weight:400">:</span><span class="${c2}" style="cursor:pointer" onclick="this.style.display='none';this.nextElementSibling.style.display='';this.nextElementSibling.querySelector('input').focus()">${d2}</span><span style="display:none">${intInputHTML(session, f2, intState[session][f2])}</span></div><div class="int-pair-lbl">NYSE : NQ</div></div></td>`;
+  const cell = f => intInputHTML(session, f, intState[session][f],
+                                 colorFn(intNum(intState[session][f])),
+                                 'oninput="intPairRecolor(this)"');
+  return `<td><div class="int-pair"><div class="int-pair-vals">${cell(f1)}<span style="color:var(--muted);font-weight:400">:</span>${cell(f2)}</div><div class="int-pair-lbl">NYSE : NQ</div></div></td>`;
+}
+
+// The grid no longer repaints on every blur, so recolour as the value is typed.
+function intPairRecolor(el) {
+  const fn = (el.dataset.field || '').startsWith('vold') ? intVoldColor : intAddColor;
+  el.classList.remove('is-v-dg', 'is-v-lg', 'is-v-lr', 'is-v-dr');
+  const c = fn(intNum(el.value));
+  if (c) el.classList.add(c);
 }
 
 /* ── Sectors helpers ── */
