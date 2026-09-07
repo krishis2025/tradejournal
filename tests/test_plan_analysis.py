@@ -356,10 +356,11 @@ def test_exit_tag_vocabulary_covers_the_reasons_the_data_cannot_derive(tmp_db):
 def test_migration_appends_missing_exit_tags_to_a_pre_existing_override(tmp_db):
     """The real database's exit override predates the widened vocabulary:
     ('Planned — Monitored Continuation', 0), ('Fear / Anxious', 1),
-    ('Bailed out - Reasses', 2). The migration must append the six new tags
-    after position 2 without touching the three existing rows — reordering or
-    renumbering would make save_tag_config's position-based rename cascade
-    silently relabel real trades."""
+    ('Bailed out - Reasses', 2), with 5 trades tagged 'Bailed out - Reasses'
+    (the real-DB shape). The migration must append the six new tags after
+    position 2 without touching the three existing rows or any trade_tags —
+    reordering or renumbering would make save_tag_config's position-based
+    rename cascade silently relabel those 5 real trades."""
     with db.get_conn() as conn:
         conn.execute("DELETE FROM tag_config WHERE group_id = 'exit'")
         for pos, tag in enumerate(
@@ -370,9 +371,13 @@ def test_migration_appends_missing_exit_tags_to_a_pre_existing_override(tmp_db):
                 "VALUES ('exit', ?, ?, 1)", (tag, pos)
             )
 
-    trade_id = db.insert_trade(db.upsert_day("2026-09-01", None), 1, "Long",
-                               3, 7715.0, 7731.0, 240.0, "17:32", "18:02")
-    db.set_trade_tags(trade_id, "exit", ["Bailed out - Reasses"])
+    day_id = db.upsert_day("2026-09-01", None)
+    bailed_trade_ids = []
+    for n in range(1, 6):
+        trade_id = db.insert_trade(day_id, n, "Long", 3, 7715.0, 7731.0, 240.0,
+                                   "17:32", "18:02")
+        db.set_trade_tags(trade_id, "exit", ["Bailed out - Reasses"])
+        bailed_trade_ids.append(trade_id)
 
     db.init_db()
 
@@ -394,13 +399,19 @@ def test_migration_appends_missing_exit_tags_to_a_pre_existing_override(tmp_db):
     assert all(by_tag[t] > 2 for t in new_tags)
     assert len(rows) == 9
 
-    # the trade tagged 'Bailed out - Reasses' is untouched
+    # all 5 trades tagged 'Bailed out - Reasses' are untouched
     with db.get_conn() as conn:
-        tt = conn.execute(
-            "SELECT tag FROM trade_tags WHERE trade_id = ? AND group_id = 'exit'",
-            (trade_id,)
-        ).fetchall()
-    assert [r["tag"] for r in tt] == ["Bailed out - Reasses"]
+        for tid in bailed_trade_ids:
+            tt = conn.execute(
+                "SELECT tag FROM trade_tags WHERE trade_id = ? AND group_id = 'exit'",
+                (tid,)
+            ).fetchall()
+            assert [r["tag"] for r in tt] == ["Bailed out - Reasses"]
+        total_bailed = conn.execute(
+            "SELECT COUNT(*) AS c FROM trade_tags WHERE group_id = 'exit' AND tag = ?",
+            ("Bailed out - Reasses",)
+        ).fetchone()["c"]
+    assert total_bailed == 5
 
 
 def test_migration_appending_exit_tags_is_idempotent(tmp_db):
