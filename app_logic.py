@@ -42,7 +42,15 @@ TAG_GROUPS = [
         "label": "Exit",
         "dot": "dot-exit",
         "active_class": "active-exit",
-        "tags": ["Planned — Monitored Continuation", "Fear / Anxious"],
+        # Why the exit happened. The recorded peak (mfe_price) now answers what
+        # was available, so these carry the reason rather than the verdict.
+        # 'Target never reached' is also derivable — keep it for narrative and
+        # for trades with no peak recorded.
+        "tags": [
+            "Planned — Monitored Continuation", "Target hit", "Fear / Anxious",
+            "Greed / chased", "Target never reached", "Stopped out",
+            "Time stop", "Management error",
+        ],
         "multi": False,
     },
     {

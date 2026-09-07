@@ -335,3 +335,14 @@ def test_summary_survives_a_week_with_no_trades(tmp_db):
     assert result["rows"] == []
     assert result["summary"]["coverage"] == {"covered": 0, "total": 0}
     assert result["summary"]["realism"]["pct"] is None
+
+
+def test_exit_tag_vocabulary_covers_the_reasons_the_data_cannot_derive():
+    group = next(g for g in logic.TAG_GROUPS if g["id"] == "exit")
+    for tag in ("Target hit", "Target never reached", "Stopped out",
+                "Greed / chased", "Time stop", "Management error"):
+        assert tag in group["tags"], f"missing exit tag: {tag}"
+    # the two originals must survive so existing tagged trades stay valid
+    assert "Planned — Monitored Continuation" in group["tags"]
+    assert "Fear / Anxious" in group["tags"]
+    assert group["multi"] is False
