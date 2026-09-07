@@ -648,15 +648,28 @@ def get_mfe_window_minutes():
 # capture denominator.
 PLAN_EPSILON = 0.25
 
-# Tolerance around 1.0 that still counts as "exited at plan".
-DEFAULT_PLAN_CAPTURE_BAND = 0.10
+# The range around 1.0 that still counts as "exited at plan".
+#
+# Deliberately asymmetric. Falling short of a target and overshooting it are not
+# mirror images: taking 87% of the planned move is executing the plan, while
+# holding 40% past it is a different behaviour worth surfacing. A single
+# symmetric band cannot express that — widening the low side to 0.60 would push
+# the high side to 1.40 and stop catching over-holding altogether.
+DEFAULT_PLAN_CAPTURE_LOW = 0.60
+DEFAULT_PLAN_CAPTURE_HIGH = 1.10
 
 
-def get_plan_capture_band():
+def _config_float(key, default):
     try:
-        return float(db.get_config("plan_capture_band", DEFAULT_PLAN_CAPTURE_BAND))
+        return float(db.get_config(key, default))
     except (TypeError, ValueError):
-        return DEFAULT_PLAN_CAPTURE_BAND
+        return default
+
+
+def get_plan_capture_bounds():
+    """(low, high) — below low is cut_early, above high is ran_past."""
+    return (_config_float("plan_capture_low", DEFAULT_PLAN_CAPTURE_LOW),
+            _config_float("plan_capture_high", DEFAULT_PLAN_CAPTURE_HIGH))
 
 
 def _dir_sign(direction):
@@ -715,15 +728,15 @@ def compute_capture(direction, avg_entry, avg_exit, target):
     return (sign * (float(avg_exit) - float(avg_entry))) / planned
 
 
-def classify_bucket(capture, band=None):
-    b = get_plan_capture_band() if band is None else float(band)
+def classify_bucket(capture, bounds=None):
+    low, high = get_plan_capture_bounds() if bounds is None else bounds
     if capture is None:
         return "no_plan"
     if capture <= 0:
         return "stopped"
-    if capture < 1 - b:
+    if capture < low:
         return "cut_early"
-    if capture <= 1 + b:
+    if capture <= high:
         return "at_plan"
     return "ran_past"
 
@@ -818,7 +831,7 @@ def build_plan_execution(trades):
         design exists to prevent reappears one layer down.
     """
     trades = list(trades or [])
-    band = get_plan_capture_band()
+    bounds = get_plan_capture_bounds()
     fills_by_trade = db.get_entry_fills_for_trades([t["id"] for t in trades])
 
     rows = []
@@ -828,7 +841,7 @@ def build_plan_execution(trades):
         stop = weighted_plan_price(fills, "stop_price")
         capture = compute_capture(t.get("direction"), t.get("avg_entry"),
                                   t.get("avg_exit"), target)
-        bucket = classify_bucket(capture, band)
+        bucket = classify_bucket(capture, bounds)
         mfe_price = t.get("mfe_price")
         mfe_timing = t.get("mfe_timing")
         instrument = _trade_instrument(t)
@@ -919,7 +932,8 @@ def build_plan_execution(trades):
     return {
         "rows": rows,
         "summary": {
-            "band": band,
+            "capture_low": bounds[0],
+            "capture_high": bounds[1],
             "window_minutes": get_mfe_window_minutes(),
             "buckets": buckets,
             "verdicts": verdicts,
@@ -974,6 +988,7 @@ def build_plan_check(day_date, account_id):
             "pnl": t.get("pnl"),
             "avg_entry": t.get("avg_entry"),
             "avg_exit": t.get("avg_exit"),
+            "stop": weighted_plan_price(fills_by_trade.get(t["id"], []), "stop_price"),
             "target": weighted_plan_price(fills_by_trade.get(t["id"], []), "target_price"),
         }
         (today if t.get("date") == day_date else earlier).append(row)
@@ -1513,10 +1528,19 @@ def close_live_trade_to_journal(live_trade_id):
 
     realized_pnl = calc["realized_pnl"]
 
-    # POC: prefer weighted_avg_entry (covers OPEN + ADDs); fall back to entry_price for legacy trades
-    avg_entry_for_journal = lt.get("weighted_avg_entry") or lt["entry_price"]
-    if not avg_entry_for_journal:
-        avg_entry_for_journal = lt["entry_price"]
+    # Weighted entry across every entry-side execution (OPEN + all ADDs).
+    #
+    # Deliberately NOT live_trades.weighted_avg_entry: recalc derives that as
+    # total_cost / open_qty, which collapses to 0 the moment a trade is fully
+    # closed, and a migration then resets the 0 back to entry_price. By push
+    # time it no longer describes this trade — a multi-entry trade would land in
+    # the journal carrying only its OPEN price, contradicting its own pnl, which
+    # is computed from the true weighted entry. The executions are already in
+    # hand here, so derive it from them.
+    entry_val = sum(e["price"] * e["qty"] for e in entry_side_execs)
+    entry_qty = sum(e["qty"] for e in entry_side_execs)
+    avg_entry_for_journal = (round(entry_val / entry_qty, 4) if entry_qty
+                             else lt["entry_price"])
 
     # Build execution detail JSON for journal (levels + executions from live trade)
     levels = lt.get("levels", [])

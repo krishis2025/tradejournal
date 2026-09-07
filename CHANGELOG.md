@@ -2,6 +2,32 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [4.8.2] — 2026-09-07
+
+### Fixed
+
+- **`avg_entry` on multi-entry trades was the OPEN price, not the weighted average.**
+  `close_live_trade_to_journal` trusted `live_trades.weighted_avg_entry`, which recalc derives as
+  `total_cost / open_qty` and so collapses to `0` once a trade fully closes — after which an
+  `init_db()` line resets the zero back to `entry_price`. A trade opened at 7756 and added at 7766
+  landed in the journal at 7756 instead of 7761, contradicting its own stored P&L. The push now
+  derives the weighted entry from the entry-side executions directly. A one-shot, flag-guarded
+  repair in `init_db()` recomputes `avg_entry` from each trade's own entry fills, so every machine
+  fixes itself on first start (the database is gitignored and never travels with the code).
+  8 existing trades corrected.
+
+### Changed
+
+- **Capture thresholds are now asymmetric.** `plan_capture_band` is replaced by `plan_capture_low`
+  (default 0.60) and `plan_capture_high` (default 1.10). Falling short of a target and overshooting
+  it are not mirror images — taking 87% of the planned move is executing the plan, not bailing out
+  of it, while holding 40% past it is a behaviour worth surfacing. A single symmetric band could not
+  express both.
+- **Weekly Plan vs Execution gains an `Entry` column**, so the price columns read in natural order
+  for a long: Stop · Entry · Plan · Actual · Peak.
+- **The day-page PLAN CHECK strip is labelled** and now shows the stop. It previously rendered four
+  bare unlabelled numbers, which is why a wrong one was hard to spot.
+
 ## [4.8.1] — 2026-09-07
 
 ### Fixed

@@ -391,6 +391,21 @@ def init_db():
             conn.execute("ALTER TABLE live_trades ADD COLUMN weighted_avg_entry REAL DEFAULT 0")
         if "open_qty" not in lt_cols_poc:
             conn.execute("ALTER TABLE live_trades ADD COLUMN open_qty INTEGER DEFAULT 0")
+        # One-shot repair: avg_entry on multi-entry trades pushed before the
+        # weighted-entry fix. Guarded by a flag because init_db() runs on every
+        # request and this is a full-table rewrite, not a per-request concern.
+        # It runs automatically because the database never travels with the code
+        # (data/journal.db is gitignored), so each machine has to repair itself.
+        already = conn.execute(
+            "SELECT 1 FROM app_config WHERE key = 'migration_avg_entry_repaired'"
+        ).fetchone()
+        if not already:
+            _repair_avg_entry(conn)
+            conn.execute(
+                "INSERT OR REPLACE INTO app_config (key, value) VALUES "
+                "('migration_avg_entry_repaired', '1')"
+            )
+
         # Backfill existing trades
         conn.execute("UPDATE live_trades SET open_qty = total_qty WHERE open_qty = 0 OR open_qty IS NULL")
         conn.execute("UPDATE live_trades SET weighted_avg_entry = entry_price WHERE weighted_avg_entry = 0 OR weighted_avg_entry IS NULL")
@@ -1209,6 +1224,44 @@ def insert_fill(trade_id, fill_time, side, qty, price, exit_type=None,
             (trade_id, fill_time, side, qty, price, exit_type,
              stop_price, stop_source, target_price, target_source)
         )
+
+
+_ENTRY_FILL_PREDICATE = """
+    (   (trades.direction = 'Long'  AND f.side = 'Buy')
+     OR (trades.direction = 'Short' AND f.side = 'Sell'))
+"""
+
+
+def _repair_avg_entry(conn):
+    """Recompute trades.avg_entry as the qty-weighted average of its entry fills.
+
+    Multi-entry trades pushed before this repair carry only their OPEN price,
+    because close_live_trade_to_journal trusted live_trades.weighted_avg_entry,
+    which collapses to 0 once a trade fully closes. The stored pnl was always
+    derived from the true weighted entry, so those rows contradicted themselves.
+
+    Takes an open connection so it can run inside init_db()'s transaction —
+    opening a second connection there would deadlock on the write lock.
+    Trades with no entry fills (CSV imports) are left untouched rather than
+    zeroed. Idempotent: a correct row is rewritten to the same value.
+    """
+    conn.execute(f"""
+        UPDATE trades SET avg_entry = (
+            SELECT ROUND(SUM(f.qty * f.price) / SUM(f.qty), 4)
+            FROM fills f
+            WHERE f.trade_id = trades.id AND {_ENTRY_FILL_PREDICATE}
+        )
+        WHERE EXISTS (
+            SELECT 1 FROM fills f
+            WHERE f.trade_id = trades.id AND {_ENTRY_FILL_PREDICATE}
+        )
+    """)
+
+
+def repair_avg_entry_from_fills():
+    """Standalone entry point for the avg_entry repair (tests, manual re-run)."""
+    with get_conn() as conn:
+        _repair_avg_entry(conn)
 
 
 def update_trade_notes(trade_id, notes, notes_monitoring=None, notes_exit=None):

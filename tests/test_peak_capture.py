@@ -266,3 +266,21 @@ def test_plan_check_scopes_to_the_days_own_account(tmp_db):
     result = logic.build_plan_check("2026-09-02", None)
     assert len(result["today"]) == 1
     assert result["total_missing"] == 1
+
+
+def test_plan_check_rows_carry_the_weighted_stop(tmp_db):
+    """The strip shows stop | entry | plan | exit, so the row needs the stop."""
+    day = db.upsert_day("2026-09-02", None)
+    trade_id = db.insert_trade(day, 1, "Long", 6, 7761.0, 7795.5, 1035.0,
+                               "10:05", "10:40")
+    db.insert_fill(trade_id, "10:05", "Buy", 3, 7756.0, stop_price=7736.0,
+                   stop_source="entered", target_price=7786.0, target_source="entered")
+    db.insert_fill(trade_id, "10:05", "Buy", 3, 7766.0, stop_price=7746.0,
+                   stop_source="entered", target_price=7815.0, target_source="entered")
+    db.insert_fill(trade_id, "10:40", "Sell", 6, 7795.5, exit_type="manual_exit")
+
+    row = logic.build_plan_check("2026-09-02", None)["today"][0]
+
+    assert row["stop"] == 7741.0
+    assert row["target"] == 7800.5
+    assert row["avg_entry"] == 7761.0

@@ -349,7 +349,7 @@ table.wr-table td.num { font-family: 'JetBrains Mono', monospace; text-align: ri
     <table class="wr-table">
       <thead><tr>
         <th>Date</th><th>Setup</th><th>Level</th>
-        <th class="num">Stop</th><th class="num">Plan</th><th class="num">Actual</th><th class="num">Peak</th>
+        <th class="num">Stop</th><th class="num">Entry</th><th class="num">Plan</th><th class="num">Actual</th><th class="num">Peak</th>
         <th class="num">Capture</th><th>Verdict</th><th class="num">Size/Risk</th>
       </tr></thead>
       <tbody>
@@ -359,6 +359,7 @@ table.wr-table td.num { font-family: 'JetBrains Mono', monospace; text-align: ri
           <td>{{ r.setup }}</td>
           <td>{{ r.level }}</td>
           <td class="num">{% if r.stop %}{{ '%.2f'|format(r.stop) }}{% else %}—{% endif %}</td>
+          <td class="num">{{ '%.2f'|format(r.avg_entry) }}</td>
           <td class="num">{% if r.target %}{{ '%.2f'|format(r.target) }}{% if r.partial_plan %}<span class="wr-pe-partial" title="some entries had no target">partial</span>{% endif %}{% else %}—{% endif %}</td>
           <td class="num">{{ '%.2f'|format(r.avg_exit) }}</td>
           <td class="num">{% if r.mfe_price %}{{ '%.2f'|format(r.mfe_price) }} <span class="wr-pe-partial">{{ 'dur' if r.mfe_timing == 'during' else 'aft' }}</span>{% else %}—{% endif %}</td>
@@ -367,7 +368,7 @@ table.wr-table td.num { font-family: 'JetBrains Mono', monospace; text-align: ri
           <td class="num">{{ r.qty }}{% if r.risk %} · {{ money(r.risk) }}{% endif %}</td>
         </tr>
         {% if r.notes or r.notes_exit or r.exit_tag != '—' %}
-        <tr><td colspan="10" class="wr-pe-why">
+        <tr><td colspan="11" class="wr-pe-why">
           {% if r.notes %}in: {{ r.notes }}{% endif %}
           {% if r.notes and (r.notes_exit or r.exit_tag != '—') %} · {% endif %}
           {% if r.exit_tag != '—' or r.notes_exit %}out: {% if r.exit_tag != '—' %}{{ r.exit_tag }}{% endif %}{% if r.exit_tag != '—' and r.notes_exit %} — {% endif %}{{ r.notes_exit }}{% endif %}

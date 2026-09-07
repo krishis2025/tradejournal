@@ -64,28 +64,54 @@ def test_capture_is_none_when_target_is_within_a_tick_of_entry():
 
 # ── classify_bucket ──────────────────────────────────────────────────────────
 
-def test_bucket_boundaries_with_the_default_band():
-    b = 0.10
+def test_bucket_boundaries_with_the_default_bounds():
+    """Asymmetric on purpose: cutting at 85% of plan is executing it, while
+    running 40% past it is a different behaviour worth flagging."""
+    b = (0.60, 1.10)
     assert logic.classify_bucket(None, b) == "no_plan"
     assert logic.classify_bucket(-0.5, b) == "stopped"
     assert logic.classify_bucket(0.0, b) == "stopped"
     assert logic.classify_bucket(0.01, b) == "cut_early"
-    assert logic.classify_bucket(0.8999, b) == "cut_early"
-    assert logic.classify_bucket(0.90, b) == "at_plan"
+    assert logic.classify_bucket(0.5999, b) == "cut_early"
+    assert logic.classify_bucket(0.60, b) == "at_plan"
+    assert logic.classify_bucket(0.873, b) == "at_plan"
     assert logic.classify_bucket(1.00, b) == "at_plan"
     assert logic.classify_bucket(1.10, b) == "at_plan"
     assert logic.classify_bucket(1.1001, b) == "ran_past"
 
 
-def test_band_is_configurable(tmp_db):
-    db.set_config("plan_capture_band", "0.25")
-    assert logic.get_plan_capture_band() == 0.25
-    assert logic.classify_bucket(0.80) == "at_plan"
+def test_bounds_are_independently_configurable(tmp_db):
+    db.set_config("plan_capture_low", "0.40")
+    db.set_config("plan_capture_high", "1.50")
+    assert logic.get_plan_capture_bounds() == (0.40, 1.50)
+    assert logic.classify_bucket(0.45) == "at_plan"
+    assert logic.classify_bucket(1.40) == "at_plan"
+    assert logic.classify_bucket(1.60) == "ran_past"
 
 
-def test_band_falls_back_when_config_is_junk(tmp_db):
-    db.set_config("plan_capture_band", "")
-    assert logic.get_plan_capture_band() == 0.10
+def test_bounds_fall_back_when_config_is_junk(tmp_db):
+    db.set_config("plan_capture_low", "")
+    db.set_config("plan_capture_high", "not a number")
+    assert logic.get_plan_capture_bounds() == (0.60, 1.10)
+
+
+def test_the_reported_trade_reads_as_at_plan_not_bailed_early(tmp_db, day_id):
+    """Regression for the real T3: entry 7761 (weighted, not the 7756 OPEN),
+    exits 7786 and 7805, targets 7786 and 7815, peak 7809.50 after the exit.
+    Capture is 0.873 -- executing the plan, not bailing out of it."""
+    tid = _seed_trade(day_id, 1, "Long", 7761.0, 7795.5, 1035.0,
+                      [(3, 7756.0, 7736.0, 7786.0), (3, 7766.0, 7746.0, 7815.0)])
+    db.set_trade_mfe(tid, 7809.5, "after", 30)
+
+    row = logic.build_plan_execution(
+        db.get_trades_in_range(None, "2026-09-01", "2026-09-01"))["rows"][0]
+
+    assert row["target"] == 7800.50
+    assert row["stop"] == 7741.00
+    assert row["avg_entry"] == 7761.00
+    assert round(row["capture"], 3) == 0.873
+    assert row["bucket"] == "at_plan"
+    assert row["verdict"] is None, "at_plan carries no verdict; only cut_early splits three ways"
 
 
 # ── classify_verdict ─────────────────────────────────────────────────────────

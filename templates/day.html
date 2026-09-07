@@ -225,6 +225,7 @@
 .pc-tg { font-size:10px; padding:3px 7px; background:transparent; cursor:pointer;
          border:1px solid var(--border); color:var(--muted); border-radius:3px; }
 .pc-tg.active { border-color:#4fffb0; color:#4fffb0; }
+.pc-head .pc-cell { font-size:9px; letter-spacing:1px; text-transform:uppercase; color:var(--muted2, var(--muted)); }
 .pc-status { font-size:10px; color:#4fffb0; margin-left:auto; }
 {% endblock %}
 
@@ -263,13 +264,23 @@
           {%- endif -%}
         </div>
       {% endif %}
+      <div class="pc-row pc-head" aria-hidden="true">
+        <span class="pc-cell pc-num">trade</span>
+        <span class="pc-cell pc-dir">dir</span>
+        <span class="pc-cell pc-mono">stop</span>
+        <span class="pc-cell pc-mono">entry</span>
+        <span class="pc-cell pc-mono">plan</span>
+        <span class="pc-cell pc-mono pc-target">exit</span>
+        <span class="pc-cell" style="width:96px;">peak</span>
+      </div>
       {% for r in group %}
       <div class="pc-row" data-trade="{{ r.id }}">
         <span class="pc-cell pc-num">{% if label %}{{ r.date }} · {% endif %}T{{ r.trade_num }}</span>
         <span class="pc-cell pc-dir {{ 'long' if r.direction == 'Long' else 'short' }}">{{ r.direction|upper }}</span>
+        <span class="pc-cell pc-mono">{% if r.stop %}{{ '%.2f'|format(r.stop) }}{% else %}—{% endif %}</span>
         <span class="pc-cell pc-mono">{{ '%.2f'|format(r.avg_entry) }}</span>
-        <span class="pc-cell pc-mono">{{ '%.2f'|format(r.avg_exit) }}</span>
         <span class="pc-cell pc-mono pc-target">{% if r.target %}{{ '%.2f'|format(r.target) }}{% else %}—{% endif %}</span>
+        <span class="pc-cell pc-mono">{{ '%.2f'|format(r.avg_exit) }}</span>
         <input class="pc-input" type="number" step="0.25" placeholder="peak price"
                id="pc-price-{{ r.id }}">
         <span class="pc-toggle">
