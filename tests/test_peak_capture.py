@@ -107,10 +107,60 @@ def test_get_trades_missing_mfe_excludes_filled_and_open_trades(tmp_db, day_id):
     missing = _trade(day_id, num=2)
     db.set_trade_mfe(filled, 7772.0, "during", 30)
 
-    rows = db.get_trades_missing_mfe(None, "2026-09-01")
+    rows = db.get_trades_missing_mfe_for_date(None, "2026-09-01")
     ids = [r["id"] for r in rows]
     assert missing in ids
     assert filled not in ids
+
+
+def test_get_trades_missing_mfe_for_date_is_never_capped(tmp_db, day_id):
+    """Today's trades are the point of the strip and must never be capped
+    away, unlike the earlier-days backfill."""
+    ids = [_trade(day_id, num=n) for n in range(1, 13)]
+    rows = db.get_trades_missing_mfe_for_date(None, "2026-09-01")
+    assert {r["id"] for r in rows} == set(ids)
+    assert len(rows) == 12
+
+
+def test_get_trades_missing_mfe_before_is_capped_tightly(tmp_db):
+    for n in range(1, 13):
+        day = db.upsert_day(f"2026-08-{n:02d}", None)
+        _trade(day, num=1)
+
+    rows = db.get_trades_missing_mfe_before(None, "2026-09-01", limit=10)
+    assert len(rows) == 10
+
+
+def test_count_trades_missing_mfe_reports_the_true_total(tmp_db):
+    """The header must read this count, not the length of a capped list."""
+    for n in range(1, 13):
+        day = db.upsert_day(f"2026-08-{n:02d}", None)
+        _trade(day, num=1)
+    today = db.upsert_day("2026-09-01", None)
+    _trade(today, num=1)
+
+    assert db.count_trades_missing_mfe(None, "2026-09-01") == 13
+    # earlier query alone is capped, so it must not equal the true count
+    assert len(db.get_trades_missing_mfe_before(None, "2026-09-01", limit=10)) == 10
+
+
+def test_missing_mfe_account_scoping_excludes_other_accounts(tmp_db):
+    """A day with account_id=None must show only NULL-account trades, not
+    every account's trades — the pre-fix bug widened to 'all' whenever the
+    caller's account_id was falsy."""
+    acct_id = db.create_account("Sim", "#fff")
+    day_no_acct = db.upsert_day("2026-09-01", None)
+    _trade(day_no_acct, num=1)
+
+    # Same date, but a different (real) account — must not leak in.
+    day_with_acct = db.upsert_day("2026-09-01", acct_id)
+    _trade(day_with_acct, num=1)
+
+    rows = db.get_trades_missing_mfe_for_date(None, "2026-09-01")
+    assert len(rows) == 1
+
+    rows_for_acct = db.get_trades_missing_mfe_for_date(acct_id, "2026-09-01")
+    assert len(rows_for_acct) == 1
 
 
 def _seed(day_id, num, target=None):
@@ -165,3 +215,54 @@ def test_plan_check_drops_a_trade_once_its_peak_is_recorded(tmp_db):
 def test_plan_check_reports_the_window(tmp_db):
     db.upsert_day("2026-09-02", None)
     assert logic.build_plan_check("2026-09-02", None)["window_minutes"] == 30
+
+
+def test_plan_check_caps_earlier_but_never_today(tmp_db):
+    """236 closed trades all missing a peak was the real-DB shape that flooded
+    every day page under the old LIMIT 50. Today's trades must all render;
+    the earlier-days backfill is capped to 10."""
+    today = db.upsert_day("2026-09-02", None)
+    for n in range(1, 16):
+        _seed(today, n, target=7760.0)
+    for d in range(1, 21):
+        day = db.upsert_day(f"2026-08-{d:02d}", None)
+        _seed(day, 1, target=7760.0)
+
+    result = logic.build_plan_check("2026-09-02", None)
+
+    assert len(result["today"]) == 15, "today's trades must never be capped away"
+    assert len(result["earlier"]) == 10, "earlier days are capped tightly"
+
+
+def test_plan_check_reports_the_true_total_and_earlier_total(tmp_db):
+    """The header must show the TRUE outstanding count (35), not the length
+    of the rendered/capped lists (15 + 10 = 25)."""
+    today = db.upsert_day("2026-09-02", None)
+    for n in range(1, 16):
+        _seed(today, n, target=7760.0)
+    for d in range(1, 21):
+        day = db.upsert_day(f"2026-08-{d:02d}", None)
+        _seed(day, 1, target=7760.0)
+
+    result = logic.build_plan_check("2026-09-02", None)
+
+    assert result["total_missing"] == 35
+    assert result["earlier_total"] == 20, (
+        "earlier_total is the TRUE earlier-days count (20), not the capped "
+        "rendered length (10)"
+    )
+    assert len(result["earlier"]) == 10
+
+
+def test_plan_check_scopes_to_the_days_own_account(tmp_db):
+    """A legacy NULL-account day must list only NULL-account trades, not
+    trades belonging to other accounts."""
+    acct_id = db.create_account("Sim", "#fff")
+    no_acct_day = db.upsert_day("2026-09-02", None)
+    other_acct_day = db.upsert_day("2026-09-02", acct_id)
+    _seed(no_acct_day, 1, target=7760.0)
+    _seed(other_acct_day, 1, target=7760.0)
+
+    result = logic.build_plan_check("2026-09-02", None)
+    assert len(result["today"]) == 1
+    assert result["total_missing"] == 1

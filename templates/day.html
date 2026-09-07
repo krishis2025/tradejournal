@@ -248,13 +248,21 @@
 <div class="plan-check" id="plan-check">
   <div class="plan-check-head">
     <span class="pc-title">PLAN CHECK</span>
-    <span class="pc-count">{{ plan_check.today|length + plan_check.earlier|length }} trades missing peak</span>
+    <span class="pc-count">{{ plan_check.total_missing }} trades missing peak</span>
     <span class="pc-hint">best price from entry through exit + {{ plan_check.window_minutes }} min</span>
   </div>
 
   {% for group, label in [(plan_check.today, ''), (plan_check.earlier, 'earlier days')] %}
     {% if group %}
-      {% if label %}<div class="pc-group-label">{{ group|length }} from {{ label }}</div>{% endif %}
+      {% if label %}
+        <div class="pc-group-label">
+          {%- if plan_check.earlier_total > group|length -%}
+            showing {{ group|length }} of {{ plan_check.earlier_total }} from {{ label }}
+          {%- else -%}
+            {{ group|length }} from {{ label }}
+          {%- endif -%}
+        </div>
+      {% endif %}
       {% for r in group %}
       <div class="pc-row" data-trade="{{ r.id }}">
         <span class="pc-cell pc-num">{% if label %}{{ r.date }} · {% endif %}T{{ r.trade_num }}</span>

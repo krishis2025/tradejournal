@@ -1236,15 +1236,40 @@ def set_trade_mfe(trade_id, mfe_price, mfe_timing, mfe_window_minutes):
         )
 
 
-def get_trades_missing_mfe(account_id, on_or_before_date, limit=50):
-    """Closed trades with no peak recorded, newest first. Winners and losers
-    alike — on a stopped-out trade the peak reveals give-back, which is
-    invisible in P&L."""
-    wheres = ["t.is_open = 0", "t.mfe_price IS NULL", "d.date <= ?"]
-    params = [on_or_before_date]
-    if account_id:
+def _account_scope_where(account_id, wheres, params):
+    """Scope a trading_days query to exactly one account, including the
+    legacy NULL-account case — never silently widen to every account."""
+    if account_id is not None:
         wheres.append("d.account_id = ?")
         params.append(int(account_id))
+    else:
+        wheres.append("d.account_id IS NULL")
+
+
+def get_trades_missing_mfe_for_date(account_id, date):
+    """Closed trades on exactly this date with no peak recorded. Never capped:
+    today's trades are the point of the PLAN CHECK strip, so they must never
+    be dropped by a limit meant for the earlier-days backfill."""
+    wheres = ["t.is_open = 0", "t.mfe_price IS NULL", "d.date = ?"]
+    params = [date]
+    _account_scope_where(account_id, wheres, params)
+    with get_conn() as conn:
+        rows = conn.execute(f"""
+            SELECT t.*, d.date AS date, d.id AS day_id_ref
+            FROM trades t
+            JOIN trading_days d ON d.id = t.day_id
+            WHERE {' AND '.join(wheres)}
+            ORDER BY t.trade_num DESC
+        """, params).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_trades_missing_mfe_before(account_id, date, limit=10):
+    """Closed trades from days before this date with no peak recorded, newest
+    first, capped tightly so a long backlog cannot flood the day page."""
+    wheres = ["t.is_open = 0", "t.mfe_price IS NULL", "d.date < ?"]
+    params = [date]
+    _account_scope_where(account_id, wheres, params)
     params.append(int(limit))
     with get_conn() as conn:
         rows = conn.execute(f"""
@@ -1256,6 +1281,23 @@ def get_trades_missing_mfe(account_id, on_or_before_date, limit=50):
             LIMIT ?
         """, params).fetchall()
         return [dict(r) for r in rows]
+
+
+def count_trades_missing_mfe(account_id, on_or_before_date):
+    """True count of closed trades missing a peak through this date. The
+    PLAN CHECK header must report this, not the length of the (capped)
+    rendered list, or a backlog understates itself with no indication of it."""
+    wheres = ["t.is_open = 0", "t.mfe_price IS NULL", "d.date <= ?"]
+    params = [on_or_before_date]
+    _account_scope_where(account_id, wheres, params)
+    with get_conn() as conn:
+        row = conn.execute(f"""
+            SELECT COUNT(*) AS c
+            FROM trades t
+            JOIN trading_days d ON d.id = t.day_id
+            WHERE {' AND '.join(wheres)}
+        """, params).fetchone()
+        return row["c"]
 
 
 def set_trade_tags(trade_id, group_id, tags):

@@ -949,14 +949,22 @@ def build_plan_execution(trades):
 def build_plan_check(day_date, account_id):
     """Closed trades still missing a peak, split into this day and earlier ones.
 
-    Earlier days are surfaced so a skipped session does not silently vanish —
-    an unfilled subset biases every peak-derived percentage in the weekly review.
+    Today's trades are never capped — they are the point of the strip. The
+    earlier-days backfill is capped tightly (10 rows) so a long backlog
+    cannot flood every day page; the header instead reports the TRUE
+    outstanding count via a separate COUNT(*), not the length of the
+    (possibly truncated) rendered list.
     """
-    pending = db.get_trades_missing_mfe(account_id, day_date)
-    fills_by_trade = db.get_entry_fills_for_trades([t["id"] for t in pending])
+    today_pending = db.get_trades_missing_mfe_for_date(account_id, day_date)
+    earlier_pending = db.get_trades_missing_mfe_before(account_id, day_date, limit=10)
+    total_missing = db.count_trades_missing_mfe(account_id, day_date)
+    earlier_total = total_missing - len(today_pending)
+
+    all_pending = today_pending + earlier_pending
+    fills_by_trade = db.get_entry_fills_for_trades([t["id"] for t in all_pending])
 
     today, earlier = [], []
-    for t in pending:
+    for t in all_pending:
         row = {
             "id": t["id"],
             "trade_num": t.get("trade_num"),
@@ -971,6 +979,7 @@ def build_plan_check(day_date, account_id):
         (today if t.get("date") == day_date else earlier).append(row)
 
     return {"today": today, "earlier": earlier,
+            "total_missing": total_missing, "earlier_total": earlier_total,
             "window_minutes": get_mfe_window_minutes()}
 
 
