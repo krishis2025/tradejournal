@@ -124,6 +124,8 @@ Individual fill/execution records for trades.
 | exit_type | TEXT    |                                          |
 | stop_price  | REAL  | Nullable. Intended risk stop captured at this entry decision (per-tranche). NULL on exit-side fills. |
 | stop_source | TEXT  | NOT NULL DEFAULT 'default'. One of 'default' (auto 20-pt), 'entered' (typed on form), 'edited' (set in ledger / tap-to-pull). |
+| target_price  | REAL  | Nullable. Planned exit captured at this entry decision (per-tranche). NULL on exit-side fills and when no plan was recorded. |
+| target_source | TEXT  | NOT NULL DEFAULT 'none'. One of 'none' (no plan recorded), 'entered' (typed on form), 'edited' (ledger edit before any exit). |
 
 > `stop_price`/`stop_source` capture the **intended** risk stop per entry decision. Risk is always derived on read (`|price − stop_price| × qty × $/point`), never persisted.
 
@@ -245,8 +247,13 @@ Execution log for live trades.
 | created_at    | TEXT    | NOT NULL DEFAULT datetime('now')               |
 | stop_price    | REAL    | Nullable. Intended risk stop for this OPEN/ADD decision (per-tranche, sticky). NULL on exit rows. |
 | stop_source   | TEXT    | NOT NULL DEFAULT 'default'. 'default' (auto 20-pt) \| 'entered' (typed on form) \| 'edited' (ledger edit / tap-to-pull). |
+| target_price  | REAL    | Nullable. Planned exit captured at this entry decision (per-tranche). NULL on exit-side fills and when no plan was recorded. |
+| target_source | TEXT    | NOT NULL DEFAULT 'none'. One of 'none' (no plan recorded), 'entered' (typed on form), 'edited' (ledger edit before any exit). |
 
 > Mirrors `fills.stop_price`/`stop_source`. Distinct from the working stop in `live_trade_levels` (which is pooled by qty and moves as you trail). Risk is derived on read, never persisted. Carried into `fills` on push to journal.
+>
+> Mirrors `fills.target_price`/`target_source`. Unlike the stop there is no default target:
+> NULL means no plan existed. Frozen once any exit-side execution exists on the trade.
 
 ---
 
