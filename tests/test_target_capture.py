@@ -1,9 +1,10 @@
+import os
+
 import database as db
 
 
 def test_harness_uses_a_throwaway_db(tmp_db):
     """The schema is built in the temp file, and it is not the repo's journal."""
-    import os
     repo_db = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "data", "journal.db")
     assert os.path.abspath(tmp_db) != os.path.abspath(repo_db)
