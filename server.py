@@ -486,6 +486,27 @@ def api_save_notes(trade_id):
     return jsonify({"ok": True})
 
 
+@app.route("/api/trade/<int:trade_id>/mfe", methods=["POST"])
+def api_save_trade_mfe(trade_id):
+    """Record the peak price the market offered around a trade.
+
+    The window is stamped server-side from config, never taken from the client,
+    so every row records the window it was actually measured against.
+    """
+    body = request.get_json(silent=True) or {}
+    if body.get("mfe_price") in (None, ""):
+        return jsonify({"error": "mfe_price is required"}), 400
+    try:
+        mfe_price = float(body["mfe_price"])
+    except (TypeError, ValueError):
+        return jsonify({"error": "mfe_price must be a number"}), 400
+    timing = body.get("mfe_timing")
+    if timing not in ("during", "after"):
+        return jsonify({"error": "mfe_timing must be 'during' or 'after'"}), 400
+    db.set_trade_mfe(trade_id, mfe_price, timing, logic.get_mfe_window_minutes())
+    return jsonify({"ok": True})
+
+
 # ── API: Images ───────────────────────────────────────────────────────────────
 
 @app.route("/api/trade/<int:trade_id>/images", methods=["POST"])

@@ -620,6 +620,19 @@ INSTRUMENT_CONFIG = {
     "ES":  {"dollars_per_point": 50, "dollars_per_tick": 12.50, "ticks_per_point": 4},
 }
 
+# Peak-price capture window: how far past the exit to look for the best price.
+# 30 rather than 60 because a 60-minute window on a short intraday trade
+# measures a different trade than the one that was taken.
+DEFAULT_MFE_WINDOW_MINUTES = 30
+
+
+def get_mfe_window_minutes():
+    try:
+        return int(float(db.get_config("mfe_window_minutes", DEFAULT_MFE_WINDOW_MINUTES)))
+    except (TypeError, ValueError):
+        return DEFAULT_MFE_WINDOW_MINUTES
+
+
 # Default stop/TP distances in points
 DEFAULT_TRADE_DEFAULTS = {
     "full_stop_points":    "20",

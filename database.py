@@ -327,6 +327,20 @@ def init_db():
             conn.execute("ALTER TABLE live_trade_executions ADD COLUMN target_price REAL")
         if "target_source" not in lte_cols:
             conn.execute("ALTER TABLE live_trade_executions ADD COLUMN target_source TEXT NOT NULL DEFAULT 'none'")
+
+        # Migration: peak price (max favourable excursion) recorded by hand after
+        # the fact. Journal-side only. mfe_timing says whether the peak came
+        # before or after the exit, which is what separates "froze at the target"
+        # from "left just before it worked". No source column: mfe_price IS NULL
+        # already means not observed.
+        trade_cols = [r[1] for r in conn.execute("PRAGMA table_info(trades)").fetchall()]
+        if "mfe_price" not in trade_cols:
+            conn.execute("ALTER TABLE trades ADD COLUMN mfe_price REAL")
+        if "mfe_timing" not in trade_cols:
+            conn.execute("ALTER TABLE trades ADD COLUMN mfe_timing TEXT")
+        if "mfe_window_minutes" not in trade_cols:
+            conn.execute("ALTER TABLE trades ADD COLUMN mfe_window_minutes INTEGER")
+
         # Migration: add execution_json to trades
         trade_cols = [r[1] for r in conn.execute("PRAGMA table_info(trades)").fetchall()]
         if "execution_json" not in trade_cols:
@@ -1168,6 +1182,39 @@ def update_trade_notes(trade_id, notes, notes_monitoring=None, notes_exit=None):
             vals.append(notes_exit)
         vals.append(trade_id)
         conn.execute(f"UPDATE trades SET {', '.join(sets)} WHERE id = ?", vals)
+
+
+def set_trade_mfe(trade_id, mfe_price, mfe_timing, mfe_window_minutes):
+    """Record the peak price observed around a trade. Overwritable by design:
+    unlike the planned exit this is a checkable fact, not a record of intent."""
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE trades SET mfe_price = ?, mfe_timing = ?, mfe_window_minutes = ? "
+            "WHERE id = ?",
+            (mfe_price, mfe_timing, mfe_window_minutes, trade_id)
+        )
+
+
+def get_trades_missing_mfe(account_id, on_or_before_date, limit=50):
+    """Closed trades with no peak recorded, newest first. Winners and losers
+    alike — on a stopped-out trade the peak reveals give-back, which is
+    invisible in P&L."""
+    wheres = ["t.is_open = 0", "t.mfe_price IS NULL", "d.date <= ?"]
+    params = [on_or_before_date]
+    if account_id:
+        wheres.append("d.account_id = ?")
+        params.append(int(account_id))
+    params.append(int(limit))
+    with get_conn() as conn:
+        rows = conn.execute(f"""
+            SELECT t.*, d.date AS date, d.id AS day_id_ref
+            FROM trades t
+            JOIN trading_days d ON d.id = t.day_id
+            WHERE {' AND '.join(wheres)}
+            ORDER BY d.date DESC, t.trade_num DESC
+            LIMIT ?
+        """, params).fetchall()
+        return [dict(r) for r in rows]
 
 
 def set_trade_tags(trade_id, group_id, tags):

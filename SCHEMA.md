@@ -103,10 +103,19 @@ Individual trades recorded per day.
 | execution_score_json | TEXT | nullable                                  |
 | context_id       | INTEGER | nullable, FK → developing_context(id)     |
 | market_state_json | TEXT   | nullable — frozen Market State snapshot at entry (JSON) |
+| mfe_price          | REAL    | Nullable. Peak price the market offered from entry through exit + mfe_window_minutes. NULL means not observed. |
+| mfe_timing         | TEXT    | Nullable. 'during' (peak came before the exit) \| 'after' (peak came after the exit). |
+| mfe_window_minutes | INTEGER | Nullable. The window this observation was measured against, stamped at write time from app_config key `mfe_window_minutes` (default 30). |
 
 `market_state_json`: immutable photograph of the Context Market State strip at the entry fill
 (full factors + strength + computed badge). Written once; carried over from `live_trades` on the
 push-to-journal. NULL for imports / pre-feature trades. See LIVE_TRADES below.
+
+> Recorded by hand after the fact — this app has no price feed. `mfe_timing` is what separates
+> "the target was reached and not taken" from "the target was reached only after the exit",
+> a distinction planned-vs-actual prices cannot make on their own. The window is stored per
+> observation so retuning the config leaves existing rows interpretable. No source column:
+> `mfe_price IS NULL` already means not observed.
 
 ---
 
