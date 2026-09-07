@@ -183,3 +183,150 @@ def test_excursion_uses_the_instrument_point_value(tmp_db):
 
 def test_excursion_is_none_without_a_peak(tmp_db):
     assert logic.compute_excursion("Long", 3, "MES", 7731.0, None, None) is None
+
+
+# ── db.get_entry_fills_for_trades ────────────────────────────────────────────
+
+def _seed_trade(day_id, num, direction, entry, exit_, pnl, entry_fills, instrument="MES"):
+    """Insert one journal trade plus its entry and exit fills."""
+    qty = sum(f[0] for f in entry_fills)
+    trade_id = db.insert_trade(day_id, num, direction, qty, entry, exit_, pnl,
+                               "17:32", "18:02",
+                               execution_json=json.dumps({"instrument": instrument}))
+    entry_side = "Buy" if direction == "Long" else "Sell"
+    exit_side = "Sell" if direction == "Long" else "Buy"
+    for q, price, stop, target in entry_fills:
+        db.insert_fill(trade_id, "17:32", entry_side, q, price,
+                       stop_price=stop, stop_source="entered",
+                       target_price=target,
+                       target_source="none" if target is None else "entered")
+    db.insert_fill(trade_id, "18:02", exit_side, qty, exit_, exit_type="manual_exit")
+    return trade_id
+
+
+def test_get_entry_fills_returns_only_entry_side_rows(tmp_db, day_id):
+    long_id = _seed_trade(day_id, 1, "Long", 7715.0, 7731.25, 240.0,
+                          [(3, 7715.0, 7688.5, 7760.0)])
+    short_id = _seed_trade(day_id, 2, "Short", 7760.0, 7743.75, 240.0,
+                           [(3, 7760.0, 7788.5, 7715.0)])
+
+    got = db.get_entry_fills_for_trades([long_id, short_id])
+
+    assert len(got[long_id]) == 1
+    assert got[long_id][0]["price"] == 7715.0
+    assert got[long_id][0]["target_price"] == 7760.0
+    # the Short trade's entry fill is the Sell, not the Buy
+    assert len(got[short_id]) == 1
+    assert got[short_id][0]["price"] == 7760.0
+
+
+def test_get_entry_fills_handles_an_empty_id_list(tmp_db):
+    assert db.get_entry_fills_for_trades([]) == {}
+
+
+# ── build_plan_execution ─────────────────────────────────────────────────────
+
+def _rows_by_num(result):
+    return {r["trade_num"]: r for r in result["rows"]}
+
+
+def test_build_plan_execution_assembles_rows(tmp_db, day_id):
+    _seed_trade(day_id, 1, "Long", 7715.0, 7731.25, 240.0,
+                [(3, 7715.0, 7688.5, 7760.0)])
+    trades = db.get_trades_in_range(None, "2026-09-01", "2026-09-01")
+
+    result = logic.build_plan_execution(trades)
+    row = _rows_by_num(result)[1]
+
+    assert row["target"] == 7760.0
+    assert row["stop"] == 7688.5
+    assert round(row["capture"], 4) == 0.3611
+    assert row["bucket"] == "cut_early"
+    assert row["verdict"] is None          # no peak recorded yet
+    assert row["excursion"] is None
+
+
+def test_build_plan_execution_applies_the_peak(tmp_db, day_id):
+    tid = _seed_trade(day_id, 1, "Long", 7715.0, 7731.25, 240.0,
+                      [(3, 7715.0, 7688.5, 7760.0)])
+    db.set_trade_mfe(tid, 7772.0, "during", 30)
+    trades = db.get_trades_in_range(None, "2026-09-01", "2026-09-01")
+
+    row = _rows_by_num(logic.build_plan_execution(trades))[1]
+    assert row["verdict"] == "froze_at_target"
+    assert row["excursion"]["kind"] == "give_back"
+    assert row["excursion"]["dollars"] == 611.25
+    assert row["target_offered"] is True
+
+
+def test_build_plan_execution_flags_a_partial_plan(tmp_db, day_id):
+    _seed_trade(day_id, 1, "Long", 7715.0, 7731.25, 240.0,
+                [(3, 7715.0, 7688.5, 7760.0), (2, 7720.0, 7688.5, None)])
+    trades = db.get_trades_in_range(None, "2026-09-01", "2026-09-01")
+    row = _rows_by_num(logic.build_plan_execution(trades))[1]
+    assert row["partial_plan"] is True
+    assert row["target"] == 7760.0
+
+
+def test_build_plan_execution_marks_untargeted_trades_no_plan(tmp_db, day_id):
+    _seed_trade(day_id, 1, "Long", 7715.0, 7731.25, 240.0,
+                [(3, 7715.0, 7688.5, None)])
+    trades = db.get_trades_in_range(None, "2026-09-01", "2026-09-01")
+    result = logic.build_plan_execution(trades)
+    assert _rows_by_num(result)[1]["bucket"] == "no_plan"
+    assert result["summary"]["no_plan"] == 1
+
+
+def test_summary_reports_coverage_over_all_trades(tmp_db, day_id):
+    a = _seed_trade(day_id, 1, "Long", 7715.0, 7731.25, 240.0,
+                    [(3, 7715.0, 7688.5, 7760.0)])
+    _seed_trade(day_id, 2, "Long", 7715.0, 7731.25, 240.0,
+                [(3, 7715.0, 7688.5, 7760.0)])
+    db.set_trade_mfe(a, 7772.0, "during", 30)
+
+    summary = logic.build_plan_execution(
+        db.get_trades_in_range(None, "2026-09-01", "2026-09-01"))["summary"]
+
+    assert summary["coverage"]["covered"] == 1
+    assert summary["coverage"]["total"] == 2
+
+
+def test_summary_verdicts_are_counted_over_the_covered_set_only(tmp_db, day_id):
+    a = _seed_trade(day_id, 1, "Long", 7715.0, 7731.25, 240.0,
+                    [(3, 7715.0, 7688.5, 7760.0)])
+    b = _seed_trade(day_id, 2, "Long", 7715.0, 7731.25, 240.0,
+                    [(3, 7715.0, 7688.5, 7760.0)])
+    _seed_trade(day_id, 3, "Long", 7715.0, 7731.25, 240.0,
+                [(3, 7715.0, 7688.5, 7760.0)])   # no peak
+    db.set_trade_mfe(a, 7772.0, "during", 30)
+    db.set_trade_mfe(b, 7750.0, "after", 30)
+
+    summary = logic.build_plan_execution(
+        db.get_trades_in_range(None, "2026-09-01", "2026-09-01"))["summary"]
+
+    assert summary["verdicts"]["froze_at_target"]["count"] == 1
+    assert summary["verdicts"]["market_didnt_pay"]["count"] == 1
+    assert summary["fear"]["count"] == 1, "market_didnt_pay must not count as fear"
+
+
+def test_summary_target_realism_uses_the_covered_set(tmp_db, day_id):
+    a = _seed_trade(day_id, 1, "Long", 7715.0, 7731.25, 240.0,
+                    [(3, 7715.0, 7688.5, 7760.0)])
+    b = _seed_trade(day_id, 2, "Long", 7715.0, 7731.25, 240.0,
+                    [(3, 7715.0, 7688.5, 7760.0)])
+    db.set_trade_mfe(a, 7772.0, "during", 30)   # offered
+    db.set_trade_mfe(b, 7750.0, "after", 30)    # never offered
+
+    realism = logic.build_plan_execution(
+        db.get_trades_in_range(None, "2026-09-01", "2026-09-01"))["summary"]["realism"]
+
+    assert realism["offered"] == 1
+    assert realism["of"] == 2
+    assert realism["pct"] == 50.0
+
+
+def test_summary_survives_a_week_with_no_trades(tmp_db):
+    result = logic.build_plan_execution([])
+    assert result["rows"] == []
+    assert result["summary"]["coverage"] == {"covered": 0, "total": 0}
+    assert result["summary"]["realism"]["pct"] is None

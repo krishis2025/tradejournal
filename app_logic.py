@@ -785,6 +785,145 @@ def compute_excursion(direction, qty, instrument, avg_exit, mfe_price, mfe_timin
     }
 
 
+_BUCKETS = ("stopped", "cut_early", "at_plan", "ran_past")
+_VERDICTS = ("froze_at_target", "bailed_early", "market_didnt_pay")
+
+
+def build_plan_execution(trades):
+    """Per-trade plan-vs-execution rows plus the week roll-up.
+
+    Buckets are computed over every trade that has a target. Verdicts,
+    excursion and target realism are computed over the covered set only —
+    the trades with a recorded peak — because a percentage over a
+    self-selected subset would overstate whatever prompted the filling.
+    """
+    trades = list(trades or [])
+    band = get_plan_capture_band()
+    fills_by_trade = db.get_entry_fills_for_trades([t["id"] for t in trades])
+
+    rows = []
+    for t in trades:
+        fills = fills_by_trade.get(t["id"], [])
+        target = weighted_plan_price(fills, "target_price")
+        stop = weighted_plan_price(fills, "stop_price")
+        capture = compute_capture(t.get("direction"), t.get("avg_entry"),
+                                  t.get("avg_exit"), target)
+        bucket = classify_bucket(capture, band)
+        mfe_price = t.get("mfe_price")
+        mfe_timing = t.get("mfe_timing")
+        instrument = _trade_instrument(t)
+        tags = t.get("tags") or {}
+        offered = target_was_offered(t.get("direction"), target, mfe_price)
+        tag_signals = exit_tag_signals(tags.get("exit"), offered)
+        rows.append({
+            "id": t["id"],
+            "trade_num": t.get("trade_num"),
+            "date": t.get("date"),
+            "direction": t.get("direction"),
+            "qty": t.get("qty"),
+            "pnl": t.get("pnl"),
+            "instrument": instrument,
+            "avg_entry": t.get("avg_entry"),
+            "avg_exit": t.get("avg_exit"),
+            "stop": stop,
+            "target": target,
+            "partial_plan": plan_is_partial(fills),
+            "capture": capture,
+            "bucket": bucket,
+            "mfe_price": mfe_price,
+            "mfe_timing": mfe_timing,
+            "target_offered": offered,
+            "tag_conflict": tag_signals["conflict"],
+            "tag_suggestion": tag_signals["suggestion"],
+            "verdict": classify_verdict(bucket, t.get("direction"), target,
+                                        mfe_price, mfe_timing),
+            "excursion": compute_excursion(t.get("direction"), t.get("qty"), instrument,
+                                           t.get("avg_exit"), mfe_price, mfe_timing),
+            "risk": compute_tranche_risk(t.get("direction"), instrument,
+                                         t.get("avg_entry"), stop, t.get("qty") or 0),
+            "setup": ", ".join(tags.get("setup", [])) or "—",
+            "level": ", ".join(tags.get("with", [])) or "—",
+            "exit_tag": ", ".join(tags.get("exit", [])) or "—",
+            "notes": t.get("notes") or "",
+            "notes_exit": t.get("notes_exit") or "",
+        })
+
+    buckets = {k: {"count": 0, "net": 0.0, "captures": []} for k in _BUCKETS}
+    verdicts = {k: {"count": 0, "net": 0.0, "captures": []} for k in _VERDICTS}
+    no_plan = 0
+    give_back = missed_run = 0.0
+    offered = of_covered = 0
+
+    for r in rows:
+        pnl = float(r["pnl"] or 0)
+        if r["bucket"] == "no_plan":
+            no_plan += 1
+        else:
+            b = buckets[r["bucket"]]
+            b["count"] += 1
+            b["net"] += pnl
+            if r["capture"] is not None:
+                b["captures"].append(r["capture"])
+        if r["verdict"]:
+            v = verdicts[r["verdict"]]
+            v["count"] += 1
+            v["net"] += pnl
+            if r["capture"] is not None:
+                v["captures"].append(r["capture"])
+        if r["excursion"]:
+            if r["excursion"]["kind"] == "give_back":
+                give_back += r["excursion"]["dollars"]
+            else:
+                missed_run += r["excursion"]["dollars"]
+        if r["target_offered"] is not None:
+            of_covered += 1
+            if r["target_offered"]:
+                offered += 1
+
+    def _finish(d):
+        caps = d.pop("captures")
+        d["net"] = round(d["net"], 2)
+        d["avg_capture"] = round(sum(caps) / len(caps), 4) if caps else None
+        return d
+
+    buckets = {k: _finish(v) for k, v in buckets.items()}
+    verdicts = {k: _finish(v) for k, v in verdicts.items()}
+
+    covered = sum(1 for r in rows if r["mfe_price"] is not None)
+    fear_caps = [r["capture"] for r in rows
+                 if r["verdict"] in ("froze_at_target", "bailed_early")
+                 and r["capture"] is not None]
+    greed_rows = [r for r in rows if r["bucket"] == "ran_past" and float(r["pnl"] or 0) < 0]
+
+    return {
+        "rows": rows,
+        "summary": {
+            "band": band,
+            "window_minutes": get_mfe_window_minutes(),
+            "buckets": buckets,
+            "verdicts": verdicts,
+            "no_plan": no_plan,
+            "coverage": {"covered": covered, "total": len(rows)},
+            "give_back": round(give_back, 2),
+            "missed_run": round(missed_run, 2),
+            "fear": {
+                "count": verdicts["froze_at_target"]["count"] + verdicts["bailed_early"]["count"],
+                "net": round(verdicts["froze_at_target"]["net"] + verdicts["bailed_early"]["net"], 2),
+                "avg_capture": round(sum(fear_caps) / len(fear_caps), 4) if fear_caps else None,
+            },
+            "greed": {
+                "count": len(greed_rows),
+                "net": round(sum(float(r["pnl"] or 0) for r in greed_rows), 2),
+            },
+            "realism": {
+                "offered": offered,
+                "of": of_covered,
+                "pct": round(offered / of_covered * 100, 1) if of_covered else None,
+            },
+        },
+    }
+
+
 # Default stop/TP distances in points
 DEFAULT_TRADE_DEFAULTS = {
     "full_stop_points":    "20",

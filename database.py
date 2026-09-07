@@ -2831,6 +2831,35 @@ def get_trades_in_range(account_id, date_from, date_to):
         return result
 
 
+def get_entry_fills_for_trades(trade_ids):
+    """Entry-side fills for many trades in one query, keyed by trade id.
+
+    An entry fill is a Buy on a Long trade and a Sell on a Short trade —
+    trades.direction is 'Long'/'Short' and fills.side is 'Buy'/'Sell'.
+    Batched deliberately: the weekly review would otherwise issue one query
+    per trade.
+    """
+    ids = [int(i) for i in (trade_ids or [])]
+    if not ids:
+        return {}
+    placeholders = ",".join("?" * len(ids))
+    out = {i: [] for i in ids}
+    with get_conn() as conn:
+        rows = conn.execute(f"""
+            SELECT f.trade_id, f.qty, f.price, f.stop_price, f.stop_source,
+                   f.target_price, f.target_source
+            FROM fills f
+            JOIN trades t ON t.id = f.trade_id
+            WHERE f.trade_id IN ({placeholders})
+              AND ((t.direction = 'Long'  AND f.side = 'Buy')
+                OR (t.direction = 'Short' AND f.side = 'Sell'))
+            ORDER BY f.id
+        """, ids).fetchall()
+        for r in rows:
+            out[r["trade_id"]].append(dict(r))
+    return out
+
+
 def get_or_create_weekly_review(account_id, week_start):
     aid = int(account_id) if account_id else None
     with get_conn() as conn:
