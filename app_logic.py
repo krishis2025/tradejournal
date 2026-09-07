@@ -796,6 +796,18 @@ def build_plan_execution(trades):
     excursion and target realism are computed over the covered set only —
     the trades with a recorded peak — because a percentage over a
     self-selected subset would overstate whatever prompted the filling.
+
+    The summary carries three deliberately different denominators; do not
+    conflate them:
+      - summary["coverage"]["covered"] — rows with a recorded peak, of any
+        bucket.
+      - summary["realism"]["of"]       — rows with BOTH a target and a peak
+        (the set target_was_offered can judge).
+      - summary["verdicts_of"]         — cut_early rows with a peak (the set
+        a verdict was computed for). A consumer computing "% of early cuts
+        that were freezes" must divide by this, not by
+        buckets["cut_early"]["count"], or the self-selection bias this
+        design exists to prevent reappears one layer down.
     """
     trades = list(trades or [])
     band = get_plan_capture_band()
@@ -890,6 +902,7 @@ def build_plan_execution(trades):
     verdicts = {k: _finish(v) for k, v in verdicts.items()}
 
     covered = sum(1 for r in rows if r["mfe_price"] is not None)
+    verdicts_of = sum(1 for r in rows if r["bucket"] == "cut_early" and r["mfe_price"] is not None)
     fear_caps = [r["capture"] for r in rows
                  if r["verdict"] in ("froze_at_target", "bailed_early")
                  and r["capture"] is not None]
@@ -904,6 +917,7 @@ def build_plan_execution(trades):
             "verdicts": verdicts,
             "no_plan": no_plan,
             "coverage": {"covered": covered, "total": len(rows)},
+            "verdicts_of": verdicts_of,
             "give_back": round(give_back, 2),
             "missed_run": round(missed_run, 2),
             "fear": {

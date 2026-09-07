@@ -307,6 +307,11 @@ def test_summary_verdicts_are_counted_over_the_covered_set_only(tmp_db, day_id):
     assert summary["verdicts"]["froze_at_target"]["count"] == 1
     assert summary["verdicts"]["market_didnt_pay"]["count"] == 1
     assert summary["fear"]["count"] == 1, "market_didnt_pay must not count as fear"
+    assert summary["verdicts_of"] == 2, (
+        "denominator for verdict percentages is cut_early rows WITH a peak "
+        "(2 of the 3 cut_early trades), not all cut_early rows (3) and not "
+        "just the froze count (1)"
+    )
 
 
 def test_summary_target_realism_uses_the_covered_set(tmp_db, day_id):
