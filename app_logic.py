@@ -1205,9 +1205,12 @@ def close_live_trade_to_journal(live_trade_id):
 
     if entry_side_execs:
         for e in entry_side_execs:
-            db.insert_fill(trade_id, e["exec_time"], entry_side, e["qty"], e["price"], exit_type=None,
+            db.insert_fill(trade_id, e["exec_time"], entry_side, e["qty"], e["price"],
+                           exit_type=None,
                            stop_price=e.get("stop_price"),
-                           stop_source=e.get("stop_source") or "default")
+                           stop_source=e.get("stop_source") or "default",
+                           target_price=e.get("target_price"),
+                           target_source=e.get("target_source") or "none")
     else:
         # Legacy path (no OPEN execution row): synthesise an entry fill. Carry the
         # live trade's initial working stop if one exists, else a 20-pt default.
@@ -1219,11 +1222,13 @@ def close_live_trade_to_journal(live_trade_id):
             legacy_stop = compute_default_risk_stop(lt["direction"], lt["entry_price"])
             legacy_source = "default"
         db.insert_fill(trade_id, lt["entry_time"], entry_side, lt["total_qty"], lt["entry_price"],
-                       exit_type=None, stop_price=legacy_stop, stop_source=legacy_source)
+                       exit_type=None, stop_price=legacy_stop, stop_source=legacy_source,
+                       target_price=None, target_source="none")
 
     for e in exit_side_execs:
         db.insert_fill(trade_id, e["exec_time"], exit_side, e["qty"], e["price"],
-                       exit_type=e.get("exec_type"), stop_price=None, stop_source='default')
+                       exit_type=e.get("exec_type"), stop_price=None, stop_source='default',
+                       target_price=None, target_source='none')
 
     # Copy live trade images to journal trade
     live_images = db.get_live_trade_images(live_trade_id)

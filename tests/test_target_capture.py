@@ -1,5 +1,6 @@
 import os
 
+import app_logic as logic
 import database as db
 
 
@@ -183,3 +184,28 @@ def test_patch_target_rejects_missing_price(client, tmp_db):
             (live_id,)).fetchone()["id"]
     res = client.patch(f"/api/live/{live_id}/execution/{exec_id}/target", json={})
     assert res.status_code == 400
+
+
+def test_push_to_journal_carries_target_onto_entry_fills_only(client, tmp_db):
+    live_id = client.post("/api/live", json={
+        "direction": "Long", "instrument": "MES", "entry_price": 7715.0,
+        "total_qty": 3, "entry_time": "17:32", "mode": "full",
+        "stop_price": 7688.5, "target_price": 7760.0,
+    }).get_json()["id"]
+    db.add_live_trade_execution(live_id, "manual_exit", 1, 3, 7731.0, "18:02", 240.0)
+
+    trade_id = logic.close_live_trade_to_journal(live_id)
+
+    with db.get_conn() as conn:
+        rows = conn.execute(
+            "SELECT side, target_price, target_source FROM fills WHERE trade_id = ? "
+            "ORDER BY side", (trade_id,)).fetchall()
+
+    entry = [r for r in rows if r["side"] == "Buy"]
+    exits = [r for r in rows if r["side"] == "Sell"]
+    assert entry and exits
+    assert entry[0]["target_price"] == 7760.0
+    assert entry[0]["target_source"] == "entered"
+    for r in exits:
+        assert r["target_price"] is None
+        assert r["target_source"] == "none"
