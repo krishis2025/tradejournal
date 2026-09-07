@@ -2,6 +2,33 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [4.8.0] — 2026-09-06
+
+### Planned exit capture & Plan-vs-Execution review
+
+Records what was planned, not just what happened, so the weekly review can separate a
+disciplined exit from a fearful one.
+
+- **Planned exit per entry decision:** a Target field on the Entry and Add forms and a Target
+  column in the Manage ledger, stored alongside the existing per-tranche stop and carried onto
+  journal fills on push. Blank is a recorded state (`'none'`) — there is no default target.
+- **Frozen at first exit:** targets stop being editable once a trade has any exit, enforced
+  server-side with a 409. A target is a record of intent, so editing it after the outcome is
+  known would let the review confirm itself.
+- **Peak price capture:** a PLAN CHECK strip on the day page records the best price the market
+  offered around each trade, plus whether that peak came before or after the exit. Push
+  behaviour is unchanged.
+- **Plan vs Execution section** on the weekly review: capture % against the plan, bucketed
+  (Stopped / Cut early / At plan / Ran past) with a configurable band, and — where a peak was
+  recorded — the three-way split of Cut early into froze at target, bailed early, or the market
+  never paid. Also reports give-back, missed run, and target realism.
+- **Coverage is always shown.** Peak-derived percentages cover only the trades with a recorded
+  peak, and the section says so rather than implying they cover the week.
+- **Widened exit tag vocabulary:** Target hit, Target never reached, Stopped out,
+  Greed / chased, Time stop, Management error.
+- **Test suite introduced.** The project previously had none; pytest now covers the schema,
+  routes, freeze rule, and all plan-vs-execution derivation.
+
 ## [4.7.0] — 2026-07-23
 
 ### Market State hero badge → two-part banner (Trade V2)

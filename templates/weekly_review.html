@@ -82,6 +82,26 @@ table.wr-table td.num { font-family: 'JetBrains Mono', monospace; text-align: ri
 .wr-flag.rev { background: rgba(255,179,71,0.18); color: #ffb347; }
 .wr-sub-title { font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted2); margin: 16px 0 8px; }
 
+/* Plan vs execution */
+.wr-pe-bands { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+.wr-pe-tile { background:var(--surface2); border:0.5px solid var(--border2); border-radius:6px;
+              padding:8px 11px; min-width:104px; }
+.wr-pe-tile .lbl { font-size:8.5px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); }
+.wr-pe-tile .val { font-family:'JetBrains Mono', monospace; font-size:14px; margin-top:3px; }
+.wr-pe-tile .sub { font-size:10px; color:var(--muted2); margin-top:2px; }
+.wr-pe-coverage { font-size:10px; color:var(--muted2); margin:10px 0 6px; }
+.wr-pe-headline { font-size:12px; color:var(--text); margin:6px 0 10px; line-height:1.5; }
+.wr-pe-headline .fear { color:#ff6b6b; } .wr-pe-headline .greed { color:#ffb347; }
+.wr-pe-headline .realism { color:var(--muted2); display:block; margin-top:4px; }
+.wr-pe-why { font-size:11px; color:var(--muted2); padding:0 8px 8px 8px; border-bottom:0.5px solid var(--border); }
+.wr-pe-v { font-size:10px; padding:1px 5px; border-radius:3px; border:0.5px solid var(--border2); }
+.wr-pe-v.froze_at_target { color:#ff6b6b; border-color:#ff6b6b; }
+.wr-pe-v.bailed_early { color:#ff6b6b; border-color:#ff6b6b; }
+.wr-pe-v.market_didnt_pay { color:var(--muted2); }
+.wr-pe-partial { font-size:9px; color:#ffb347; margin-left:4px; }
+.wr-pe-conflict { font-size:9px; color:#ff6b6b; border:0.5px solid #ff6b6b; border-radius:3px; padding:1px 5px; margin-left:6px; }
+.wr-pe-suggest { font-size:9px; color:var(--muted2); border:0.5px solid var(--border2); border-radius:3px; padding:1px 5px; margin-left:6px; }
+
 /* Lessons filmstrip */
 .wr-film { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; }
 .wr-film-card { flex: 0 0 150px; background: var(--surface2); border: 0.5px solid var(--border); border-radius: 8px; overflow: hidden; }
@@ -275,6 +295,87 @@ table.wr-table td.num { font-family: 'JetBrains Mono', monospace; text-align: ri
         {% endfor %}
       </tbody>
     </table>
+    {% else %}<div class="wr-empty">No trades this week.</div>{% endif %}
+
+    {% set pe = data.plan_execution %}
+    {% set s = pe.summary %}
+    <div class="wr-sub-title">Plan vs execution</div>
+    {% if pe.rows %}
+
+    <div class="wr-pe-bands">
+      {% for key, label in [('stopped','Stopped'), ('cut_early','Cut early'), ('at_plan','At plan'), ('ran_past','Ran past')] %}
+      <div class="wr-pe-tile">
+        <div class="lbl">{{ label }}</div>
+        <div class="val {{ 'pos' if s.buckets[key].net >= 0 else 'neg' }}">{{ money(s.buckets[key].net) }}</div>
+        <div class="sub">{{ s.buckets[key].count }} trades{% if s.buckets[key].avg_capture is not none %} · {{ '{:.0f}'.format(s.buckets[key].avg_capture * 100) }}%{% endif %}</div>
+      </div>
+      {% endfor %}
+      {% if s.no_plan %}
+      <div class="wr-pe-tile"><div class="lbl">No plan</div><div class="val">{{ s.no_plan }}</div><div class="sub">no target set</div></div>
+      {% endif %}
+    </div>
+
+    <div class="wr-pe-coverage">Peak recorded on {{ s.coverage.covered }} of {{ s.coverage.total }} trades{% if s.coverage.covered < s.coverage.total %} — verdicts below cover only those{% endif %}.</div>
+
+    {% if s.coverage.covered %}
+    <div class="wr-pe-bands">
+      {% for key, label in [('froze_at_target','Froze at target'), ('bailed_early','Bailed early'), ('market_didnt_pay',"Market didn't pay")] %}
+      <div class="wr-pe-tile">
+        <div class="lbl">{{ label }}</div>
+        <div class="val {{ 'pos' if s.verdicts[key].net >= 0 else 'neg' }}">{{ money(s.verdicts[key].net) }}</div>
+        <div class="sub">{{ s.verdicts[key].count }} trades</div>
+      </div>
+      {% endfor %}
+      <div class="wr-pe-tile"><div class="lbl">Give-back</div><div class="val neg">{{ money(s.give_back) }}</div><div class="sub">returned before exit</div></div>
+      <div class="wr-pe-tile"><div class="lbl">Missed run</div><div class="val">{{ money(s.missed_run) }}</div><div class="sub">after exit</div></div>
+    </div>
+
+    <div class="wr-pe-headline">
+      {% if s.fear.count %}
+      <span class="fear">{{ s.fear.count }} trade{{ 's' if s.fear.count != 1 }} cut{% if s.fear.avg_capture is not none %} at an average {{ '{:.0f}'.format(s.fear.avg_capture * 100) }}% of plan{% endif %} while the target was on the table.</span>
+      {% endif %}
+      {% if s.greed.count %}
+      <span class="greed">{{ s.greed.count }} trade{{ 's' if s.greed.count != 1 }} held past plan and closed red ({{ money(s.greed.net) }}).</span>
+      {% endif %}
+      {% if s.realism.pct is not none %}
+      <span class="realism">Target was reachable on {{ s.realism.offered }} of {{ s.realism.of }} covered trades ({{ s.realism.pct }}%){% if s.realism.pct < 50 %} — targets may be set too far out, which reads like fear but needs the opposite fix{% endif %}.</span>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <table class="wr-table">
+      <thead><tr>
+        <th>Date</th><th>Setup</th><th>Level</th>
+        <th class="num">Stop</th><th class="num">Plan</th><th class="num">Actual</th><th class="num">Peak</th>
+        <th class="num">Capture</th><th>Verdict</th><th class="num">Size/Risk</th>
+      </tr></thead>
+      <tbody>
+        {% for r in pe.rows %}
+        <tr>
+          <td>{{ r.date }}</td>
+          <td>{{ r.setup }}</td>
+          <td>{{ r.level }}</td>
+          <td class="num">{% if r.stop %}{{ '%.2f'|format(r.stop) }}{% else %}—{% endif %}</td>
+          <td class="num">{% if r.target %}{{ '%.2f'|format(r.target) }}{% if r.partial_plan %}<span class="wr-pe-partial" title="some entries had no target">partial</span>{% endif %}{% else %}—{% endif %}</td>
+          <td class="num">{{ '%.2f'|format(r.avg_exit) }}</td>
+          <td class="num">{% if r.mfe_price %}{{ '%.2f'|format(r.mfe_price) }} <span class="wr-pe-partial">{{ 'dur' if r.mfe_timing == 'during' else 'aft' }}</span>{% else %}—{% endif %}</td>
+          <td class="num">{% if r.capture is not none %}{{ '{:.2f}'.format(r.capture) }}{% else %}—{% endif %}</td>
+          <td>{% if r.verdict %}<span class="wr-pe-v {{ r.verdict }}">{{ r.verdict.replace('_', ' ') }}</span>{% else %}{{ r.bucket.replace('_', ' ') }}{% endif %}</td>
+          <td class="num">{{ r.qty }}{% if r.risk %} · {{ money(r.risk) }}{% endif %}</td>
+        </tr>
+        {% if r.notes or r.notes_exit or r.exit_tag != '—' %}
+        <tr><td colspan="10" class="wr-pe-why">
+          {% if r.notes %}in: {{ r.notes }}{% endif %}
+          {% if r.notes and (r.notes_exit or r.exit_tag != '—') %} · {% endif %}
+          {% if r.exit_tag != '—' or r.notes_exit %}out: {% if r.exit_tag != '—' %}{{ r.exit_tag }}{% endif %}{% if r.exit_tag != '—' and r.notes_exit %} — {% endif %}{{ r.notes_exit }}{% endif %}
+          {% if r.tag_conflict %}<span class="wr-pe-conflict" title="the exit tag disagrees with the recorded peak — one of them was recorded carelessly">tag disagrees with peak</span>{% endif %}
+          {% if r.tag_suggestion %}<span class="wr-pe-suggest" title="derived from the peak; not applied automatically">suggests: {{ r.tag_suggestion }}</span>{% endif %}
+        </td></tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+
     {% else %}<div class="wr-empty">No trades this week.</div>{% endif %}
   </div>
 

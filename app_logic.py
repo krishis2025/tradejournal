@@ -2812,6 +2812,7 @@ def build_weekly_review_data(account_id, week_start):
             "setup_table": _setup_table(summary["discretionary"]),
         },
         "ledger": ledger,
+        "plan_execution": build_plan_execution(trades),
         "observations": observations,
         "review_notes": review_notes,
         "day_reflections": day_reflections,

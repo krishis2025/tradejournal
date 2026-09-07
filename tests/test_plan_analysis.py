@@ -346,3 +346,27 @@ def test_exit_tag_vocabulary_covers_the_reasons_the_data_cannot_derive():
     assert "Planned — Monitored Continuation" in group["tags"]
     assert "Fear / Anxious" in group["tags"]
     assert group["multi"] is False
+
+
+# ── weekly payload wiring ─────────────────────────────────────────────────────
+
+def test_weekly_payload_carries_plan_execution(tmp_db):
+    day_id = db.upsert_day("2026-08-31", None)   # a Monday
+    tid = _seed_trade(day_id, 1, "Long", 7715.0, 7731.25, 240.0,
+                      [(3, 7715.0, 7688.5, 7760.0)])
+    db.set_trade_mfe(tid, 7772.0, "during", 30)
+
+    data = logic.build_weekly_review_data(None, "2026-08-31")
+
+    assert "plan_execution" in data
+    pe = data["plan_execution"]
+    assert pe["summary"]["coverage"] == {"covered": 1, "total": 1}
+    assert pe["rows"][0]["verdict"] == "froze_at_target"
+    assert pe["rows"][0]["tag_conflict"] is False
+    assert "tag_suggestion" in pe["rows"][0]
+
+
+def test_weekly_payload_plan_execution_is_empty_for_a_quiet_week(tmp_db):
+    data = logic.build_weekly_review_data(None, "2026-08-31")
+    assert data["plan_execution"]["rows"] == []
+    assert data["plan_execution"]["summary"]["realism"]["pct"] is None
