@@ -4984,6 +4984,10 @@ function renderEntryForm(el) {
         <input type="number" step="0.25" class="ef-input" id="ef-stop" placeholder="auto −20pt" autocomplete="off" oninput="efUpdateRisk()">
       </div>
       <div class="ef-row">
+        <span class="ef-label">Target</span>
+        <input type="number" step="0.25" class="ef-input" id="ef-target" placeholder="optional" autocomplete="off" oninput="efUpdateRisk()">
+      </div>
+      <div class="ef-row">
         <span class="ef-label">Risk</span>
         <span class="ef-risk-readout" id="ef-risk">—</span>
       </div>
@@ -5015,7 +5019,7 @@ function renderEntryForm(el) {
   }
 
   // Enter key on price/qty/stop fields
-  ['ef-price','ef-qty','ef-stop'].forEach(id => {
+  ['ef-price','ef-qty','ef-stop','ef-target'].forEach(id => {
     const inp = document.getElementById(id);
     if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') handleEnterClick(); });
   });
@@ -5038,7 +5042,15 @@ function efUpdateRisk() {
   const typed = stopInp && stopInp.value !== '';
   const stop = typed ? parseFloat(stopInp.value) : defStop;
   const risk = Math.abs(price - stop) * qty * pv;
-  el.textContent = _fmtRisk(risk) + (typed ? '' : ' · 20pt default');
+  const targetInp = document.getElementById('ef-target');
+  const target = targetInp && targetInp.value !== '' ? parseFloat(targetInp.value) : null;
+  let rr = '';
+  if (target != null && !isNaN(target)) {
+    const riskPts = Math.abs(price - stop);
+    const rewardPts = formDir === 'Long' ? (target - price) : (price - target);
+    if (riskPts > 0 && rewardPts > 0) rr = ' · ' + (rewardPts / riskPts).toFixed(1) + 'R';
+  }
+  el.textContent = _fmtRisk(risk) + (typed ? '' : ' · 20pt default') + rr;
   el.classList.toggle('default-risk', !typed);
 }
 
@@ -7329,6 +7341,7 @@ function buildAddContractsForm(trade) {
     <label>Price</label><input type="number" step="0.25" id="dyn-add-price" autofocus oninput="dynAddUpdateRisk()">
     <label>Qty</label><input type="number" min="1" step="1" id="dyn-add-qty" value="1" oninput="dynAddUpdateRisk()">
     <label>Stop</label><input type="number" step="0.25" id="dyn-add-stop" placeholder="auto −20pt" oninput="dynAddUpdateRisk()">
+    <label>Target</label><input type="number" step="0.25" id="dyn-add-target" placeholder="optional" oninput="dynAddUpdateRisk()">
     <label>Risk</label><span class="ef-risk-readout" id="dyn-add-risk" style="font-size:11px;">—</span>
     <label>Time</label><input type="text" id="dyn-add-time" value="${now}">
     <div class="dyn-form-actions">
@@ -7410,6 +7423,8 @@ async function dynSubmitAdd(tradeId) {
   const time  = document.getElementById('dyn-add-time').value;
   const stopRaw = document.getElementById('dyn-add-stop')?.value;
   const stop_price = (stopRaw !== undefined && stopRaw !== '') ? parseFloat(stopRaw) : null;
+  const targetRaw = document.getElementById('dyn-add-target')?.value;
+  const target_price = (targetRaw !== undefined && targetRaw !== '') ? parseFloat(targetRaw) : null;
   if (!price || !qty || qty <= 0) {
     if (typeof showToast === 'function') showToast('Enter price and qty', 'error');
     return;
@@ -7417,7 +7432,9 @@ async function dynSubmitAdd(tradeId) {
   try {
     const res = await fetch(`/api/live/${tradeId}/add`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(stop_price != null ? { price, qty, time, stop_price } : { price, qty, time })
+      body: JSON.stringify(Object.assign({ price, qty, time },
+        stop_price != null ? { stop_price } : {},
+        target_price != null ? { target_price } : {}))
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Add failed');
@@ -8159,8 +8176,12 @@ function handleEnterClick() {
   const stopRaw = document.getElementById('ef-stop')?.value;
   const stop_price = (stopRaw !== undefined && stopRaw !== '') ? parseFloat(stopRaw) : null;
 
+  // Optional planned exit; omit entirely so the server records 'none'.
+  const targetRaw = document.getElementById('ef-target')?.value;
+  const target_price = (targetRaw !== undefined && targetRaw !== '') ? parseFloat(targetRaw) : null;
+
   // Store form values early (needed by both paths)
-  window._pendingEntry = { price, qty, time, stop_price };
+  window._pendingEntry = { price, qty, time, stop_price, target_price };
 
   const hasOpenTrades = Object.values(TRADES).some(t => !isTradeClosed(t) && !t.pushed);
 
@@ -8215,7 +8236,7 @@ function useNewContext() {
 }
 
 async function createTradeFromForm() {
-  const { price, qty, time, stop_price } = window._pendingEntry || {};
+  const { price, qty, time, stop_price, target_price } = window._pendingEntry || {};
   if (!price || !qty || !time) return;
 
   const pid = document.getElementById('global-account-select')?.value || null;
@@ -8231,6 +8252,7 @@ async function createTradeFromForm() {
       direction: formDir, instrument: formInst, entry_price: price,
       entry_time: time, total_qty: qty, mode: formMode,
       stop_price: (stop_price != null ? stop_price : undefined),
+      target_price: (target_price != null ? target_price : undefined),
       notes: '', tags: {}, account_id: pid ? parseInt(pid) : null,
       strength_id: activeStrengthId, context_id: activeContextId,
       // Freeze the Context Market State strip onto this trade at entry (immutable snapshot).
