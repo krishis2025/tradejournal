@@ -176,6 +176,7 @@ def _seed(day_id, num, target=None):
 
 
 def test_plan_check_splits_today_from_earlier_days(tmp_db):
+    db.set_config("plan_check_from_date", "2020-01-01")  # this test is not about the floor
     today = db.upsert_day("2026-09-02", None)
     yesterday = db.upsert_day("2026-09-01", None)
     t_today = _seed(today, 1, target=7760.0)
@@ -188,6 +189,7 @@ def test_plan_check_splits_today_from_earlier_days(tmp_db):
 
 
 def test_plan_check_shows_the_weighted_target(tmp_db):
+    db.set_config("plan_check_from_date", "2020-01-01")  # this test is not about the floor
     day = db.upsert_day("2026-09-02", None)
     _seed(day, 1, target=7760.0)
     row = logic.build_plan_check("2026-09-02", None)["today"][0]
@@ -197,6 +199,7 @@ def test_plan_check_shows_the_weighted_target(tmp_db):
 def test_plan_check_includes_trades_with_no_target(tmp_db):
     """Losers and unplanned trades still need a peak — give-back is invisible
     in P&L."""
+    db.set_config("plan_check_from_date", "2020-01-01")  # this test is not about the floor
     day = db.upsert_day("2026-09-02", None)
     _seed(day, 1, target=None)
     result = logic.build_plan_check("2026-09-02", None)
@@ -205,6 +208,7 @@ def test_plan_check_includes_trades_with_no_target(tmp_db):
 
 
 def test_plan_check_drops_a_trade_once_its_peak_is_recorded(tmp_db):
+    db.set_config("plan_check_from_date", "2020-01-01")  # this test is not about the floor
     day = db.upsert_day("2026-09-02", None)
     tid = _seed(day, 1, target=7760.0)
     assert len(logic.build_plan_check("2026-09-02", None)["today"]) == 1
@@ -213,6 +217,7 @@ def test_plan_check_drops_a_trade_once_its_peak_is_recorded(tmp_db):
 
 
 def test_plan_check_reports_the_window(tmp_db):
+    db.set_config("plan_check_from_date", "2020-01-01")  # this test is not about the floor
     db.upsert_day("2026-09-02", None)
     assert logic.build_plan_check("2026-09-02", None)["window_minutes"] == 30
 
@@ -221,6 +226,7 @@ def test_plan_check_caps_earlier_but_never_today(tmp_db):
     """236 closed trades all missing a peak was the real-DB shape that flooded
     every day page under the old LIMIT 50. Today's trades must all render;
     the earlier-days backfill is capped to 10."""
+    db.set_config("plan_check_from_date", "2020-01-01")  # this test is not about the floor
     today = db.upsert_day("2026-09-02", None)
     for n in range(1, 16):
         _seed(today, n, target=7760.0)
@@ -237,6 +243,7 @@ def test_plan_check_caps_earlier_but_never_today(tmp_db):
 def test_plan_check_reports_the_true_total_and_earlier_total(tmp_db):
     """The header must show the TRUE outstanding count (35), not the length
     of the rendered/capped lists (15 + 10 = 25)."""
+    db.set_config("plan_check_from_date", "2020-01-01")  # this test is not about the floor
     today = db.upsert_day("2026-09-02", None)
     for n in range(1, 16):
         _seed(today, n, target=7760.0)
@@ -257,6 +264,7 @@ def test_plan_check_reports_the_true_total_and_earlier_total(tmp_db):
 def test_plan_check_scopes_to_the_days_own_account(tmp_db):
     """A legacy NULL-account day must list only NULL-account trades, not
     trades belonging to other accounts."""
+    db.set_config("plan_check_from_date", "2020-01-01")  # this test is not about the floor
     acct_id = db.create_account("Sim", "#fff")
     no_acct_day = db.upsert_day("2026-09-02", None)
     other_acct_day = db.upsert_day("2026-09-02", acct_id)
@@ -270,6 +278,7 @@ def test_plan_check_scopes_to_the_days_own_account(tmp_db):
 
 def test_plan_check_rows_carry_the_weighted_stop(tmp_db):
     """The strip shows stop | entry | plan | exit, so the row needs the stop."""
+    db.set_config("plan_check_from_date", "2020-01-01")  # this test is not about the floor
     day = db.upsert_day("2026-09-02", None)
     trade_id = db.insert_trade(day, 1, "Long", 6, 7761.0, 7795.5, 1035.0,
                                "10:05", "10:40")
@@ -284,3 +293,75 @@ def test_plan_check_rows_carry_the_weighted_stop(tmp_db):
     assert row["stop"] == 7741.0
     assert row["target"] == 7800.5
     assert row["avg_entry"] == 7761.0
+
+
+# ── PLAN CHECK date floor ────────────────────────────────────────────────────
+# The journal holds years of trades that predate planned-exit capture and can
+# never be reconciled against a chart. A floor keeps the strip to trades that
+# were actually traded under the new process.
+
+def _closed_trade_on(date_str, num=1):
+    day = db.upsert_day(date_str, None)
+    return db.insert_trade(day, num, "Long", 1, 7700.0, 7710.0, 50.0, "10:00", "10:30")
+
+
+def test_default_plan_check_floor_is_the_feature_start_date(tmp_db):
+    assert logic.get_plan_check_from_date() == "2026-09-06"
+
+
+def test_plan_check_floor_is_configurable(tmp_db):
+    db.set_config("plan_check_from_date", "2026-01-15")
+    assert logic.get_plan_check_from_date() == "2026-01-15"
+
+
+def test_plan_check_floor_falls_back_when_config_is_blank(tmp_db):
+    db.set_config("plan_check_from_date", "")
+    assert logic.get_plan_check_from_date() == "2026-09-06"
+
+
+def test_trades_before_the_floor_are_excluded_from_the_strip(tmp_db):
+    _closed_trade_on("2026-06-23")
+    _closed_trade_on("2026-08-31")
+
+    result = logic.build_plan_check("2026-09-10", None)
+
+    assert result["today"] == []
+    assert result["earlier"] == []
+
+
+def test_trades_before_the_floor_are_excluded_from_the_count(tmp_db):
+    """The header count and the list must apply the same floor, or the header
+    reports a backlog the strip refuses to show."""
+    _closed_trade_on("2026-06-23")
+    _closed_trade_on("2026-09-08")
+
+    result = logic.build_plan_check("2026-09-10", None)
+
+    assert result["total_missing"] == 1
+
+
+def test_a_trade_on_the_floor_date_itself_is_included(tmp_db):
+    _closed_trade_on("2026-09-06")
+
+    result = logic.build_plan_check("2026-09-10", None)
+
+    assert len(result["earlier"]) == 1
+    assert result["total_missing"] == 1
+
+
+def test_todays_trades_after_the_floor_still_appear(tmp_db):
+    _closed_trade_on("2026-09-10")
+
+    result = logic.build_plan_check("2026-09-10", None)
+
+    assert len(result["today"]) == 1
+
+
+def test_lowering_the_floor_reveals_older_trades(tmp_db):
+    _closed_trade_on("2026-06-23")
+    db.set_config("plan_check_from_date", "2026-01-01")
+
+    result = logic.build_plan_check("2026-09-10", None)
+
+    assert len(result["earlier"]) == 1
+    assert result["total_missing"] == 1

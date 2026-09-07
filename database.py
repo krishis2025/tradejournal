@@ -1299,12 +1299,26 @@ def _account_scope_where(account_id, wheres, params):
         wheres.append("d.account_id IS NULL")
 
 
-def get_trades_missing_mfe_for_date(account_id, date):
+def _from_date_floor(from_date, wheres, params):
+    """Restrict a PLAN CHECK query to trades on or after `from_date`.
+
+    The journal holds years of trades that predate planned-exit capture and
+    cannot be reconciled against a chart after the fact. Every PLAN CHECK query
+    must apply the same floor — if the count and the list disagree, the header
+    advertises a backlog the strip refuses to show.
+    """
+    if from_date:
+        wheres.append("d.date >= ?")
+        params.append(from_date)
+
+
+def get_trades_missing_mfe_for_date(account_id, date, from_date=None):
     """Closed trades on exactly this date with no peak recorded. Never capped:
     today's trades are the point of the PLAN CHECK strip, so they must never
     be dropped by a limit meant for the earlier-days backfill."""
     wheres = ["t.is_open = 0", "t.mfe_price IS NULL", "d.date = ?"]
     params = [date]
+    _from_date_floor(from_date, wheres, params)
     _account_scope_where(account_id, wheres, params)
     with get_conn() as conn:
         rows = conn.execute(f"""
@@ -1317,11 +1331,12 @@ def get_trades_missing_mfe_for_date(account_id, date):
         return [dict(r) for r in rows]
 
 
-def get_trades_missing_mfe_before(account_id, date, limit=10):
+def get_trades_missing_mfe_before(account_id, date, limit=10, from_date=None):
     """Closed trades from days before this date with no peak recorded, newest
     first, capped tightly so a long backlog cannot flood the day page."""
     wheres = ["t.is_open = 0", "t.mfe_price IS NULL", "d.date < ?"]
     params = [date]
+    _from_date_floor(from_date, wheres, params)
     _account_scope_where(account_id, wheres, params)
     params.append(int(limit))
     with get_conn() as conn:
@@ -1336,12 +1351,13 @@ def get_trades_missing_mfe_before(account_id, date, limit=10):
         return [dict(r) for r in rows]
 
 
-def count_trades_missing_mfe(account_id, on_or_before_date):
+def count_trades_missing_mfe(account_id, on_or_before_date, from_date=None):
     """True count of closed trades missing a peak through this date. The
     PLAN CHECK header must report this, not the length of the (capped)
     rendered list, or a backlog understates itself with no indication of it."""
     wheres = ["t.is_open = 0", "t.mfe_price IS NULL", "d.date <= ?"]
     params = [on_or_before_date]
+    _from_date_floor(from_date, wheres, params)
     _account_scope_where(account_id, wheres, params)
     with get_conn() as conn:
         row = conn.execute(f"""

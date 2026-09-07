@@ -666,6 +666,16 @@ def _config_float(key, default):
         return default
 
 
+# Trades before this date predate planned-exit capture and can no longer be
+# reconciled against a chart, so PLAN CHECK never asks for their peak.
+DEFAULT_PLAN_CHECK_FROM_DATE = "2026-09-06"
+
+
+def get_plan_check_from_date():
+    value = (db.get_config("plan_check_from_date", "") or "").strip()
+    return value or DEFAULT_PLAN_CHECK_FROM_DATE
+
+
 def get_plan_capture_bounds():
     """(low, high) — below low is cut_early, above high is ran_past."""
     return (_config_float("plan_capture_low", DEFAULT_PLAN_CAPTURE_LOW),
@@ -968,10 +978,19 @@ def build_plan_check(day_date, account_id):
     cannot flood every day page; the header instead reports the TRUE
     outstanding count via a separate COUNT(*), not the length of the
     (possibly truncated) rendered list.
+
+    Trades before `plan_check_from_date` are excluded entirely — they predate
+    planned-exit capture and cannot be reconciled against a chart now. The
+    floor is applied to all three queries, so the header count and the rendered
+    list always agree.
     """
-    today_pending = db.get_trades_missing_mfe_for_date(account_id, day_date)
-    earlier_pending = db.get_trades_missing_mfe_before(account_id, day_date, limit=10)
-    total_missing = db.count_trades_missing_mfe(account_id, day_date)
+    from_date = get_plan_check_from_date()
+    today_pending = db.get_trades_missing_mfe_for_date(
+        account_id, day_date, from_date=from_date)
+    earlier_pending = db.get_trades_missing_mfe_before(
+        account_id, day_date, limit=10, from_date=from_date)
+    total_missing = db.count_trades_missing_mfe(
+        account_id, day_date, from_date=from_date)
     earlier_total = total_missing - len(today_pending)
 
     all_pending = today_pending + earlier_pending

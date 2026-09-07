@@ -2,6 +2,17 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [4.8.3] — 2026-09-07
+
+### Changed
+
+- **PLAN CHECK no longer lists trades from before planned-exit capture existed.** The strip was
+  offering 186 historical trades whose peaks cannot be reconciled against a chart after the fact.
+  A new `plan_check_from_date` config key (default `2026-09-06`, the day the feature landed) floors
+  every PLAN CHECK query — the list, the earlier-days group, and the header count alike, so the
+  header can never advertise a backlog the strip refuses to show. Lower the key to reach further
+  back; the trades are excluded, not deleted.
+
 ## [4.8.2] — 2026-09-07
 
 ### Fixed
