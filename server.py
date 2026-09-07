@@ -1021,6 +1021,14 @@ def api_create_live_trade():
             )
             open_stop_source = "default"
 
+        # Planned exit. No default: absent means no plan was recorded.
+        if body.get("target_price") not in (None, ""):
+            open_target_price = float(body["target_price"])
+            open_target_source = "entered"
+        else:
+            open_target_price = None
+            open_target_source = "none"
+
         # Compute and save the working levels. The Entry-tab stop seeds them so the
         # right panel's initial stop/risk and the OPEN transaction's stop agree on
         # trade open; with no typed stop the points default applies as before.
@@ -1036,7 +1044,8 @@ def api_create_live_trade():
             live_id, "OPEN", 1,
             int(body["total_qty"]), float(body["entry_price"]),
             body["entry_time"], 0,
-            stop_price=open_stop_price, stop_source=open_stop_source
+            stop_price=open_stop_price, stop_source=open_stop_source,
+            target_price=open_target_price, target_source=open_target_source
         )
         db.recalculate_position(live_id)
 
@@ -1222,9 +1231,17 @@ def api_live_add_contracts(live_id):
         add_stop_price = logic.compute_default_risk_stop(trade["direction"], price)
         add_stop_source = "default"
 
+    if body.get("target_price") not in (None, ""):
+        add_target_price = float(body["target_price"])
+        add_target_source = "entered"
+    else:
+        add_target_price = None
+        add_target_source = "none"
+
     exec_id = db.add_live_trade_execution(
         live_id, "ADD", 1, qty, price, body["time"], 0,
-        stop_price=add_stop_price, stop_source=add_stop_source
+        stop_price=add_stop_price, stop_source=add_stop_source,
+        target_price=add_target_price, target_source=add_target_source
     )
     # Keep total_qty in sync so legacy code paths still report the right denominator
     db.update_live_trade(live_id, total_qty=int(trade["total_qty"]) + qty)
@@ -1498,6 +1515,27 @@ def api_update_execution_stop(live_id, exec_id):
     if body.get("stop_price") in (None, ""):
         return jsonify({"error": "stop_price is required"}), 400
     db.update_live_trade_execution_stop(exec_id, float(body["stop_price"]), "edited")
+    return jsonify({"ok": True})
+
+
+@app.route("/api/live/<int:live_id>/execution/<int:exec_id>/target", methods=["PATCH"])
+def api_update_execution_target(live_id, exec_id):
+    """Edit the planned exit on one OPEN/ADD row.
+
+    Frozen at the first exit: a target is a record of intent, so allowing edits
+    after the outcome is known would let the weekly review confirm itself.
+    Enforced here rather than only in the UI so a stale tab cannot bypass it.
+    """
+    if db.live_trade_has_exit(live_id):
+        return jsonify({"error": "Planned exit is locked once the trade has an exit"}), 409
+    body = request.get_json(silent=True) or {}
+    if body.get("target_price") in (None, ""):
+        return jsonify({"error": "target_price is required"}), 400
+    try:
+        target_price = float(body["target_price"])
+    except (TypeError, ValueError):
+        return jsonify({"error": "target_price must be a number"}), 400
+    db.update_live_trade_execution_target(exec_id, target_price, "edited")
     return jsonify({"ok": True})
 
 

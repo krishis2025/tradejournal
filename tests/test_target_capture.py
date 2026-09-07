@@ -96,3 +96,90 @@ def test_live_trade_has_exit_ignores_case_of_exec_type(tmp_db):
 
     db.add_live_trade_execution(live_id, "manual_exit", 1, 5, 7731.0, "18:02", 240.0)
     assert db.live_trade_has_exit(live_id) is True
+
+
+def test_create_live_trade_stores_entered_target(client, tmp_db):
+    res = client.post("/api/live", json={
+        "direction": "Long", "instrument": "MES", "entry_price": 7715.0,
+        "total_qty": 3, "entry_time": "17:32", "mode": "full",
+        "stop_price": 7688.5, "target_price": 7760.0,
+    })
+    assert res.status_code == 200
+    live_id = res.get_json()["id"]
+    with db.get_conn() as conn:
+        row = conn.execute(
+            "SELECT target_price, target_source FROM live_trade_executions "
+            "WHERE live_trade_id = ? AND exec_type = 'OPEN'", (live_id,)).fetchone()
+    assert row["target_price"] == 7760.0
+    assert row["target_source"] == "entered"
+
+
+def test_create_live_trade_without_target_stores_none(client, tmp_db):
+    res = client.post("/api/live", json={
+        "direction": "Long", "instrument": "MES", "entry_price": 7715.0,
+        "total_qty": 3, "entry_time": "17:32", "mode": "full",
+    })
+    live_id = res.get_json()["id"]
+    with db.get_conn() as conn:
+        row = conn.execute(
+            "SELECT target_price, target_source FROM live_trade_executions "
+            "WHERE live_trade_id = ? AND exec_type = 'OPEN'", (live_id,)).fetchone()
+    assert row["target_price"] is None
+    assert row["target_source"] == "none"
+
+
+def test_patch_target_before_any_exit_succeeds(client, tmp_db):
+    live_id = client.post("/api/live", json={
+        "direction": "Long", "instrument": "MES", "entry_price": 7715.0,
+        "total_qty": 3, "entry_time": "17:32", "mode": "full",
+    }).get_json()["id"]
+    with db.get_conn() as conn:
+        exec_id = conn.execute(
+            "SELECT id FROM live_trade_executions WHERE live_trade_id = ?",
+            (live_id,)).fetchone()["id"]
+
+    res = client.patch(f"/api/live/{live_id}/execution/{exec_id}/target",
+                       json={"target_price": 7770.0})
+    assert res.status_code == 200
+    with db.get_conn() as conn:
+        row = conn.execute(
+            "SELECT target_price, target_source FROM live_trade_executions WHERE id = ?",
+            (exec_id,)).fetchone()
+    assert row["target_price"] == 7770.0
+    assert row["target_source"] == "edited"
+
+
+def test_patch_target_after_an_exit_returns_409_and_changes_nothing(client, tmp_db):
+    """The freeze. Enforced server-side so a stale tab cannot slip past the UI lock."""
+    live_id = client.post("/api/live", json={
+        "direction": "Long", "instrument": "MES", "entry_price": 7715.0,
+        "total_qty": 3, "entry_time": "17:32", "mode": "full", "target_price": 7760.0,
+    }).get_json()["id"]
+    with db.get_conn() as conn:
+        exec_id = conn.execute(
+            "SELECT id FROM live_trade_executions WHERE live_trade_id = ?",
+            (live_id,)).fetchone()["id"]
+
+    db.add_live_trade_execution(live_id, "manual_exit", 1, 3, 7731.0, "18:02", 240.0)
+
+    res = client.patch(f"/api/live/{live_id}/execution/{exec_id}/target",
+                       json={"target_price": 7999.0})
+    assert res.status_code == 409
+    with db.get_conn() as conn:
+        row = conn.execute(
+            "SELECT target_price FROM live_trade_executions WHERE id = ?",
+            (exec_id,)).fetchone()
+    assert row["target_price"] == 7760.0
+
+
+def test_patch_target_rejects_missing_price(client, tmp_db):
+    live_id = client.post("/api/live", json={
+        "direction": "Long", "instrument": "MES", "entry_price": 7715.0,
+        "total_qty": 3, "entry_time": "17:32", "mode": "full",
+    }).get_json()["id"]
+    with db.get_conn() as conn:
+        exec_id = conn.execute(
+            "SELECT id FROM live_trade_executions WHERE live_trade_id = ?",
+            (live_id,)).fetchone()["id"]
+    res = client.patch(f"/api/live/{live_id}/execution/{exec_id}/target", json={})
+    assert res.status_code == 400
