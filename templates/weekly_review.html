@@ -302,7 +302,9 @@ table.wr-table td.num { font-family: 'JetBrains Mono', monospace; text-align: ri
     <div class="wr-sub-title">Plan vs execution</div>
     {% if pe.rows %}
 
+    {% set bucket_total = s.buckets.stopped.count + s.buckets.cut_early.count + s.buckets.at_plan.count + s.buckets.ran_past.count %}
     <div class="wr-pe-bands">
+      {% if bucket_total > 0 %}
       {% for key, label in [('stopped','Stopped'), ('cut_early','Cut early'), ('at_plan','At plan'), ('ran_past','Ran past')] %}
       <div class="wr-pe-tile">
         <div class="lbl">{{ label }}</div>
@@ -310,12 +312,13 @@ table.wr-table td.num { font-family: 'JetBrains Mono', monospace; text-align: ri
         <div class="sub">{{ s.buckets[key].count }} trades{% if s.buckets[key].avg_capture is not none %} · {{ '{:.0f}'.format(s.buckets[key].avg_capture * 100) }}%{% endif %}</div>
       </div>
       {% endfor %}
+      {% endif %}
       {% if s.no_plan %}
       <div class="wr-pe-tile"><div class="lbl">No plan</div><div class="val">{{ s.no_plan }}</div><div class="sub">no target set</div></div>
       {% endif %}
     </div>
 
-    <div class="wr-pe-coverage">Peak recorded on {{ s.coverage.covered }} of {{ s.coverage.total }} trades{% if s.coverage.covered < s.coverage.total %} — verdicts below cover only those{% endif %}.</div>
+    <div class="wr-pe-coverage">Peak recorded on {{ s.coverage.covered }} of {{ s.coverage.total }} trades{% if s.coverage.covered > 0 and s.coverage.covered < s.coverage.total %} — verdicts below cover only those{% endif %}.</div>
 
     {% if s.coverage.covered %}
     <div class="wr-pe-bands">
@@ -338,7 +341,7 @@ table.wr-table td.num { font-family: 'JetBrains Mono', monospace; text-align: ri
       <span class="greed">{{ s.greed.count }} trade{{ 's' if s.greed.count != 1 }} held past plan and closed red ({{ money(s.greed.net) }}).</span>
       {% endif %}
       {% if s.realism.pct is not none %}
-      <span class="realism">Target was reachable on {{ s.realism.offered }} of {{ s.realism.of }} covered trades ({{ s.realism.pct }}%){% if s.realism.pct < 50 %} — targets may be set too far out, which reads like fear but needs the opposite fix{% endif %}.</span>
+      <span class="realism">Target was reachable on {{ s.realism.offered }} of {{ s.realism.of }} planned trades with a peak ({{ s.realism.pct }}%){% if s.realism.pct < 50 %} — targets may be set too far out, which reads like fear but needs the opposite fix{% endif %}.</span>
       {% endif %}
     </div>
     {% endif %}

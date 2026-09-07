@@ -7264,7 +7264,7 @@ function buildTransactionFeed(trade) {
   // Footer: IDEA RISK total + core/add breakdown + default-stop discipline note.
   const entryExecs = execs.filter(e => ['OPEN', 'ADD'].includes(String(e.exec_type || '').toUpperCase()));
   let coreRisk = 0, addRisk = 0, defaultCount = 0, noTargetCount = 0, wrongSideCount = 0;
-  let rewardTotal = 0, targetQty = 0;
+  let rewardTotal = 0, targetQty = 0, targetedRisk = 0;
   const pvFeed = trade.tickValue || 5;   // same accessor _trancheRisk uses
   entryExecs.forEach(e => {
     const r = _trancheRisk(trade, e) || 0;
@@ -7284,12 +7284,16 @@ function buildTransactionFeed(trade) {
       } else {
         rewardTotal += pts * Number(e.qty) * pvFeed;
         targetQty += Number(e.qty);
+        // Denominator matches the numerator's tranches: only entry rows that
+        // actually contributed to rewardTotal, not every entry row's risk
+        // (ideaRisk includes no-target and wrong-side rows too).
+        targetedRisk += r;
       }
     }
   });
   const ideaRisk = coreRisk + addRisk;
-  const rrStr = (targetQty > 0 && ideaRisk > 0)
-    ? ` · ${(rewardTotal / ideaRisk).toFixed(1)}R` : '';
+  const rrStr = (targetQty > 0 && targetedRisk > 0)
+    ? ` · ${(rewardTotal / targetedRisk).toFixed(1)}R` : '';
   const footer = entryExecs.length ? `<div class="dyn-idea-risk">
     <span class="ir-label">Idea Risk</span>
     <span class="ir-total">${_fmtRisk(coreRisk + addRisk)}</span>
