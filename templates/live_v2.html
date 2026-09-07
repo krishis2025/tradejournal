@@ -1821,8 +1821,8 @@
 .dyn-add-form .dyn-form-actions { grid-column: 1 / -1; display: flex; gap: 8px; margin-top: 4px; }
 .dyn-add-form .btn-confirm { background: rgba(0,200,255,0.18); border: 0.5px solid rgba(0,200,255,0.5); color: #00c8ff; border-radius: 4px; padding: 5px 12px; font-size: 10px; cursor: pointer; }
 .dyn-add-form .btn-cancel  { background: transparent; border: 0.5px solid rgba(255,255,255,0.15); color: var(--muted); border-radius: 4px; padding: 5px 12px; font-size: 10px; cursor: pointer; }
-.dyn-feed-cols { display: grid; grid-template-columns: 46px 48px 32px 62px 150px 80px 52px 1fr; gap: 6px; padding: 4px 4px; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
-.dyn-feed-row  { display: grid; grid-template-columns: 46px 48px 32px 62px 150px 80px 52px 1fr; gap: 6px; padding: 6px 4px; font-size: 10px; color: var(--text); align-items: center; }
+.dyn-feed-cols { display: grid; grid-template-columns: 46px 48px 32px 62px 150px 110px 80px 52px 1fr; gap: 6px; padding: 4px 4px; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+.dyn-feed-row  { display: grid; grid-template-columns: 46px 48px 32px 62px 150px 110px 80px 52px 1fr; gap: 6px; padding: 6px 4px; font-size: 10px; color: var(--text); align-items: center; }
 .dyn-feed-row:hover { background: var(--surface2); }
 .dyn-feed-row .feed-time  { color: var(--muted); }
 .dyn-feed-row .feed-type  { font-size: 10px; padding: 1px 5px; border-radius: 3px; justify-self: start; }
@@ -1847,6 +1847,11 @@
 .feed-stop-icon { font-size: 9px; line-height: 1; }
 .feed-stop-icon.captured { color: var(--accent); }            /* mint check */
 .feed-stop-icon.default  { color: #ffb347; }                  /* amber dot  */
+.feed-target-icon { font-size: 9px; margin-left: 3px; }
+.feed-target-icon.captured { color: var(--mint, #4fffb0); }
+.feed-target-icon.none { color: #ffb347; }
+.feed-target-icon.locked { color: var(--muted); }
+.feed-target-locked { font-family: var(--font-mono); font-size: 11px; color: var(--text); }
 .feed-pull-chip { font-size: 8px; letter-spacing: .5px; text-transform: uppercase; color: var(--muted2);
   background: rgba(255,255,255,0.05); border: 0.5px solid rgba(255,255,255,0.12); border-radius: 3px;
   padding: 1px 4px; cursor: pointer; white-space: nowrap; }
@@ -7172,6 +7177,16 @@ function _fmtRisk(v) {
   return (v < 0 ? '-$' : '$') + r.toLocaleString();
 }
 
+// Mirrors db.live_trade_has_exit: exec_type is mixed case in real data
+// ('EXIT' but also 'tp_hit', 'stop_hit', 'manual_exit'), so test the
+// complement of the entry types rather than enumerating exit types.
+function _tradeHasExit(trade) {
+  return (trade.executions || []).some(e => {
+    const t = String(e.exec_type || '').toUpperCase();
+    return t !== 'OPEN' && t !== 'ADD';
+  });
+}
+
 function buildTransactionFeed(trade) {
   // Phase 3c: + Add contracts button + inline form removed from feed header
   // (the new banner +Add button replaces it). Phase 4 wires the banner form.
@@ -7191,7 +7206,7 @@ function buildTransactionFeed(trade) {
         const openAfter = e.open_qty_after != null ? `${e.open_qty_after} open` : '';
 
         // Stop + Risk cells. OPEN/ADD rows capture a sticky risk stop; EXIT rows are inert.
-        let stopCell, riskCell;
+        let stopCell, riskCell, targetCell;
         if (isEntry) {
           const isDefault = String(e.stop_source || 'default') === 'default';
           const stopVal = (e.stop_price != null && e.stop_price !== '') ? Number(e.stop_price) : '';
@@ -7207,9 +7222,30 @@ function buildTransactionFeed(trade) {
           const risk = _trancheRisk(trade, e);
           const warn = isDefault ? `<span class="feed-risk-warn" title="20-pt default">⚠</span>` : '';
           riskCell = `<span class="feed-risk ${isDefault ? 'default' : ''}">${_fmtRisk(risk)}${warn}</span>`;
+
+          const hasExit = _tradeHasExit(trade);
+          const tgtVal = (e.target_price != null && e.target_price !== '') ? Number(e.target_price) : '';
+          const tgtCaptured = String(e.target_source || 'none') !== 'none';
+          if (hasExit) {
+            targetCell = `<span class="feed-stop-wrap">
+              <span class="feed-target-locked">${tgtVal === '' ? '—' : tgtVal.toFixed(2)}</span>
+              <span class="feed-target-icon locked" title="locked at first exit">&#128274;</span>
+            </span>`;
+          } else {
+            const tIcon = tgtCaptured
+              ? `<span class="feed-target-icon captured" title="planned exit recorded">&#10003;</span>`
+              : `<span class="feed-target-icon none" title="no planned exit recorded">&#9679;</span>`;
+            targetCell = `<span class="feed-stop-wrap">
+              <input class="feed-stop-input" type="number" step="0.25" value="${tgtVal}"
+                     onchange="dynEditTrancheTarget(${trade.id}, ${e.id}, this.value)"
+                     title="Planned exit for this entry">
+              ${tIcon}
+            </span>`;
+          }
         } else {
           stopCell = `<span class="feed-inert">—</span>`;
           riskCell = `<span class="feed-inert">—</span>`;
+          targetCell = `<span class="feed-inert">—</span>`;
         }
 
         return `<div class="dyn-feed-row">
@@ -7218,6 +7254,7 @@ function buildTransactionFeed(trade) {
           <span class="feed-qty ${isEntry ? 'qty-pos' : 'qty-neg'}">${qtyStr}</span>
           <span class="feed-price">${Number(e.price).toFixed(2)}</span>
           ${stopCell}
+          ${targetCell}
           ${riskCell}
           <span class="feed-pnl ${pnlCls}">${pnlStr}</span>
           <span class="feed-open">${openAfter}</span>
@@ -7226,17 +7263,33 @@ function buildTransactionFeed(trade) {
 
   // Footer: IDEA RISK total + core/add breakdown + default-stop discipline note.
   const entryExecs = execs.filter(e => ['OPEN', 'ADD'].includes(String(e.exec_type || '').toUpperCase()));
-  let coreRisk = 0, addRisk = 0, defaultCount = 0;
+  let coreRisk = 0, addRisk = 0, defaultCount = 0, noTargetCount = 0;
+  let rewardTotal = 0, targetQty = 0;
+  const pvFeed = trade.tickValue || 5;   // same accessor _trancheRisk uses
   entryExecs.forEach(e => {
     const r = _trancheRisk(trade, e) || 0;
     if (String(e.exec_type || '').toUpperCase() === 'OPEN') coreRisk += r; else addRisk += r;
     if (String(e.stop_source || 'default') === 'default') defaultCount++;
+    if (e.target_price == null || e.target_price === '') {
+      noTargetCount++;
+    } else {
+      const pts = trade.direction === 'Long'
+        ? Number(e.target_price) - Number(e.price)
+        : Number(e.price) - Number(e.target_price);
+      rewardTotal += pts * Number(e.qty) * pvFeed;
+      targetQty += Number(e.qty);
+    }
   });
+  const ideaRisk = coreRisk + addRisk;
+  const rrStr = (targetQty > 0 && ideaRisk > 0)
+    ? ` · ${(rewardTotal / ideaRisk).toFixed(1)}R` : '';
   const footer = entryExecs.length ? `<div class="dyn-idea-risk">
     <span class="ir-label">Idea Risk</span>
     <span class="ir-total">${_fmtRisk(coreRisk + addRisk)}</span>
     <span class="ir-breakdown">core ${_fmtRisk(coreRisk)} · add ${_fmtRisk(addRisk)}</span>
     ${defaultCount ? `<span class="ir-default-note">${defaultCount} stop${defaultCount !== 1 ? 's' : ''} on 20-pt default</span>` : ''}
+    ${targetQty > 0 ? `<span class="ir-breakdown">target ${_fmtRisk(rewardTotal)}${rrStr}</span>` : ''}
+    ${noTargetCount ? `<span class="ir-default-note">${noTargetCount} entr${noTargetCount !== 1 ? 'ies' : 'y'} with no planned exit</span>` : ''}
   </div>` : '';
 
   return `<div class="dyn-feed-header">
@@ -7244,7 +7297,7 @@ function buildTransactionFeed(trade) {
     <span class="feed-spacer"></span>
   </div>
   <div class="dyn-feed-cols">
-    <span>Time</span><span>Type</span><span>Qty</span><span>Price</span><span>Stop</span><span>Risk</span><span>P&amp;L</span><span style="text-align:right;">Open</span>
+    <span>Time</span><span>Type</span><span>Qty</span><span>Price</span><span>Stop</span><span>Target</span><span>Risk</span><span>P&amp;L</span><span style="text-align:right;">Open</span>
   </div>
   ${rows}
   ${footer}`;
@@ -7263,6 +7316,22 @@ async function dynEditTrancheStop(tradeId, execId, value) {
     await refreshTradeFromServer(tradeId);
   } catch (e) {
     if (typeof showToast === 'function') showToast(e.message || 'Stop update failed', true);
+  }
+}
+
+/* Planned exit: editable until the first exit, then frozen server-side (409). */
+async function dynEditTrancheTarget(tradeId, execId, value) {
+  const price = parseFloat(value);
+  if (isNaN(price)) return;
+  try {
+    const res = await fetch(`/api/live/${tradeId}/execution/${execId}/target`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target_price: price })
+    });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+    await refreshTradeFromServer(tradeId);
+  } catch (e) {
+    if (typeof showToast === 'function') showToast(e.message || 'Target update failed', true);
   }
 }
 
