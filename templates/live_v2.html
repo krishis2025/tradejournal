@@ -7263,7 +7263,7 @@ function buildTransactionFeed(trade) {
 
   // Footer: IDEA RISK total + core/add breakdown + default-stop discipline note.
   const entryExecs = execs.filter(e => ['OPEN', 'ADD'].includes(String(e.exec_type || '').toUpperCase()));
-  let coreRisk = 0, addRisk = 0, defaultCount = 0, noTargetCount = 0;
+  let coreRisk = 0, addRisk = 0, defaultCount = 0, noTargetCount = 0, wrongSideCount = 0;
   let rewardTotal = 0, targetQty = 0;
   const pvFeed = trade.tickValue || 5;   // same accessor _trancheRisk uses
   entryExecs.forEach(e => {
@@ -7276,8 +7276,15 @@ function buildTransactionFeed(trade) {
       const pts = trade.direction === 'Long'
         ? Number(e.target_price) - Number(e.price)
         : Number(e.price) - Number(e.target_price);
-      rewardTotal += pts * Number(e.qty) * pvFeed;
-      targetQty += Number(e.qty);
+      // A target on the wrong side of entry (or at entry) is a typo, not a plan —
+      // exclude it from the aggregate rather than let it silently drag down or
+      // flip the displayed R:R. Mirrors efUpdateRisk's per-field suppression.
+      if (pts <= 0) {
+        wrongSideCount++;
+      } else {
+        rewardTotal += pts * Number(e.qty) * pvFeed;
+        targetQty += Number(e.qty);
+      }
     }
   });
   const ideaRisk = coreRisk + addRisk;
@@ -7290,6 +7297,7 @@ function buildTransactionFeed(trade) {
     ${defaultCount ? `<span class="ir-default-note">${defaultCount} stop${defaultCount !== 1 ? 's' : ''} on 20-pt default</span>` : ''}
     ${targetQty > 0 ? `<span class="ir-breakdown">target ${_fmtRisk(rewardTotal)}${rrStr}</span>` : ''}
     ${noTargetCount ? `<span class="ir-default-note">${noTargetCount} entr${noTargetCount !== 1 ? 'ies' : 'y'} with no planned exit</span>` : ''}
+    ${wrongSideCount ? `<span class="ir-default-note">${wrongSideCount} target${wrongSideCount !== 1 ? 's' : ''} on the wrong side of entry</span>` : ''}
   </div>` : '';
 
   return `<div class="dyn-feed-header">
