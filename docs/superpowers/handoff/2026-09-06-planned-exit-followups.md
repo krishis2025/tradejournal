@@ -3,20 +3,31 @@
 Recorded at the end of the 2026-09-06 implementation run. Everything here was found by review,
 deliberately not fixed, and triaged as safe to leave. Ordered by value.
 
-## Worth doing before heavy tag editing
+## Fixed
 
-- **`save_tag_config` reads a deletion as a rename** (pre-existing, `database.py` ~1546).
-  It diffs tag lists **by position**, so deleting a tag makes its successor look renamed and
-  `_cascade_tag_rename` relabels trades carrying it. This feature takes the exit group from 3
-  tags to 9, which makes the scenario reachable for the first time. Pruning one of the six new
-  exit tags in Settings could silently relabel real trades.
+- **`save_tag_config` read a tag deletion as a rename** (`database.py`). Settings sends only an
+  ordered list of strings, so a rename and a deletion are indistinguishable by position — deleting
+  a tag shifts later tags up a slot, and the rename cascade then relabelled the deleted tag's
+  trades. Reproduced on a copy of the real journal: deleting `Fear / Anxious` silently moved 11
+  trades to `Bailed out - Reasses`. Fixed by cascading only when the list length is unchanged, since
+  a pure rename cannot change it. Covered by `tests/test_tag_config.py`.
 
-## Worth doing before any deployment work
+  Note: this bug predated the planned-exit feature and was **not** made reachable by it — the same
+  deletion destroyed the same 11 trades against the original three-tag vocabulary. An earlier
+  version of this document said otherwise; that was wrong.
 
-- **`get_instrument_config()` runs up to twice per row** inside `build_plan_execution`'s loop
-  (~1.7ms each, ~65ms on a 20-trade week) — an N+1 inside the very loop whose fills query was
-  deliberately batched. Hoist it above the loop. Fix alongside the **pre-existing** tag N+1 in
-  `get_trades_in_range`, which issues one query per trade in the same request and is larger.
+## Low priority — measured, not worth doing on its own
+
+- **`get_instrument_config()` runs up to twice per row** inside `build_plan_execution`'s loop —
+  an N+1 inside the very loop whose fills query was deliberately batched. The review estimated
+  ~1.7ms per call and ~65ms per week; measured against real data it is **0.52ms per call**, and the
+  busiest week in this journal is 19 trades, so the true cost is **~20ms**. `build_plan_execution`
+  is 2.6ms of a 30ms weekly page build — under 9%. The pre-existing tag N+1 in `get_trades_in_range`
+  is 2.1ms, not the larger problem the review assumed.
+
+  Worth doing for consistency if that loop is touched again; not worth a diff on its own. The real
+  scaling risk is not these loops but that `get_conn()` opens a fresh connection per call across the
+  whole app — a connection-pooling concern, not an N+1 one.
 
 ## Spec items delivered short
 

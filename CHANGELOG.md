@@ -2,6 +2,17 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [4.8.1] — 2026-09-07
+
+### Fixed
+
+- **Deleting a tag no longer relabels the trades that used it.** `save_tag_config` infers renames by
+  position, and a deletion shifts every later tag up one slot — indistinguishable from a rename, so
+  the cascade rewrote `trade_tags`. Deleting `Fear / Anxious` silently moved 11 trades to
+  `Bailed out - Reasses`. Renames now cascade only when the tag list's length is unchanged, since a
+  pure rename cannot change it. Reordering, adding and renaming are unaffected. Pre-existing bug,
+  not introduced by 4.8.0.
+
 ## [4.8.0] — 2026-09-06
 
 ### Planned exit capture & Plan-vs-Execution review

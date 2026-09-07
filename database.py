@@ -1568,12 +1568,24 @@ def save_tag_config(group_id, tags):
                 if group:
                     old_tags = list(group["tags"])
 
-        # 2. Detect renames by position
+        # 2. Detect renames by position.
+        #
+        # Position is the only signal available — Settings sends an ordered list
+        # of strings, with no record of which edit produced it. A rename and a
+        # deletion look identical from here: in both cases slot i holds a new
+        # string and the old one is gone from the list. Deleting a tag shifts
+        # every later tag up one slot, so cascading on that inference would
+        # relabel the deleted tag's trades to whichever tag moved into its slot.
+        #
+        # A pure rename cannot change the list's length, so only cascade when the
+        # length is unchanged. A save that both renames and deletes leaves the
+        # renamed tag's trades carrying the old string — orphaned, and repairable
+        # by re-adding the tag — rather than silently relabelled, which is not.
         new_tags = [t.strip() for t in tags if t.strip()]
         renames = []
-        for i, new_tag in enumerate(new_tags):
-            if i < len(old_tags) and old_tags[i] != new_tag:
-                if old_tags[i] not in new_tags:
+        if len(new_tags) == len(old_tags):
+            for i, new_tag in enumerate(new_tags):
+                if old_tags[i] != new_tag and old_tags[i] not in new_tags:
                     renames.append((old_tags[i], new_tag))
 
         # 3. Cascade each rename
