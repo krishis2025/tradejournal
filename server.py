@@ -1558,7 +1558,7 @@ def api_update_execution_target(live_id, exec_id):
         target_price = float(body["target_price"])
     except (TypeError, ValueError):
         return jsonify({"error": "target_price must be a number"}), 400
-    db.update_live_trade_execution_target(exec_id, target_price, "edited")
+    db.update_live_trade_execution_target(exec_id, live_id, target_price, "edited")
     return jsonify({"ok": True})
 
 

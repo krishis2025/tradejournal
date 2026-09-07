@@ -2092,13 +2092,20 @@ def update_live_trade_execution_stop(exec_id, stop_price, stop_source='edited'):
         )
 
 
-def update_live_trade_execution_target(exec_id, target_price, target_source='edited'):
+def update_live_trade_execution_target(exec_id, live_trade_id, target_price, target_source='edited'):
     """Set the planned exit on one OPEN/ADD row. Freeze enforcement lives in the
-    route (server.py), which checks live_trade_has_exit first."""
+    route (server.py), which checks live_trade_has_exit first.
+
+    Scoped to live_trade_id as well as exec_id: the freeze guard checks
+    whether THIS trade has an exit, so the write must be constrained to the
+    same trade or a mismatched (live_id, exec_id) pair could rewrite an
+    exec row on an already-exited trade by routing through a different,
+    still-open trade."""
     with get_conn() as conn:
         conn.execute(
-            "UPDATE live_trade_executions SET target_price = ?, target_source = ? WHERE id = ?",
-            (target_price, target_source, exec_id)
+            "UPDATE live_trade_executions SET target_price = ?, target_source = ? "
+            "WHERE id = ? AND live_trade_id = ?",
+            (target_price, target_source, exec_id, live_trade_id)
         )
 
 

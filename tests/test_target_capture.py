@@ -76,7 +76,7 @@ def test_insert_fill_stores_an_entered_target(tmp_db, day_id):
 def test_update_live_trade_execution_target_sets_edited(tmp_db):
     live_id = db.create_live_trade(None, "Long", "MES", 7715.0, "17:32", 3, "full")
     exec_id = db.add_live_trade_execution(live_id, "OPEN", 1, 3, 7715.0, "17:32", 0.0)
-    db.update_live_trade_execution_target(exec_id, 7770.0)
+    db.update_live_trade_execution_target(exec_id, live_id, 7770.0)
     with db.get_conn() as conn:
         row = conn.execute(
             "SELECT target_price, target_source FROM live_trade_executions WHERE id = ?",
@@ -171,6 +171,39 @@ def test_patch_target_after_an_exit_returns_409_and_changes_nothing(client, tmp_
             "SELECT target_price FROM live_trade_executions WHERE id = ?",
             (exec_id,)).fetchone()
     assert row["target_price"] == 7760.0
+
+
+def test_patch_target_with_mismatched_live_id_does_not_modify_the_row(client, tmp_db):
+    """The freeze guard checks live_trade_has_exit(live_id); the write must be
+    scoped to that same live_id or a request naming an unrelated (already-
+    exited) trade's exec_id, routed through a different still-open live_id,
+    could rewrite a row the guard was supposed to protect."""
+    exited_live_id = client.post("/api/live", json={
+        "direction": "Long", "instrument": "MES", "entry_price": 7715.0,
+        "total_qty": 3, "entry_time": "17:32", "mode": "full", "target_price": 7760.0,
+    }).get_json()["id"]
+    with db.get_conn() as conn:
+        exited_exec_id = conn.execute(
+            "SELECT id FROM live_trade_executions WHERE live_trade_id = ?",
+            (exited_live_id,)).fetchone()["id"]
+    db.add_live_trade_execution(exited_live_id, "manual_exit", 1, 3, 7731.0, "18:02", 240.0)
+
+    other_live_id = client.post("/api/live", json={
+        "direction": "Long", "instrument": "MES", "entry_price": 7700.0,
+        "total_qty": 2, "entry_time": "17:00", "mode": "full",
+    }).get_json()["id"]
+
+    # PATCH names the still-open trade's live_id but the exited trade's exec_id.
+    res = client.patch(
+        f"/api/live/{other_live_id}/execution/{exited_exec_id}/target",
+        json={"target_price": 9999.0})
+    assert res.status_code == 200  # guard passes: other_live_id has no exit
+
+    with db.get_conn() as conn:
+        row = conn.execute(
+            "SELECT target_price FROM live_trade_executions WHERE id = ?",
+            (exited_exec_id,)).fetchone()
+    assert row["target_price"] == 7760.0, "mismatched live_id must not modify the row"
 
 
 def test_patch_target_rejects_missing_price(client, tmp_db):
