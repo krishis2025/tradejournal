@@ -633,6 +633,158 @@ def get_mfe_window_minutes():
         return DEFAULT_MFE_WINDOW_MINUTES
 
 
+# ── Plan vs execution derivation ─────────────────────────────────────────────
+# Everything below is derived on read from stored prices. Nothing is persisted.
+
+# A target within one tick of entry is not a plan; it would also blow up the
+# capture denominator.
+PLAN_EPSILON = 0.25
+
+# Tolerance around 1.0 that still counts as "exited at plan".
+DEFAULT_PLAN_CAPTURE_BAND = 0.10
+
+
+def get_plan_capture_band():
+    try:
+        return float(db.get_config("plan_capture_band", DEFAULT_PLAN_CAPTURE_BAND))
+    except (TypeError, ValueError):
+        return DEFAULT_PLAN_CAPTURE_BAND
+
+
+def _dir_sign(direction):
+    """+1 for a long, -1 for a short. trades.direction is 'Long'/'Short'."""
+    return 1 if str(direction or "").strip().upper().startswith("L") else -1
+
+
+def _trade_instrument(trade):
+    """Instrument lives in trades.execution_json for journal trades."""
+    raw = trade.get("execution_json")
+    if not raw:
+        return "MES"
+    try:
+        return (json.loads(raw) or {}).get("instrument") or "MES"
+    except (ValueError, TypeError, AttributeError):
+        return "MES"
+
+
+def weighted_plan_price(entry_fills, key):
+    """Qty-weighted average of `key` across entry fills that carry a value.
+
+    Rows with NULL are skipped rather than treated as zero, so a trade planned
+    on the core but not the add still yields an honest number.
+    """
+    num = den = 0.0
+    for f in entry_fills or []:
+        v = f.get(key)
+        if v is None:
+            continue
+        try:
+            q = float(f.get("qty") or 0)
+        except (TypeError, ValueError):
+            continue
+        if q <= 0:
+            continue
+        num += float(v) * q
+        den += q
+    return (num / den) if den else None
+
+
+def plan_is_partial(entry_fills):
+    """True when some entry rows carry a target and others do not."""
+    rows = list(entry_fills or [])
+    have = sum(1 for f in rows if f.get("target_price") is not None)
+    return 0 < have < len(rows)
+
+
+def compute_capture(direction, avg_entry, avg_exit, target):
+    """Share of the planned move actually taken. 1.0 == exited exactly at plan."""
+    if target is None or avg_entry is None or avg_exit is None:
+        return None
+    sign = _dir_sign(direction)
+    planned = sign * (float(target) - float(avg_entry))
+    if abs(planned) < PLAN_EPSILON:
+        return None
+    return (sign * (float(avg_exit) - float(avg_entry))) / planned
+
+
+def classify_bucket(capture, band=None):
+    b = get_plan_capture_band() if band is None else float(band)
+    if capture is None:
+        return "no_plan"
+    if capture <= 0:
+        return "stopped"
+    if capture < 1 - b:
+        return "cut_early"
+    if capture <= 1 + b:
+        return "at_plan"
+    return "ran_past"
+
+
+def target_was_offered(direction, target, mfe_price):
+    """Did the recorded peak ever reach the planned exit?"""
+    if target is None or mfe_price is None:
+        return None
+    return _dir_sign(direction) * (float(mfe_price) - float(target)) >= 0
+
+
+def classify_verdict(bucket, direction, target, mfe_price, mfe_timing):
+    """Three-way split of cut_early using the recorded peak.
+
+    Returns None when there is no peak — the bucket then stands on its own,
+    coarse but never wrong.
+    """
+    if bucket != "cut_early":
+        return None
+    if mfe_price is None or target is None or mfe_timing not in ("during", "after"):
+        return None
+    if not target_was_offered(direction, target, mfe_price):
+        return "market_didnt_pay"
+    return "froze_at_target" if mfe_timing == "during" else "bailed_early"
+
+
+def exit_tag_signals(exit_tags, target_offered):
+    """Reconcile the recorded exit tag against what the peak says was available.
+
+    The peak always wins for classification — nothing here feeds the verdict.
+    This only surfaces a disagreement for review rather than silently
+    reconciling it, since a disagreement usually means one of the two was
+    recorded carelessly. It also suggests the tag the data already implies
+    when none was applied.
+    """
+    if target_offered is None:
+        return {"conflict": False, "suggestion": None}
+    tags = set(exit_tags or [])
+    conflict = (("Target hit" in tags and not target_offered)
+                or ("Target never reached" in tags and target_offered))
+    suggestion = None
+    if not tags and not target_offered:
+        suggestion = "Target never reached"
+    return {"conflict": conflict, "suggestion": suggestion}
+
+
+def compute_excursion(direction, qty, instrument, avg_exit, mfe_price, mfe_timing):
+    """Distance between the peak and the actual exit, named by when the peak came.
+
+    'during' -> give_back (open profit returned before exiting)
+    'after'  -> missed_run (distance travelled without you)
+    """
+    if mfe_price is None or avg_exit is None or mfe_timing not in ("during", "after"):
+        return None
+    sign = _dir_sign(direction)
+    points = sign * (float(mfe_price) - float(avg_exit))
+    inst = get_instrument_config().get(instrument, INSTRUMENT_CONFIG["MES"])
+    dpp = inst["dollars_per_point"]
+    try:
+        q = float(qty or 0)
+    except (TypeError, ValueError):
+        q = 0.0
+    return {
+        "kind": "give_back" if mfe_timing == "during" else "missed_run",
+        "points": round(points, 2),
+        "dollars": round(points * q * dpp, 2),
+    }
+
+
 # Default stop/TP distances in points
 DEFAULT_TRADE_DEFAULTS = {
     "full_stop_points":    "20",
