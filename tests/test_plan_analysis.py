@@ -337,8 +337,13 @@ def test_summary_survives_a_week_with_no_trades(tmp_db):
     assert result["summary"]["realism"]["pct"] is None
 
 
-def test_exit_tag_vocabulary_covers_the_reasons_the_data_cannot_derive():
-    group = next(g for g in logic.TAG_GROUPS if g["id"] == "exit")
+def test_exit_tag_vocabulary_covers_the_reasons_the_data_cannot_derive(tmp_db):
+    """Retargeted from the TAG_GROUPS constant to get_tag_groups() — every real
+    caller reads through get_tag_groups(), which returns a DB tag_config
+    override WHOLESALE the moment one exists. A test against the constant
+    alone cannot catch a database whose override predates the widened
+    vocabulary, which is exactly how F1 survived eleven reviews."""
+    group = next(g for g in logic.get_tag_groups() if g["id"] == "exit")
     for tag in ("Target hit", "Target never reached", "Stopped out",
                 "Greed / chased", "Time stop", "Management error"):
         assert tag in group["tags"], f"missing exit tag: {tag}"
@@ -346,6 +351,100 @@ def test_exit_tag_vocabulary_covers_the_reasons_the_data_cannot_derive():
     assert "Planned — Monitored Continuation" in group["tags"]
     assert "Fear / Anxious" in group["tags"]
     assert group["multi"] is False
+
+
+def test_migration_appends_missing_exit_tags_to_a_pre_existing_override(tmp_db):
+    """The real database's exit override predates the widened vocabulary:
+    ('Planned — Monitored Continuation', 0), ('Fear / Anxious', 1),
+    ('Bailed out - Reasses', 2). The migration must append the six new tags
+    after position 2 without touching the three existing rows — reordering or
+    renumbering would make save_tag_config's position-based rename cascade
+    silently relabel real trades."""
+    with db.get_conn() as conn:
+        conn.execute("DELETE FROM tag_config WHERE group_id = 'exit'")
+        for pos, tag in enumerate(
+            ["Planned — Monitored Continuation", "Fear / Anxious", "Bailed out - Reasses"]
+        ):
+            conn.execute(
+                "INSERT INTO tag_config (group_id, tag, position, enabled) "
+                "VALUES ('exit', ?, ?, 1)", (tag, pos)
+            )
+
+    trade_id = db.insert_trade(db.upsert_day("2026-09-01", None), 1, "Long",
+                               3, 7715.0, 7731.0, 240.0, "17:32", "18:02")
+    db.set_trade_tags(trade_id, "exit", ["Bailed out - Reasses"])
+
+    db.init_db()
+
+    with db.get_conn() as conn:
+        rows = conn.execute(
+            "SELECT tag, position FROM tag_config WHERE group_id = 'exit' ORDER BY position"
+        ).fetchall()
+    by_tag = {r["tag"]: r["position"] for r in rows}
+
+    # the three pre-existing rows keep their exact original positions
+    assert by_tag["Planned — Monitored Continuation"] == 0
+    assert by_tag["Fear / Anxious"] == 1
+    assert by_tag["Bailed out - Reasses"] == 2
+
+    # the six new tags were appended after the pre-existing maximum
+    new_tags = {"Target hit", "Target never reached", "Stopped out",
+                "Greed / chased", "Time stop", "Management error"}
+    assert new_tags <= set(by_tag)
+    assert all(by_tag[t] > 2 for t in new_tags)
+    assert len(rows) == 9
+
+    # the trade tagged 'Bailed out - Reasses' is untouched
+    with db.get_conn() as conn:
+        tt = conn.execute(
+            "SELECT tag FROM trade_tags WHERE trade_id = ? AND group_id = 'exit'",
+            (trade_id,)
+        ).fetchall()
+    assert [r["tag"] for r in tt] == ["Bailed out - Reasses"]
+
+
+def test_migration_appending_exit_tags_is_idempotent(tmp_db):
+    """init_db() runs on every request; running it twice must not duplicate rows."""
+    with db.get_conn() as conn:
+        conn.execute("DELETE FROM tag_config WHERE group_id = 'exit'")
+        for pos, tag in enumerate(
+            ["Planned — Monitored Continuation", "Fear / Anxious", "Bailed out - Reasses"]
+        ):
+            conn.execute(
+                "INSERT INTO tag_config (group_id, tag, position, enabled) "
+                "VALUES ('exit', ?, ?, 1)", (tag, pos)
+            )
+
+    db.init_db()
+    with db.get_conn() as conn:
+        first_pass = conn.execute(
+            "SELECT tag, position FROM tag_config WHERE group_id = 'exit' ORDER BY position"
+        ).fetchall()
+
+    db.init_db()
+    with db.get_conn() as conn:
+        second_pass = conn.execute(
+            "SELECT tag, position FROM tag_config WHERE group_id = 'exit' ORDER BY position"
+        ).fetchall()
+
+    assert [(r["tag"], r["position"]) for r in first_pass] == \
+           [(r["tag"], r["position"]) for r in second_pass]
+    tags = [r["tag"] for r in second_pass]
+    assert len(tags) == len(set(tags)), "no duplicate tag rows after a second init_db()"
+
+
+def test_migration_is_a_noop_when_exit_group_has_no_override(tmp_db):
+    """get_tag_groups() already falls back to TAG_GROUPS when no override
+    exists, so the migration must not fabricate a tag_config row for a group
+    that was never customized."""
+    with db.get_conn() as conn:
+        conn.execute("DELETE FROM tag_config WHERE group_id = 'exit'")
+    db.init_db()
+    with db.get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM tag_config WHERE group_id = 'exit'"
+        ).fetchall()
+    assert rows == []
 
 
 # ── weekly payload wiring ─────────────────────────────────────────────────────
