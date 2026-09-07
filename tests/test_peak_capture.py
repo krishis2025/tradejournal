@@ -1,3 +1,5 @@
+import json
+
 import database as db
 import app_logic as logic
 
@@ -109,3 +111,57 @@ def test_get_trades_missing_mfe_excludes_filled_and_open_trades(tmp_db, day_id):
     ids = [r["id"] for r in rows]
     assert missing in ids
     assert filled not in ids
+
+
+def _seed(day_id, num, target=None):
+    trade_id = db.insert_trade(day_id, num, "Long", 3, 7715.0, 7731.25, 240.0,
+                               "17:32", "18:02",
+                               execution_json=json.dumps({"instrument": "MES"}))
+    db.insert_fill(trade_id, "17:32", "Buy", 3, 7715.0,
+                   stop_price=7688.5, stop_source="entered",
+                   target_price=target,
+                   target_source="none" if target is None else "entered")
+    db.insert_fill(trade_id, "18:02", "Sell", 3, 7731.25, exit_type="manual_exit")
+    return trade_id
+
+
+def test_plan_check_splits_today_from_earlier_days(tmp_db):
+    today = db.upsert_day("2026-09-02", None)
+    yesterday = db.upsert_day("2026-09-01", None)
+    t_today = _seed(today, 1, target=7760.0)
+    t_earlier = _seed(yesterday, 1, target=7760.0)
+
+    result = logic.build_plan_check("2026-09-02", None)
+
+    assert [r["id"] for r in result["today"]] == [t_today]
+    assert [r["id"] for r in result["earlier"]] == [t_earlier]
+
+
+def test_plan_check_shows_the_weighted_target(tmp_db):
+    day = db.upsert_day("2026-09-02", None)
+    _seed(day, 1, target=7760.0)
+    row = logic.build_plan_check("2026-09-02", None)["today"][0]
+    assert row["target"] == 7760.0
+
+
+def test_plan_check_includes_trades_with_no_target(tmp_db):
+    """Losers and unplanned trades still need a peak — give-back is invisible
+    in P&L."""
+    day = db.upsert_day("2026-09-02", None)
+    _seed(day, 1, target=None)
+    result = logic.build_plan_check("2026-09-02", None)
+    assert len(result["today"]) == 1
+    assert result["today"][0]["target"] is None
+
+
+def test_plan_check_drops_a_trade_once_its_peak_is_recorded(tmp_db):
+    day = db.upsert_day("2026-09-02", None)
+    tid = _seed(day, 1, target=7760.0)
+    assert len(logic.build_plan_check("2026-09-02", None)["today"]) == 1
+    db.set_trade_mfe(tid, 7772.0, "during", 30)
+    assert logic.build_plan_check("2026-09-02", None)["today"] == []
+
+
+def test_plan_check_reports_the_window(tmp_db):
+    db.upsert_day("2026-09-02", None)
+    assert logic.build_plan_check("2026-09-02", None)["window_minutes"] == 30

@@ -208,6 +208,24 @@
 #refl-body.collapsed { display:none; }
 .refl-arrow { transform:rotate(-90deg); }
 .refl-arrow.open { transform:rotate(0deg); }
+
+/* PLAN CHECK backfill strip */
+.plan-check { border:1px solid var(--border); border-radius:6px; padding:10px 12px; margin:12px 0; }
+.plan-check-head { display:flex; align-items:baseline; gap:10px; margin-bottom:8px; }
+.pc-title { font-size:11px; letter-spacing:.08em; color:var(--text); }
+.pc-count { font-size:11px; color:#ffb347; }
+.pc-hint { font-size:10px; color:var(--muted); margin-left:auto; }
+.pc-group-label { font-size:10px; color:var(--muted); margin:8px 0 4px; }
+.pc-row { display:flex; align-items:center; gap:8px; padding:4px 0; }
+.pc-cell { font-size:11px; color:var(--muted); }
+.pc-mono { font-family:var(--font-mono); color:var(--text); }
+.pc-dir.long { color:#4fffb0; } .pc-dir.short { color:#ff6b6b; }
+.pc-input { width:96px; font-family:var(--font-mono); font-size:11px; padding:3px 6px;
+            background:transparent; border:1px solid var(--border); border-radius:3px; color:var(--text); }
+.pc-tg { font-size:10px; padding:3px 7px; background:transparent; cursor:pointer;
+         border:1px solid var(--border); color:var(--muted); border-radius:3px; }
+.pc-tg.active { border-color:#4fffb0; color:#4fffb0; }
+.pc-status { font-size:10px; color:#4fffb0; margin-left:auto; }
 {% endblock %}
 
 {% block nav_actions %}
@@ -225,6 +243,38 @@
   <span style="color:{{ day.account_color }};">{{ day.account_name }}</span>
   {% endif %}
 </div>
+
+{% if plan_check.today or plan_check.earlier %}
+<div class="plan-check" id="plan-check">
+  <div class="plan-check-head">
+    <span class="pc-title">PLAN CHECK</span>
+    <span class="pc-count">{{ plan_check.today|length + plan_check.earlier|length }} trades missing peak</span>
+    <span class="pc-hint">best price from entry through exit + {{ plan_check.window_minutes }} min</span>
+  </div>
+
+  {% for group, label in [(plan_check.today, ''), (plan_check.earlier, 'earlier days')] %}
+    {% if group %}
+      {% if label %}<div class="pc-group-label">{{ group|length }} from {{ label }}</div>{% endif %}
+      {% for r in group %}
+      <div class="pc-row" data-trade="{{ r.id }}">
+        <span class="pc-cell pc-num">{% if label %}{{ r.date }} · {% endif %}T{{ r.trade_num }}</span>
+        <span class="pc-cell pc-dir {{ 'long' if r.direction == 'Long' else 'short' }}">{{ r.direction|upper }}</span>
+        <span class="pc-cell pc-mono">{{ '%.2f'|format(r.avg_entry) }}</span>
+        <span class="pc-cell pc-mono">{{ '%.2f'|format(r.avg_exit) }}</span>
+        <span class="pc-cell pc-mono pc-target">{% if r.target %}{{ '%.2f'|format(r.target) }}{% else %}—{% endif %}</span>
+        <input class="pc-input" type="number" step="0.25" placeholder="peak price"
+               id="pc-price-{{ r.id }}">
+        <span class="pc-toggle">
+          <button type="button" class="pc-tg" data-timing="during" onclick="pcPick({{ r.id }}, 'during')">before exit</button>
+          <button type="button" class="pc-tg" data-timing="after"  onclick="pcPick({{ r.id }}, 'after')">after exit</button>
+        </span>
+        <span class="pc-status" id="pc-status-{{ r.id }}"></span>
+      </div>
+      {% endfor %}
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
 
 {% set total_pnl = trades|sum(attribute='pnl') %}
 {% set wins = trades|selectattr('pnl','gt',0)|list|length %}
@@ -668,6 +718,34 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script>
 const TAG_GROUPS = {{ tags_json|safe }};
+
+// ── PLAN CHECK: record the peak price the market offered around each trade.
+//    Saves on the timing tap, since the price alone is not a complete record.
+async function pcPick(tradeId, timing) {
+  const input = document.getElementById('pc-price-' + tradeId);
+  const status = document.getElementById('pc-status-' + tradeId);
+  const price = parseFloat(input && input.value);
+  if (!price || isNaN(price)) {
+    if (status) { status.style.color = '#ff6b6b'; status.textContent = 'enter a price first'; }
+    if (input) input.focus();
+    return;
+  }
+  const row = document.querySelector('.pc-row[data-trade="' + tradeId + '"]');
+  if (row) row.querySelectorAll('.pc-tg').forEach(b => {
+    b.classList.toggle('active', b.dataset.timing === timing);
+  });
+  try {
+    const res = await fetch('/api/trade/' + tradeId + '/mfe', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mfe_price: price, mfe_timing: timing })
+    });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+    if (status) { status.style.color = '#4fffb0'; status.textContent = 'saved'; }
+    if (input) input.disabled = true;
+  } catch (e) {
+    if (status) { status.style.color = '#ff6b6b'; status.textContent = e.message || 'save failed'; }
+  }
+}
 
 // ── Card expand ──────────────────────────────────────────────────────────────
 function toggleCard(id) {

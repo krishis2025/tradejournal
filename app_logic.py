@@ -938,6 +938,34 @@ def build_plan_execution(trades):
     }
 
 
+def build_plan_check(day_date, account_id):
+    """Closed trades still missing a peak, split into this day and earlier ones.
+
+    Earlier days are surfaced so a skipped session does not silently vanish —
+    an unfilled subset biases every peak-derived percentage in the weekly review.
+    """
+    pending = db.get_trades_missing_mfe(account_id, day_date)
+    fills_by_trade = db.get_entry_fills_for_trades([t["id"] for t in pending])
+
+    today, earlier = [], []
+    for t in pending:
+        row = {
+            "id": t["id"],
+            "trade_num": t.get("trade_num"),
+            "date": t.get("date"),
+            "direction": t.get("direction"),
+            "qty": t.get("qty"),
+            "pnl": t.get("pnl"),
+            "avg_entry": t.get("avg_entry"),
+            "avg_exit": t.get("avg_exit"),
+            "target": weighted_plan_price(fills_by_trade.get(t["id"], []), "target_price"),
+        }
+        (today if t.get("date") == day_date else earlier).append(row)
+
+    return {"today": today, "earlier": earlier,
+            "window_minutes": get_mfe_window_minutes()}
+
+
 # Default stop/TP distances in points
 DEFAULT_TRADE_DEFAULTS = {
     "full_stop_points":    "20",

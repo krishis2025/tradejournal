@@ -132,6 +132,7 @@ def day_view(day_id):
             trade["context"] = None
     day_images = db.get_day_images(day_id)
     observations = db.get_observations_for_date(day["date"])
+    plan_check = logic.build_plan_check(day["date"], day.get("account_id"))
     return render_template(
         "day.html",
         day=day,
@@ -145,6 +146,7 @@ def day_view(day_id):
         day_value_tags=logic.get_day_value_tags(),
         day_volume_tags=logic.get_day_volume_tags(),
         grade_pct=logic.compute_combined_day_score(day.get("day_score", ""), trades),
+        plan_check=plan_check,
     )
 
 
