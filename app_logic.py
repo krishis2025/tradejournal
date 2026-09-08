@@ -704,14 +704,21 @@ _ASSESSMENT_VOCAB = {
 }
 
 
-def validate_assessment(fields):
-    """Clean and check an assessment payload.
+def validate_assessment(fields, current=None):
+    """Clean and check an assessment payload against the trade's current state.
 
     Returns (cleaned, error). `cleaned` holds only known keys with valid
     values; `error` is a human-readable string or None. Unknown keys are
     dropped silently rather than rejected — the caller is a form post that
     may carry extra state — but a known key with a bad value is an error,
     because silently discarding it would lose data the trader entered.
+
+    `current` is the trade's stored assessment (any mapping carrying the same
+    keys), or None for a trade that has none yet. The cross-field rules are
+    evaluated against the MERGE of stored values and this payload, because a
+    field is often sent on its own — checking the payload alone would reject a
+    legitimate single-field edit, and worse, would let a forbidden combination
+    through when the conflicting half is already in the database.
     """
     cleaned = {}
     for key, vocab in _ASSESSMENT_VOCAB.items():
@@ -728,16 +735,24 @@ def validate_assessment(fields):
     if "pre_tags_late" in fields:
         cleaned["pre_tags_late"] = 1 if fields["pre_tags_late"] else 0
 
+    # An explicit None in `cleaned` (the caller clearing a field) must win
+    # over the stored value, which is exactly what dict.update gives us.
+    merged = dict(current or {})
+    merged.update(cleaned)
+
     # A management issue describes what the deviation was, so it is meaningless
     # without one. 'none' is always allowed.
-    issue = cleaned.get("management_issue")
-    if issue and issue != "none" and cleaned.get("management") != "deviated":
+    issue = merged.get("management_issue")
+    if issue and issue != "none" and merged.get("management") != "deviated":
         return {}, "management_issue requires management to be 'deviated'"
 
-    # The violation field is only asked on a B or C grade.
-    violation = cleaned.get("process_violation")
-    if violation and violation != "none" and cleaned.get("grade") == "A":
-        return {}, "process_violation cannot be set on an A grade"
+    # The violation field is only asked on a B or C grade. A grade change that
+    # would leave a stored violation stranded on an A grade is rejected rather
+    # than silently cleared — that would discard something the trader
+    # deliberately recorded.
+    violation = merged.get("process_violation")
+    if violation and violation != "none" and merged.get("grade") == "A":
+        return {}, "process_violation cannot be set on an A grade — clear it in the same request"
 
     return cleaned, None
 

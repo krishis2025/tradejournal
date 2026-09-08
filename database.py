@@ -1325,6 +1325,16 @@ def set_trade_assessment(trade_id, **fields):
                      list(known.values()) + [trade_id])
 
 
+def get_trade_assessment(trade_id):
+    """The seven assessment fields for one trade, or None if no such trade."""
+    with get_conn() as conn:
+        row = conn.execute(
+            f"SELECT {', '.join(_ASSESSMENT_FIELDS)} FROM trades WHERE id = ?",
+            (trade_id,)
+        ).fetchone()
+        return dict(row) if row else None
+
+
 def set_trade_mfe(trade_id, mfe_price, mfe_timing, mfe_window_minutes):
     """Record the peak price observed around a trade. Overwritable by design:
     unlike the planned exit this is a checkable fact, not a record of intent."""

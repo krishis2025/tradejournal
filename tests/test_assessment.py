@@ -200,3 +200,115 @@ def test_post_assessment_to_a_live_trade(client, tmp_db):
     lt = db.get_live_trade(live_id)
     assert lt["grade"] == "C"
     assert lt["process_violation"] == "revenge_trade"
+
+
+# ── Cross-field rules must see stored state, not just this payload ──────────
+# Diagnosis happens one field at a time (set_trade_assessment's own docstring
+# says so), so a rule that only looks at the current payload both false-
+# rejects a legitimate single-field edit and false-accepts a forbidden
+# combination when the conflicting half is already in the database.
+
+def test_validate_assessment_with_no_current_arg_behaves_as_before():
+    cleaned, err = logic.validate_assessment({"grade": "A", "process_violation": "none"})
+    assert err is None
+    assert cleaned == {"grade": "A", "process_violation": "none"}
+
+
+def test_validate_assessment_merges_current_state_for_the_management_issue_rule():
+    """management='deviated' is already stored; sending the issue alone must pass."""
+    cleaned, err = logic.validate_assessment(
+        {"management_issue": "early_exit"}, current={"management": "deviated"})
+    assert err is None
+    assert cleaned == {"management_issue": "early_exit"}
+
+
+def test_validate_assessment_merges_current_state_to_catch_a_stranded_violation():
+    """grade='A' is already stored; adding a violation alone must be rejected."""
+    cleaned, err = logic.validate_assessment(
+        {"process_violation": "revenge_trade"}, current={"grade": "A"})
+    assert err is not None and "process_violation" in err
+
+
+def test_post_assessment_accepts_a_single_field_when_deviated_already_stored(client, tmp_db, day_id):
+    trade_id = db.insert_trade(day_id, 1, "Long", 3, 7756.0, 7795.5, 1035.0,
+                               "10:05", "10:40")
+    client.post(f"/api/trade/{trade_id}/assessment", json={"management": "deviated"})
+    res = client.post(f"/api/trade/{trade_id}/assessment",
+                      json={"management_issue": "early_exit"})
+    assert res.status_code == 200
+    with db.get_conn() as conn:
+        row = conn.execute("SELECT management, management_issue FROM trades WHERE id = ?",
+                            (trade_id,)).fetchone()
+    assert (row["management"], row["management_issue"]) == ("deviated", "early_exit")
+
+
+def test_post_assessment_rejects_a_violation_against_a_stored_a_grade(client, tmp_db, day_id):
+    trade_id = db.insert_trade(day_id, 1, "Long", 3, 7756.0, 7795.5, 1035.0,
+                               "10:05", "10:40")
+    client.post(f"/api/trade/{trade_id}/assessment", json={"grade": "A"})
+    res = client.post(f"/api/trade/{trade_id}/assessment",
+                      json={"process_violation": "revenge_trade"})
+    assert res.status_code == 400
+    with db.get_conn() as conn:
+        assert conn.execute("SELECT process_violation FROM trades WHERE id = ?",
+                            (trade_id,)).fetchone()["process_violation"] is None
+
+
+def test_post_assessment_rejects_a_grade_change_that_strands_a_stored_violation(client, tmp_db, day_id):
+    trade_id = db.insert_trade(day_id, 1, "Long", 3, 7756.0, 7795.5, 1035.0,
+                               "10:05", "10:40")
+    client.post(f"/api/trade/{trade_id}/assessment",
+               json={"grade": "B", "process_violation": "revenge_trade"})
+    res = client.post(f"/api/trade/{trade_id}/assessment", json={"grade": "A"})
+    assert res.status_code == 400
+    with db.get_conn() as conn:
+        assert conn.execute("SELECT grade FROM trades WHERE id = ?",
+                            (trade_id,)).fetchone()["grade"] == "B"
+
+
+def test_post_assessment_allows_clearing_the_violation_in_the_same_request(client, tmp_db, day_id):
+    trade_id = db.insert_trade(day_id, 1, "Long", 3, 7756.0, 7795.5, 1035.0,
+                               "10:05", "10:40")
+    client.post(f"/api/trade/{trade_id}/assessment",
+               json={"grade": "B", "process_violation": "revenge_trade"})
+    res = client.post(f"/api/trade/{trade_id}/assessment",
+                      json={"grade": "A", "process_violation": "none"})
+    assert res.status_code == 200
+    with db.get_conn() as conn:
+        row = conn.execute("SELECT grade, process_violation FROM trades WHERE id = ?",
+                            (trade_id,)).fetchone()
+    assert (row["grade"], row["process_violation"]) == ("A", "none")
+
+
+def test_post_assessment_allows_clearing_deviation_and_issue_together(client, tmp_db, day_id):
+    trade_id = db.insert_trade(day_id, 1, "Long", 3, 7756.0, 7795.5, 1035.0,
+                               "10:05", "10:40")
+    client.post(f"/api/trade/{trade_id}/assessment",
+               json={"management": "deviated", "management_issue": "early_exit"})
+    res = client.post(f"/api/trade/{trade_id}/assessment",
+                      json={"management": "followed", "management_issue": "none"})
+    assert res.status_code == 200
+    with db.get_conn() as conn:
+        row = conn.execute("SELECT management, management_issue FROM trades WHERE id = ?",
+                            (trade_id,)).fetchone()
+    assert (row["management"], row["management_issue"]) == ("followed", "none")
+
+
+def test_post_assessment_live_accepts_a_single_field_when_deviated_already_stored(client, tmp_db):
+    live_id = db.create_live_trade(None, "Long", "MES", 7756.0, "10:05", 3, "full")
+    client.post(f"/api/live/{live_id}/assessment", json={"management": "deviated"})
+    res = client.post(f"/api/live/{live_id}/assessment",
+                      json={"management_issue": "early_exit"})
+    assert res.status_code == 200
+    lt = db.get_live_trade(live_id)
+    assert (lt["management"], lt["management_issue"]) == ("deviated", "early_exit")
+
+
+def test_post_assessment_live_rejects_a_violation_against_a_stored_a_grade(client, tmp_db):
+    live_id = db.create_live_trade(None, "Long", "MES", 7756.0, "10:05", 3, "full")
+    client.post(f"/api/live/{live_id}/assessment", json={"grade": "A"})
+    res = client.post(f"/api/live/{live_id}/assessment",
+                      json={"process_violation": "revenge_trade"})
+    assert res.status_code == 400
+    lt = db.get_live_trade(live_id)
+    assert lt["process_violation"] is None

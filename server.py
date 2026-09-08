@@ -512,7 +512,8 @@ def api_save_trade_mfe(trade_id):
 @app.route("/api/trade/<int:trade_id>/assessment", methods=["POST"])
 def api_save_trade_assessment(trade_id):
     """Record the A/B/C grade and diagnostic fields on a journal trade."""
-    cleaned, err = logic.validate_assessment(request.get_json(silent=True) or {})
+    current = db.get_trade_assessment(trade_id)
+    cleaned, err = logic.validate_assessment(request.get_json(silent=True) or {}, current)
     if err:
         return jsonify({"error": err}), 400
     db.set_trade_assessment(trade_id, **cleaned)
@@ -522,7 +523,8 @@ def api_save_trade_assessment(trade_id):
 @app.route("/api/live/<int:live_id>/assessment", methods=["POST"])
 def api_save_live_assessment(live_id):
     """Same fields on a live trade, before it is pushed to the journal."""
-    cleaned, err = logic.validate_assessment(request.get_json(silent=True) or {})
+    current = db.get_live_trade(live_id)
+    cleaned, err = logic.validate_assessment(request.get_json(silent=True) or {}, current)
     if err:
         return jsonify({"error": err}), 400
     if cleaned:
