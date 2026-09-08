@@ -223,11 +223,6 @@ DAY_CHECK_TOTAL = len(DAY_CHECK_ITEMS)  # 4
 
 # ── Execution Score Helpers (v1/v2) ──────────────────────────────────────────
 
-def get_execution_score_version(score_json):
-    """Returns the version of an execution score JSON record."""
-    return score_json.get("version", 1) if score_json else 1
-
-
 def build_entry_execution_score(strength_record):
     """Builds v2 execution score JSON at trade entry from a strength record dict."""
     patience = strength_record.get("patience") or 0
@@ -258,60 +253,6 @@ def build_entry_execution_score(strength_record):
     }
 
 
-def update_review_score(score_json, management_state, exit_quality):
-    """Updates execution_score_json with post-trade review answers.
-    Handles both v1 and v2 records. Returns the updated dict."""
-    if not score_json:
-        score_json = {}
-
-    version = get_execution_score_version(score_json)
-
-    management_score = 1 if management_state == "calm_objective" else 0
-    exit_score = 1 if exit_quality == "planned" else 0
-
-    if version == 2:
-        score_json["management"] = {
-            "state": management_state,
-            "score": management_score
-        }
-        score_json["exit"] = {
-            "quality": exit_quality,
-            "score": exit_score
-        }
-        process_score = score_json.get("process", {}).get("score", 0)
-        score_json["total_score"] = process_score + management_score + exit_score
-        score_json["max_score"] = 5
-    else:
-        score_json["management"] = {
-            "state": management_state,
-            "score": management_score
-        }
-        score_json["exit"] = {
-            "quality": exit_quality,
-            "score": exit_score
-        }
-        score_json["total_score"] = management_score + exit_score
-        score_json["max_score"] = 5
-        score_json["_upgraded"] = True
-
-    return score_json
-
-
-def get_trade_execution_score(score_json):
-    """Returns (actual_score, max_score) for a trade's execution score.
-    Handles v1 and v2 formats gracefully."""
-    if not score_json:
-        return 0, 5
-
-    version = get_execution_score_version(score_json)
-
-    if version == 2:
-        return score_json.get("total_score", 0), 5
-    else:
-        old_score = score_json.get("score", 0)
-        return old_score, 5
-
-
 def compute_day_score(scores_json):
     """Compute day checklist count from JSON.
 
@@ -338,91 +279,19 @@ def compute_day_score(scores_json):
     return (checked, DAY_CHECK_TOTAL)
 
 
-def compute_combined_day_score(day_score_json, trades):
-    """Compute combined day score as a percentage.
+def compute_combined_day_score(day_score_json, trades=None):
+    """Day grade from the day's own process checklist.
 
-    New formula (v2 trades present):
-      Average execution score across trades as % of max.
-
-    Legacy formula (all v1 trades):
-      Process checklist (40%) + trade execution scores (60%).
-
-    Mixed days (some v1, some v2): use new formula for all,
-    treating v1 scores as-is out of 5.
-    Returns integer percentage or None if nothing scored.
+    The per-trade execution score it used to fold in was retired along with the
+    5-point scoring; trade quality is now the A/B/C grade, which is a judgement
+    rather than a percentage and does not average into a day score. `trades` is
+    kept in the signature so existing callers need no change.
     """
-    import json as _json
-
-    if not trades:
-        # Fall back to process-only if day checklist exists
-        day_result = compute_day_score(day_score_json)
-        if day_result is not None:
-            checked, total = day_result
-            return round((checked / total) * 100)
+    day_result = compute_day_score(day_score_json)
+    if day_result is None:
         return None
-
-    # Check if any v2 trades exist
-    has_v2 = False
-    for t in trades:
-        es_raw = t.get("execution_score_json") or t.get("exec_score_json")
-        if es_raw:
-            parsed = es_raw if isinstance(es_raw, dict) else None
-            if parsed is None:
-                try:
-                    parsed = _json.loads(es_raw)
-                except (ValueError, TypeError):
-                    parsed = {}
-            if get_execution_score_version(parsed) == 2:
-                has_v2 = True
-                break
-
-    if has_v2:
-        total_actual = 0
-        total_max = 0
-        for t in trades:
-            es_raw = t.get("execution_score_json") or t.get("exec_score_json")
-            parsed = None
-            if es_raw:
-                parsed = es_raw if isinstance(es_raw, dict) else None
-                if parsed is None:
-                    try:
-                        parsed = _json.loads(es_raw)
-                    except (ValueError, TypeError):
-                        parsed = {}
-            actual, mx = get_trade_execution_score(parsed)
-            total_actual += actual
-            total_max += mx
-        return round((total_actual / total_max * 100)) if total_max > 0 else None
-    else:
-        # Legacy v1 formula — preserved exactly
-        process_pct = None
-        day_result = compute_day_score(day_score_json)
-        if day_result is not None:
-            checked, total = day_result
-            process_pct = checked / total
-
-        exec_pct = None
-        exec_num = 0
-        exec_den = 0
-        for t in (trades or []):
-            score = t.get("exec_score")
-            if score is not None:
-                exec_num += score
-                exec_den += 5
-        if exec_den > 0:
-            exec_pct = exec_num / exec_den
-
-        if process_pct is None and exec_pct is None:
-            return None
-
-        if exec_pct is not None and process_pct is not None:
-            combined = exec_pct * 0.6 + process_pct * 0.4
-        elif exec_pct is not None:
-            combined = exec_pct
-        else:
-            combined = process_pct
-
-        return round(combined * 100)
+    checked, total = day_result
+    return round(checked / total * 100) if total else None
 
 
 REQUIRED_COLUMNS = {"B/S", "avgPrice", "filledQty", "Fill Time", "Date"}

@@ -175,7 +175,7 @@ Analytics · Setups · Observations · Settings**, plus a global account selecto
 - **Trades:** tags, notes, images, image captions.
 - **Accounts:** CRUD, list, `/api/shadow/regenerate`.
 - **Live trades:** full lifecycle — create, get/update/delete, levels, execute, add, exit, stop(s),
-  stop-hit, push (to journal), cancel, review-score, recalc, images, session summary.
+  stop-hit, push (to journal), cancel, recalc, images, session summary.
 - **Context / strength:** `/api/context*`, `/api/leg/<id>`, `/api/trade-strength*`, `/api/signals*`,
   `/api/headline-helpers*`.
 - **Setups / observations:** CRUD + images.

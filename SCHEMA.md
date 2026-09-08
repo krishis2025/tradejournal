@@ -125,9 +125,17 @@ push-to-journal. NULL for imports / pre-feature trades. See LIVE_TRADES below.
 > `mfe_price IS NULL` already means not observed.
 
 > P&L has no vote on `grade`: a losing trade can be A-game and a profitable trade can be C-game.
-> `execution_score_json` is being replaced by the seven columns above. It is still written and read by
-> the live-trade execution-score flow until that migration completes; new analysis reads the columns.
-> The same seven columns exist on `live_trades` and are carried across on push.
+> `execution_score_json` is being replaced by the seven columns above for grading purposes: the
+> post-trade review score it once carried (management + exit, out of 5) is fully retired — its only
+> writer, `update_review_score` and the `PUT /api/live/<id>/review-score` route, has been deleted,
+> so nothing writes that part of it anymore. The field is not otherwise dormant, though: it still
+> carries a separate entry-time signal snapshot, written by `build_entry_execution_score` when a live
+> trade is created from a `trade_strength` record (`POST /api/live`) and read back to render the entry
+> signal bar (`templates/live_v2.html`, `templates/trade_v2.html`). Legacy v1 scores on pre-feature
+> trades are also still read for display (`day.html`'s tray badge, `database.get_analytics`'s
+> `score_data`, `get_trades_for_day`, `get_trades_in_range`). New grading analysis reads the seven
+> columns above, not this field. The same seven columns exist on `live_trades` and are carried across
+> on push.
 
 ---
 

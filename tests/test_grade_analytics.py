@@ -262,3 +262,17 @@ def test_empty_week_produces_no_distributions(tmp_db):
     assert result["rows"] == []
     assert result["summary"]["graded_of"] == 0
     assert result["summary"]["target_fit_dist"]["of"] == 0
+
+
+def test_day_score_no_longer_uses_the_execution_score(tmp_db, day_id):
+    """The 5-point score is retired; the day grade reflects the day process
+    checklist alone."""
+    import json as _json
+    db.insert_trade(day_id, 1, "Long", 1, 7700.0, 7710.0, 50.0, "10:00", "10:30",
+                    execution_score_json=_json.dumps({"version": 1, "score": 1}))
+    trades = db.get_trades_for_day(day_id)
+
+    with_exec = logic.compute_combined_day_score('{"a": true, "b": true}', trades)
+    without = logic.compute_combined_day_score('{"a": true, "b": true}', [])
+
+    assert with_exec == without, "trade execution scores must not move the day grade"

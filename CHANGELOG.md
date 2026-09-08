@@ -2,6 +2,31 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [4.9.0] — 2026-09-07
+
+### Changed
+
+- **The 5-point execution score is replaced by one A/B/C grade per trade**, chosen by the trader,
+  with the framework's definitions on screen. P&L has no vote: a losing trade can be A-game and a
+  winner can be C-game. The weekly page shows a grade distribution instead of an average, because
+  averaging letters recreates the number this replaced.
+- **The exit is no longer scored separately.** It is the final management decision, so the review
+  page's two question blocks collapse into one chain: grade → management → management issue (only
+  when deviated) → emotion → process violation (only on B or C).
+- **Five diagnostic fields** recorded per trade: management, management issue, emotion, entry
+  emotion and process violation — as columns, so "what turns my A-game into B-game" is one query.
+- **The peak-derived verdicts are gone** (froze at target / bailed early / market didn't pay), along
+  with the fear and greed headlines. They judged an exit from price data alone; the framework is
+  explicit that an early exit is only a mistake if unjustified by process.
+- **Target fit** joins capture: peak over target, reported as a weekly distribution (too far / well
+  calibrated / too close). Capture asks whether you waited for your plan; target fit asks whether the
+  plan was reasonable. Capture is now coloured by band and blank on a loss.
+- **The weekly table shows P&L**, which it never did — the figure beside size was the risk.
+- **The exit tag group is retired**, superseded by management issue, emotion and target fit.
+  Historical trades keep their exit tags.
+- The assessment page's Patience tile is now **Trade came to me** and sets the pre-trade tag of that
+  name; CALM/FOMO is replaced by six entry emotions.
+
 ## [4.8.3] — 2026-09-07
 
 ### Changed

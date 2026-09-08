@@ -7,6 +7,7 @@ a `strength_id`, and the weekly analytics read `emotion_entry` off
 strength) — so `POST /api/live` must copy the value across at creation time.
 """
 import database as db
+import app_logic as logic
 
 
 def _cols(table):
@@ -60,6 +61,53 @@ def test_post_trade_strength_accepts_emotion_entry(client, tmp_db):
     data = res.get_json()
     row = db.get_trade_strength(data["id"])
     assert row["emotion_entry"] == "impatience"
+
+
+def test_post_trade_strength_rejects_illegal_entry_emotion(client, tmp_db):
+    """fear_of_loss and fear_of_giving_back both require an open position, so
+    they are not in ENTRY_EMOTIONS. A hand-crafted request naming one must be
+    rejected with a 400, not silently stored and later copied onto a live
+    trade that never had a position open yet."""
+    res = client.post("/api/trade-strength", json={
+        "value": 1, "volume": 1, "trend": 1, "adh": 1,
+        "confidence": "high", "emotion_entry": "fear_of_giving_back",
+    })
+    assert res.status_code == 400
+    assert "emotion_entry" in res.get_json()["error"]
+
+
+def test_post_trade_strength_rejects_unknown_entry_emotion(client, tmp_db):
+    res = client.post("/api/trade-strength", json={
+        "value": 1, "volume": 1, "trend": 1, "adh": 1,
+        "confidence": "high", "emotion_entry": "not_a_real_emotion",
+    })
+    assert res.status_code == 400
+    assert "emotion_entry" in res.get_json()["error"]
+
+
+def test_post_trade_strength_absent_or_empty_entry_emotion_is_fine(client, tmp_db):
+    res = client.post("/api/trade-strength", json={
+        "value": 1, "volume": 1, "trend": 1, "adh": 1, "confidence": "high",
+    })
+    assert res.status_code == 200
+
+    res2 = client.post("/api/trade-strength", json={
+        "value": 1, "volume": 1, "trend": 1, "adh": 1, "confidence": "high",
+        "emotion_entry": "",
+    })
+    assert res2.status_code == 200
+
+
+def test_post_trade_strength_accepts_every_legal_entry_emotion(client, tmp_db):
+    for emotion in logic.ENTRY_EMOTIONS:
+        res = client.post("/api/trade-strength", json={
+            "value": 1, "volume": 1, "trend": 1, "adh": 1,
+            "confidence": "high", "emotion_entry": emotion,
+        })
+        assert res.status_code == 200, f"{emotion} should be accepted"
+        data = res.get_json()
+        row = db.get_trade_strength(data["id"])
+        assert row["emotion_entry"] == emotion
 
 
 def test_post_live_trade_copies_emotion_entry_from_strength(client, tmp_db):

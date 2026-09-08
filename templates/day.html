@@ -27,6 +27,11 @@
 .trade-detail { max-height:0;overflow:hidden;transition:max-height 0.5s cubic-bezier(0.4,0,0.2,1);border-top:0px solid var(--border); }
 .trade-row-card.expanded .trade-detail { max-height:2400px;border-top-width:1px; }
 
+.tray-grade { font-size:10px; font-weight:600; padding:1px 6px; border-radius:3px; border:0.5px solid var(--border2); margin-left:4px; }
+.tray-grade-A { color: var(--green); border-color: var(--green); }
+.tray-grade-B { color: #ffb347; border-color: #ffb347; }
+.tray-grade-C { color: #ff6b6b; border-color: #ff6b6b; }
+
 /* ── Captured Market-State badge (review of the frozen entry snapshot) ── */
 .ms-cap { display:inline-flex; align-items:center; gap:10px; border:1px solid var(--border2);
   border-radius:8px; padding:7px 12px; font-family:'Inter',sans-serif; }
@@ -536,6 +541,7 @@
       <div class="trc-label">Direction</div>
       <span class="badge badge-{{ dir_cls }}">{{ trade.direction }}</span>
       {% if trade.is_open %}<span class="badge" style="background:rgba(255,179,71,0.15);border-color:var(--warn);color:var(--warn);font-size:9px;margin-left:4px;">OPEN</span>{% endif %}
+      {% if trade.grade %}<span class="tray-grade tray-grade-{{ trade.grade }}">{{ trade.grade }}</span>{% endif %}
     </div>
     <div class="trc">
       <div class="trc-label">Entry → Exit</div>

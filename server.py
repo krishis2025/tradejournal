@@ -1003,6 +1003,9 @@ def api_delete_headline_helper(hid):
 @app.route("/api/trade-strength", methods=["POST"])
 def api_create_trade_strength():
     body = request.get_json(silent=True) or {}
+    entry_emotion = body.get("emotion_entry")
+    if entry_emotion and entry_emotion not in logic.ENTRY_EMOTIONS:
+        return jsonify({"error": f"emotion_entry must be one of {', '.join(logic.ENTRY_EMOTIONS)}"}), 400
     try:
         strength_id = db.create_trade_strength(
             context_id=body.get("context_id") or None,
@@ -1539,28 +1542,6 @@ def api_live_cancel(live_id):
         closed_at=datetime.utcnow().isoformat(timespec="seconds"),
     )
     return jsonify({"ok": True, "id": live_id, "status": "cancelled"})
-
-
-@app.route("/api/live/<int:live_id>/review-score", methods=["PUT"])
-def api_update_review_score(live_id):
-    """Update execution_score_json with post-trade management and exit review."""
-    body = request.get_json(silent=True) or {}
-    management_state = body.get("management_state", "")
-    exit_quality = body.get("exit_quality", "")
-
-    trade = db.get_live_trade(live_id)
-    if not trade:
-        return jsonify({"error": "Trade not found"}), 404
-
-    es_raw = trade.get("execution_score_json") or "{}"
-    try:
-        score_json = json.loads(es_raw) if isinstance(es_raw, str) else (es_raw or {})
-    except (json.JSONDecodeError, TypeError):
-        score_json = {}
-
-    updated = logic.update_review_score(score_json, management_state, exit_quality)
-    db.update_live_trade(live_id, execution_score_json=json.dumps(updated))
-    return jsonify({"ok": True, "execution_score_json": updated})
 
 
 @app.route("/api/live/<int:live_id>/execution/<int:exec_id>/stop", methods=["PATCH"])
