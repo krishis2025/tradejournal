@@ -509,6 +509,27 @@ def api_save_trade_mfe(trade_id):
     return jsonify({"ok": True})
 
 
+@app.route("/api/trade/<int:trade_id>/assessment", methods=["POST"])
+def api_save_trade_assessment(trade_id):
+    """Record the A/B/C grade and diagnostic fields on a journal trade."""
+    cleaned, err = logic.validate_assessment(request.get_json(silent=True) or {})
+    if err:
+        return jsonify({"error": err}), 400
+    db.set_trade_assessment(trade_id, **cleaned)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/live/<int:live_id>/assessment", methods=["POST"])
+def api_save_live_assessment(live_id):
+    """Same fields on a live trade, before it is pushed to the journal."""
+    cleaned, err = logic.validate_assessment(request.get_json(silent=True) or {})
+    if err:
+        return jsonify({"error": err}), 400
+    if cleaned:
+        db.update_live_trade(live_id, **cleaned)
+    return jsonify({"ok": True})
+
+
 # ── API: Images ───────────────────────────────────────────────────────────────
 
 @app.route("/api/trade/<int:trade_id>/images", methods=["POST"])

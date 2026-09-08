@@ -4,6 +4,7 @@ Seven scalar columns rather than a JSON blob: every question the framework
 asks is a GROUP BY over two of these, and the existing execution_score_json
 is exactly the blob shape that makes those questions awkward.
 """
+import app_logic as logic
 import database as db
 
 ASSESSMENT_COLS = ["grade", "management", "management_issue", "emotion",
@@ -92,3 +93,110 @@ def test_set_trade_assessment_with_no_known_fields_is_a_noop(tmp_db, day_id):
     with db.get_conn() as conn:
         assert conn.execute("SELECT grade FROM trades WHERE id = ?",
                             (trade_id,)).fetchone()["grade"] == "A"
+
+
+def test_vocabularies_match_the_spec():
+    assert logic.GRADES == ("A", "B", "C")
+    assert logic.MANAGEMENT == ("followed", "deviated")
+    assert logic.MANAGEMENT_ISSUES == (
+        "none", "early_exit", "late_exit", "stop_change",
+        "overmanaged", "under_managed", "premature_scale_out")
+    assert logic.EMOTIONS == (
+        "calm", "fear_of_loss", "fear_of_giving_back", "greed",
+        "frustration", "impatience", "overconfidence", "distracted")
+    assert logic.PROCESS_VIOLATIONS == (
+        "none", "traded_outside_plan", "exceeded_risk", "revenge_trade", "overtraded")
+
+
+def test_entry_emotions_exclude_the_two_that_need_an_open_position():
+    """Fear of loss and fear of giving back cannot precede a trade."""
+    assert "fear_of_loss" not in logic.ENTRY_EMOTIONS
+    assert "fear_of_giving_back" not in logic.ENTRY_EMOTIONS
+    assert set(logic.ENTRY_EMOTIONS) < set(logic.EMOTIONS)
+    assert len(logic.ENTRY_EMOTIONS) == 6
+
+
+def test_validate_accepts_a_good_payload():
+    cleaned, err = logic.validate_assessment(
+        {"grade": "B", "management": "deviated", "management_issue": "early_exit",
+         "emotion": "fear_of_giving_back", "process_violation": "revenge_trade"})
+    assert err is None
+    assert cleaned["grade"] == "B"
+
+
+def test_validate_rejects_a_value_outside_its_vocabulary():
+    _, err = logic.validate_assessment({"grade": "D"})
+    assert err is not None and "grade" in err
+
+
+def test_validate_rejects_management_issue_without_deviated():
+    """The issue describes what the deviation was; it is meaningless otherwise."""
+    _, err = logic.validate_assessment(
+        {"management": "followed", "management_issue": "early_exit"})
+    assert err is not None and "management_issue" in err
+
+
+def test_validate_allows_management_issue_none_when_followed():
+    cleaned, err = logic.validate_assessment(
+        {"management": "followed", "management_issue": "none"})
+    assert err is None
+    assert cleaned["management_issue"] == "none"
+
+
+def test_validate_rejects_a_process_violation_on_an_a_grade():
+    """The field is only asked on B or C; an A-game violation is a contradiction."""
+    _, err = logic.validate_assessment(
+        {"grade": "A", "process_violation": "revenge_trade"})
+    assert err is not None and "process_violation" in err
+
+
+def test_validate_allows_process_violation_none_on_an_a_grade():
+    cleaned, err = logic.validate_assessment({"grade": "A", "process_violation": "none"})
+    assert err is None
+
+
+def test_validate_rejects_a_fear_emotion_at_entry():
+    _, err = logic.validate_assessment({"emotion_entry": "fear_of_giving_back"})
+    assert err is not None and "emotion_entry" in err
+
+
+def test_validate_drops_unknown_keys_without_erroring():
+    cleaned, err = logic.validate_assessment({"grade": "A", "sneaky": "value"})
+    assert err is None
+    assert "sneaky" not in cleaned
+
+
+def test_validate_accepts_an_empty_payload():
+    cleaned, err = logic.validate_assessment({})
+    assert err is None and cleaned == {}
+
+
+def test_post_assessment_to_a_journal_trade(client, tmp_db, day_id):
+    trade_id = db.insert_trade(day_id, 1, "Long", 3, 7756.0, 7795.5, 1035.0,
+                               "10:05", "10:40")
+    res = client.post(f"/api/trade/{trade_id}/assessment",
+                      json={"grade": "A", "management": "followed", "emotion": "calm"})
+    assert res.status_code == 200
+    with db.get_conn() as conn:
+        row = conn.execute("SELECT * FROM trades WHERE id = ?", (trade_id,)).fetchone()
+    assert (row["grade"], row["management"], row["emotion"]) == ("A", "followed", "calm")
+
+
+def test_post_assessment_rejects_an_invalid_value(client, tmp_db, day_id):
+    trade_id = db.insert_trade(day_id, 1, "Long", 3, 7756.0, 7795.5, 1035.0,
+                               "10:05", "10:40")
+    res = client.post(f"/api/trade/{trade_id}/assessment", json={"grade": "D"})
+    assert res.status_code == 400
+    with db.get_conn() as conn:
+        assert conn.execute("SELECT grade FROM trades WHERE id = ?",
+                            (trade_id,)).fetchone()["grade"] is None
+
+
+def test_post_assessment_to_a_live_trade(client, tmp_db):
+    live_id = db.create_live_trade(None, "Long", "MES", 7756.0, "10:05", 3, "full")
+    res = client.post(f"/api/live/{live_id}/assessment",
+                      json={"grade": "C", "process_violation": "revenge_trade"})
+    assert res.status_code == 200
+    lt = db.get_live_trade(live_id)
+    assert lt["grade"] == "C"
+    assert lt["process_violation"] == "revenge_trade"

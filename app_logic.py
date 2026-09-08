@@ -676,6 +676,72 @@ def get_plan_check_from_date():
     return value or DEFAULT_PLAN_CHECK_FROM_DATE
 
 
+# ── Trade assessment vocabularies ────────────────────────────────────────────
+# One A/B/C grade plus a small number of diagnostic tags. The grade is always
+# the trader's judgement — never derived — because a formula cannot see which
+# version of them showed up, and P&L has no vote either way.
+
+GRADES = ("A", "B", "C")
+MANAGEMENT = ("followed", "deviated")
+MANAGEMENT_ISSUES = ("none", "early_exit", "late_exit", "stop_change",
+                     "overmanaged", "under_managed", "premature_scale_out")
+EMOTIONS = ("calm", "fear_of_loss", "fear_of_giving_back", "greed",
+            "frustration", "impatience", "overconfidence", "distracted")
+# Fear of loss and fear of giving back both require an open position, so
+# offering them before entry invites a nonsense answer.
+ENTRY_EMOTIONS = tuple(e for e in EMOTIONS
+                       if e not in ("fear_of_loss", "fear_of_giving_back"))
+PROCESS_VIOLATIONS = ("none", "traded_outside_plan", "exceeded_risk",
+                      "revenge_trade", "overtraded")
+
+_ASSESSMENT_VOCAB = {
+    "grade": GRADES,
+    "management": MANAGEMENT,
+    "management_issue": MANAGEMENT_ISSUES,
+    "emotion": EMOTIONS,
+    "emotion_entry": ENTRY_EMOTIONS,
+    "process_violation": PROCESS_VIOLATIONS,
+}
+
+
+def validate_assessment(fields):
+    """Clean and check an assessment payload.
+
+    Returns (cleaned, error). `cleaned` holds only known keys with valid
+    values; `error` is a human-readable string or None. Unknown keys are
+    dropped silently rather than rejected — the caller is a form post that
+    may carry extra state — but a known key with a bad value is an error,
+    because silently discarding it would lose data the trader entered.
+    """
+    cleaned = {}
+    for key, vocab in _ASSESSMENT_VOCAB.items():
+        if key not in fields:
+            continue
+        value = fields[key]
+        if value in (None, ""):
+            cleaned[key] = None
+            continue
+        if value not in vocab:
+            return {}, f"{key} must be one of {', '.join(vocab)}"
+        cleaned[key] = value
+
+    if "pre_tags_late" in fields:
+        cleaned["pre_tags_late"] = 1 if fields["pre_tags_late"] else 0
+
+    # A management issue describes what the deviation was, so it is meaningless
+    # without one. 'none' is always allowed.
+    issue = cleaned.get("management_issue")
+    if issue and issue != "none" and cleaned.get("management") != "deviated":
+        return {}, "management_issue requires management to be 'deviated'"
+
+    # The violation field is only asked on a B or C grade.
+    violation = cleaned.get("process_violation")
+    if violation and violation != "none" and cleaned.get("grade") == "A":
+        return {}, "process_violation cannot be set on an A grade"
+
+    return cleaned, None
+
+
 def get_plan_capture_bounds():
     """(low, high) — below low is cut_early, above high is ran_past."""
     return (_config_float("plan_capture_low", DEFAULT_PLAN_CAPTURE_LOW),
