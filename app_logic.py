@@ -832,6 +832,77 @@ def classify_bucket(capture, bounds=None):
     return "ran_past"
 
 
+# The capture colour split inside at_plan: "scraped it" vs "took it". The
+# bucket boundaries themselves are unchanged; this only divides one of them.
+DEFAULT_PLAN_CAPTURE_MID = 0.80
+
+# Target fit bounds: how close the peak came to the planned exit.
+DEFAULT_TARGET_FIT_LOW = 0.80
+DEFAULT_TARGET_FIT_HIGH = 1.20
+
+
+def get_plan_capture_mid():
+    return _config_float("plan_capture_mid", DEFAULT_PLAN_CAPTURE_MID)
+
+
+def get_target_fit_bounds():
+    """(low, high) — below low the target was too far, above high too close."""
+    return (_config_float("target_fit_low", DEFAULT_TARGET_FIT_LOW),
+            _config_float("target_fit_high", DEFAULT_TARGET_FIT_HIGH))
+
+
+def compute_target_fit(direction, avg_entry, target, mfe_price):
+    """How far the peak got, as a share of the planned move.
+
+    1.0 means price reached the target exactly. This asks whether the PLAN was
+    reasonable, which is a different question from whether the trader waited
+    for it — that is `compute_capture`. Read one row at a time it is hindsight;
+    read across many trades it is calibration.
+    """
+    if target is None or mfe_price is None or avg_entry is None:
+        return None
+    sign = _dir_sign(direction)
+    planned = sign * (float(target) - float(avg_entry))
+    if abs(planned) < PLAN_EPSILON:
+        return None
+    return (sign * (float(mfe_price) - float(avg_entry))) / planned
+
+
+def classify_target_fit(target_fit, bounds=None):
+    if target_fit is None:
+        return None
+    low, high = get_target_fit_bounds() if bounds is None else bounds
+    if target_fit < low:
+        return "too_far"
+    if target_fit <= high:
+        return "calibrated"
+    return "too_close"
+
+
+def capture_band(capture, pnl):
+    """Colour band for the capture number, or None to render it blank.
+
+    Blank on a loss: the ratio compares an exit against a target that was never
+    in play. A scratch (pnl == 0) is not a loss and still renders.
+    """
+    if capture is None:
+        return None
+    try:
+        if float(pnl or 0) < 0:
+            return None
+    except (TypeError, ValueError):
+        return None
+    low, high = get_plan_capture_bounds()
+    mid = get_plan_capture_mid()
+    if capture < low:
+        return "red"
+    if capture < mid:
+        return "orange"
+    if capture <= high:
+        return "green"
+    return "blue"
+
+
 def target_was_offered(direction, target, mfe_price):
     """Did the recorded peak ever reach the planned exit?"""
     if target is None or mfe_price is None:
