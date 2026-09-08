@@ -111,75 +111,6 @@ def test_the_reported_trade_reads_as_at_plan_not_bailed_early(tmp_db, day_id):
     assert row["avg_entry"] == 7761.00
     assert round(row["capture"], 3) == 0.873
     assert row["bucket"] == "at_plan"
-    assert row["verdict"] is None, "at_plan carries no verdict; only cut_early splits three ways"
-
-
-# ── classify_verdict ─────────────────────────────────────────────────────────
-
-def test_verdict_froze_when_the_target_was_reached_before_the_exit():
-    v = logic.classify_verdict("cut_early", "Long", 7760.0, 7772.0, "during")
-    assert v == "froze_at_target"
-
-
-def test_verdict_bailed_when_the_target_was_reached_after_the_exit():
-    v = logic.classify_verdict("cut_early", "Long", 7760.0, 7772.0, "after")
-    assert v == "bailed_early"
-
-
-def test_verdict_market_didnt_pay_when_the_peak_never_reached_the_target():
-    v = logic.classify_verdict("cut_early", "Long", 7760.0, 7750.0, "after")
-    assert v == "market_didnt_pay"
-
-
-def test_verdict_counts_a_peak_exactly_at_the_target_as_offered():
-    v = logic.classify_verdict("cut_early", "Long", 7760.0, 7760.0, "during")
-    assert v == "froze_at_target"
-
-
-def test_verdict_is_direction_aware_for_shorts():
-    # short target 7715; a peak of 7700 is BETTER than the target
-    assert logic.classify_verdict("cut_early", "Short", 7715.0, 7700.0, "during") == "froze_at_target"
-    assert logic.classify_verdict("cut_early", "Short", 7715.0, 7730.0, "during") == "market_didnt_pay"
-
-
-def test_verdict_is_none_without_a_peak():
-    assert logic.classify_verdict("cut_early", "Long", 7760.0, None, None) is None
-
-
-def test_verdict_only_applies_to_cut_early():
-    assert logic.classify_verdict("at_plan", "Long", 7760.0, 7772.0, "during") is None
-    assert logic.classify_verdict("ran_past", "Long", 7760.0, 7772.0, "during") is None
-    assert logic.classify_verdict("stopped", "Long", 7760.0, 7772.0, "during") is None
-
-
-# ── exit_tag_signals ─────────────────────────────────────────────────────────
-
-def test_tag_conflict_when_tagged_target_hit_but_peak_never_reached_it():
-    sig = logic.exit_tag_signals(["Target hit"], False)
-    assert sig["conflict"] is True
-
-
-def test_tag_conflict_when_tagged_never_reached_but_peak_did_reach_it():
-    sig = logic.exit_tag_signals(["Target never reached"], True)
-    assert sig["conflict"] is True
-
-
-def test_no_tag_conflict_when_tag_and_peak_agree():
-    assert logic.exit_tag_signals(["Target hit"], True)["conflict"] is False
-    assert logic.exit_tag_signals(["Target never reached"], False)["conflict"] is False
-
-
-def test_tag_is_suggested_when_none_was_applied_and_the_target_was_never_offered():
-    assert logic.exit_tag_signals([], False)["suggestion"] == "Target never reached"
-
-
-def test_no_suggestion_when_a_tag_already_exists():
-    assert logic.exit_tag_signals(["Fear / Anxious"], False)["suggestion"] is None
-
-
-def test_no_tag_signals_without_a_peak():
-    sig = logic.exit_tag_signals(["Target hit"], None)
-    assert sig == {"conflict": False, "suggestion": None}
 
 
 # ── compute_excursion ────────────────────────────────────────────────────────
@@ -268,7 +199,6 @@ def test_build_plan_execution_assembles_rows(tmp_db, day_id):
     assert row["stop"] == 7688.5
     assert round(row["capture"], 4) == 0.3611
     assert row["bucket"] == "cut_early"
-    assert row["verdict"] is None          # no peak recorded yet
     assert row["excursion"] is None
 
 
@@ -279,10 +209,8 @@ def test_build_plan_execution_applies_the_peak(tmp_db, day_id):
     trades = db.get_trades_in_range(None, "2026-09-01", "2026-09-01")
 
     row = _rows_by_num(logic.build_plan_execution(trades))[1]
-    assert row["verdict"] == "froze_at_target"
     assert row["excursion"]["kind"] == "give_back"
     assert row["excursion"]["dollars"] == 611.25
-    assert row["target_offered"] is True
 
 
 def test_build_plan_execution_flags_a_partial_plan(tmp_db, day_id):
@@ -317,50 +245,10 @@ def test_summary_reports_coverage_over_all_trades(tmp_db, day_id):
     assert summary["coverage"]["total"] == 2
 
 
-def test_summary_verdicts_are_counted_over_the_covered_set_only(tmp_db, day_id):
-    a = _seed_trade(day_id, 1, "Long", 7715.0, 7731.25, 240.0,
-                    [(3, 7715.0, 7688.5, 7760.0)])
-    b = _seed_trade(day_id, 2, "Long", 7715.0, 7731.25, 240.0,
-                    [(3, 7715.0, 7688.5, 7760.0)])
-    _seed_trade(day_id, 3, "Long", 7715.0, 7731.25, 240.0,
-                [(3, 7715.0, 7688.5, 7760.0)])   # no peak
-    db.set_trade_mfe(a, 7772.0, "during", 30)
-    db.set_trade_mfe(b, 7750.0, "after", 30)
-
-    summary = logic.build_plan_execution(
-        db.get_trades_in_range(None, "2026-09-01", "2026-09-01"))["summary"]
-
-    assert summary["verdicts"]["froze_at_target"]["count"] == 1
-    assert summary["verdicts"]["market_didnt_pay"]["count"] == 1
-    assert summary["fear"]["count"] == 1, "market_didnt_pay must not count as fear"
-    assert summary["verdicts_of"] == 2, (
-        "denominator for verdict percentages is cut_early rows WITH a peak "
-        "(2 of the 3 cut_early trades), not all cut_early rows (3) and not "
-        "just the froze count (1)"
-    )
-
-
-def test_summary_target_realism_uses_the_covered_set(tmp_db, day_id):
-    a = _seed_trade(day_id, 1, "Long", 7715.0, 7731.25, 240.0,
-                    [(3, 7715.0, 7688.5, 7760.0)])
-    b = _seed_trade(day_id, 2, "Long", 7715.0, 7731.25, 240.0,
-                    [(3, 7715.0, 7688.5, 7760.0)])
-    db.set_trade_mfe(a, 7772.0, "during", 30)   # offered
-    db.set_trade_mfe(b, 7750.0, "after", 30)    # never offered
-
-    realism = logic.build_plan_execution(
-        db.get_trades_in_range(None, "2026-09-01", "2026-09-01"))["summary"]["realism"]
-
-    assert realism["offered"] == 1
-    assert realism["of"] == 2
-    assert realism["pct"] == 50.0
-
-
 def test_summary_survives_a_week_with_no_trades(tmp_db):
     result = logic.build_plan_execution([])
     assert result["rows"] == []
     assert result["summary"]["coverage"] == {"covered": 0, "total": 0}
-    assert result["summary"]["realism"]["pct"] is None
 
 
 def test_exit_tag_vocabulary_covers_the_reasons_the_data_cannot_derive(tmp_db):
@@ -497,12 +385,10 @@ def test_weekly_payload_carries_plan_execution(tmp_db):
     assert "plan_execution" in data
     pe = data["plan_execution"]
     assert pe["summary"]["coverage"] == {"covered": 1, "total": 1}
-    assert pe["rows"][0]["verdict"] == "froze_at_target"
-    assert pe["rows"][0]["tag_conflict"] is False
-    assert "tag_suggestion" in pe["rows"][0]
+    assert pe["rows"][0]["excursion"]["kind"] == "give_back"
 
 
 def test_weekly_payload_plan_execution_is_empty_for_a_quiet_week(tmp_db):
     data = logic.build_weekly_review_data(None, "2026-08-31")
     assert data["plan_execution"]["rows"] == []
-    assert data["plan_execution"]["summary"]["realism"]["pct"] is None
+    assert data["plan_execution"]["summary"]["graded_of"] == 0

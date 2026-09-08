@@ -879,11 +879,15 @@ def classify_target_fit(target_fit, bounds=None):
     return "too_close"
 
 
-def capture_band(capture, pnl):
+def capture_band(capture, pnl, bounds=None, mid=None):
     """Colour band for the capture number, or None to render it blank.
 
     Blank on a loss: the ratio compares an exit against a target that was never
     in play. A scratch (pnl == 0) is not a loss and still renders.
+
+    `bounds` and `mid` let a caller looping over many rows hoist the two
+    config reads out of the loop, mirroring `classify_bucket` and
+    `classify_target_fit`. Left as None, each call reads config itself.
     """
     if capture is None:
         return None
@@ -892,57 +896,15 @@ def capture_band(capture, pnl):
             return None
     except (TypeError, ValueError):
         return None
-    low, high = get_plan_capture_bounds()
-    mid = get_plan_capture_mid()
+    low, high = get_plan_capture_bounds() if bounds is None else bounds
+    m = get_plan_capture_mid() if mid is None else mid
     if capture < low:
         return "red"
-    if capture < mid:
+    if capture < m:
         return "orange"
     if capture <= high:
         return "green"
     return "blue"
-
-
-def target_was_offered(direction, target, mfe_price):
-    """Did the recorded peak ever reach the planned exit?"""
-    if target is None or mfe_price is None:
-        return None
-    return _dir_sign(direction) * (float(mfe_price) - float(target)) >= 0
-
-
-def classify_verdict(bucket, direction, target, mfe_price, mfe_timing):
-    """Three-way split of cut_early using the recorded peak.
-
-    Returns None when there is no peak — the bucket then stands on its own,
-    coarse but never wrong.
-    """
-    if bucket != "cut_early":
-        return None
-    if mfe_price is None or target is None or mfe_timing not in ("during", "after"):
-        return None
-    if not target_was_offered(direction, target, mfe_price):
-        return "market_didnt_pay"
-    return "froze_at_target" if mfe_timing == "during" else "bailed_early"
-
-
-def exit_tag_signals(exit_tags, target_offered):
-    """Reconcile the recorded exit tag against what the peak says was available.
-
-    The peak always wins for classification — nothing here feeds the verdict.
-    This only surfaces a disagreement for review rather than silently
-    reconciling it, since a disagreement usually means one of the two was
-    recorded carelessly. It also suggests the tag the data already implies
-    when none was applied.
-    """
-    if target_offered is None:
-        return {"conflict": False, "suggestion": None}
-    tags = set(exit_tags or [])
-    conflict = (("Target hit" in tags and not target_offered)
-                or ("Target never reached" in tags and target_offered))
-    suggestion = None
-    if not tags and not target_offered:
-        suggestion = "Target never reached"
-    return {"conflict": conflict, "suggestion": suggestion}
 
 
 def compute_excursion(direction, qty, instrument, avg_exit, mfe_price, mfe_timing):
@@ -969,31 +931,36 @@ def compute_excursion(direction, qty, instrument, avg_exit, mfe_price, mfe_timin
 
 
 _BUCKETS = ("stopped", "cut_early", "at_plan", "ran_past")
-_VERDICTS = ("froze_at_target", "bailed_early", "market_didnt_pay")
 
 
 def build_plan_execution(trades):
     """Per-trade plan-vs-execution rows plus the week roll-up.
 
-    Buckets are computed over every trade that has a target. Verdicts,
-    excursion and target realism are computed over the covered set only —
-    the trades with a recorded peak — because a percentage over a
-    self-selected subset would overstate whatever prompted the filling.
+    Buckets are computed over every trade that has a target. Excursion is
+    computed over the covered set only — the trades with a recorded peak —
+    because a percentage over a self-selected subset would overstate whatever
+    prompted the filling.
+
+    Two ratios describe the trade; only the trader's grade judges it. Capture
+    (exit vs target) asks whether the trader waited for the plan; target fit
+    (peak vs target) asks whether the plan was reasonable. Neither is a
+    verdict on its own — an early exit is only a mistake if unjustified by
+    process, never merely because price continued afterwards.
 
     The summary carries three deliberately different denominators; do not
     conflate them:
-      - summary["coverage"]["covered"] — rows with a recorded peak, of any
-        bucket.
-      - summary["realism"]["of"]       — rows with BOTH a target and a peak
-        (the set target_was_offered can judge).
-      - summary["verdicts_of"]         — cut_early rows with a peak (the set
-        a verdict was computed for). A consumer computing "% of early cuts
-        that were freezes" must divide by this, not by
-        buckets["cut_early"]["count"], or the self-selection bias this
-        design exists to prevent reappears one layer down.
+      - summary["coverage"]["covered"]     — rows with a recorded peak, of
+        any bucket.
+      - summary["target_fit_dist"]["of"]   — rows with BOTH a target and a
+        peak (the set classify_target_fit can judge).
+      - summary["graded_of"]               — rows carrying a trader-entered
+        grade. P&L has no vote here: a losing trade graded A still counts
+        as A.
     """
     trades = list(trades or [])
     bounds = get_plan_capture_bounds()
+    fit_bounds = get_target_fit_bounds()
+    capture_mid = get_plan_capture_mid()
     fills_by_trade = db.get_entry_fills_for_trades([t["id"] for t in trades])
 
     rows = []
@@ -1008,8 +975,8 @@ def build_plan_execution(trades):
         mfe_timing = t.get("mfe_timing")
         instrument = _trade_instrument(t)
         tags = t.get("tags") or {}
-        offered = target_was_offered(t.get("direction"), target, mfe_price)
-        tag_signals = exit_tag_signals(tags.get("exit"), offered)
+        target_fit = compute_target_fit(t.get("direction"), t.get("avg_entry"),
+                                        target, mfe_price)
         rows.append({
             "id": t["id"],
             "trade_num": t.get("trade_num"),
@@ -1027,27 +994,32 @@ def build_plan_execution(trades):
             "bucket": bucket,
             "mfe_price": mfe_price,
             "mfe_timing": mfe_timing,
-            "target_offered": offered,
-            "tag_conflict": tag_signals["conflict"],
-            "tag_suggestion": tag_signals["suggestion"],
-            "verdict": classify_verdict(bucket, t.get("direction"), target,
-                                        mfe_price, mfe_timing),
+            "grade": t.get("grade"),
+            "management": t.get("management"),
+            "management_issue": t.get("management_issue"),
+            "emotion": t.get("emotion"),
+            "emotion_entry": t.get("emotion_entry"),
+            "process_violation": t.get("process_violation"),
+            "target_fit": target_fit,
+            "target_fit_class": classify_target_fit(target_fit, fit_bounds),
+            "capture_band": capture_band(capture, t.get("pnl"), bounds, capture_mid),
             "excursion": compute_excursion(t.get("direction"), t.get("qty"), instrument,
                                            t.get("avg_exit"), mfe_price, mfe_timing),
             "risk": compute_tranche_risk(t.get("direction"), instrument,
                                          t.get("avg_entry"), stop, t.get("qty") or 0),
             "setup": ", ".join(tags.get("setup", [])) or "—",
             "level": ", ".join(tags.get("with", [])) or "—",
-            "exit_tag": ", ".join(tags.get("exit", [])) or "—",
             "notes": t.get("notes") or "",
             "notes_exit": t.get("notes_exit") or "",
         })
 
     buckets = {k: {"count": 0, "net": 0.0, "captures": []} for k in _BUCKETS}
-    verdicts = {k: {"count": 0, "net": 0.0, "captures": []} for k in _VERDICTS}
     no_plan = 0
     give_back = missed_run = 0.0
-    offered = of_covered = 0
+
+    grades = {g: {"count": 0, "net": 0.0} for g in GRADES}
+    fit_dist = {"too_far": 0, "calibrated": 0, "too_close": 0, "of": 0}
+    bc_issues, bc_emotions, bc_count = {}, {}, 0
 
     for r in rows:
         pnl = float(r["pnl"] or 0)
@@ -1059,21 +1031,24 @@ def build_plan_execution(trades):
             b["net"] += pnl
             if r["capture"] is not None:
                 b["captures"].append(r["capture"])
-        if r["verdict"]:
-            v = verdicts[r["verdict"]]
-            v["count"] += 1
-            v["net"] += pnl
-            if r["capture"] is not None:
-                v["captures"].append(r["capture"])
         if r["excursion"]:
             if r["excursion"]["kind"] == "give_back":
                 give_back += r["excursion"]["dollars"]
             else:
                 missed_run += r["excursion"]["dollars"]
-        if r["target_offered"] is not None:
-            of_covered += 1
-            if r["target_offered"]:
-                offered += 1
+        if r["grade"] in grades:
+            grades[r["grade"]]["count"] += 1
+            grades[r["grade"]]["net"] += pnl
+        cls = r["target_fit_class"]
+        if cls:
+            fit_dist[cls] += 1
+            fit_dist["of"] += 1
+        if r["grade"] in ("B", "C"):
+            bc_count += 1
+            if r["management_issue"] and r["management_issue"] != "none":
+                bc_issues[r["management_issue"]] = bc_issues.get(r["management_issue"], 0) + 1
+            if r["emotion"]:
+                bc_emotions[r["emotion"]] = bc_emotions.get(r["emotion"], 0) + 1
 
     def _finish(d):
         caps = d.pop("captures")
@@ -1082,14 +1057,17 @@ def build_plan_execution(trades):
         return d
 
     buckets = {k: _finish(v) for k, v in buckets.items()}
-    verdicts = {k: _finish(v) for k, v in verdicts.items()}
+
+    for g in grades:
+        grades[g]["net"] = round(grades[g]["net"], 2)
+
+    def _top(counts):
+        if not counts:
+            return None
+        key = max(counts, key=lambda k: (counts[k], k))
+        return (key, counts[key])
 
     covered = sum(1 for r in rows if r["mfe_price"] is not None)
-    verdicts_of = sum(1 for r in rows if r["bucket"] == "cut_early" and r["mfe_price"] is not None)
-    fear_caps = [r["capture"] for r in rows
-                 if r["verdict"] in ("froze_at_target", "bailed_early")
-                 and r["capture"] is not None]
-    greed_rows = [r for r in rows if r["bucket"] == "ran_past" and float(r["pnl"] or 0) < 0]
 
     return {
         "rows": rows,
@@ -1098,26 +1076,16 @@ def build_plan_execution(trades):
             "capture_high": bounds[1],
             "window_minutes": get_mfe_window_minutes(),
             "buckets": buckets,
-            "verdicts": verdicts,
             "no_plan": no_plan,
             "coverage": {"covered": covered, "total": len(rows)},
-            "verdicts_of": verdicts_of,
             "give_back": round(give_back, 2),
             "missed_run": round(missed_run, 2),
-            "fear": {
-                "count": verdicts["froze_at_target"]["count"] + verdicts["bailed_early"]["count"],
-                "net": round(verdicts["froze_at_target"]["net"] + verdicts["bailed_early"]["net"], 2),
-                "avg_capture": round(sum(fear_caps) / len(fear_caps), 4) if fear_caps else None,
-            },
-            "greed": {
-                "count": len(greed_rows),
-                "net": round(sum(float(r["pnl"] or 0) for r in greed_rows), 2),
-            },
-            "realism": {
-                "offered": offered,
-                "of": of_covered,
-                "pct": round(offered / of_covered * 100, 1) if of_covered else None,
-            },
+            "grades": grades,
+            "graded_of": sum(g["count"] for g in grades.values()),
+            "target_fit_dist": fit_dist,
+            "bc_diagnosis": {"of": bc_count,
+                             "top_issue": _top(bc_issues),
+                             "top_emotion": _top(bc_emotions)},
         },
     }
 
