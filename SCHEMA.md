@@ -106,6 +106,13 @@ Individual trades recorded per day.
 | mfe_price          | REAL    | Nullable. Peak price the market offered from entry through exit + mfe_window_minutes. NULL means not observed. |
 | mfe_timing         | TEXT    | Nullable. 'during' (peak came before the exit) \| 'after' (peak came after the exit). |
 | mfe_window_minutes | INTEGER | Nullable. The window this observation was measured against, stamped at write time from app_config key `mfe_window_minutes` (default 30). |
+| grade              | TEXT    | Nullable. 'A' \| 'B' \| 'C'. The trader's judgement of which game they played. Never derived. |
+| management         | TEXT    | Nullable. 'followed' \| 'deviated'. Everything after entry until flat, including the exit. |
+| management_issue   | TEXT    | Nullable. none \| early_exit \| late_exit \| stop_change \| overmanaged \| under_managed \| premature_scale_out. Only meaningful when management='deviated'. |
+| emotion            | TEXT    | Nullable. calm \| fear_of_loss \| fear_of_giving_back \| greed \| frustration \| impatience \| overconfidence \| distracted. Recorded at review. |
+| emotion_entry      | TEXT    | Nullable. Same vocabulary minus the two fear states, which require an open position. Recorded at entry. |
+| process_violation  | TEXT    | Nullable. none \| traded_outside_plan \| exceeded_risk \| revenge_trade \| overtraded. Only asked when grade is B or C. |
+| pre_tags_late      | INTEGER | NOT NULL DEFAULT 0. 1 when pre-trade tags were first filled at review rather than at entry. |
 
 `market_state_json`: immutable photograph of the Context Market State strip at the entry fill
 (full factors + strength + computed badge). Written once; carried over from `live_trades` on the
@@ -116,6 +123,10 @@ push-to-journal. NULL for imports / pre-feature trades. See LIVE_TRADES below.
 > a distinction planned-vs-actual prices cannot make on their own. The window is stored per
 > observation so retuning the config leaves existing rows interpretable. No source column:
 > `mfe_price IS NULL` already means not observed.
+
+> P&L has no vote on `grade`: a losing trade can be A-game and a profitable trade can be C-game.
+> `execution_score_json` is retained for historical trades but is no longer written or read.
+> The same seven columns exist on `live_trades` and are carried across on push.
 
 ---
 
@@ -217,8 +228,18 @@ Active live trades during trading sessions.
 | notes_monitoring | TEXT    | NOT NULL DEFAULT ''                    |
 | notes_exit       | TEXT    | NOT NULL DEFAULT ''                    |
 | guard_json       | TEXT    | NOT NULL DEFAULT ''                    |
+| grade              | TEXT    | Nullable. Same vocabulary as TRADES.grade. |
+| management         | TEXT    | Nullable. Same vocabulary as TRADES.management. |
+| management_issue   | TEXT    | Nullable. Same vocabulary as TRADES.management_issue. |
+| emotion            | TEXT    | Nullable. Same vocabulary as TRADES.emotion. |
+| emotion_entry      | TEXT    | Nullable. Same vocabulary as TRADES.emotion_entry. |
+| process_violation  | TEXT    | Nullable. Same vocabulary as TRADES.process_violation. |
+| pre_tags_late      | INTEGER | NOT NULL DEFAULT 0. Same as TRADES.pre_tags_late. |
 
 `initial_risk` is the dollar risk of the original stop plan, pinned at trade creation. It stays stable even when stops are later tightened — used by the Review tab risk-left bar as the reference extent so the fill shrinks against a fixed ghost.
+
+> The seven assessment columns above are identical to TRADES (see §3) and are carried across to
+> `trades` on push-to-journal.
 
 `guard_json` stores the pre-trade execution guard data as JSON: `{"tech":["developing_value","volume_tempo",...],"repeatable":true,"entry_mode":"strength","mental_state":"patient","score":20}`. Mental states: `patient` (+5), `intuition` (+3), `eager` (-5). Max score: 20.
 

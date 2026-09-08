@@ -341,6 +341,28 @@ def init_db():
         if "mfe_window_minutes" not in trade_cols:
             conn.execute("ALTER TABLE trades ADD COLUMN mfe_window_minutes INTEGER")
 
+        # Migration: A/B/C grade and the five diagnostic fields. Scalar columns
+        # rather than a JSON blob because every analytic question over them is a
+        # GROUP BY on two fields; execution_score_json is the blob shape that
+        # makes those questions awkward today. NULL means not recorded and is
+        # never coerced — historical trades carry NULL and are reported as
+        # uncovered rather than counted as something.
+        _ASSESSMENT_COLS = [
+            ("grade", "TEXT"),
+            ("management", "TEXT"),
+            ("management_issue", "TEXT"),
+            ("emotion", "TEXT"),
+            ("emotion_entry", "TEXT"),
+            ("process_violation", "TEXT"),
+            ("pre_tags_late", "INTEGER NOT NULL DEFAULT 0"),
+        ]
+        for _table in ("trades", "live_trades"):
+            _existing = [r[1] for r in conn.execute(
+                f"PRAGMA table_info({_table})").fetchall()]
+            for _col, _decl in _ASSESSMENT_COLS:
+                if _col not in _existing:
+                    conn.execute(f"ALTER TABLE {_table} ADD COLUMN {_col} {_decl}")
+
         # Migration: add execution_json to trades
         trade_cols = [r[1] for r in conn.execute("PRAGMA table_info(trades)").fetchall()]
         if "execution_json" not in trade_cols:
@@ -1203,13 +1225,17 @@ def get_trade_by_id(trade_id):
         return td
 
 
-def insert_trade(day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open=False, execution_json=None, execution_score_json=None, context_id=None, market_state_json=None):
+def insert_trade(day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open=False, execution_json=None, execution_score_json=None, context_id=None, market_state_json=None,
+                 grade=None, management=None, management_issue=None, emotion=None,
+                 emotion_entry=None, process_violation=None, pre_tags_late=0):
     with get_conn() as conn:
         cur = conn.execute("""
             INSERT INTO trades
-                (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open, execution_json, execution_score_json, context_id, market_state_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, 1 if is_open else 0, execution_json, execution_score_json, context_id, market_state_json))
+                (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open, execution_json, execution_score_json, context_id, market_state_json,
+                 grade, management, management_issue, emotion, emotion_entry, process_violation, pre_tags_late)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, 1 if is_open else 0, execution_json, execution_score_json, context_id, market_state_json,
+              grade, management, management_issue, emotion, emotion_entry, process_violation, pre_tags_late))
         return cur.lastrowid
 
 
@@ -1276,6 +1302,27 @@ def update_trade_notes(trade_id, notes, notes_monitoring=None, notes_exit=None):
             vals.append(notes_exit)
         vals.append(trade_id)
         conn.execute(f"UPDATE trades SET {', '.join(sets)} WHERE id = ?", vals)
+
+
+_ASSESSMENT_FIELDS = ("grade", "management", "management_issue", "emotion",
+                      "emotion_entry", "process_violation", "pre_tags_late")
+
+
+def set_trade_assessment(trade_id, **fields):
+    """Write any subset of the assessment fields onto a journal trade.
+
+    Diagnosis happens after the session, often one field at a time, so a
+    partial write must leave the others alone. Keys are filtered against a
+    fixed allowlist because the caller is a route handler passing a request
+    body through — an unknown key must never reach the SQL string.
+    """
+    known = {k: v for k, v in fields.items() if k in _ASSESSMENT_FIELDS}
+    if not known:
+        return
+    sets = ", ".join(f"{k} = ?" for k in known)
+    with get_conn() as conn:
+        conn.execute(f"UPDATE trades SET {sets} WHERE id = ?",
+                     list(known.values()) + [trade_id])
 
 
 def set_trade_mfe(trade_id, mfe_price, mfe_timing, mfe_window_minutes):
