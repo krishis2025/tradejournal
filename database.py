@@ -848,6 +848,25 @@ def init_db():
         # exit override. Append-only and idempotent.
         _migrate_append_missing_exit_tags(conn)
 
+        # One-shot: retire the 'exit' tag group. Its vocabulary is superseded by
+        # management_issue (what changed), emotion (why) and the target-fit ratio
+        # (what price did). get_tag_groups() serves a DB override wholesale, so
+        # removing it from TAG_GROUPS is not enough — the rows must go.
+        #
+        # Runs AFTER the 4.8.2 append and does not clear that migration's flag:
+        # on a fresh database the append adds the vocabulary once, this removes
+        # it once, and neither runs again. trade_tags is deliberately untouched
+        # so historical trades keep the exit tags they were given.
+        already = conn.execute(
+            "SELECT 1 FROM app_config WHERE key = 'migration_exit_group_retired'"
+        ).fetchone()
+        if not already:
+            conn.execute("DELETE FROM tag_config WHERE group_id = 'exit'")
+            conn.execute(
+                "INSERT OR REPLACE INTO app_config (key, value) VALUES "
+                "('migration_exit_group_retired', '1')"
+            )
+
 
 def _migrate_append_missing_exit_tags(conn):
     """Append any app_logic.TAG_GROUPS exit tags missing from a pre-existing
