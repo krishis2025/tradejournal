@@ -312,3 +312,38 @@ def test_post_assessment_live_rejects_a_violation_against_a_stored_a_grade(clien
     assert res.status_code == 400
     lt = db.get_live_trade(live_id)
     assert lt["process_violation"] is None
+
+
+def test_push_carries_the_assessment_to_the_journal(client, tmp_db):
+    live_id = db.create_live_trade(None, "Long", "MES", 7756.0, "10:05", 3, "full")
+    db.add_live_trade_execution(live_id, "OPEN", 1, 3, 7756.0, "10:05", 0.0)
+    db.add_live_trade_execution(live_id, "EXIT", 1, 3, 7786.0, "10:40", 450.0)
+    db.update_live_trade(live_id, grade="B", management="deviated",
+                         management_issue="early_exit",
+                         emotion="fear_of_giving_back", emotion_entry="impatience",
+                         process_violation="none", pre_tags_late=1)
+
+    trade_id = logic.close_live_trade_to_journal(live_id)
+
+    with db.get_conn() as conn:
+        row = conn.execute("SELECT * FROM trades WHERE id = ?", (trade_id,)).fetchone()
+    assert row["grade"] == "B"
+    assert row["management"] == "deviated"
+    assert row["management_issue"] == "early_exit"
+    assert row["emotion"] == "fear_of_giving_back"
+    assert row["emotion_entry"] == "impatience"
+    assert row["process_violation"] == "none"
+    assert row["pre_tags_late"] == 1
+
+
+def test_push_of_an_ungraded_trade_leaves_the_fields_null(tmp_db):
+    live_id = db.create_live_trade(None, "Long", "MES", 7756.0, "10:05", 3, "full")
+    db.add_live_trade_execution(live_id, "OPEN", 1, 3, 7756.0, "10:05", 0.0)
+    db.add_live_trade_execution(live_id, "EXIT", 1, 3, 7786.0, "10:40", 450.0)
+
+    trade_id = logic.close_live_trade_to_journal(live_id)
+
+    with db.get_conn() as conn:
+        row = conn.execute("SELECT * FROM trades WHERE id = ?", (trade_id,)).fetchone()
+    assert row["grade"] is None
+    assert row["pre_tags_late"] == 0

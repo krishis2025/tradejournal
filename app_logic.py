@@ -1665,6 +1665,13 @@ def close_live_trade_to_journal(live_trade_id):
         execution_score_json=lt.get("execution_score_json"),
         context_id=lt.get("context_id"),
         market_state_json=lt.get("market_state_json"),  # carry the frozen snapshot onto the journaled trade
+        grade=lt.get("grade"),
+        management=lt.get("management"),
+        management_issue=lt.get("management_issue"),
+        emotion=lt.get("emotion"),
+        emotion_entry=lt.get("emotion_entry"),
+        process_violation=lt.get("process_violation"),
+        pre_tags_late=lt.get("pre_tags_late") or 0,
     )
 
     # Save tags from live trade
