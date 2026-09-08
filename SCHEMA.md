@@ -125,7 +125,8 @@ push-to-journal. NULL for imports / pre-feature trades. See LIVE_TRADES below.
 > `mfe_price IS NULL` already means not observed.
 
 > P&L has no vote on `grade`: a losing trade can be A-game and a profitable trade can be C-game.
-> `execution_score_json` is retained for historical trades but is no longer written or read.
+> `execution_score_json` is being replaced by the seven columns above. It is still written and read by
+> the live-trade execution-score flow until that migration completes; new analysis reads the columns.
 > The same seven columns exist on `live_trades` and are carried across on push.
 
 ---
