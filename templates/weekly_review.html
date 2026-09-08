@@ -101,6 +101,10 @@ table.wr-table td.num { font-family: 'JetBrains Mono', monospace; text-align: ri
 .wr-pe-partial { font-size:9px; color:#ffb347; margin-left:4px; }
 .wr-pe-conflict { font-size:9px; color:#ff6b6b; border:0.5px solid #ff6b6b; border-radius:3px; padding:1px 5px; margin-left:6px; }
 .wr-pe-suggest { font-size:9px; color:var(--muted2); border:0.5px solid var(--border2); border-radius:3px; padding:1px 5px; margin-left:6px; }
+.wr-cap-red    { color: #c0392b; }
+.wr-cap-orange { color: #ffb347; }
+.wr-cap-green  { color: var(--green); }
+.wr-cap-blue   { color: #4aa3f0; }
 
 /* Lessons filmstrip */
 .wr-film { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; }
@@ -259,12 +263,20 @@ table.wr-table td.num { font-family: 'JetBrains Mono', monospace; text-align: ri
   <div class="wr-zone">
     <div class="wr-zone-title">Behavior &amp; Process</div>
     {% set b = data.behavior %}
+    {% set pe_s = data.plan_execution.summary %}
     <div class="wr-beh-grid">
       <div class="wr-beh-card"><div class="lbl">Came to me</div><div class="val {{ 'pos' if b.came_to_me.net >= 0 else 'neg' }}">{{ money(b.came_to_me.net) }}</div><div class="sub">{{ b.came_to_me.count }} trades</div></div>
       <div class="wr-beh-card"><div class="lbl">Impulsive</div><div class="val {{ 'pos' if b.impulse.net >= 0 else 'neg' }}">{{ money(b.impulse.net) }}</div><div class="sub">{{ b.impulse.count }} trades</div></div>
-      <div class="wr-beh-card"><div class="lbl">Avg Exec Score</div><div class="val">{% if b.avg_exec_score is not none %}{{ b.avg_exec_score }}{% else %}—{% endif %}</div><div class="sub">{{ b.scored_count }} scored</div></div>
+      {% for g in ['A', 'B', 'C'] %}
+      <div class="wr-beh-card">
+        <div class="lbl">{{ g }}-game</div>
+        <div class="val {{ 'pos' if pe_s.grades[g].net >= 0 else 'neg' }}">{{ money(pe_s.grades[g].net) }}</div>
+        <div class="sub">{{ pe_s.grades[g].count }} trades</div>
+      </div>
+      {% endfor %}
       <div class="wr-beh-card"><div class="lbl">Planned vs Fear</div><div class="val"><span class="pos">{{ money(b.planned_net) }}</span> / <span class="neg">{{ money(b.fear_bail_net) }}</span></div><div class="sub">exit discipline</div></div>
     </div>
+    <div class="wr-pe-coverage">Graded {{ pe_s.graded_of }} of {{ data.plan_execution.rows|length }} trades.</div>
 
     <div class="wr-sub-title">Setup performance</div>
     {% if b.setup_table %}
@@ -318,62 +330,63 @@ table.wr-table td.num { font-family: 'JetBrains Mono', monospace; text-align: ri
       {% endif %}
     </div>
 
-    <div class="wr-pe-coverage">Peak recorded on {{ s.coverage.covered }} of {{ s.coverage.total }} trades{% if s.coverage.covered > 0 and s.coverage.covered < s.coverage.total %} — verdicts below cover only those{% endif %}.</div>
+    <div class="wr-pe-coverage">Peak recorded on {{ s.coverage.covered }} of {{ s.coverage.total }} trades.</div>
+
+    {% if s.target_fit_dist.of %}
+    <div class="wr-pe-headline">
+      Targets: {{ s.target_fit_dist.too_far }} too far ·
+      {{ s.target_fit_dist.calibrated }} well calibrated ·
+      {{ s.target_fit_dist.too_close }} too close
+      <span class="realism">across {{ s.target_fit_dist.of }} trades with a peak and a target.</span>
+    </div>
+    {% endif %}
+
+    {% if s.bc_diagnosis.of %}
+    <div class="wr-pe-headline">
+      Across {{ s.bc_diagnosis.of }} B/C trade{{ 's' if s.bc_diagnosis.of != 1 }}:
+      {% if s.bc_diagnosis.top_issue %}most common issue
+      <span class="fear">{{ s.bc_diagnosis.top_issue[0].replace('_', ' ') }}</span>
+      ({{ s.bc_diagnosis.top_issue[1] }}){% endif %}{% if s.bc_diagnosis.top_issue and s.bc_diagnosis.top_emotion %};
+      {% endif %}{% if s.bc_diagnosis.top_emotion %}most common emotion
+      <span class="fear">{{ s.bc_diagnosis.top_emotion[0].replace('_', ' ') }}</span>
+      ({{ s.bc_diagnosis.top_emotion[1] }}){% endif %}.
+    </div>
+    {% endif %}
 
     {% if s.coverage.covered %}
     <div class="wr-pe-bands">
-      {% for key, label in [('froze_at_target','Froze at target'), ('bailed_early','Bailed early'), ('market_didnt_pay',"Market didn't pay")] %}
-      <div class="wr-pe-tile">
-        <div class="lbl">{{ label }}</div>
-        <div class="val {{ 'pos' if s.verdicts[key].net >= 0 else 'neg' }}">{{ money(s.verdicts[key].net) }}</div>
-        <div class="sub">{{ s.verdicts[key].count }} trades</div>
-      </div>
-      {% endfor %}
       <div class="wr-pe-tile"><div class="lbl">Give-back</div><div class="val neg">{{ money(s.give_back) }}</div><div class="sub">returned before exit</div></div>
       <div class="wr-pe-tile"><div class="lbl">Missed run</div><div class="val">{{ money(s.missed_run) }}</div><div class="sub">after exit</div></div>
-    </div>
-
-    <div class="wr-pe-headline">
-      {% if s.fear.count %}
-      <span class="fear">{{ s.fear.count }} trade{{ 's' if s.fear.count != 1 }} cut{% if s.fear.avg_capture is not none %} at an average {{ '{:.0f}'.format(s.fear.avg_capture * 100) }}% of plan{% endif %} while the target was on the table.</span>
-      {% endif %}
-      {% if s.greed.count %}
-      <span class="greed">{{ s.greed.count }} trade{{ 's' if s.greed.count != 1 }} held past plan and closed red ({{ money(s.greed.net) }}).</span>
-      {% endif %}
-      {% if s.realism.pct is not none %}
-      <span class="realism">Target was reachable on {{ s.realism.offered }} of {{ s.realism.of }} planned trades with a peak ({{ s.realism.pct }}%){% if s.realism.pct < 50 %} — targets may be set too far out, which reads like fear but needs the opposite fix{% endif %}.</span>
-      {% endif %}
     </div>
     {% endif %}
 
     <table class="wr-table">
       <thead><tr>
-        <th>Date</th><th>Setup</th><th>Level</th>
+        <th>Date</th><th>Setup</th><th>Grade</th><th>Level</th>
         <th class="num">Stop</th><th class="num">Entry</th><th class="num">Plan</th><th class="num">Actual</th><th class="num">Peak</th>
-        <th class="num">Capture</th><th>Verdict</th><th class="num">Size/Risk</th>
+        <th class="num">Capture</th><th class="num">P&amp;L</th><th class="num">Size/Risk</th>
       </tr></thead>
       <tbody>
         {% for r in pe.rows %}
         <tr>
           <td>{{ r.date }}</td>
           <td>{{ r.setup }}</td>
+          <td>{% if r.grade %}<span class="wr-pe-v">{{ r.grade }}</span>{% else %}—{% endif %}</td>
           <td>{{ r.level }}</td>
           <td class="num">{% if r.stop %}{{ '%.2f'|format(r.stop) }}{% else %}—{% endif %}</td>
           <td class="num">{{ '%.2f'|format(r.avg_entry) }}</td>
           <td class="num">{% if r.target %}{{ '%.2f'|format(r.target) }}{% if r.partial_plan %}<span class="wr-pe-partial" title="some entries had no target">partial</span>{% endif %}{% else %}—{% endif %}</td>
           <td class="num">{{ '%.2f'|format(r.avg_exit) }}</td>
           <td class="num">{% if r.mfe_price %}{{ '%.2f'|format(r.mfe_price) }} <span class="wr-pe-partial">{{ 'dur' if r.mfe_timing == 'during' else 'aft' }}</span>{% else %}—{% endif %}</td>
-          <td class="num">{% if r.capture is not none %}{{ '{:.2f}'.format(r.capture) }}{% else %}—{% endif %}</td>
-          <td>{% if r.verdict %}<span class="wr-pe-v {{ r.verdict }}">{{ r.verdict.replace('_', ' ') }}</span>{% else %}{{ r.bucket.replace('_', ' ') }}{% endif %}</td>
+          <td class="num">{% if r.capture_band %}<span class="wr-cap-{{ r.capture_band }}">{{ '{:.2f}'.format(r.capture) }}</span>{% else %}—{% endif %}</td>
+          <td class="num {{ 'pos' if r.pnl >= 0 else 'neg' }}">{{ money(r.pnl) }}</td>
           <td class="num">{{ r.qty }}{% if r.risk %} · {{ money(r.risk) }}{% endif %}</td>
         </tr>
-        {% if r.notes or r.notes_exit or r.exit_tag != '—' %}
-        <tr><td colspan="11" class="wr-pe-why">
+        {% if r.notes or r.notes_exit %}
+        <tr><td colspan="12" class="wr-pe-why">
           {% if r.notes %}in: {{ r.notes }}{% endif %}
-          {% if r.notes and (r.notes_exit or r.exit_tag != '—') %} · {% endif %}
-          {% if r.exit_tag != '—' or r.notes_exit %}out: {% if r.exit_tag != '—' %}{{ r.exit_tag }}{% endif %}{% if r.exit_tag != '—' and r.notes_exit %} — {% endif %}{{ r.notes_exit }}{% endif %}
-          {% if r.tag_conflict %}<span class="wr-pe-conflict" title="the exit tag disagrees with the recorded peak — one of them was recorded carelessly">tag disagrees with peak</span>{% endif %}
-          {% if r.tag_suggestion %}<span class="wr-pe-suggest" title="derived from the peak; not applied automatically">suggests: {{ r.tag_suggestion }}</span>{% endif %}
+          {% if r.notes and r.notes_exit %} · {% endif %}
+          {% if r.notes_exit %}out: {{ r.notes_exit }}{% endif %}
         </td></tr>
         {% endif %}
         {% endfor %}
