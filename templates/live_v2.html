@@ -834,33 +834,6 @@
 .es-commit-btn:hover { background: var(--btn-hover); }
 
 /* ── REVIEW v2 Scoring ── */
-.rv2-score-header {
-  text-align: center; padding: 20px 16px; border-radius: 8px;
-  background: rgba(255,255,255,0.02); border: 0.5px solid rgba(255,255,255,0.06);
-}
-.rv2-score-title {
-  font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 600;
-  letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.35);
-}
-.rv2-score-big {
-  font-family: 'Inter', sans-serif; font-size: 3rem; font-weight: 700;
-  color: #f5a623; line-height: 1.1; margin: 8px 0 4px;
-}
-.rv2-score-max { font-size: 1.2rem; font-weight: 400; color: rgba(255,255,255,0.3); }
-.rv2-score-breakdown {
-  display: flex; justify-content: center; gap: 0; margin-top: 12px;
-}
-.rv2-bd-item {
-  flex: 1; text-align: center; padding: 0 12px;
-  border-right: 0.5px solid rgba(255,255,255,0.08);
-}
-.rv2-bd-item:last-child { border-right: none; }
-.rv2-bd-val { font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700; color: var(--text); }
-.rv2-bd-label {
-  font-family: 'Inter', sans-serif; font-size: 7px; font-weight: 600;
-  letter-spacing: 1.2px; text-transform: uppercase; color: rgba(255,255,255,0.3); margin-top: 2px;
-}
-
 .rv2-recap {
   padding: 12px 14px; border-radius: 8px;
   background: rgba(255,255,255,0.02); border: 0.5px solid rgba(255,255,255,0.06);
@@ -888,12 +861,7 @@
 .rv2-pill-on { background: rgba(0,208,132,0.08); color: rgba(0,208,132,0.65); }
 .rv2-pill-off { background: rgba(255,77,77,0.06); color: rgba(255,77,77,0.4); text-decoration: line-through; }
 
-.rv2-q-section { margin-top: 8px; }
-.rv2-q-label {
-  font-family: 'Inter', sans-serif; font-size: 8px; font-weight: 600;
-  letter-spacing: 1.2px; text-transform: uppercase; color: rgba(255,255,255,0.3);
-  margin-bottom: 8px;
-}
+.rv2-section { margin-top: 8px; }
 .rv2-q-title {
   font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700;
   color: var(--text); margin-bottom: 4px;
@@ -902,10 +870,13 @@
   font-family: 'Inter', sans-serif; font-size: 11px;
   color: rgba(255,255,255,0.35); margin-bottom: 12px;
 }
-.rv2-q-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* Grade cards: stacked full-width, since each carries a paragraph of
+   framework definition text rather than a short label. */
+.rv2-grade-row { display: flex; flex-direction: column; gap: 8px; }
 .rv2-q-opt {
   background: #1c2230; border: 0.5px solid rgba(255,255,255,0.1);
-  border-radius: 5px; padding: 8px; cursor: pointer; text-align: center;
+  border-radius: 5px; padding: 10px 12px; cursor: pointer; text-align: left;
   transition: all 0.15s ease; user-select: none;
 }
 .rv2-q-opt:hover { border-color: rgba(255,255,255,0.2); }
@@ -913,39 +884,49 @@
   background: rgba(0,208,132,0.1); border-color: rgba(0,208,132,0.35);
 }
 .rv2-q-opt-title {
-  font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 600;
-  color: rgba(255,255,255,0.45);
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700;
+  color: rgba(255,255,255,0.6);
 }
 .rv2-q-opt.selected .rv2-q-opt-title { color: #00d084; }
 .rv2-q-opt-sub {
-  font-family: 'Inter', sans-serif; font-size: 8px; opacity: 0.7;
-  color: rgba(255,255,255,0.3); margin-top: 2px;
+  font-family: 'Inter', sans-serif; font-size: 10px; line-height: 1.5;
+  color: rgba(255,255,255,0.35); margin-top: 4px;
 }
 
-.rv2-save-btn {
-  width: 100%; padding: 14px; margin-top: 16px;
-  background: rgba(0,208,132,0.12); border: 0.5px solid rgba(0,208,132,0.3);
-  border-radius: 8px; color: #00d084; font-family: 'Inter', sans-serif;
-  font-weight: 700; font-size: 11px; letter-spacing: 1.5px;
-  text-transform: uppercase; cursor: pointer; transition: all 0.2s;
+/* Management: two-way toggle row (followed / deviated). */
+.rv2-q-row { display: flex; gap: 8px; }
+.rv2-mgmt-btn {
+  flex: 1; text-align: center; padding: 10px 8px;
+  background: #1c2230; border: 0.5px solid rgba(255,255,255,0.1);
+  border-radius: 5px; cursor: pointer; user-select: none;
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600;
+  color: rgba(255,255,255,0.5); transition: all 0.15s ease;
 }
-.rv2-save-btn:hover { background: rgba(0,208,132,0.18); border-color: rgba(0,208,132,0.5); }
+.rv2-mgmt-btn:hover { border-color: rgba(255,255,255,0.2); }
+.rv2-mgmt-btn.selected {
+  background: rgba(0,208,132,0.1); border-color: rgba(0,208,132,0.35); color: #00d084;
+}
+
+/* Diagnosis chips: management issue / emotion / process violation. */
+.rv2-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.rv2-chip {
+  padding: 6px 10px; border-radius: 4px; cursor: pointer; user-select: none;
+  background: #1c2230; border: 0.5px solid rgba(255,255,255,0.1);
+  font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 600;
+  color: rgba(255,255,255,0.45); transition: all 0.15s ease;
+}
+.rv2-chip:hover { border-color: rgba(255,255,255,0.2); }
+.rv2-chip.selected {
+  background: rgba(0,208,132,0.1); border-color: rgba(0,208,132,0.35); color: #00d084;
+}
 
 /* Paper overrides for review v2 */
-[data-theme="paper"] .rv2-score-header { background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.08); }
-[data-theme="paper"] .rv2-score-title { color: rgba(0,0,0,0.3); }
-[data-theme="paper"] .rv2-score-big { color: #8a6200; }
-[data-theme="paper"] .rv2-score-max { color: rgba(0,0,0,0.25); }
-[data-theme="paper"] .rv2-bd-item { border-right-color: rgba(0,0,0,0.08); }
-[data-theme="paper"] .rv2-bd-val { color: var(--text); }
-[data-theme="paper"] .rv2-bd-label { color: rgba(0,0,0,0.3); }
 [data-theme="paper"] .rv2-recap { background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.08); }
 [data-theme="paper"] .rv2-recap-title { color: rgba(0,0,0,0.25); }
 [data-theme="paper"] .rv2-recap-group-label { color: rgba(0,0,0,0.25); }
 [data-theme="paper"] .rv2-recap-sep { background: rgba(0,0,0,0.1); }
 [data-theme="paper"] .rv2-pill-on { background: rgba(0,150,80,0.08); color: rgba(0,120,60,0.7); }
 [data-theme="paper"] .rv2-pill-off { background: rgba(180,40,40,0.06); color: rgba(160,40,40,0.4); }
-[data-theme="paper"] .rv2-q-label { color: rgba(0,0,0,0.3); }
 [data-theme="paper"] .rv2-q-title { color: var(--text); }
 [data-theme="paper"] .rv2-q-sub { color: rgba(0,0,0,0.35); }
 [data-theme="paper"] .rv2-q-opt { background: #f5f0e8; border-color: rgba(0,0,0,0.1); }
@@ -954,10 +935,12 @@
 [data-theme="paper"] .rv2-q-opt-title { color: rgba(0,0,0,0.5); }
 [data-theme="paper"] .rv2-q-opt.selected .rv2-q-opt-title { color: #2d7a52; }
 [data-theme="paper"] .rv2-q-opt-sub { color: rgba(0,0,0,0.3); }
-[data-theme="paper"] .rv2-save-btn {
-  background: rgba(0,150,80,0.08); border-color: rgba(0,150,80,0.25); color: #2d7a52;
-}
-[data-theme="paper"] .rv2-save-btn:hover { background: rgba(0,150,80,0.14); }
+[data-theme="paper"] .rv2-mgmt-btn { background: #f5f0e8; border-color: rgba(0,0,0,0.1); color: rgba(0,0,0,0.5); }
+[data-theme="paper"] .rv2-mgmt-btn:hover { border-color: rgba(0,0,0,0.2); }
+[data-theme="paper"] .rv2-mgmt-btn.selected { background: rgba(0,150,80,0.08); border-color: rgba(0,150,80,0.25); color: #2d7a52; }
+[data-theme="paper"] .rv2-chip { background: #f5f0e8; border-color: rgba(0,0,0,0.1); color: rgba(0,0,0,0.45); }
+[data-theme="paper"] .rv2-chip:hover { border-color: rgba(0,0,0,0.2); }
+[data-theme="paper"] .rv2-chip.selected { background: rgba(0,150,80,0.08); border-color: rgba(0,150,80,0.25); color: #2d7a52; }
 
 /* ── REVIEW: Tags ── */
 .tp-group { margin-bottom: 12px; }
@@ -3218,6 +3201,14 @@ let processConfirmation = 0;
 // the trade's initial tags_json.
 let assessTags = { setup: [], pre: [] };
 
+// Review-phase pre_tags_late baseline: whether the Pre-trade group was empty
+// the first time the review screen rendered for the current trade. Captured
+// once per trade id in renderReviewCenter, read here by toggleTag — never
+// recomputed on a later keystroke/toggle, since that would erase the "at
+// entry" meaning of the flag.
+let _reviewPreBaselineTradeId = null;
+let _reviewPreBaselineEmpty = false;
+
 const PHASES = ['INTERNALS', 'CONTEXT', 'ENTRY', 'MANAGE', 'EXIT', 'REVIEW'];
 let strengthSubmitted = false;
 
@@ -3285,6 +3276,15 @@ function buildTradeModel(liveTrade, contexts, instrumentConfig) {
     notes_exit: liveTrade.notes_exit || '',
     tags: (() => { try { return typeof liveTrade.tags_json === 'string' ? JSON.parse(liveTrade.tags_json) : (liveTrade.tags_json || {}); } catch(e) { return {}; } })(),
     execution_score_json: liveTrade.execution_score_json,
+    // Review: one trader-chosen A/B/C grade plus a short diagnosis chain
+    // (Task 2 columns on live_trades, surfaced here verbatim for rendering).
+    grade: liveTrade.grade || null,
+    management: liveTrade.management || null,
+    management_issue: liveTrade.management_issue || null,
+    emotion: liveTrade.emotion || null,
+    emotion_entry: liveTrade.emotion_entry || null,
+    process_violation: liveTrade.process_violation || null,
+    pre_tags_late: liveTrade.pre_tags_late || 0,
     pushed: liveTrade.status === 'closed',
     context: {
       mktRead: ctx.mkt_read || '\u2014', valueState: ctx.value_state || '\u2014',
@@ -5169,46 +5169,57 @@ function renderReviewCenter(el, trade) {
 
   if (esVersion === 2) {
     // ── v2 Review UI ──
+    // The 5-point execution score is retired: P&L has no vote and the exit is
+    // a management decision, not its own score. What replaces it is one
+    // trader-chosen A/B/C grade plus a short diagnosis chain, stored as plain
+    // columns on the trade (Task 2) rather than inside execution_score_json.
     const proc = esParsed.process || {};
     const tech = esParsed.technical || {};
-    const mgmt = esParsed.management;
-    const exit = esParsed.exit;
-    const procScore = proc.score != null ? proc.score : 0;
-    const mgmtScore = mgmt ? mgmt.score : null;
-    const exitScore = exit ? exit.score : null;
-    const selectedMgmt = mgmt ? mgmt.state : (window._rv2Mgmt || '');
-    const selectedExit = exit ? exit.quality : (window._rv2Exit || '');
 
-    // Reactive total
-    const liveMgmt = mgmtScore != null ? mgmtScore : (selectedMgmt === 'calm_objective' ? 1 : (selectedMgmt ? 0 : null));
-    const liveExit = exitScore != null ? exitScore : (selectedExit === 'planned' ? 1 : (selectedExit ? 0 : null));
-    const totalKnown = procScore + (liveMgmt != null ? liveMgmt : 0) + (liveExit != null ? liveExit : 0);
-    const showTotal = (liveMgmt != null && liveExit != null) ? totalKnown : null;
+    const pill = (label, on) => `<span class="rv2-pill ${on ? 'rv2-pill-on' : 'rv2-pill-off'}">${on ? '✓' : '✗'} ${label}</span>`;
 
-    const pill = (label, on) => `<span class="rv2-pill ${on ? 'rv2-pill-on' : 'rv2-pill-off'}">${on ? '\u2713' : '\u2717'} ${label}</span>`;
+    const reviewGrade = trade.grade || '';
+    const reviewMgmt = trade.management || '';
+    const reviewMgmtIssue = trade.management_issue || '';
+    const reviewEmotion = trade.emotion || '';
+    const reviewViolation = trade.process_violation || '';
 
-    function qOpt(group, value, title, sub, selected) {
-      return `<div class="rv2-q-opt${selected === value ? ' selected' : ''}" onclick="selectReviewOpt('${group}','${value}')">
+    // pre_tags_late's "had none at entry" baseline is captured once, the first
+    // time the review screen renders for this trade — not recomputed on every
+    // re-render triggered by a save (toggleTag reads the cached value below).
+    if (_reviewPreBaselineTradeId !== trade.id) {
+      _reviewPreBaselineTradeId = trade.id;
+      _reviewPreBaselineEmpty = !((trade.tags && trade.tags.pre && trade.tags.pre.length) > 0);
+    }
+
+    function gradeBtn(value, title, description) {
+      return `<div class="rv2-q-opt${reviewGrade === value ? ' selected' : ''}" onclick="setReviewField(${trade.id}, 'grade', '${value}')">
         <div class="rv2-q-opt-title">${title}</div>
-        <div class="rv2-q-opt-sub">${sub}</div>
+        <div class="rv2-q-opt-sub">${description}</div>
       </div>`;
+    }
+
+    function mgmtBtn(value, label) {
+      return `<div class="rv2-mgmt-btn${reviewMgmt === value ? ' selected' : ''}" onclick="setReviewField(${trade.id}, 'management', '${value}')">${label}</div>`;
+    }
+
+    function chipLabel(value) {
+      const s = value.replace(/_/g, ' ');
+      return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+
+    function chipBtn(field, value) {
+      const current = field === 'management_issue' ? reviewMgmtIssue
+        : field === 'emotion' ? reviewEmotion
+        : field === 'process_violation' ? reviewViolation : '';
+      return `<div class="rv2-chip${current === value ? ' selected' : ''}" onclick="setReviewField(${trade.id}, '${field}', '${value}')">${chipLabel(value)}</div>`;
     }
 
     el.innerHTML = `
       <div class="review-center" style="margin:auto;">
 
-        <div class="rv2-score-header">
-          <div class="rv2-score-title">EXECUTION SCORE \u00b7 PROCESS ONLY</div>
-          <div class="rv2-score-big" id="rv2-total">${showTotal != null ? showTotal : '\u2014'}<span class="rv2-score-max"> /5</span></div>
-          <div class="rv2-score-breakdown">
-            <div class="rv2-bd-item"><div class="rv2-bd-val">${procScore}/3</div><div class="rv2-bd-label">ENTRY PROCESS</div></div>
-            <div class="rv2-bd-item"><div class="rv2-bd-val" id="rv2-mgmt-val">${liveMgmt != null ? liveMgmt + '/1' : '\u2014'}</div><div class="rv2-bd-label">MANAGEMENT</div></div>
-            <div class="rv2-bd-item"><div class="rv2-bd-val" id="rv2-exit-val">${liveExit != null ? liveExit + '/1' : '\u2014'}</div><div class="rv2-bd-label">EXIT</div></div>
-          </div>
-        </div>
-
         <div class="rv2-recap">
-          <div class="rv2-recap-title">ENTRY RECAP \u2014 RECORDED AT ENTRY \u00b7 NOT EDITABLE</div>
+          <div class="rv2-recap-title">ENTRY RECAP — RECORDED AT ENTRY · NOT EDITABLE</div>
           <div class="rv2-recap-row">
             <span class="rv2-recap-group-label">PROCESS</span>
             ${pill('Patience', proc.patience)}
@@ -5224,31 +5235,51 @@ function renderReviewCenter(el, trade) {
           </div>
         </div>
 
-        <div class="rv2-q-section">
-          <div class="rv2-q-label">1 OF 2 \u00b7 MANAGEMENT</div>
-          <div class="rv2-q-title">How were you during the trade?</div>
-          <div class="rv2-q-sub">Pick the most honest answer. No one sees this but you.</div>
-          <div class="rv2-q-grid">
-            ${qOpt('mgmt', 'calm_objective', 'Calm & objective', "Watched, didn't react", selectedMgmt)}
-            ${qOpt('mgmt', 'anxious', 'Anxious', 'Wanted out early', selectedMgmt)}
-            ${qOpt('mgmt', 'frozen', 'Frozen', "Didn't manage well", selectedMgmt)}
-            ${qOpt('mgmt', 'overconfident', 'Overconfident', 'Held too long', selectedMgmt)}
+        <div class="rv2-section">
+          <div class="rv2-q-title">Which game did you play?</div>
+          <div class="rv2-q-sub">P&amp;L has no vote — a losing trade can be A-game, and a winner can be C-game.</div>
+          <div class="rv2-grade-row">
+            ${gradeBtn('A', 'A-game', 'The opportunity came to you; you entered intentionally; risk and size were appropriate; management decisions were justified by your process and the information available at the time. A technical read can still turn out to be wrong.')}
+            ${gradeBtn('B', 'B-game', 'The core process remained recognisable, but there was minor emotional or execution leakage — entering somewhat early, hesitation, overmanagement, or an emotion-driven early exit.')}
+            ${gradeBtn('C', 'C-game', 'A meaningful breakdown: forced trade, chase/FOMO entry, revenge trading, inappropriate risk, moving a stop because you could not accept the loss, major overtrading, or another obvious abandonment of your process.')}
           </div>
         </div>
 
-        <div class="rv2-q-section">
-          <div class="rv2-q-label">2 OF 2 \u00b7 EXIT DISCIPLINE</div>
-          <div class="rv2-q-title">How did you exit?</div>
-          <div class="rv2-q-sub">Be honest \u2014 this is for your data, not your ego.</div>
-          <div class="rv2-q-grid">
-            ${qOpt('exit', 'planned', 'Planned level', 'Exited as intended', selectedExit)}
-            ${qOpt('exit', 'early_fear', 'Early \u2014 fear', 'Pulled out too soon', selectedExit)}
-            ${qOpt('exit', 'early_boredom', 'Early \u2014 boredom', 'Lost patience', selectedExit)}
-            ${qOpt('exit', 'late', 'Late \u2014 held too long', "Didn't follow plan", selectedExit)}
+        <div class="rv2-section">
+          <div class="rv2-q-title">How did you manage it?</div>
+          <div class="rv2-q-sub">Everything after entry until flat, including the exit.</div>
+          <div class="rv2-q-row">
+            ${mgmtBtn('followed', 'Followed process')}
+            ${mgmtBtn('deviated', 'Deviated')}
           </div>
         </div>
 
-        <button class="rv2-save-btn" id="rv2-save-btn" onclick="commitReviewScore()">SAVE SCORE \u2192</button>
+        ${reviewMgmt === 'deviated' ? `
+        <div class="rv2-section">
+          <div class="rv2-q-title">What changed?</div>
+          <div class="rv2-chip-row">
+            ${['early_exit','late_exit','stop_change','overmanaged','under_managed','premature_scale_out']
+              .map(v => chipBtn('management_issue', v)).join('')}
+          </div>
+          <div class="rv2-q-sub">Early exit means premature or unjustified relative to your process — not merely that price continued after you got out.</div>
+        </div>` : ''}
+
+        <div class="rv2-section">
+          <div class="rv2-q-title">What were you feeling?</div>
+          <div class="rv2-chip-row">
+            ${['calm','fear_of_loss','fear_of_giving_back','greed','frustration','impatience','overconfidence','distracted']
+              .map(v => chipBtn('emotion', v)).join('')}
+          </div>
+        </div>
+
+        ${(reviewGrade === 'B' || reviewGrade === 'C') ? `
+        <div class="rv2-section">
+          <div class="rv2-q-title">Did you break a rule?</div>
+          <div class="rv2-chip-row">
+            ${['none','traded_outside_plan','exceeded_risk','revenge_trade','overtraded']
+              .map(v => chipBtn('process_violation', v)).join('')}
+          </div>
+        </div>` : ''}
       </div>
     `;
   } else {
@@ -8491,10 +8522,23 @@ function toggleTag(gid, tag, multi, btn) {
   }
 
   trade.tags = activeTags;
-  fetch(`/api/live/${trade.id}`, {
+  const tagsSaved = fetch(`/api/live/${trade.id}`, {
     method: 'PUT', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ tags: activeTags })
   });
+
+  // Pre-trade tags filled in for the first time at review, on a trade that
+  // had none at entry, get flagged pre_tags_late so analytics can tell a
+  // same-session tag from one reconstructed after the fact. The "had none
+  // at entry" baseline is captured once per trade in renderReviewCenter —
+  // this only reads it. Chained after the tags PUT resolves so the refresh
+  // inside saveReviewAssessment reads back a trade that already has both
+  // writes applied, rather than racing the two requests.
+  if (gid === 'pre' && activePhase === 'REVIEW' &&
+      _reviewPreBaselineTradeId === trade.id && _reviewPreBaselineEmpty &&
+      arr.length > 0) {
+    tagsSaved.then(() => saveReviewAssessment(trade.id, { pre_tags_late: 1 }));
+  }
 }
 
 function toggleTechnical(tag, btn) {
@@ -8561,79 +8605,43 @@ function commitExecutionScore() {
   });
 }
 
-/* ── v2 Review Score Handlers ── */
-function selectReviewOpt(group, value) {
-  if (group === 'mgmt') window._rv2Mgmt = value;
-  else if (group === 'exit') window._rv2Exit = value;
-  updateReviewScoreDisplay();
-  const trade = TRADES[activeTrade];
-  if (trade) renderCenter(trade);
-}
-
-function updateReviewScoreDisplay() {
-  const trade = TRADES[activeTrade];
-  if (!trade) return;
-  let esParsed = null;
+/* ── Review: A/B/C grade + diagnosis chain ──
+   Each control posts the single field it owns to /api/live/<id>/assessment,
+   then refreshes from the server — same fetch/error/toast/refresh shape as
+   dynEditTrancheTarget above. The server validates fields against the
+   trade's stored state, not just this payload, so two edits carry a second
+   field to avoid stranding data the server would otherwise reject:
+     - moving the grade off B/C onto A clears a stored process_violation
+       (process_violation cannot sit on an A grade)
+     - moving management off 'deviated' clears a stored management_issue
+       (management_issue requires management === 'deviated')
+   Both are sent as null in the same request, which the server treats as an
+   explicit clear rather than a value to validate. */
+async function saveReviewAssessment(tradeId, fields) {
   try {
-    esParsed = trade.execution_score_json
-      ? (typeof trade.execution_score_json === 'object' ? trade.execution_score_json : JSON.parse(trade.execution_score_json))
-      : null;
-  } catch(e) {}
-  if (!esParsed || esParsed.version !== 2) return;
-
-  const procScore = (esParsed.process || {}).score || 0;
-  const mgmtVal = window._rv2Mgmt || (esParsed.management ? esParsed.management.state : '');
-  const exitVal = window._rv2Exit || (esParsed.exit ? esParsed.exit.quality : '');
-  const mgmtScore = mgmtVal === 'calm_objective' ? 1 : (mgmtVal ? 0 : null);
-  const exitScore = exitVal === 'planned' ? 1 : (exitVal ? 0 : null);
-  const total = (mgmtScore != null && exitScore != null) ? procScore + mgmtScore + exitScore : null;
-
-  const totalEl = document.getElementById('rv2-total');
-  const mgmtEl = document.getElementById('rv2-mgmt-val');
-  const exitEl = document.getElementById('rv2-exit-val');
-  if (totalEl) totalEl.innerHTML = (total != null ? total : '\u2014') + '<span class="rv2-score-max"> /5</span>';
-  if (mgmtEl) mgmtEl.textContent = mgmtScore != null ? mgmtScore + '/1' : '\u2014';
-  if (exitEl) exitEl.textContent = exitScore != null ? exitScore + '/1' : '\u2014';
-}
-
-async function commitReviewScore() {
-  const trade = TRADES[activeTrade];
-  if (!trade) return;
-  let esParsed = null;
-  try {
-    esParsed = trade.execution_score_json
-      ? (typeof trade.execution_score_json === 'object' ? trade.execution_score_json : JSON.parse(trade.execution_score_json))
-      : null;
-  } catch(e) {}
-
-  const mgmtVal = window._rv2Mgmt || (esParsed && esParsed.management ? esParsed.management.state : '');
-  const exitVal = window._rv2Exit || (esParsed && esParsed.exit ? esParsed.exit.quality : '');
-
-  if (!mgmtVal || !exitVal) {
-    showToast('Please answer both questions before saving', true);
-    return;
-  }
-
-  const btn = document.getElementById('rv2-save-btn');
-  try {
-    const res = await fetch(`/api/live/${trade.id}/review-score`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ management_state: mgmtVal, exit_quality: exitVal })
+    const res = await fetch(`/api/live/${tradeId}/assessment`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fields)
     });
-    const data = await res.json();
-    if (data.ok) {
-      trade.execution_score_json = JSON.stringify(data.execution_score_json);
-      window._rv2Mgmt = '';
-      window._rv2Exit = '';
-      if (btn) { btn.textContent = 'SAVED \u2713'; setTimeout(() => { btn.textContent = 'SAVE SCORE \u2192'; }, 1500); }
-      showToast('Review score saved');
-      renderCenter(trade);
-    } else {
-      showToast(data.error || 'Failed to save', true);
-    }
-  } catch(e) {
-    showToast('Network error', true);
+    if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+    await refreshTradeFromServer(tradeId);
+  } catch (e) {
+    if (typeof showToast === 'function') showToast(e.message || 'Save failed', true);
   }
+}
+
+function setReviewField(tradeId, field, value) {
+  const trade = TRADES[activeTrade];
+  const fields = { [field]: value };
+  if (field === 'grade' && value === 'A' &&
+      trade && trade.process_violation && trade.process_violation !== 'none') {
+    fields.process_violation = null;
+  }
+  if (field === 'management' && value !== 'deviated' &&
+      trade && trade.management_issue && trade.management_issue !== 'none') {
+    fields.management_issue = null;
+  }
+  saveReviewAssessment(tradeId, fields);
 }
 
 /* ── IMAGES ── */
