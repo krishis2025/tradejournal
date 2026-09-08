@@ -68,8 +68,13 @@ def index():
     days = db.get_all_days(date_from, date_to, account_id)
 
     for day in days:
-        day_trades = db.get_trades_for_day(day["id"])
-        day["grade_pct"] = logic.compute_combined_day_score(day.get("day_score", ""), day_trades)
+        # compute_combined_day_score dropped its execution component and no longer
+        # reads `trades` at all — the day grade is the process checklist alone.
+        # Fetching per-day trades here was a fully discarded N+1 (100 days / 241
+        # trades in the real DB -> ~100 connections and ~800 queries, every one
+        # thrown away): don't pass trades. compute_combined_day_score keeps the
+        # parameter (default None) for callers that still pass it.
+        day["grade_pct"] = logic.compute_combined_day_score(day.get("day_score", ""))
 
     # Build calendar data from existing days list
     calendar_data = [

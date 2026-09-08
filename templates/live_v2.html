@@ -8110,6 +8110,10 @@ async function commitContext() {
   strengthValue = 0; strengthVolume = 0; strengthTrend = 0; strengthAdh = 0;
   strengthMental = 'calm'; strengthConfidence = 'medium'; strengthEmotion = 'calm';
   strengthSubmitted = false;
+  processPatience = 0;
+  processArrival = 0;
+  processConfirmation = 0;
+  assessTags = { setup: [], pre: [] };
   setPhase('ENTRY');
 }
 
@@ -8401,6 +8405,10 @@ function useSamePlan() {
   strengthValue = 0; strengthVolume = 0; strengthTrend = 0; strengthAdh = 0;
   strengthMental = 'calm'; strengthConfidence = 'medium'; strengthEmotion = 'calm';
   strengthSubmitted = false;
+  processPatience = 0;
+  processArrival = 0;
+  processConfirmation = 0;
+  assessTags = { setup: [], pre: [] };
   setPhase('ENTRY');
 }
 
@@ -8456,6 +8464,9 @@ async function createTradeFromForm() {
   activePhase = 'MANAGE';
   activeTags = {};
   assessTags = { setup: [], pre: [] };
+  processPatience = 0;
+  processArrival = 0;
+  processConfirmation = 0;
 
   liveNowContext = null;    // Reset live-now for new trade
   inlineUpdateOpen = false;

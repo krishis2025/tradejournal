@@ -1757,7 +1757,6 @@ DETECTOR_REGISTRY = {
     "impulsive_bucket":  {"label": "Impulsive trades",      "polarity": "leak",     "tracked": True},
     "revenge_chain":     {"label": "Revenge after loss",    "polarity": "leak",     "tracked": True},
     "oversized_loss":    {"label": "Oversized loss",        "polarity": "leak",     "tracked": True},
-    "weak_exits":        {"label": "Weak exits",            "polarity": "leak",     "tracked": True},
     "expectancy_gap":    {"label": "Expectancy gap",        "polarity": "leak",     "tracked": True},
     "no_setup_leak":     {"label": "No-setup leak",         "polarity": "leak",     "tracked": True},
     "concentration":     {"label": "Concentration",         "polarity": "neutral",  "tracked": False},
@@ -1851,10 +1850,6 @@ def compute_weekly_summary(trades):
     came_to_me = [t for t in disc if "Trade came to me" in t["_tagset"]]
     no_setup = [t for t in disc if "No Setup" in (t.get("tags") or {}).get("setup", [])]
 
-    # Exit discipline buckets (exit-group tags)
-    planned = [t for t in disc if any("Planned" in x for x in (t.get("tags") or {}).get("exit", []))]
-    fear_bail = [t for t in disc if any(("Fear" in x or "Bailed" in x) for x in (t.get("tags") or {}).get("exit", []))]
-
     # Execution scores (present on a subset)
     scored = [t for t in trades if t.get("exec_score") is not None]
     avg_exec_score = round(sum(t["exec_score"] for t in scored) / len(scored), 1) if scored else None
@@ -1906,8 +1901,6 @@ def compute_weekly_summary(trades):
         "impulse": impulse, "impulse_net": _net(impulse),
         "came_to_me": came_to_me, "came_to_me_net": _net(came_to_me),
         "no_setup": no_setup, "no_setup_net": _net(no_setup),
-        "planned": planned, "planned_net": _net(planned),
-        "fear_bail": fear_bail, "fear_bail_net": _net(fear_bail),
         "avg_exec_score": avg_exec_score, "scored_count": len(scored),
         "revenge_chain": revenge_chain, "outlier": outlier, "concentration": concentration,
     }
@@ -1989,14 +1982,6 @@ def _det_expectancy_gap(s):
     return {"key": "expectancy_gap", "fired": True, "salience": abs(s["discretionary_pnl"]), "sentence": sentence}
 
 
-def _det_weak_exits(s):
-    if not s["fear_bail"] or s["fear_bail_net"] >= 0 or abs(s["fear_bail_net"]) < MATERIAL_USD:
-        return None
-    sentence = (f"Fear/bail-out exits cost {_money(s['fear_bail_net'])} while planned exits ran "
-                f"{_money(s['planned_net'])} — the exits were emotional.")
-    return {"key": "weak_exits", "fired": True, "salience": abs(s["fear_bail_net"]), "sentence": sentence}
-
-
 def _det_no_setup_leak(s):
     if not s["no_setup"] or s["no_setup_net"] >= 0 or abs(s["no_setup_net"]) < MATERIAL_USD:
         return None
@@ -2015,7 +2000,7 @@ def _det_came_to_me(s):
 
 _STORY_DETECTORS = [
     _det_net_result, _det_operational_error, _det_impulsive_bucket, _det_revenge_chain,
-    _det_oversized_loss, _det_concentration, _det_expectancy_gap, _det_weak_exits,
+    _det_oversized_loss, _det_concentration, _det_expectancy_gap,
     _det_no_setup_leak, _det_came_to_me,
 ]
 
@@ -2050,7 +2035,6 @@ _INTENTION_MAP = {
     "no_setup_leak": "No trade without a named setup.",
     "impulsive_bucket": "Name the trigger out loud before any impulsive entry.",
     "oversized_loss": "Predefine the max loss; cap single-trade risk.",
-    "weak_exits": "Exit on the plan, not on fear — set the exit before entry.",
     "expectancy_gap": "Cut losers faster — your average loss dwarfs your average win.",
 }
 
@@ -2085,8 +2069,6 @@ def _signal_for(detector_id, summary):
     if detector_id == "oversized_loss":
         o = s.get("outlier")
         return (o["pnl"], 1) if o else (0.0, 0)
-    if detector_id == "weak_exits":
-        return s["fear_bail_net"], len(s["fear_bail"])
     if detector_id == "expectancy_gap":
         return s["discretionary_pnl"], s["losses"]
     if detector_id == "no_setup_leak":
@@ -2506,7 +2488,6 @@ _BEHAVIOR_MID = {
     "revenge_chain":     "were revenge trades",
     "no_setup_leak":     "had no setup",
     "oversized_loss":    "were oversized",
-    "weak_exits":        "were fear/bail exits",
     "expectancy_gap":    "lost",
     "operational_error": "were operational errors",
 }
@@ -2515,7 +2496,6 @@ _BEHAVIOR_ZERO = {
     "revenge_chain":     "revenge trades",
     "no_setup_leak":     "no-setup trades",
     "oversized_loss":    "oversized losses",
-    "weak_exits":        "fear/bail exits",
     "expectancy_gap":    "losing trades",
     "operational_error": "operational errors",
 }
@@ -2840,7 +2820,6 @@ def build_weekly_review_data(account_id, week_start):
             "came_to_me": {"count": len(summary["came_to_me"]), "net": summary["came_to_me_net"]},
             "impulse": {"count": len(summary["impulse"]), "net": summary["impulse_net"]},
             "avg_exec_score": summary["avg_exec_score"], "scored_count": summary["scored_count"],
-            "planned_net": summary["planned_net"], "fear_bail_net": summary["fear_bail_net"],
             "setup_table": _setup_table(summary["discretionary"]),
         },
         "ledger": ledger,

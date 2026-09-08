@@ -274,7 +274,6 @@ table.wr-table td.num { font-family: 'JetBrains Mono', monospace; text-align: ri
         <div class="sub">{{ pe_s.grades[g].count }} trades</div>
       </div>
       {% endfor %}
-      <div class="wr-beh-card"><div class="lbl">Planned vs Fear</div><div class="val"><span class="pos">{{ money(b.planned_net) }}</span> / <span class="neg">{{ money(b.fear_bail_net) }}</span></div><div class="sub">exit discipline</div></div>
     </div>
     <div class="wr-pe-coverage">Graded {{ pe_s.graded_of }} of {{ data.plan_execution.rows|length }} trades.</div>
 
