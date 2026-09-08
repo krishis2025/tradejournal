@@ -649,6 +649,13 @@ def init_db():
         if "confirmation" not in ts_cols:
             conn.execute("ALTER TABLE trade_strength ADD COLUMN confirmation INTEGER DEFAULT NULL")
 
+        # Migration: entry emotion, picked on the assessment page before the live
+        # trade exists. Copied onto live_trades/trades at trade creation (see
+        # POST /api/live) because the weekly analytics group by column there,
+        # not by joining through trade_strength.
+        if "emotion_entry" not in ts_cols:
+            conn.execute("ALTER TABLE trade_strength ADD COLUMN emotion_entry TEXT")
+
         # Migration: add strength_id to live_trades
         lt_cols_str = [r[1] for r in conn.execute("PRAGMA table_info(live_trades)").fetchall()]
         if "strength_id" not in lt_cols_str:
@@ -2121,18 +2128,21 @@ def clear_account_config(account_id, prefix=None):
 def create_live_trade(account_id, direction, instrument, entry_price, entry_time,
                       total_qty, mode, notes="", tags_json="{}",
                       notes_monitoring="", notes_exit="", guard_json="",
-                      context_id=None, strength_id=None, market_state_json=None):
+                      context_id=None, strength_id=None, market_state_json=None,
+                      emotion_entry=None):
     # market_state_json: frozen snapshot of the Context strip at entry (immutable photograph).
+    # emotion_entry: copied from trade_strength by the caller — the assessment page
+    # records it before this trade exists (see POST /api/live in server.py).
     with get_conn() as conn:
         cur = conn.execute("""
             INSERT INTO live_trades
                 (account_id, direction, instrument, entry_price, entry_time,
                  total_qty, mode, notes, tags_json, notes_monitoring, notes_exit, guard_json,
-                 context_id, strength_id, market_state_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 context_id, strength_id, market_state_json, emotion_entry)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (account_id, direction, instrument, entry_price, entry_time,
               total_qty, mode, notes, tags_json, notes_monitoring, notes_exit, guard_json,
-              context_id, strength_id, market_state_json))
+              context_id, strength_id, market_state_json, emotion_entry))
         return cur.lastrowid
 
 
@@ -3430,18 +3440,20 @@ def get_developing_contexts(date_from, date_to, account_id=None):
 
 def create_trade_strength(context_id, account_id, value, volume, trend,
                           mental_state, confidence, adh=0,
-                          patience=None, arrival_context=None, confirmation=None):
+                          patience=None, arrival_context=None, confirmation=None,
+                          emotion_entry=None):
     with get_conn() as conn:
         cur = conn.execute("""
             INSERT INTO trade_strength
                 (context_id, account_id, value, volume, trend, adh, mental_state, confidence,
-                 patience, arrival_context, confirmation)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 patience, arrival_context, confirmation, emotion_entry)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (context_id, account_id, int(value), int(volume), int(trend),
               int(adh), mental_state, confidence,
               int(patience) if patience is not None else None,
               int(arrival_context) if arrival_context is not None else None,
-              int(confirmation) if confirmation is not None else None))
+              int(confirmation) if confirmation is not None else None,
+              emotion_entry))
         return cur.lastrowid
 
 

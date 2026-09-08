@@ -1016,6 +1016,7 @@ def api_create_trade_strength():
             patience=body.get("patience"),
             arrival_context=body.get("arrival_context"),
             confirmation=body.get("confirmation"),
+            emotion_entry=body.get("emotion_entry"),
         )
         return jsonify({"ok": True, "id": strength_id})
     except Exception as e:
@@ -1040,6 +1041,14 @@ def api_create_live_trade():
         if key not in body:
             return jsonify({"error": f"{key} is required"}), 400
     try:
+        # The assessment page runs before the trade exists, so the entry emotion is
+        # recorded on trade_strength. Copy it onto the trade now, where the weekly
+        # analytics read it — they group by column, not by joining through strength.
+        entry_emotion = None
+        if body.get("strength_id"):
+            strength = db.get_trade_strength(int(body["strength_id"]))
+            entry_emotion = (strength or {}).get("emotion_entry")
+
         live_id = db.create_live_trade(
             account_id=body.get("account_id") or None,
             direction=body["direction"],
@@ -1056,6 +1065,7 @@ def api_create_live_trade():
             context_id=body.get("context_id") or None,
             strength_id=body.get("strength_id") or None,
             market_state_json=body.get("market_state_json") or None,  # frozen Context-strip snapshot at entry
+            emotion_entry=entry_emotion,
         )
         # Per-tranche risk stop: use the typed stop if provided, else a 20-pt default.
         if body.get("stop_price") not in (None, ""):

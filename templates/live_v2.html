@@ -646,6 +646,14 @@
 .ef-toggle.sel-conf-low { background: #b71c1c; color: #fff; border-color: #b71c1c; }
 .ef-toggle.sel-conf-medium { background: #b8860b; color: #fff; border-color: #b8860b; }
 .ef-toggle.sel-conf-high { background: #2e7d32; color: #fff; border-color: #2e7d32; }
+/* Entry emotion picker: calm reuses sel-calm above; the other five are all
+   non-calm states worth a second look, so they share fomo's alert red. */
+.ef-toggle.sel-greed,
+.ef-toggle.sel-frustration,
+.ef-toggle.sel-impatience,
+.ef-toggle.sel-overconfidence,
+.ef-toggle.sel-distracted { background: #b71c1c; color: #fff; border-color: #b71c1c; }
+.sa-emotion-group { flex-wrap: wrap; }
 /* Assess & Continue button */
 .sa-assess-btn {
   width: 100%; padding: 14px; margin-top: 16px; border: 1.5px solid rgba(0,208,132,0.3);
@@ -3199,9 +3207,16 @@ let strengthTrend = 0;
 let strengthAdh = 0;
 let strengthMental = 'calm';
 let strengthConfidence = 'medium';
+let strengthEmotion = 'calm';
 let processPatience = 0;
 let processArrival = 0;
 let processConfirmation = 0;
+// Setup / Pre-trade tag picks made on the assessment page, before the live
+// trade exists. activeTags is reserved for the REVIEW-phase tag editor and
+// gets reset the moment a trade is created, so it can't double as this
+// buffer — this holds the picks until createTradeFromForm() folds them into
+// the trade's initial tags_json.
+let assessTags = { setup: [], pre: [] };
 
 const PHASES = ['INTERNALS', 'CONTEXT', 'ENTRY', 'MANAGE', 'EXIT', 'REVIEW'];
 let strengthSubmitted = false;
@@ -4679,6 +4694,7 @@ function setStrength(field, val) {
 }
 function setStrengthMental(val) { strengthMental = val; renderCenter(TRADES[activeTrade]); }
 function setStrengthConf(val) { strengthConfidence = val; renderCenter(TRADES[activeTrade]); }
+function setStrengthEmotion(val) { strengthEmotion = val; renderCenter(TRADES[activeTrade]); }
 
 function getStrengthScore() {
   return strengthValue + strengthVolume + strengthTrend + strengthAdh;
@@ -4695,7 +4711,7 @@ async function commitStrength() {
       volume: strengthVolume,
       trend: strengthTrend,
       adh: strengthAdh,
-      mental_state: strengthMental,
+      emotion_entry: strengthEmotion,
       confidence: strengthConfidence,
       patience: processPatience,
       arrival_context: processArrival,
@@ -4736,6 +4752,7 @@ function cancelEntry() {
   processPatience = 0;
   processArrival = 0;
   processConfirmation = 0;
+  assessTags = { setup: [], pre: [] };
   setPhase('CONTEXT');
 }
 
@@ -4852,10 +4869,19 @@ async function updateExistingContext() {
 
 /* ── STRENGTH AUDIT CARD (step 1 of ENTRY) ── */
 function toggleProcess(field) {
-  if (field === 'patience') processPatience = processPatience ? 0 : 1;
+  if (field === 'patience') {
+    processPatience = processPatience ? 0 : 1;
+    // The tile and the 'Trade came to me' pre-trade tag are the same claim. The
+    // TAG is the source of truth — four consumers read it (the weekly came_to_me
+    // detector, PRE_GOOD in day.html, and two places in analytics.html) while the
+    // patience column feeds only its own 0/3 counter. They can drift if the tag is
+    // later edited at review; that is accepted, not synced.
+    setPreTag('Trade came to me', processPatience);
+  }
   else if (field === 'arrival') processArrival = processArrival ? 0 : 1;
   else if (field === 'confirmation') processConfirmation = processConfirmation ? 0 : 1;
   renderCenter(TRADES[activeTrade]);
+  renderHealthPanel(TRADES[activeTrade]);
 }
 
 function getProcessScore() {
@@ -4889,6 +4915,12 @@ function renderStrengthAudit(el) {
     const activeCls = active ? `sel-${val}` : '';
     return `<button class="ef-toggle ${activeCls}" onclick="setStrengthMental('${val}')">${label}</button>`;
   }
+  function emotionBtn(val) {
+    const active = strengthEmotion === val;
+    const activeCls = active ? `sel-${val}` : '';
+    const label = val.charAt(0).toUpperCase() + val.slice(1).replace(/_/g, ' ');
+    return `<button class="ef-toggle ${activeCls}" onclick="setStrengthEmotion('${val}')">${label}</button>`;
+  }
   function confBtn(val) {
     const active = strengthConfidence === val;
     const activeCls = active ? `sel-conf-${val}` : '';
@@ -4903,7 +4935,7 @@ function renderStrengthAudit(el) {
       </div>
 
       <div class="sa-section-label">1 &middot; PROCESS CHECKLIST</div>
-      ${checkRow('patience', processPatience, 'Patience', 'Trade came to me. I waited for my level.')}
+      ${checkRow('patience', processPatience, 'Trade came to me', 'I waited for my level.')}
       ${checkRow('arrival', processArrival, 'Arrival context', 'I watched tempo and volume at the level.')}
       ${checkRow('confirmation', processConfirmation, 'Confirmation', 'I saw a clear signal before entering.')}
 
@@ -4920,8 +4952,11 @@ function renderStrengthAudit(el) {
       <div class="sa-section-label">3 &middot; MENTAL STATE</div>
       <div class="sa-bottom-row">
         <div class="sa-bottom-group">
-          <div class="sa-bottom-label">STATE</div>
-          <div class="ef-toggle-group">${mentalBtn('calm','CALM')}${mentalBtn('fomo','FOMO')}</div>
+          <div class="sa-bottom-label">EMOTION</div>
+          <div class="ef-toggle-group sa-emotion-group">
+            ${['calm','impatience','frustration','greed','overconfidence','distracted']
+              .map(e => emotionBtn(e)).join('')}
+          </div>
         </div>
         <div class="sa-bottom-group">
           <div class="sa-bottom-label">CONFIDENCE</div>
@@ -5458,6 +5493,12 @@ function renderHealthPanel(trade) {
   }
 
   if (activePhase === 'ENTRY') {
+    // Assessment step (before strengthSubmitted): Setup + Pre-trade pickers.
+    // Once assessed, the field-entry step below takes over and shows the trade plan.
+    if (!strengthSubmitted) {
+      renderAssessmentRight(el);
+      return;
+    }
     // Show trade plan on right panel during ENTRY
     const latestCtx = getLatestContext();
     if (latestCtx) {
@@ -5617,6 +5658,27 @@ function renderHealthPanel(trade) {
       </div>
     </div>
     <div class="spacer"></div>
+  `;
+}
+
+/* ── ASSESSMENT RIGHT: Setup + Pre-trade pickers (ENTRY, before strengthSubmitted) ── */
+function renderAssessmentRight(el) {
+  let tagsHtml = '';
+  TAG_GROUPS.filter(g => g.id === 'setup' || g.id === 'pre').forEach(g => {
+    const dotColor = g.id === 'setup' ? 'var(--purple)' : 'var(--muted)';
+    tagsHtml += `<div class="tp-group"><div class="tp-group-label"><span class="tp-dot" style="background:${dotColor};"></span>${escHtml(g.label)}</div><div class="tp-tags">`;
+    g.tags.forEach(tag => {
+      const isActive = (assessTags[g.id] || []).includes(tag);
+      tagsHtml += `<button class="tp-tag-btn${isActive ? ' ' + g.active_class : ''}" data-group="${g.id}" data-tag="${escHtml(tag)}" data-multi="${g.multi}" data-active-class="${g.active_class}" onclick="toggleAssessTag('${g.id}','${escHtml(tag)}',${g.multi},this)">${escHtml(tag)}</button>`;
+    });
+    tagsHtml += '</div></div>';
+  });
+
+  el.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:12px;flex:1;overflow-y:auto;">
+      <div class="ctx-label">TAGS</div>
+      ${tagsHtml}
+    </div>
   `;
 }
 
@@ -8015,7 +8077,7 @@ async function commitContext() {
   updateRibbon();
   // Reset strength form state
   strengthValue = 0; strengthVolume = 0; strengthTrend = 0; strengthAdh = 0;
-  strengthMental = 'calm'; strengthConfidence = 'medium';
+  strengthMental = 'calm'; strengthConfidence = 'medium'; strengthEmotion = 'calm';
   strengthSubmitted = false;
   setPhase('ENTRY');
 }
@@ -8306,7 +8368,7 @@ function useSamePlan() {
   closePlanChoice();
   // Reset strength and go to ENTRY phase (strength audit first)
   strengthValue = 0; strengthVolume = 0; strengthTrend = 0; strengthAdh = 0;
-  strengthMental = 'calm'; strengthConfidence = 'medium';
+  strengthMental = 'calm'; strengthConfidence = 'medium'; strengthEmotion = 'calm';
   strengthSubmitted = false;
   setPhase('ENTRY');
 }
@@ -8334,7 +8396,9 @@ async function createTradeFromForm() {
       entry_time: time, total_qty: qty, mode: formMode,
       stop_price: (stop_price != null ? stop_price : undefined),
       target_price: (target_price != null ? target_price : undefined),
-      notes: '', tags: {}, account_id: pid ? parseInt(pid) : null,
+      // Setup + Pre-trade picks made on the assessment page become this trade's
+      // initial tags — there was no live trade to PUT them to before now.
+      notes: '', tags: assessTags, account_id: pid ? parseInt(pid) : null,
       strength_id: activeStrengthId, context_id: activeContextId,
       // Freeze the Context Market State strip onto this trade at entry (immutable snapshot).
       market_state_json: (() => { const snap = msSnapshot(); return snap ? JSON.stringify(snap) : undefined; })()
@@ -8360,6 +8424,7 @@ async function createTradeFromForm() {
   activeTrade = key;
   activePhase = 'MANAGE';
   activeTags = {};
+  assessTags = { setup: [], pre: [] };
 
   liveNowContext = null;    // Reset live-now for new trade
   inlineUpdateOpen = false;
@@ -8375,6 +8440,38 @@ async function createTradeFromForm() {
 /* ══════════════════════════════════════════════════════════════════════════════
    TAGS & EXECUTION SCORE
    ══════════════════════════════════════════════════════════════════════════════ */
+
+// Adds or removes a single tag from the 'pre' group on the assessment page's
+// tag buffer (assessTags — no live trade exists yet at this point, so there is
+// no id to PUT to; the buffer is folded into tags_json when the trade is
+// created). Called by the 'Trade came to me' tile so the tile and the tag
+// agree at the moment of ticking; see toggleProcess's comment for why they
+// are allowed to drift after that.
+function setPreTag(tag, on) {
+  if (!assessTags.pre) assessTags.pre = [];
+  const idx = assessTags.pre.indexOf(tag);
+  if (on && idx < 0) assessTags.pre.push(tag);
+  else if (!on && idx >= 0) assessTags.pre.splice(idx, 1);
+}
+
+// Setup / Pre-trade pickers on the assessment page. Same toggle semantics as
+// toggleTag (single-select for setup, multi-select for pre) but writes into
+// assessTags instead of activeTags/PUT — there is no live trade yet to PUT to.
+function toggleAssessTag(gid, tag, multi, btn) {
+  if (!assessTags[gid]) assessTags[gid] = [];
+  const arr = assessTags[gid];
+  const ac = btn.dataset.activeClass;
+  const idx = arr.indexOf(tag);
+
+  if (multi) {
+    if (idx >= 0) { arr.splice(idx, 1); btn.classList.remove(ac); }
+    else { arr.push(tag); btn.classList.add(ac); }
+  } else {
+    document.querySelectorAll(`.tp-tag-btn[data-group="${gid}"]`).forEach(b => b.classList.remove(b.dataset.activeClass));
+    if (idx >= 0) { assessTags[gid] = []; }
+    else { assessTags[gid] = [tag]; btn.classList.add(ac); }
+  }
+}
 
 function toggleTag(gid, tag, multi, btn) {
   if (!activeTrade || !TRADES[activeTrade]) return;

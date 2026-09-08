@@ -641,9 +641,12 @@ Pre-entry trade strength questionnaire capturing conviction data before trade en
 | patience         | INTEGER | DEFAULT NULL (1=checked, 0=unchecked, NULL=old)  |
 | arrival_context  | INTEGER | DEFAULT NULL (1=checked, 0=unchecked, NULL=old)  |
 | confirmation     | INTEGER | DEFAULT NULL (1=checked, 0=unchecked, NULL=old)  |
-| mental_state     | TEXT    | NOT NULL DEFAULT 'calm' (calm, fomo)             |
+| mental_state     | TEXT    | NOT NULL DEFAULT 'calm' (calm, fomo) — no longer written; historical rows keep it |
 | confidence       | TEXT    | NOT NULL DEFAULT 'medium' (low, medium, high)    |
+| emotion_entry    | TEXT    | Nullable. One of the six ENTRY_EMOTIONS (calm, greed, frustration, impatience, overconfidence, distracted). Picked on the assessment page, before the live trade exists. |
 | created_at       | TEXT    | NOT NULL DEFAULT datetime('now','localtime')     |
+
+`emotion_entry` is copy-on-create: `POST /api/live` reads the `trade_strength` row named by `strength_id` and copies its `emotion_entry` onto the new `live_trades` row, because the weekly analytics group by column on `live_trades`/`trades` rather than joining through `trade_strength`. See LIVE_TRADES.emotion_entry above.
 
 ---
 
