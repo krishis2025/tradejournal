@@ -615,7 +615,7 @@
     {% set EXIT_GOOD = ['Planned — Monitored Continuation'] %}
     {% set VOL_MAP   = {'Avg':'active-vol-avg','Above Avg':'active-vol-high','Below Avg':'active-vol-low'} %}
     <div class="tag-panel">
-      {% for g in tag_groups[:4] if g.id != 'exit' %}
+      {% for g in tag_groups if g.id in ('with', 'volume', 'setup') %}
       <div class="tag-group">
         <div class="tg-label">
           <span class="tg-dot" style="background:{{ dot_colors[g.dot] }};box-shadow:0 0 6px {{ dot_colors[g.dot] }}40;"></span>
@@ -653,7 +653,7 @@
     <!-- Tags 3-col -->
     {% set PRE_GOOD = ['Trade came to me', 'Intuition / Mkt Feel'] %}
     <div class="tag-panel-3">
-      {% for g in tag_groups[4:] %}
+      {% for g in tag_groups if g.id == 'pre' %}
       <div class="tag-group">
         <div class="tg-label">
           <span class="tg-dot" style="background:#8a96aa;"></span>{{ g.label }}

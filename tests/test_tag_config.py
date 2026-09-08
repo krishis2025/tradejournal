@@ -120,9 +120,9 @@ def test_retiring_the_group_leaves_trade_tags_untouched(tmp_db, day_id):
     assert [r["tag"] for r in rows] == ["Fear / Anxious"]
 
 
-def test_the_deletion_is_one_shot_and_does_not_fight_the_append(tmp_db):
-    """4.8.2 appends the exit vocabulary; this removes it. Running init_db
-    repeatedly must not oscillate."""
+def test_the_deletion_is_one_shot(tmp_db):
+    """Running init_db repeatedly must not resurrect the retired group or
+    error on the already-set flag."""
     for _ in range(3):
         db.init_db()
     custom = db.get_tag_config()
@@ -130,16 +130,13 @@ def test_the_deletion_is_one_shot_and_does_not_fight_the_append(tmp_db):
 
 
 def test_retiring_a_pre_existing_override_still_wipes_it_and_keeps_its_trade_tags(tmp_db, day_id):
-    """Replays the real database's shape: an 'exit' override that predates the
-    4.8.2 widened vocabulary, with a trade tagged on one of the original tags.
-    On the very first init_db() after upgrade, the 4.8.2 append runs first
-    (adding the six new tags to the pre-existing override), then this
-    migration deletes the whole group in the same call — net effect is zero
-    tag_config rows, same as any other database, and the append's own output
-    never survives to be observed. trade_tags must still come through untouched."""
+    """Replays the real database's shape: an 'exit' tag_config override
+    (the pre-4.8.2 vocabulary) with a trade tagged on one of its tags. The
+    one-shot deletion must wipe the whole override the first time it runs
+    after upgrade, while trade_tags for that trade survive untouched."""
     # tmp_db already ran init_db() once (setting the retirement flag on an
     # empty table). Simulate an old database: clear the flag and seed a
-    # pre-4.8.2 override.
+    # pre-existing override, as if this migration had never run before.
     with db.get_conn() as conn:
         conn.execute("DELETE FROM app_config WHERE key = 'migration_exit_group_retired'")
         conn.execute("DELETE FROM tag_config WHERE group_id = 'exit'")
@@ -155,7 +152,7 @@ def test_retiring_a_pre_existing_override_still_wipes_it_and_keeps_its_trade_tag
                                "17:32", "18:02")
     db.set_trade_tags(trade_id, "exit", ["Bailed out - Reasses"])
 
-    db.init_db()  # append runs, then this migration wipes the group
+    db.init_db()  # deletion migration wipes the pre-existing override
 
     with db.get_conn() as conn:
         remaining = conn.execute(

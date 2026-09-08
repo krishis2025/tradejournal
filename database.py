@@ -841,22 +841,13 @@ def init_db():
         # Migration: merge phantom NULL-account days into their real account day
         _migrate_merge_null_account_days(conn)
 
-        # Migration: append any exit tags TAG_GROUPS gained after a custom
-        # tag_config override already existed. get_tag_groups() returns the DB
-        # override WHOLESALE the moment any row exists for a group, so widening
-        # TAG_GROUPS in code alone never reaches a database with a pre-existing
-        # exit override. Append-only and idempotent.
-        _migrate_append_missing_exit_tags(conn)
-
         # One-shot: retire the 'exit' tag group. Its vocabulary is superseded by
         # management_issue (what changed), emotion (why) and the target-fit ratio
         # (what price did). get_tag_groups() serves a DB override wholesale, so
         # removing it from TAG_GROUPS is not enough — the rows must go.
         #
-        # Runs AFTER the 4.8.2 append and does not clear that migration's flag:
-        # on a fresh database the append adds the vocabulary once, this removes
-        # it once, and neither runs again. trade_tags is deliberately untouched
-        # so historical trades keep the exit tags they were given.
+        # trade_tags is deliberately untouched so historical trades keep the
+        # exit tags they were given.
         already = conn.execute(
             "SELECT 1 FROM app_config WHERE key = 'migration_exit_group_retired'"
         ).fetchone()
@@ -866,40 +857,6 @@ def init_db():
                 "INSERT OR REPLACE INTO app_config (key, value) VALUES "
                 "('migration_exit_group_retired', '1')"
             )
-
-
-def _migrate_append_missing_exit_tags(conn):
-    """Append any app_logic.TAG_GROUPS exit tags missing from a pre-existing
-    tag_config override, without touching existing rows.
-
-    This is the dangerous part: save_tag_config detects renames BY POSITION,
-    so _cascade_tag_rename would silently relabel real trades if a position
-    shifted. This function must only ever append past the current maximum
-    position for the group — never delete, reorder, or renumber. It does not
-    go through save_tag_config for that reason.
-
-    A no-op when the 'exit' group has no override yet, because
-    get_tag_groups() already falls back to the TAG_GROUPS constant in that case.
-    """
-    from app_logic import TAG_GROUPS
-    exit_group = next((g for g in TAG_GROUPS if g["id"] == "exit"), None)
-    if not exit_group:
-        return
-    existing = conn.execute(
-        "SELECT tag, position FROM tag_config WHERE group_id = 'exit'"
-    ).fetchall()
-    if not existing:
-        return  # no override present; nothing to append to
-    existing_tags = {r["tag"] for r in existing}
-    next_position = max(r["position"] for r in existing) + 1
-    for tag in exit_group["tags"]:
-        if tag in existing_tags:
-            continue
-        conn.execute(
-            "INSERT INTO tag_config (group_id, tag, position, enabled) VALUES ('exit', ?, ?, 1)",
-            (tag, next_position)
-        )
-        next_position += 1
 
 
 def _migrate_merge_null_account_days(conn):

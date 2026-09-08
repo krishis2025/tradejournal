@@ -251,50 +251,6 @@ def test_summary_survives_a_week_with_no_trades(tmp_db):
     assert result["summary"]["coverage"] == {"covered": 0, "total": 0}
 
 
-def test_migration_appending_exit_tags_is_idempotent(tmp_db):
-    """init_db() runs on every request; running it twice must not duplicate rows."""
-    with db.get_conn() as conn:
-        conn.execute("DELETE FROM tag_config WHERE group_id = 'exit'")
-        for pos, tag in enumerate(
-            ["Planned — Monitored Continuation", "Fear / Anxious", "Bailed out - Reasses"]
-        ):
-            conn.execute(
-                "INSERT INTO tag_config (group_id, tag, position, enabled) "
-                "VALUES ('exit', ?, ?, 1)", (tag, pos)
-            )
-
-    db.init_db()
-    with db.get_conn() as conn:
-        first_pass = conn.execute(
-            "SELECT tag, position FROM tag_config WHERE group_id = 'exit' ORDER BY position"
-        ).fetchall()
-
-    db.init_db()
-    with db.get_conn() as conn:
-        second_pass = conn.execute(
-            "SELECT tag, position FROM tag_config WHERE group_id = 'exit' ORDER BY position"
-        ).fetchall()
-
-    assert [(r["tag"], r["position"]) for r in first_pass] == \
-           [(r["tag"], r["position"]) for r in second_pass]
-    tags = [r["tag"] for r in second_pass]
-    assert len(tags) == len(set(tags)), "no duplicate tag rows after a second init_db()"
-
-
-def test_migration_is_a_noop_when_exit_group_has_no_override(tmp_db):
-    """get_tag_groups() already falls back to TAG_GROUPS when no override
-    exists, so the migration must not fabricate a tag_config row for a group
-    that was never customized."""
-    with db.get_conn() as conn:
-        conn.execute("DELETE FROM tag_config WHERE group_id = 'exit'")
-    db.init_db()
-    with db.get_conn() as conn:
-        rows = conn.execute(
-            "SELECT * FROM tag_config WHERE group_id = 'exit'"
-        ).fetchall()
-    assert rows == []
-
-
 # ── weekly payload wiring ─────────────────────────────────────────────────────
 
 def test_weekly_payload_carries_plan_execution(tmp_db):
