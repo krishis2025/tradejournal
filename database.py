@@ -354,6 +354,7 @@ def init_db():
             ("emotion", "TEXT"),
             ("emotion_entry", "TEXT"),
             ("process_violation", "TEXT"),
+            ("management_driver", "TEXT"),
             ("pre_tags_late", "INTEGER NOT NULL DEFAULT 0"),
         ]
         for _table in ("trades", "live_trades"):
@@ -1210,15 +1211,17 @@ def get_trade_by_id(trade_id):
 
 def insert_trade(day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open=False, execution_json=None, execution_score_json=None, context_id=None, market_state_json=None,
                  grade=None, management=None, management_issue=None, emotion=None,
-                 emotion_entry=None, process_violation=None, pre_tags_late=0):
+                 emotion_entry=None, process_violation=None, pre_tags_late=0,
+                 management_driver=None):
     with get_conn() as conn:
         cur = conn.execute("""
             INSERT INTO trades
                 (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, is_open, execution_json, execution_score_json, context_id, market_state_json,
-                 grade, management, management_issue, emotion, emotion_entry, process_violation, pre_tags_late)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 grade, management, management_issue, emotion, emotion_entry, process_violation, pre_tags_late, management_driver)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (day_id, trade_num, direction, qty, avg_entry, avg_exit, pnl, entry_time, exit_time, 1 if is_open else 0, execution_json, execution_score_json, context_id, market_state_json,
-              grade, management, management_issue, emotion, emotion_entry, process_violation, pre_tags_late))
+              grade, management, management_issue, emotion, emotion_entry, process_violation, pre_tags_late,
+              management_driver))
         return cur.lastrowid
 
 
@@ -1288,7 +1291,8 @@ def update_trade_notes(trade_id, notes, notes_monitoring=None, notes_exit=None):
 
 
 _ASSESSMENT_FIELDS = ("grade", "management", "management_issue", "emotion",
-                      "emotion_entry", "process_violation", "pre_tags_late")
+                      "emotion_entry", "process_violation", "pre_tags_late",
+                      "management_driver")
 
 
 def set_trade_assessment(trade_id, **fields):

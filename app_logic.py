@@ -546,6 +546,11 @@ ENTRY_EMOTIONS = tuple(e for e in EMOTIONS
                        if e not in ("fear_of_loss", "fear_of_giving_back"))
 PROCESS_VIOLATIONS = ("none", "traded_outside_plan", "exceeded_risk",
                       "revenge_trade", "overtraded")
+# What the management decisions were actually reacting to. Market and thesis are
+# one choice on purpose: both are reasons outside the trader's own money, which
+# is the line this question exists to draw. Splitting them would spread the
+# P&L signal across two buckets and make the drift harder to see.
+MANAGEMENT_DRIVERS = ("market_thesis", "pnl", "both")
 
 _ASSESSMENT_VOCAB = {
     "grade": GRADES,
@@ -554,6 +559,7 @@ _ASSESSMENT_VOCAB = {
     "emotion": EMOTIONS,
     "emotion_entry": ENTRY_EMOTIONS,
     "process_violation": PROCESS_VIOLATIONS,
+    "management_driver": MANAGEMENT_DRIVERS,
 }
 
 
@@ -1563,6 +1569,7 @@ def close_live_trade_to_journal(live_trade_id):
         emotion=lt.get("emotion"),
         emotion_entry=lt.get("emotion_entry"),
         process_violation=lt.get("process_violation"),
+        management_driver=lt.get("management_driver"),
         pre_tags_late=lt.get("pre_tags_late") or 0,
     )
 

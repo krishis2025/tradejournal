@@ -3284,6 +3284,7 @@ function buildTradeModel(liveTrade, contexts, instrumentConfig) {
     emotion: liveTrade.emotion || null,
     emotion_entry: liveTrade.emotion_entry || null,
     process_violation: liveTrade.process_violation || null,
+    management_driver: liveTrade.management_driver || null,
     pre_tags_late: liveTrade.pre_tags_late || 0,
     pushed: liveTrade.status === 'closed',
     context: {
@@ -5183,6 +5184,7 @@ function renderReviewCenter(el, trade) {
     const reviewMgmtIssue = trade.management_issue || '';
     const reviewEmotion = trade.emotion || '';
     const reviewViolation = trade.process_violation || '';
+    const reviewDriver = trade.management_driver || '';
 
     // pre_tags_late's "had none at entry" baseline is captured once, the first
     // time the review screen renders for this trade — not recomputed on every
@@ -5204,6 +5206,11 @@ function renderReviewCenter(el, trade) {
     }
 
     function chipLabel(value) {
+      // Market and thesis are one choice; the slash is the label, not a separator
+      // between two options. Spelling it out here keeps the stored value a single
+      // token while the chip reads the way the question is asked.
+      const SPECIAL = { market_thesis: 'Market / Thesis', pnl: 'P&L' };
+      if (SPECIAL[value]) return SPECIAL[value];
       const s = value.replace(/_/g, ' ');
       return s.charAt(0).toUpperCase() + s.slice(1);
     }
@@ -5211,7 +5218,8 @@ function renderReviewCenter(el, trade) {
     function chipBtn(field, value) {
       const current = field === 'management_issue' ? reviewMgmtIssue
         : field === 'emotion' ? reviewEmotion
-        : field === 'process_violation' ? reviewViolation : '';
+        : field === 'process_violation' ? reviewViolation
+        : field === 'management_driver' ? reviewDriver : '';
       return `<div class="rv2-chip${current === value ? ' selected' : ''}" onclick="setReviewField(${trade.id}, '${field}', '${value}')">${chipLabel(value)}</div>`;
     }
 
@@ -5254,6 +5262,13 @@ function renderReviewCenter(el, trade) {
           </div>
         </div>
 
+        <div class="rv2-section">
+          <div class="rv2-q-title">What primarily drove your management decisions?</div>
+          <div class="rv2-chip-row">
+            ${['market_thesis','pnl','both'].map(v => chipBtn('management_driver', v)).join('')}
+          </div>
+        </div>
+
         ${reviewMgmt === 'deviated' ? `
         <div class="rv2-section">
           <div class="rv2-q-title">What changed?</div>
@@ -5274,7 +5289,7 @@ function renderReviewCenter(el, trade) {
 
         ${(reviewGrade === 'B' || reviewGrade === 'C') ? `
         <div class="rv2-section">
-          <div class="rv2-q-title">Did you break a rule?</div>
+          <div class="rv2-q-title">Process violation</div>
           <div class="rv2-chip-row">
             ${['none','traded_outside_plan','exceeded_risk','revenge_trade','overtraded']
               .map(v => chipBtn('process_violation', v)).join('')}

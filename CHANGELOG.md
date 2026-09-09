@@ -2,6 +2,20 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [4.9.1] — 2026-09-08
+
+### Added
+
+- **"What primarily drove your management decisions?"** on the review screen, between *How did you
+  manage it?* and *What changed?* — `Market / Thesis`, `P&L`, `Both`. Market and thesis are one
+  choice on purpose: both are reasons outside the trader's own money, which is the line the question
+  exists to draw, and splitting them would spread the P&L signal across two buckets. Recorded on
+  every trade; not yet surfaced on the weekly review.
+
+### Changed
+
+- The review screen's *Did you break a rule?* section is renamed **Process violation**.
+
 ## [4.9.0] — 2026-09-07
 
 ### Changed

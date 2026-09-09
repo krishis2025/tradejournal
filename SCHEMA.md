@@ -113,6 +113,7 @@ Individual trades recorded per day.
 | emotion_entry      | TEXT    | Nullable. Same vocabulary minus the two fear states, which require an open position. Recorded at entry. |
 | process_violation  | TEXT    | Nullable. none \| traded_outside_plan \| exceeded_risk \| revenge_trade \| overtraded. Only asked when grade is B or C. |
 | pre_tags_late      | INTEGER | NOT NULL DEFAULT 0. 1 when pre-trade tags were first filled at review rather than at entry. |
+| management_driver  | TEXT    | Nullable. market_thesis | pnl | both. What the management decisions were reacting to. No cross-field rule — always askable. |
 
 `market_state_json`: immutable photograph of the Context Market State strip at the entry fill
 (full factors + strength + computed badge). Written once; carried over from `live_trades` on the
