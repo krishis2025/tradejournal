@@ -5013,12 +5013,12 @@ function renderEntryForm(el) {
         </div>
       </div>
       <div class="ef-row">
-        <span class="ef-label">Price</span>
-        <input type="number" step="0.25" class="ef-input" id="ef-price" placeholder="6900" autocomplete="off" value="${formPrice}" oninput="efUpdateRisk()">
-      </div>
-      <div class="ef-row">
         <span class="ef-label">Qty</span>
         <input type="number" min="1" class="ef-input" id="ef-qty" placeholder="6" autocomplete="off" value="${formQty}" oninput="efUpdateRisk()">
+      </div>
+      <div class="ef-row">
+        <span class="ef-label">Price</span>
+        <input type="number" step="0.25" class="ef-input" id="ef-price" placeholder="6900" autocomplete="off" value="${formPrice}" oninput="efUpdateRisk()">
       </div>
       <div class="ef-row">
         <span class="ef-label">Stop</span>
@@ -5064,6 +5064,12 @@ function renderEntryForm(el) {
     const inp = document.getElementById(id);
     if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') handleEnterClick(); });
   });
+
+  // Qty is the first field, so land the cursor there. Must be an explicit
+  // focus(): this form is injected via innerHTML after page load, and the
+  // autofocus attribute only fires while the browser parses the document.
+  const qtyInput = document.getElementById('ef-qty');
+  if (qtyInput) qtyInput.focus();
 
   efUpdateRisk();
 }

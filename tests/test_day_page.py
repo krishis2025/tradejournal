@@ -30,3 +30,26 @@ def test_day_page_renders_the_pre_trade_tag_panel(client, tmp_db, day_id):
         "the pre-trade panel's seeded tag never rendered as a tag-btn with its "
         "active class — the panel container is present but empty"
     )
+
+
+def test_entry_form_puts_qty_above_price(client, tmp_db):
+    """Cosmetic ordering, pinned so a later edit cannot silently swap it back.
+
+    Nothing reads DOM order — efUpdateRisk and handleEnterClick fetch by id —
+    so only a test can catch a regression here.
+    """
+    res = client.get("/live-v2")
+
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    qty_at = html.index('id="ef-qty"')
+    price_at = html.index('id="ef-price"')
+    assert qty_at < price_at, "Qty must render above Price in the entry form"
+
+
+def test_entry_form_focuses_qty_on_render(client, tmp_db):
+    """The form is injected via innerHTML, so the autofocus attribute would
+    never fire — an explicit focus() call is required."""
+    html = client.get("/live-v2").get_data(as_text=True)
+
+    assert "qtyInput.focus()" in html

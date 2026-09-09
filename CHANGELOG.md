@@ -2,6 +2,15 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [4.9.2] — 2026-09-08
+
+### Changed
+
+- **Entry form: Qty now sits above Price, and the cursor lands in Qty** on entering the view.
+  Cosmetic only — nothing reads the field order, and it fixes tab order for free. The focus is an
+  explicit `focus()` call rather than the `autofocus` attribute, because the form is injected after
+  page load and `autofocus` only fires while the browser parses the document.
+
 ## [4.9.1] — 2026-09-08
 
 ### Added
