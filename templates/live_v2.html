@@ -2745,10 +2745,7 @@
 
 .poc-input     { font-family: 'Inter', sans-serif; font-size: 12px; padding: 4px 8px; border-radius: 4px; border: 0.5px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: var(--poc-text-primary); width: 100%; box-sizing: border-box; }
 .poc-input:focus { outline: none; border-color: rgba(0,200,255,0.45); }
-.poc-input.amber-tint { border-color: rgba(245,166,35,0.30); background: rgba(245,166,35,0.05); }
-.poc-input.amber-tint:focus { border-color: rgba(245,166,35,0.55); }
 [data-theme="paper"] .poc-input { border-color: rgba(0,0,0,0.15); background: rgba(0,0,0,0.04); color: rgba(0,0,0,0.85); }
-[data-theme="paper"] .poc-input.amber-tint { border-color: rgba(176,122,24,0.35); background: rgba(245,166,35,0.06); }
 
 .poc-btn-base  { font-family: 'Inter', sans-serif; font-size: 10px; padding: 5px 10px; border-radius: 4px; cursor: pointer; border: 0.5px solid transparent; transition: background 0.12s, border-color 0.12s; letter-spacing: -0.005em; }
 .poc-btn-sm    { background: transparent; border: 0.5px solid rgba(255,255,255,0.18); color: rgba(255,255,255,0.6); }
@@ -2779,22 +2776,40 @@
 .poc-banner-add-btn:hover { background: rgba(0,200,255,0.18); }
 .poc-banner-add-btn.active { background: rgba(0,200,255,0.22); }
 
+/* Amber is this app's ADD colour — the ADD node and the ADD ledger chip both use
+   it — so the tray keeps it as an accent for identity. It is deliberately NOT a
+   background wash: the ledger also uses amber for "needs attention" (a defaulted
+   stop, a missing planned exit), and the risk readout below turns amber to say it
+   is using the 20-pt default rather than a stop you chose. Tint the whole tray and
+   that warning disappears into it. */
 .poc-banner-add-form {
-  background: rgba(245,166,35,0.04);
-  border-bottom: 0.5px solid rgba(245,166,35,0.15);
-  padding: 8px 8px;
-  display: flex; flex-direction: column; gap: 6px;
+  background: var(--surface2);
+  border-left: 2px solid rgba(245,166,35,0.55);
+  border-bottom: 0.5px solid var(--border);
+  padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 8px;
   margin-top: -6px; /* hug the banner above (which has its own margin-bottom) */
 }
-[data-theme="paper"] .poc-banner-add-form { background: rgba(245,166,35,0.06); border-bottom-color: rgba(176,122,24,0.18); }
+[data-theme="paper"] .poc-banner-add-form { background: var(--surface2); border-bottom-color: var(--border); }
 .poc-banner-add-label {
-  font-size: 9px; color: rgba(245,166,35,0.7);
+  font-size: 9px; color: rgba(245,166,35,0.85);
   text-transform: uppercase; letter-spacing: 0.06em;
   font-family: var(--font-mono, 'JetBrains Mono', monospace);
 }
-.poc-banner-add-inputs { display: grid; grid-template-columns: 80px 1fr; gap: 8px; align-items: end; }
-.poc-banner-add-field  { display: flex; flex-direction: column; gap: 2px; }
-.poc-banner-add-actions { display: flex; gap: 6px; }
+/* Four equal fields in fill order. minmax(0,1fr) rather than 1fr so a long
+   placeholder cannot push a column wider than its share — which is exactly how
+   the old 80px/1fr grid ended up truncating "auto -20pt". */
+.poc-banner-add-inputs {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px; align-items: end; max-width: 720px;
+}
+.poc-banner-add-field  { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.poc-banner-add-field .poc-input { width: 100%; }
+/* Risk sits with the actions, not in the input grid: it is a readout, not a
+   field, and giving it a grid cell stranded it on a row of its own. */
+.poc-banner-add-actions { display: flex; gap: 8px; align-items: center; max-width: 720px; }
+.poc-banner-add-risk-slot { display: flex; align-items: baseline; gap: 6px; margin-right: auto; }
+.poc-banner-add-actions .poc-btn-base { flex: 0 0 auto; padding-left: 16px; padding-right: 16px; }
 
 /* ── 3b — Right-panel three-section structure ── */
 .health-panel.poc-manage { padding: 0 4px 0 0; }
@@ -6156,28 +6171,28 @@ function buildManageCardsHTML(trade, isLong) {
       <div class="poc-banner-add-inputs">
         <div class="poc-banner-add-field">
           <span class="poc-lbl-tiny">QTY</span>
-          <input type="number" min="1" step="1" class="poc-input amber-tint" id="poc-banner-add-qty" value="1" oninput="pocBannerAddRisk()">
+          <input type="number" min="1" step="1" class="poc-input" id="poc-banner-add-qty" value="1" oninput="pocBannerAddRisk()">
         </div>
         <div class="poc-banner-add-field">
           <span class="poc-lbl-tiny">PRICE</span>
-          <input type="number" step="0.25" class="poc-input amber-tint" id="poc-banner-add-price" oninput="pocBannerAddRisk()">
+          <input type="number" step="0.25" class="poc-input" id="poc-banner-add-price" oninput="pocBannerAddRisk()">
         </div>
         <div class="poc-banner-add-field">
           <span class="poc-lbl-tiny">STOP</span>
-          <input type="number" step="0.25" class="poc-input amber-tint" id="poc-banner-add-stop" placeholder="auto \u221220pt" oninput="pocBannerAddRisk()">
+          <input type="number" step="0.25" class="poc-input" id="poc-banner-add-stop" placeholder="auto \u221220pt" oninput="pocBannerAddRisk()">
         </div>
         <div class="poc-banner-add-field">
           <span class="poc-lbl-tiny">TARGET</span>
-          <input type="number" step="0.25" class="poc-input amber-tint" id="poc-banner-add-target" placeholder="optional" oninput="pocBannerAddRisk()">
-        </div>
-        <div class="poc-banner-add-field">
-          <span class="poc-lbl-tiny">RISK</span>
-          <span class="ef-risk-readout" id="poc-banner-add-risk" style="font-size:11px;">\u2014</span>
+          <input type="number" step="0.25" class="poc-input" id="poc-banner-add-target" placeholder="optional" oninput="pocBannerAddRisk()">
         </div>
       </div>
       <div class="poc-banner-add-actions">
-        <button class="poc-btn-base poc-btn-sm" style="flex:1" onclick="dynBannerAddCancel()">Cancel</button>
-        <button class="poc-btn-base poc-btn-amber" style="flex:2" onclick="dynBannerAddConfirm()">Confirm + Add ${dirLabel}</button>
+        <span class="poc-banner-add-risk-slot">
+          <span class="poc-lbl-tiny">RISK</span>
+          <span class="ef-risk-readout" id="poc-banner-add-risk" style="font-size:11px;">\u2014</span>
+        </span>
+        <button class="poc-btn-base poc-btn-sm" onclick="dynBannerAddCancel()">Cancel</button>
+        <button class="poc-btn-base poc-btn-amber" onclick="dynBannerAddConfirm()">Confirm + Add ${dirLabel}</button>
       </div>
     </div>`;
   }

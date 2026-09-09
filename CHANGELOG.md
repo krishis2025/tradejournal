@@ -2,6 +2,21 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [4.9.4] — 2026-09-09
+
+### Changed
+
+- **Reworked the Add-contracts tray.** Its grid was `80px 1fr`, sized for the two fields it
+  originally had; the four fields added in 4.9.3 inherited that narrow/wide split, which is why
+  STOP truncated its own `auto −20pt` placeholder, TARGET stretched across the panel, and RISK sat
+  alone on a row showing one character. Now four equal columns in fill order — Qty, Price, Stop,
+  Target — with the risk readout moved onto the action row, taking the tray from five rows to two.
+- **Amber is now an accent rather than a wash.** It stays on the label, a left edge and the confirm
+  button, where it carries the ADD identity the node diagram and ledger already use. The inputs and
+  tray background go neutral — because the risk readout itself turns amber to say it is using the
+  20-point default rather than a stop you chose, and inside an amber-tinted tray that warning was
+  invisible.
+
 ## [4.9.3] — 2026-09-09
 
 ### Fixed

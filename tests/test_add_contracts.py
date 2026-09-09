@@ -129,3 +129,36 @@ def test_the_abandoned_add_form_is_gone(client, tmp_db):
     for dead in ("buildAddContractsForm", "dynSubmitAdd",
                  "dynToggleAddForm", "dyn-add-stop"):
         assert dead not in html, f"{dead} should have been removed"
+
+
+def test_the_risk_readout_sits_with_the_actions_not_in_the_input_grid(client, tmp_db):
+    """Risk is a readout, not a field. Giving it a cell in the input grid
+    stranded it on a row of its own showing a single em-dash, and forced the
+    tray five rows tall — shoving the position summary down every time it opened.
+    """
+    html = client.get("/live-v2").get_data(as_text=True)
+
+    actions_at = html.index('class="poc-banner-add-actions"')
+    risk_at = html.index('id="poc-banner-add-risk"')
+    inputs_at = html.index('class="poc-banner-add-inputs"')
+    assert inputs_at < actions_at < risk_at, (
+        "the risk readout must render inside the actions row, after the inputs")
+
+
+def test_the_add_inputs_are_four_equal_columns(client, tmp_db):
+    """The old grid was `80px 1fr`, sized for two fields. Six fields wrapped into
+    it inherited that narrow/wide split — which is why STOP truncated its own
+    'auto -20pt' placeholder."""
+    html = client.get("/live-v2").get_data(as_text=True)
+
+    assert "grid-template-columns: repeat(4, minmax(0, 1fr))" in html
+    assert "grid-template-columns: 80px 1fr" not in html
+
+
+def test_the_add_inputs_are_not_amber_tinted(client, tmp_db):
+    """Amber is the ADD identity colour, kept on the label and confirm button.
+    Tinting the inputs too would bury the risk readout's own amber '20pt default'
+    warning — the signal that says the stop was guessed, not chosen."""
+    html = client.get("/live-v2").get_data(as_text=True)
+
+    assert "amber-tint" not in html
