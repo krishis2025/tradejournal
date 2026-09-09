@@ -1805,13 +1805,6 @@
 .dyn-feed-header .feed-spacer { flex: 1; }
 .dyn-add-btn { background: rgba(0,200,255,0.08); border: 0.5px solid rgba(0,200,255,0.3); color: #00c8ff; border-radius: 4px; padding: 5px 10px; font-size: 10px; cursor: pointer; }
 .dyn-add-btn:hover { background: rgba(0,200,255,0.18); }
-.dyn-add-form { background: var(--surface2); border: 0.5px solid rgba(0,200,255,0.2); border-radius: 6px; padding: 10px 14px; margin: 0 14px 8px; display: grid; grid-template-columns: 90px 1fr; row-gap: 6px; column-gap: 8px; align-items: center; }
-.dyn-add-form label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
-.dyn-add-form input { background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 5px 8px; font-family: 'Inter', monospace; font-size: 11px; color: var(--text); }
-.dyn-add-form input[readonly] { opacity: 0.6; }
-.dyn-add-form .dyn-form-actions { grid-column: 1 / -1; display: flex; gap: 8px; margin-top: 4px; }
-.dyn-add-form .btn-confirm { background: rgba(0,200,255,0.18); border: 0.5px solid rgba(0,200,255,0.5); color: #00c8ff; border-radius: 4px; padding: 5px 12px; font-size: 10px; cursor: pointer; }
-.dyn-add-form .btn-cancel  { background: transparent; border: 0.5px solid rgba(255,255,255,0.15); color: var(--muted); border-radius: 4px; padding: 5px 12px; font-size: 10px; cursor: pointer; }
 .dyn-feed-cols { display: grid; grid-template-columns: 46px 48px 32px 62px 150px 110px 80px 52px 1fr; gap: 6px; padding: 4px 4px; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
 .dyn-feed-row  { display: grid; grid-template-columns: 46px 48px 32px 62px 150px 110px 80px 52px 1fr; gap: 6px; padding: 6px 4px; font-size: 10px; color: var(--text); align-items: center; }
 .dyn-feed-row:hover { background: var(--surface2); }
@@ -6163,11 +6156,23 @@ function buildManageCardsHTML(trade, isLong) {
       <div class="poc-banner-add-inputs">
         <div class="poc-banner-add-field">
           <span class="poc-lbl-tiny">QTY</span>
-          <input type="number" min="1" step="1" class="poc-input amber-tint" id="poc-banner-add-qty" value="1">
+          <input type="number" min="1" step="1" class="poc-input amber-tint" id="poc-banner-add-qty" value="1" oninput="pocBannerAddRisk()">
         </div>
         <div class="poc-banner-add-field">
           <span class="poc-lbl-tiny">PRICE</span>
-          <input type="number" step="0.25" class="poc-input amber-tint" id="poc-banner-add-price">
+          <input type="number" step="0.25" class="poc-input amber-tint" id="poc-banner-add-price" oninput="pocBannerAddRisk()">
+        </div>
+        <div class="poc-banner-add-field">
+          <span class="poc-lbl-tiny">STOP</span>
+          <input type="number" step="0.25" class="poc-input amber-tint" id="poc-banner-add-stop" placeholder="auto \u221220pt" oninput="pocBannerAddRisk()">
+        </div>
+        <div class="poc-banner-add-field">
+          <span class="poc-lbl-tiny">TARGET</span>
+          <input type="number" step="0.25" class="poc-input amber-tint" id="poc-banner-add-target" placeholder="optional" oninput="pocBannerAddRisk()">
+        </div>
+        <div class="poc-banner-add-field">
+          <span class="poc-lbl-tiny">RISK</span>
+          <span class="ef-risk-readout" id="poc-banner-add-risk" style="font-size:11px;">\u2014</span>
         </div>
       </div>
       <div class="poc-banner-add-actions">
@@ -6199,7 +6204,6 @@ function buildManageCardsHTML(trade, isLong) {
 }
 
 /* ── POC dynamic-trade-model: state for inline forms / toggles ── */
-let _dynShowAdd = false;
 let _dynPerLot  = false;
 
 /* ── State ── */
@@ -6418,6 +6422,37 @@ async function _pocPostJson(url, body) {
 }
 
 /* ── Banner +Add Confirm ── */
+/* Live risk for the add tray. Mirrors efUpdateRisk on the entry form: the stop
+   falls back to the same direction-aware 20-pt default the server applies when
+   the field is blank, so the number shown is the number that will be recorded.
+   R:R is suppressed when the target sits on the wrong side of entry — a target
+   below entry on a long is a typo, not information. */
+function pocBannerAddRisk() {
+  const el = document.getElementById('poc-banner-add-risk');
+  if (!el) return;
+  const trade = _pocCurrentTrade(); if (!trade) return;
+  const price = parseFloat(document.getElementById('poc-banner-add-price')?.value);
+  const qty = parseInt(document.getElementById('poc-banner-add-qty')?.value, 10);
+  const pv = trade.tickValue || 5;
+  if (!price || !qty) { el.textContent = '\u2014'; el.classList.remove('default-risk'); return; }
+  const isLong = trade.direction === 'Long';
+  const defStop = isLong ? price - 20 : price + 20;
+  const stopInp = document.getElementById('poc-banner-add-stop');
+  const typed = stopInp && stopInp.value !== '';
+  const stop = typed ? parseFloat(stopInp.value) : defStop;
+  const risk = Math.abs(price - stop) * qty * pv;
+  const tgtRaw = document.getElementById('poc-banner-add-target')?.value;
+  let rr = '';
+  if (tgtRaw !== undefined && tgtRaw !== '') {
+    const target = parseFloat(tgtRaw);
+    const riskPts = Math.abs(price - stop);
+    const rewardPts = isLong ? (target - price) : (price - target);
+    if (!isNaN(target) && riskPts > 0 && rewardPts > 0) rr = ' \u00b7 ' + (rewardPts / riskPts).toFixed(1) + 'R';
+  }
+  el.textContent = _fmtRisk(risk) + (typed ? '' : ' \u00b7 20pt default') + rr;
+  el.classList.toggle('default-risk', !typed);
+}
+
 async function dynBannerAddConfirm() {
   const trade = _pocCurrentTrade(); if (!trade) return;
   const priceEl = document.getElementById('poc-banner-add-price');
@@ -6430,9 +6465,15 @@ async function dynBannerAddConfirm() {
   const btn = document.querySelector('.poc-banner-add-form .poc-btn-amber');
   setButtonLoading(btn, 'Adding...');
   try {
-    const updated = await _pocPostJson(`/api/live/${trade.id}/add`, {
-      price, qty, time: getCurrentTimeString(),
-    });
+    // Blank fields are omitted entirely rather than sent as null: the server
+    // reads an absent key as "use the 20-pt default" / "no planned exit", and a
+    // null would be recorded as a deliberate blank instead.
+    const stopRaw = document.getElementById('poc-banner-add-stop')?.value;
+    const tgtRaw  = document.getElementById('poc-banner-add-target')?.value;
+    const body = { price, qty, time: getCurrentTimeString() };
+    if (stopRaw !== undefined && stopRaw !== '') body.stop_price = parseFloat(stopRaw);
+    if (tgtRaw  !== undefined && tgtRaw  !== '') body.target_price = parseFloat(tgtRaw);
+    const updated = await _pocPostJson(`/api/live/${trade.id}/add`, body);
     _bannerShowAdd = false;
     updateTradeDisplay(updated);
   } catch (err) {
@@ -7528,44 +7569,6 @@ function _showPullPicker(anchor, tradeId, execId, stops) {
   setTimeout(() => document.addEventListener('mousedown', close), 0);
 }
 
-function buildAddContractsForm(trade) {
-  const dirLabel = trade.direction === 'Long' ? 'LONG' : 'SHORT';
-  const now = getCurrentTimeStr();
-  return `<div class="dyn-add-form">
-    <label>Direction</label><input type="text" value="${dirLabel}" readonly>
-    <label>Price</label><input type="number" step="0.25" id="dyn-add-price" autofocus oninput="dynAddUpdateRisk()">
-    <label>Qty</label><input type="number" min="1" step="1" id="dyn-add-qty" value="1" oninput="dynAddUpdateRisk()">
-    <label>Stop</label><input type="number" step="0.25" id="dyn-add-stop" placeholder="auto −20pt" oninput="dynAddUpdateRisk()">
-    <label>Target</label><input type="number" step="0.25" id="dyn-add-target" placeholder="optional" oninput="dynAddUpdateRisk()">
-    <label>Risk</label><span class="ef-risk-readout" id="dyn-add-risk" style="font-size:11px;">—</span>
-    <label>Time</label><input type="text" id="dyn-add-time" value="${now}">
-    <div class="dyn-form-actions">
-      <button class="btn-confirm" onclick="dynSubmitAdd(${trade.id})">CONFIRM</button>
-      <button class="btn-cancel"  onclick="dynToggleAddForm()">CANCEL</button>
-    </div>
-  </div>`;
-}
-
-// Live risk readout for the Add form (same rules as the entry form).
-function dynAddUpdateRisk() {
-  const el = document.getElementById('dyn-add-risk');
-  if (!el) return;
-  const trade = TRADES[activeTrade];
-  const price = parseFloat(document.getElementById('dyn-add-price')?.value);
-  const qty = parseInt(document.getElementById('dyn-add-qty')?.value, 10);
-  const stopInp = document.getElementById('dyn-add-stop');
-  const pv = (trade && trade.tickValue) || 5;
-  const isLong = trade && trade.direction === 'Long';
-  if (!price || !qty) { el.textContent = '—'; el.classList.remove('default-risk'); return; }
-  const defStop = isLong ? price - 20 : price + 20;
-  if (stopInp && !stopInp.value) stopInp.placeholder = String(defStop);
-  const typed = stopInp && stopInp.value !== '';
-  const stop = typed ? parseFloat(stopInp.value) : defStop;
-  const risk = Math.abs(price - stop) * qty * pv;
-  el.textContent = _fmtRisk(risk) + (typed ? '' : ' · 20pt default');
-  el.classList.toggle('default-risk', !typed);
-}
-
 function buildDynamicCenterHTML(trade) {
   const openQty = trade.openQty != null ? trade.openQty : trade.qty;
   const wae = trade.weightedAvgEntry || trade.entry;
@@ -7603,42 +7606,9 @@ function buildDynamicCenterHTML(trade) {
 }
 /* Phase 3c: buildStopRow no longer called — the stop UI moved to the right panel. */
 
-/* ── POC actions ── */
-function dynToggleAddForm() {
-  _dynShowAdd = !_dynShowAdd;
-  renderAll && renderAll();
-}
 function dynTogglePerLot() {
   _dynPerLot = !_dynPerLot;
   renderAll && renderAll();
-}
-async function dynSubmitAdd(tradeId) {
-  const price = parseFloat(document.getElementById('dyn-add-price').value);
-  const qty   = parseInt(document.getElementById('dyn-add-qty').value, 10);
-  const time  = document.getElementById('dyn-add-time').value;
-  const stopRaw = document.getElementById('dyn-add-stop')?.value;
-  const stop_price = (stopRaw !== undefined && stopRaw !== '') ? parseFloat(stopRaw) : null;
-  const targetRaw = document.getElementById('dyn-add-target')?.value;
-  const target_price = (targetRaw !== undefined && targetRaw !== '') ? parseFloat(targetRaw) : null;
-  if (!price || !qty || qty <= 0) {
-    if (typeof showToast === 'function') showToast('Enter price and qty', 'error');
-    return;
-  }
-  try {
-    const res = await fetch(`/api/live/${tradeId}/add`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(Object.assign({ price, qty, time },
-        stop_price != null ? { stop_price } : {},
-        target_price != null ? { target_price } : {}))
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Add failed');
-    _dynShowAdd = false;
-    if (typeof showToast === 'function') showToast(`+${qty} added @ ${price}`, 'success');
-    await refreshTradeFromServer(tradeId);
-  } catch (e) {
-    if (typeof showToast === 'function') showToast(e.message || 'Add failed', 'error');
-  }
 }
 async function dynUpdateGlobalStop(tradeId) {
   const price = parseFloat(document.getElementById('dyn-global-stop').value);

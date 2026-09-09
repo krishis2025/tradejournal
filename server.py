@@ -1309,6 +1309,16 @@ def api_live_add_contracts(live_id):
     )
     # Keep total_qty in sync so legacy code paths still report the right denominator
     db.update_live_trade(live_id, total_qty=int(trade["total_qty"]) + qty)
+
+    # Extend the WORKING stop to cover the contracts just added. Without this the
+    # right panel's net risk reads only the original lot — _redistribute_stop_qty
+    # shrinks levels when open_qty falls but never grows them when it rises, so a
+    # 3-contract trade scaled to 6 reported roughly half its real exposure.
+    # Done for a defaulted stop too: that default is already what the ledger
+    # records as this tranche's risk, and skipping it would leave the gap open
+    # for the commonest case.
+    db.append_live_trade_level(live_id, "stop", qty, add_stop_price)
+
     db.recalculate_position(live_id)
 
     updated = _poc_decorate_trade(db.get_live_trade(live_id))

@@ -2238,6 +2238,27 @@ def set_live_trade_levels(live_trade_id, levels):
                   lv["price"], lv.get("risk_dollars", 0), lv.get("reward_dollars", 0)))
 
 
+def append_live_trade_level(live_trade_id, level_type, qty, price):
+    """Append one working level without disturbing the existing ones.
+
+    set_live_trade_levels replaces the whole set, which is right when the client
+    sends a new full plan but wrong for a scale-in: adding contracts must extend
+    the working stops, not rewrite the stop already protecting the original lot.
+    Portion is one past the current maximum so per-lot ordering stays stable.
+    """
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT COALESCE(MAX(portion), 0) AS p FROM live_trade_levels "
+            "WHERE live_trade_id = ?", (live_trade_id,)
+        ).fetchone()
+        conn.execute(
+            "INSERT INTO live_trade_levels "
+            "(live_trade_id, level_type, portion, qty, price, risk_dollars, reward_dollars) "
+            "VALUES (?, ?, ?, ?, ?, 0, 0)",
+            (live_trade_id, level_type, int(row["p"]) + 1, int(qty), float(price))
+        )
+
+
 def add_live_trade_execution(live_trade_id, exec_type, portion, qty, price, exec_time, pnl,
                              stop_price=None, stop_source='default',
                              target_price=None, target_source='none'):

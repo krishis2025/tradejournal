@@ -2,6 +2,26 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [4.9.3] — 2026-09-09
+
+### Fixed
+
+- **Adding contracts left the working stop covering only the original lot**, so the right panel's
+  net risk under-reported real exposure — a 3-contract trade scaled to 6 showed a stop over 3.
+  `_redistribute_stop_qty` shrinks levels when open quantity falls but never grew them when it
+  rose. An add now appends its own working-stop level, including when the stop field is left blank
+  (the 20-point default is already what the ledger records for that tranche, and skipping it would
+  have left the gap open for the commonest case). In the reported trade, net risk goes from $390
+  covering 3 contracts to $675 covering all 6.
+
+### Changed
+
+- **The Add tray now takes Stop and Target**, with a live `Risk · R:R` readout matching the entry
+  form. The values reach the ledger and the working stop in one step, so there is nothing to
+  reconcile by hand afterwards.
+- Removed an abandoned second Add form that had stop and target inputs but was never rendered —
+  which is why those fields appeared to exist in the code and not on screen.
+
 ## [4.9.2] — 2026-09-08
 
 ### Changed
