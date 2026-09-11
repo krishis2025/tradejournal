@@ -221,17 +221,34 @@
 .pc-count { font-size:11px; color:#ffb347; }
 .pc-hint { font-size:10px; color:var(--muted); margin-left:auto; }
 .pc-group-label { font-size:10px; color:var(--muted); margin:8px 0 4px; }
-.pc-row { display:flex; align-items:center; gap:8px; padding:4px 0; }
+/* Header and rows share one track list, declared once. The old layout was
+   display:flex, which sizes each cell to its content — so a header reading
+   "stop" and a value reading "7618.25" could never line up. The date track is
+   empty for today's rows rather than folded into the trade cell, which is what
+   keeps both groups aligned under a single header. */
+.pc-grid { grid-template-columns:
+  78px 34px 46px 44px 62px 62px 62px 44px 62px 66px 96px auto; }
+.pc-row { display:grid; align-items:center; gap:10px; padding:4px 0; }
 .pc-cell { font-size:11px; color:var(--muted); }
 .pc-mono { font-family:var(--font-mono); color:var(--text); }
 .pc-dir.long { color:#4fffb0; } .pc-dir.short { color:#ff6b6b; }
+/* Reference levels, muted: the same dark red/green already used by the weekly
+   capture band and analytics rather than two new tones. */
+.pc-stop   { color:#c0392b; }
+.pc-target { color:#1a9e6a; }
+.pc-pnl.pos { color:#1a9e6a; }
+.pc-pnl.neg { color:#c0392b; }
+.pc-time { color:var(--muted); }
 .pc-input { width:96px; font-family:var(--font-mono); font-size:11px; padding:3px 6px;
             background:transparent; border:1px solid var(--border); border-radius:3px; color:var(--text); }
 .pc-tg { font-size:10px; padding:3px 7px; background:transparent; cursor:pointer;
          border:1px solid var(--border); color:var(--muted); border-radius:3px; }
 .pc-tg.active { border-color:#4fffb0; color:#4fffb0; }
 .pc-head .pc-cell { font-size:9px; letter-spacing:1px; text-transform:uppercase; color:var(--muted2, var(--muted)); }
-.pc-status { font-size:10px; color:#4fffb0; margin-left:auto; }
+/* Toggle + status share the final track so the row stays exactly 12 children
+   against 12 columns — a 13th would wrap onto an implicit second row. */
+.pc-tail { display:flex; align-items:center; gap:8px; }
+.pc-status { font-size:10px; color:#4fffb0; margin-left:6px; }
 {% endblock %}
 
 {% block nav_actions %}
@@ -269,30 +286,41 @@
           {%- endif -%}
         </div>
       {% endif %}
-      <div class="pc-row pc-head" aria-hidden="true">
-        <span class="pc-cell pc-num">trade</span>
-        <span class="pc-cell pc-dir">dir</span>
-        <span class="pc-cell pc-mono">stop</span>
-        <span class="pc-cell pc-mono">entry</span>
-        <span class="pc-cell pc-mono">plan</span>
-        <span class="pc-cell pc-mono pc-target">exit</span>
-        <span class="pc-cell" style="width:96px;">peak</span>
+      <div class="pc-row pc-grid pc-head" aria-hidden="true">
+        <span class="pc-cell">date</span>
+        <span class="pc-cell">trade</span>
+        <span class="pc-cell">dir</span>
+        <span class="pc-cell">in</span>
+        <span class="pc-cell">entry</span>
+        <span class="pc-cell">stop</span>
+        <span class="pc-cell">target</span>
+        <span class="pc-cell">out</span>
+        <span class="pc-cell">exit</span>
+        <span class="pc-cell">p&amp;l</span>
+        <span class="pc-cell">peak</span>
+        <span class="pc-cell"></span>
       </div>
       {% for r in group %}
-      <div class="pc-row" data-trade="{{ r.id }}">
-        <span class="pc-cell pc-num">{% if label %}{{ r.date }} · {% endif %}T{{ r.trade_num }}</span>
+      <div class="pc-row pc-grid" data-trade="{{ r.id }}">
+        <span class="pc-cell pc-time">{% if label %}{{ r.date }}{% endif %}</span>
+        <span class="pc-cell pc-num">T{{ r.trade_num }}</span>
         <span class="pc-cell pc-dir {{ 'long' if r.direction == 'Long' else 'short' }}">{{ r.direction|upper }}</span>
-        <span class="pc-cell pc-mono">{% if r.stop %}{{ '%.2f'|format(r.stop) }}{% else %}—{% endif %}</span>
+        <span class="pc-cell pc-mono pc-time">{{ r.entry_time or '—' }}</span>
         <span class="pc-cell pc-mono">{{ '%.2f'|format(r.avg_entry) }}</span>
+        <span class="pc-cell pc-mono pc-stop">{% if r.stop %}{{ '%.2f'|format(r.stop) }}{% else %}—{% endif %}</span>
         <span class="pc-cell pc-mono pc-target">{% if r.target %}{{ '%.2f'|format(r.target) }}{% else %}—{% endif %}</span>
+        <span class="pc-cell pc-mono pc-time">{{ r.exit_time or '—' }}</span>
         <span class="pc-cell pc-mono">{{ '%.2f'|format(r.avg_exit) }}</span>
+        <span class="pc-cell pc-mono pc-pnl {{ 'neg' if r.pnl < 0 else 'pos' }}">{{ '%+.0f'|format(r.pnl) }}</span>
         <input class="pc-input" type="number" step="0.25" placeholder="peak price"
                id="pc-price-{{ r.id }}">
-        <span class="pc-toggle">
-          <button type="button" class="pc-tg" data-timing="during" onclick="pcPick({{ r.id }}, 'during')">before exit</button>
-          <button type="button" class="pc-tg" data-timing="after"  onclick="pcPick({{ r.id }}, 'after')">after exit</button>
+        <span class="pc-tail">
+          <span class="pc-toggle">
+            <button type="button" class="pc-tg" data-timing="during" onclick="pcPick({{ r.id }}, 'during')">before exit</button>
+            <button type="button" class="pc-tg" data-timing="after"  onclick="pcPick({{ r.id }}, 'after')">after exit</button>
+          </span>
+          <span class="pc-status" id="pc-status-{{ r.id }}"></span>
         </span>
-        <span class="pc-status" id="pc-status-{{ r.id }}"></span>
       </div>
       {% endfor %}
     {% endif %}

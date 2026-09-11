@@ -984,6 +984,8 @@ def build_plan_check(day_date, account_id):
             "direction": t.get("direction"),
             "qty": t.get("qty"),
             "pnl": t.get("pnl"),
+            "entry_time": t.get("entry_time"),
+            "exit_time": t.get("exit_time"),
             "avg_entry": t.get("avg_entry"),
             "avg_exit": t.get("avg_exit"),
             "stop": weighted_plan_price(fills_by_trade.get(t["id"], []), "stop_price"),

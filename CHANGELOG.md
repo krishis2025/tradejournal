@@ -2,6 +2,24 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [4.9.5] — 2026-09-11
+
+### Changed
+
+- **Rebuilt the day view's PLAN CHECK strip.** Its headers never lined up with its values, and
+  could not: `.pc-row` was `display:flex`, which sizes every cell to its own content, so a heading
+  reading `stop` and a value reading `7618.25` were always different widths. Header and rows now
+  share one twelve-track CSS grid, declared once as `.pc-grid`, so the two are structurally locked
+  together rather than coincidentally similar.
+- **The row now reads as a trade rather than four bare prices.** Columns are DATE, TRADE, DIR, IN,
+  ENTRY, STOP, TARGET, OUT, EXIT, P&L, then the peak input and its before/after toggle. Entry and
+  exit times and P&L are new to the strip; `build_plan_check` gained `entry_time` and `exit_time`
+  on each row, and the `pnl` it already carried is now rendered.
+- **Reference levels are colour-coded** — stop in the dark red and target in the dark green already
+  used by the weekly capture band, with P&L taking the same pair by sign. The date moved into a
+  column of its own, empty for the current day's rows, instead of being folded into the trade cell
+  where it pushed the earlier-days group out of alignment with today's.
+
 ## [4.9.4] — 2026-09-09
 
 ### Changed
