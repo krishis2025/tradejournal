@@ -2,6 +2,33 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [4.10.0] — 2026-09-14
+
+### Changed
+
+- **Both Market Internals grids are transposed.** Sessions now run down the rows and metrics
+  across the columns, in VITALS and in the INTERNALS (VOLD/ADD) card, so Tab fills one session
+  left to right instead of walking a single metric down the day. DELTA became the bottom row.
+- **Vol % and ADH are real inputs.** They used to render as a coloured pill with the actual input
+  in a `display:none` sibling, revealed on click — and a hidden input is not focusable, so Tab
+  skipped both cells. Transposing alone would not have delivered keyboard entry; this is the
+  change that does. Their colour bands are now text tints, matching how `.sec-v-*` already tinted
+  the VOLD/ADD inputs. This closes the item `4c0bc05` deferred as "only pays off once every cell
+  holds a focusable input".
+
+### Added
+
+- **`/CL` and `TNX` join the vitals**, in the slot $TRIN held. Both read the way VIX already does —
+  a rise is bearish and takes the dark-red delta, a fall takes green — so all three now share one
+  `inverseDeltaPill` helper instead of three near-identical functions. Only the flat band differs:
+  VIX ±0.10, /CL ±0.20, TNX ±0.03, TNX being entered as the yield itself (4.12).
+
+### Removed
+
+- **$TRIN is gone from both internals templates.** Its column and all 115 recorded values stay in
+  `market_internals` — the client still carries the key so the session save, which POSTs the whole
+  state object into an `INSERT OR REPLACE`, cannot blank it.
+
 ## [4.9.5] — 2026-09-11
 
 ### Changed

@@ -588,6 +588,14 @@ def init_db():
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_internals_day ON market_internals(day_id)")
 
+        # Migration: /CL and TNX join the vitals, replacing $TRIN in the UI.
+        # `trin` is deliberately left in place — it holds recorded history and a
+        # SQLite column drop buys nothing here. It is simply no longer rendered.
+        mi_cols = [r[1] for r in conn.execute("PRAGMA table_info(market_internals)").fetchall()]
+        for col in ("cl", "tnx"):
+            if col not in mi_cols:
+                conn.execute(f"ALTER TABLE market_internals ADD COLUMN {col} TEXT DEFAULT ''")
+
         # Migration: create developing_context table
         conn.execute("""
             CREATE TABLE IF NOT EXISTS developing_context (
@@ -3352,7 +3360,7 @@ def delete_weekly_intention(intention_id):
 # ── Market Internals ─────────────────────────────────────────────────────────
 
 INTERNALS_FIELDS = [
-    "timestamp", "structure", "value_area", "vix", "trin", "vol_pct",
+    "timestamp", "structure", "value_area", "vix", "trin", "cl", "tnx", "vol_pct",
     "vold_nyse", "vold_nq", "add_nyse", "add_nq", "adh",
     "sectors_json", "tape_notes",
 ]

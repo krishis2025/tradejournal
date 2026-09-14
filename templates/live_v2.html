@@ -2269,15 +2269,12 @@
 .ip-amber  { background:rgba(255,179,71,0.2); color:#ffb347; }
 .ip-blue   { background:rgba(0,207,255,0.15); color:#00cfff; }
 
-.ivp-dg { background:rgba(52,211,153,0.25); color:#2ecc70; border:1px solid rgba(52,211,153,0.3); }
-.ivp-lg { background:rgba(52,211,153,0.12); color:#34d399; border:1px solid rgba(52,211,153,0.15); }
-.ivp-lr { background:rgba(255,77,109,0.12); color:#ff7070; border:1px solid rgba(255,77,109,0.15); }
-.ivp-dr { background:rgba(255,77,109,0.25); color:#ff4d6d; border:1px solid rgba(255,77,109,0.3); }
+/* Colour-only, like .is-v-*: these tint an <input> now, not a pill span. */
+.ivp-dg { color:#2ecc70; } .ivp-lg { color:#34d399; }
+.ivp-lr { color:#ff7070; } .ivp-dr { color:#ff4d6d; }
 
-.iap-dg { background:rgba(46,204,112,0.3); color:#2ecc70; }
-.iap-lg { background:rgba(46,204,112,0.15); color:#34d399; }
-.iap-lr { background:rgba(255,77,109,0.15); color:#ff7070; }
-.iap-dr { background:rgba(255,77,109,0.3); color:#ff4d6d; }
+.iap-dg { color:#2ecc70; } .iap-lg { color:#34d399; }
+.iap-lr { color:#ff7070; } .iap-dr { color:#ff4d6d; }
 
 .int-pair { display:flex; flex-direction:column; align-items:center; gap:2px; }
 .int-pair-vals { display:flex; align-items:center; gap:4px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600; }
@@ -8897,29 +8894,20 @@ function intAdhPillCls(v) {
   if (v >= -150) return 'iap-lr'; return 'iap-dr';
 }
 
-function intVolDisplay(raw) {
-  const v = intNum(raw); if (isNaN(v)) return ''; return (v >= 0 ? '+' : '') + v + '%';
-}
 
-function intAdhDisplay(raw) {
-  const v = intNum(raw); if (isNaN(v)) return ''; return (v >= 0 ? '+' : '') + v;
-}
 
-function intVixDelta() {
-  const d = intGetDelta('vix');
+// VIX, /CL and TNX all read the same way: a rise is bearish, so it takes the
+// dark-red class and a fall takes green. Only the flat band differs — 0.03 on
+// the 10-year yield is the move 0.20 in crude is, and 0.10 is in VIX.
+const INT_INVERSE_FLAT = { vix: 0.10, cl: 0.20, tnx: 0.03 };
+
+function intInverseDelta(field) {
+  const d = intGetDelta(field);
   if (!d) return '<span class="int-pill ip-flat">—</span>';
-  if (Math.abs(d.diff) < 0.10) return '<span class="int-pill ip-flat">≈ flat</span>';
+  if (Math.abs(d.diff) < INT_INVERSE_FLAT[field]) return '<span class="int-pill ip-flat">≈ flat</span>';
   const arrow = d.diff > 0 ? '▲' : '▼';
   const cls = d.diff > 0 ? 'ip-sl-dec' : 'ip-sl-inc';
   return `<span class="int-pill ${cls}">${arrow} ${d.diff > 0 ? '+' : ''}${d.diff.toFixed(2)}</span>`;
-}
-
-function intTrinDelta() {
-  const latest = intGetLatest('trin');
-  if (!latest) return '<span class="int-pill ip-flat">—</span>';
-  if (latest.value > 3.0) return '<span class="int-pill ip-amber">oversold</span>';
-  if (latest.value < 0.5) return '<span class="int-pill ip-blue">overbought</span>';
-  return '<span class="int-pill ip-flat">≈ flat</span>';
 }
 
 function intVolDelta() {
@@ -8973,12 +8961,35 @@ function intADHSparkline() {
   return svg;
 }
 
-function intPillValCell(session, field, raw, pillClsFn, displayFn) {
-  const v = intNum(raw);
-  const cls = pillClsFn(v);
-  const display = displayFn(raw);
-  if (!display) return `<td>${intInputHTML(session, field, '')}</td>`;
-  return `<td><span class="int-pill ${cls}" style="padding:3px 8px;cursor:pointer;" onclick="this.style.display='none';this.nextElementSibling.style.display='';this.nextElementSibling.querySelector('input').focus()">${display}</span><span style="display:none">${intInputHTML(session, field, raw)}</span></td>`;
+// Vol% and ADH used to render as a pill that swapped to a hidden input on click.
+// A display:none input is not focusable, so Tab skipped straight past both and
+// the transposed row could not be filled from the keyboard. Real inputs now,
+// tinted by the same threshold functions.
+// Transposed: sessions run down, metrics across, so Tab fills a whole session
+// without touching the mouse. That only works because every cell below holds a
+// real input — see intValCell.
+const INT_VITALS = [
+  { field: 'vix',     label: 'VIX',   band: null },
+  { field: 'cl',      label: '/CL',   band: null },
+  { field: 'tnx',     label: 'TNX',   band: null },
+  { field: 'vol_pct', label: 'Vol %', band: intVolPillCls },
+  { field: 'adh',     label: 'ADH',   band: intAdhPillCls },
+];
+const INT_INTERNALS = [
+  { f1: 'vold_nyse', f2: 'vold_nq', label: 'VOLD', color: intVoldColor },
+  { f1: 'add_nyse',  f2: 'add_nq',  label: 'ADD',  color: intAddColor  },
+];
+
+function intDeltaCell(field) {
+  if (field === 'vol_pct') return `<td>${intVolDelta()}</td>`;
+  if (field === 'adh') return `<td style="min-width:140px">${intADHSparkline()}</td>`;
+  return `<td>${intInverseDelta(field)}</td>`;
+}
+
+function intValCell(session, field, bandFn) {
+  const cls = bandFn ? bandFn(intNum(intState[session][field])) : '';
+  return `<td>${intInputHTML(session, field, intState[session][field], cls,
+                             bandFn ? 'oninput="intGridRecolor(this)"' : '')}</td>`;
 }
 
 function intVoldColor(v) {
@@ -8998,14 +9009,26 @@ function intAddColor(v) {
 function intPairCell(session, f1, f2, colorFn) {
   const cell = f => intInputHTML(session, f, intState[session][f],
                                  colorFn(intNum(intState[session][f])),
-                                 'oninput="intPairRecolor(this)"');
+                                 'oninput="intGridRecolor(this)"');
   return `<td><div class="int-pair"><div class="int-pair-vals">${cell(f1)}<span style="color:var(--muted);font-weight:400">:</span>${cell(f2)}</div><div class="int-pair-lbl">NYSE : NQ</div></div></td>`;
 }
 
 // The grid no longer repaints on every blur, so recolour as the value is typed.
-function intPairRecolor(el) {
-  const fn = (el.dataset.field || '').startsWith('vold') ? intVoldColor : intAddColor;
-  el.classList.remove('is-v-dg', 'is-v-lg', 'is-v-lr', 'is-v-dr');
+// Covers every tinted input in both cards — VOLD/ADD pairs and, since Vol% and
+// ADH stopped being pills, those two as well.
+const INT_GRID_BANDS = {
+  vold_nyse: intVoldColor, vold_nq: intVoldColor,
+  add_nyse:  intAddColor,  add_nq:  intAddColor,
+  vol_pct:   intVolPillCls, adh: intAdhPillCls,
+};
+const INT_GRID_BAND_CLASSES = ['is-v-dg','is-v-lg','is-v-lr','is-v-dr',
+                               'ivp-dg','ivp-lg','ivp-lr','ivp-dr',
+                               'iap-dg','iap-lg','iap-lr','iap-dr'];
+
+function intGridRecolor(el) {
+  const fn = INT_GRID_BANDS[el.dataset.field];
+  if (!fn) return;
+  el.classList.remove(...INT_GRID_BAND_CLASSES);
   const c = fn(intNum(el.value));
   if (c) el.classList.add(c);
 }
@@ -9181,21 +9204,18 @@ function renderInternalsTab(el) {
         <div class="int-card">
           <div class="int-card-title">VITALS</div>
           <table class="int-table"><thead><tr>
-            <th>METRIC</th>${INT_SESSIONS.map(s => `<th>${INT_SESSION_LABELS[s]}</th>`).join('')}<th>DELTA</th>
+            <th>SESSION</th>${INT_VITALS.map(m => `<th>${m.label}</th>`).join('')}
           </tr></thead><tbody>
-            <tr><td>VIX</td>${INT_SESSIONS.map(s => `<td>${intInputHTML(s, 'vix', intState[s].vix)}</td>`).join('')}<td>${intVixDelta()}</td></tr>
-            <tr><td>$TRIN</td>${INT_SESSIONS.map(s => `<td>${intInputHTML(s, 'trin', intState[s].trin)}</td>`).join('')}<td>${intTrinDelta()}</td></tr>
-            <tr><td>Vol %</td>${INT_SESSIONS.map(s => intPillValCell(s, 'vol_pct', intState[s].vol_pct, intVolPillCls, intVolDisplay)).join('')}<td>${intVolDelta()}</td></tr>
-            <tr><td>ADH</td>${INT_SESSIONS.map(s => intPillValCell(s, 'adh', intState[s].adh, intAdhPillCls, intAdhDisplay)).join('')}<td style="min-width:140px">${intADHSparkline()}</td></tr>
+            ${INT_SESSIONS.map(s => `<tr><td>${INT_SESSION_LABELS[s]}</td>${INT_VITALS.map(m => intValCell(s, m.field, m.band)).join('')}</tr>`).join('')}
+            <tr class="int-delta-row"><td>DELTA</td>${INT_VITALS.map(m => intDeltaCell(m.field)).join('')}</tr>
           </tbody></table>
         </div>
         <div class="int-card">
           <div class="int-card-title">INTERNALS</div>
           <table class="int-table"><thead><tr>
-            <th>METRIC</th>${INT_SESSIONS.map(s => `<th>${INT_SESSION_LABELS[s]}</th>`).join('')}
+            <th>SESSION</th>${INT_INTERNALS.map(m => `<th>${m.label}</th>`).join('')}
           </tr></thead><tbody>
-            <tr><td>VOLD</td>${INT_SESSIONS.map(s => intPairCell(s, 'vold_nyse', 'vold_nq', intVoldColor)).join('')}</tr>
-            <tr><td>ADD</td>${INT_SESSIONS.map(s => intPairCell(s, 'add_nyse', 'add_nq', intAddColor)).join('')}</tr>
+            ${INT_SESSIONS.map(s => `<tr><td>${INT_SESSION_LABELS[s]}</td>${INT_INTERNALS.map(m => intPairCell(s, m.f1, m.f2, m.color)).join('')}</tr>`).join('')}
           </tbody></table>
         </div>
       </div>

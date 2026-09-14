@@ -136,15 +136,12 @@
 .d-blue   { background: rgba(0,207,255,0.15); color: #00cfff; }
 
 /* Value pills (for Vol%, ADH) */
-.vp-dg { background: rgba(52,211,153,0.25); color: #2ecc70; border: 1px solid rgba(52,211,153,0.3); }
-.vp-lg { background: rgba(52,211,153,0.12); color: #34d399; border: 1px solid rgba(52,211,153,0.15); }
-.vp-lr { background: rgba(255,77,109,0.12); color: #ff7070; border: 1px solid rgba(255,77,109,0.15); }
-.vp-dr { background: rgba(255,77,109,0.25); color: #ff4d6d; border: 1px solid rgba(255,77,109,0.3); }
+/* Colour-only, like .sec-v-*: these now tint an <input>, not a pill span. */
+.vp-dg { color: #2ecc70; } .vp-lg { color: #34d399; }
+.vp-lr { color: #ff7070; } .vp-dr { color: #ff4d6d; }
 
-.ap-dg { background: rgba(46,204,112,0.3); color: #2ecc70; }
-.ap-lg { background: rgba(46,204,112,0.15); color: #34d399; }
-.ap-lr { background: rgba(255,77,109,0.15); color: #ff7070; }
-.ap-dr { background: rgba(255,77,109,0.3); color: #ff4d6d; }
+.ap-dg { color: #2ecc70; } .ap-lg { color: #34d399; }
+.ap-lr { color: #ff7070; } .ap-dr { color: #ff4d6d; }
 
 /* ── Internals card pair styling ── */
 .mi2-pair { display: flex; flex-direction: column; align-items: center; gap: 2px; }
@@ -558,7 +555,7 @@ const state = {};
 SESSIONS.forEach(s => {
   state[s] = {
     timestamp:'', structure:'', value_area:'',
-    vix:'', trin:'', vol_pct:'',
+    vix:'', trin:'', cl:'', tnx:'', vol_pct:'',
     vold_nyse:'', vold_nq:'', add_nyse:'', add_nq:'', adh:'',
     sectors_json:'[]', tape_notes:''
   };
@@ -698,34 +695,18 @@ function adhPillClass(v) {
   return 'ap-dr';
 }
 
-function volDisplay(raw) {
-  const v = num(raw);
-  if (isNaN(v)) return '';
-  return (v >= 0 ? '+' : '') + v + '%';
-}
+// VIX, /CL and TNX all read the same way: a rise is bearish, so it takes the
+// dark-red class and a fall takes green. Only the flat band differs — 0.03 on
+// the 10-year yield is the move 0.20 in crude is, and 0.10 is in VIX.
+const INVERSE_FLAT = { vix: 0.10, cl: 0.20, tnx: 0.03 };
 
-function adhDisplay(raw) {
-  const v = num(raw);
-  if (isNaN(v)) return '';
-  return (v >= 0 ? '+' : '') + v;
-}
-
-function vixDeltaPill() {
-  const d = getDelta('vix');
+function inverseDeltaPill(field) {
+  const d = getDelta(field);
   if (!d) return '<span class="d-pill d-flat">—</span>';
-  const abs = Math.abs(d.diff);
-  if (abs < 0.10) return '<span class="d-pill d-flat">≈ flat</span>';
+  if (Math.abs(d.diff) < INVERSE_FLAT[field]) return '<span class="d-pill d-flat">≈ flat</span>';
   const arrow = d.diff > 0 ? '▲' : '▼';
   const cls = d.diff > 0 ? 'd-sl-dec' : 'd-sl-inc';
   return `<span class="d-pill ${cls}">${arrow} ${d.diff > 0 ? '+' : ''}${d.diff.toFixed(2)}</span>`;
-}
-
-function trinDeltaPill() {
-  const latest = getLatestNonEmpty('trin');
-  if (!latest) return '<span class="d-pill d-flat">—</span>';
-  if (latest.value > 3.0) return '<span class="d-pill d-amber">oversold</span>';
-  if (latest.value < 0.5) return '<span class="d-pill d-blue">overbought</span>';
-  return '<span class="d-pill d-flat">≈ flat</span>';
 }
 
 function volDeltaPill() {
@@ -798,70 +779,51 @@ function renderADHSparkline() {
 function renderVitals() {
   const el = document.getElementById('mi2-vitals');
 
-  function sessionCell(session, field) {
-    return inputHTML(session, field, state[session][field]);
-  }
+  // Transposed: sessions run down, metrics across. Tab moves along a row, so a
+  // whole session is fillable without touching the mouse — which only works
+  // because every metric cell below holds a real input (see valueCell).
+  const VITALS_METRICS = [
+    { field: 'vix',     label: 'VIX'   },
+    { field: 'cl',      label: '/CL'   },
+    { field: 'tnx',     label: 'TNX'   },
+    { field: 'vol_pct', label: 'Vol %' },
+    { field: 'adh',     label: 'ADH'   },
+  ];
+  const BAND = { vol_pct: volPillClass, adh: adhPillClass };
 
-  function volSessionCell(session) {
-    const raw = state[session].vol_pct;
-    const v = num(raw);
-    const cls = volPillClass(v);
-    const display = isNaN(v) ? '' : volDisplay(raw);
-    return `<td><span class="d-pill ${cls}" style="padding:3px 10px;">${display || `<input class="mi2-input" value="" placeholder="—" style="width:60px;" onblur="updateField('${session}','vol_pct',this.value)">`}</span></td>`;
-  }
+  // Vol% and ADH used to render as a pill that swapped to a hidden input on
+  // click. A display:none input is not focusable, so Tab skipped straight past
+  // both. They are real inputs now, tinted by the same threshold functions.
+  const valueCell = (s, field) => {
+    const band = BAND[field];
+    const cls = band ? band(num(state[s][field])) : '';
+    return `<td>${inputHTML(s, field, state[s][field], cls,
+                            band ? 'oninput="gridRecolor(this)"' : '')}</td>`;
+  };
 
-  function adhSessionCell(session) {
-    const raw = state[session].adh;
-    const v = num(raw);
-    const cls = adhPillClass(v);
-    const display = isNaN(v) ? '' : adhDisplay(raw);
-    if (!display) return `<td>${inputHTML(session, 'adh', '', '')}</td>`;
-    return `<td><span class="d-pill ${cls}" style="padding:3px 10px;cursor:pointer;" onclick="this.style.display='none';this.nextElementSibling.style.display='';this.nextElementSibling.querySelector('input').focus()">${display}</span><span style="display:none">${inputHTML(session, 'adh', raw, '')}</span></td>`;
-  }
-
-  const VITALS_SESSIONS = SESSIONS;
+  const deltaCell = field => {
+    if (field === 'vol_pct') return `<td class="td-delta">${volDeltaPill()}</td>`;
+    if (field === 'adh') return `<td class="td-delta adh-spark-cell">${renderADHSparkline()}</td>`;
+    return `<td class="td-delta">${inverseDeltaPill(field)}</td>`;
+  };
 
   el.innerHTML = `
     <div class="mi2-card">
       <div class="mi2-card-title">VITALS</div>
       <table class="mi2-table">
         <thead><tr>
-          <th>METRIC</th>
-          ${VITALS_SESSIONS.map(s => `<th>${SESSION_LABELS[s]}</th>`).join('')}
-          <th>DELTA</th>
+          <th>SESSION</th>
+          ${VITALS_METRICS.map(m => `<th>${m.label}</th>`).join('')}
         </tr></thead>
         <tbody>
+          ${SESSIONS.map(s => `
           <tr>
-            <td>VIX</td>
-            ${VITALS_SESSIONS.map(s => `<td>${inputHTML(s, 'vix', state[s].vix)}</td>`).join('')}
-            <td class="td-delta">${vixDeltaPill()}</td>
-          </tr>
-          <tr>
-            <td>$TRIN</td>
-            ${VITALS_SESSIONS.map(s => `<td>${inputHTML(s, 'trin', state[s].trin)}</td>`).join('')}
-            <td class="td-delta">${trinDeltaPill()}</td>
-          </tr>
-          <tr>
-            <td>Vol % vs 21D</td>
-            ${VITALS_SESSIONS.map(s => {
-              const v = num(state[s].vol_pct);
-              const cls = volPillClass(v);
-              const display = isNaN(v) ? '' : volDisplay(state[s].vol_pct);
-              if (!display) return `<td>${inputHTML(s, 'vol_pct', '', '')}</td>`;
-              return `<td><span class="d-pill ${cls}" style="padding:3px 10px;cursor:pointer;" onclick="this.style.display='none';this.nextElementSibling.style.display='';this.nextElementSibling.querySelector('input').focus()">${display}</span><span style="display:none">${inputHTML(s, 'vol_pct', state[s].vol_pct, '')}</span></td>`;
-            }).join('')}
-            <td class="td-delta">${volDeltaPill()}</td>
-          </tr>
-          <tr>
-            <td>ADH</td>
-            ${VITALS_SESSIONS.map(s => {
-              const v = num(state[s].adh);
-              const cls = adhPillClass(v);
-              const display = isNaN(v) ? '' : adhDisplay(state[s].adh);
-              if (!display) return `<td>${inputHTML(s, 'adh', '', '')}</td>`;
-              return `<td><span class="d-pill ${cls}" style="padding:3px 10px;cursor:pointer;" onclick="this.style.display='none';this.nextElementSibling.style.display='';this.nextElementSibling.querySelector('input').focus()">${display}</span><span style="display:none">${inputHTML(s, 'adh', state[s].adh, '')}</span></td>`;
-            }).join('')}
-            <td class="td-delta adh-spark-cell">${renderADHSparkline()}</td>
+            <td>${SESSION_LABELS[s]}</td>
+            ${VITALS_METRICS.map(m => valueCell(s, m.field)).join('')}
+          </tr>`).join('')}
+          <tr class="mi2-delta-row">
+            <td>DELTA</td>
+            ${VITALS_METRICS.map(m => deltaCell(m.field)).join('')}
           </tr>
         </tbody>
       </table>
@@ -894,7 +856,7 @@ function addColor(v) {
 function pairCell(session, f1, f2, colorFn) {
   const cell = f => inputHTML(session, f, state[session][f],
                               colorFn(num(state[session][f])),
-                              'oninput="pairRecolor(this)"');
+                              'oninput="gridRecolor(this)"');
   return `<td>
     <div class="mi2-pair">
       <div class="mi2-pair-values">
@@ -908,33 +870,47 @@ function pairCell(session, f1, f2, colorFn) {
 }
 
 // The grid no longer repaints on every blur, so recolour as the value is typed.
-function pairRecolor(el) {
-  const fn = (el.dataset.field || '').startsWith('vold') ? voldColor : addColor;
-  el.classList.remove('sec-v-dg', 'sec-v-lg', 'sec-v-lr', 'sec-v-dr');
+// Covers every tinted input in both cards — VOLD/ADD pairs and, since Vol% and
+// ADH stopped being pills, those two as well.
+const GRID_BANDS = {
+  vold_nyse: voldColor, vold_nq: voldColor,
+  add_nyse:  addColor,  add_nq:  addColor,
+  vol_pct:   volPillClass, adh: adhPillClass,
+};
+const GRID_BAND_CLASSES = ['sec-v-dg','sec-v-lg','sec-v-lr','sec-v-dr',
+                           'vp-dg','vp-lg','vp-lr','vp-dr',
+                           'ap-dg','ap-lg','ap-lr','ap-dr'];
+
+function gridRecolor(el) {
+  const fn = GRID_BANDS[el.dataset.field];
+  if (!fn) return;
+  el.classList.remove(...GRID_BAND_CLASSES);
   const c = fn(num(el.value));
   if (c) el.classList.add(c);
 }
 
 function renderInternals() {
   const el = document.getElementById('mi2-internals');
-  const iLabels = SESSION_LABELS;
+  // Transposed to match VITALS. Each cell already held two real inputs, so Tab
+  // now walks VOLD-nyse → VOLD-nq → ADD-nyse → ADD-nq across one session.
+  const INTERNALS_METRICS = [
+    { f1: 'vold_nyse', f2: 'vold_nq', label: 'VOLD', color: voldColor },
+    { f1: 'add_nyse',  f2: 'add_nq',  label: 'ADD',  color: addColor  },
+  ];
   el.innerHTML = `
     <div class="mi2-card">
       <div class="mi2-card-title">INTERNALS</div>
       <table class="mi2-table">
         <thead><tr>
-          <th>METRIC</th>
-          ${SESSIONS.map(s => `<th>${iLabels[s]}</th>`).join('')}
+          <th>SESSION</th>
+          ${INTERNALS_METRICS.map(m => `<th>${m.label}</th>`).join('')}
         </tr></thead>
         <tbody>
+          ${SESSIONS.map(s => `
           <tr>
-            <td>VOLD</td>
-            ${SESSIONS.map(s => pairCell(s, 'vold_nyse', 'vold_nq', voldColor)).join('')}
-          </tr>
-          <tr>
-            <td>ADD</td>
-            ${SESSIONS.map(s => pairCell(s, 'add_nyse', 'add_nq', addColor)).join('')}
-          </tr>
+            <td>${SESSION_LABELS[s]}</td>
+            ${INTERNALS_METRICS.map(m => pairCell(s, m.f1, m.f2, m.color)).join('')}
+          </tr>`).join('')}
         </tbody>
       </table>
     </div>`;

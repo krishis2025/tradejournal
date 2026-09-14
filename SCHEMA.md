@@ -490,7 +490,9 @@ Daily market internals logged per session (morning, midday, afternoon).
 | structure    | TEXT    | DEFAULT ''                                     |
 | value_area   | TEXT    | DEFAULT ''                                     |
 | vix          | TEXT    | DEFAULT ''                                     |
-| trin         | TEXT    | DEFAULT ''                                     |
+| trin         | TEXT    | DEFAULT '' (retired from the UI, data retained) |
+| cl           | TEXT    | DEFAULT '' (/CL, crude)                        |
+| tnx          | TEXT    | DEFAULT '' (TNX, 10-year yield, e.g. 4.12)     |
 | vol_pct      | TEXT    | DEFAULT ''                                     |
 | vold_nyse    | TEXT    | DEFAULT ''                                     |
 | vold_nq      | TEXT    | DEFAULT ''                                     |
@@ -505,6 +507,8 @@ Daily market internals logged per session (morning, midday, afternoon).
 `structure` values: Balanced, Trending, Short Covering, Liquidation, Thin Structure.
 `value_area` values: Lower, Overlapping Lower, Overlapping, Overlapping Higher, Higher.
 `sectors_json` stores a JSON array of `{ticker, value}` objects for sector weighting.
+`trin` is no longer rendered by either internals template — `/CL` and `TNX` took its place in the
+vitals grid — but the column and its recorded history are retained.
 
 ---
 
