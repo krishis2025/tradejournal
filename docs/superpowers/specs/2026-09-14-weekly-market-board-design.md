@@ -89,23 +89,23 @@ fonts. Icons are inline SVG, monoline, matching the existing internals icons —
 
 ```
 INDICES        SECTORS                      MACRO
-S&P 500        Tech       Staples           BONDS
-  7,656.98       +0.51%     (1.07%)           80.87
+S&P 500        Tech       Health            BONDS
+  7,656.98       +0.51%     (1.74%)           80.87
   (0.79%)                                     (1.90%)
-Nasdaq 100     SMH        Energy            10YR YIELD
-  29,368.44      +1.42%     +0.48%            4.79
+Nasdaq 100     SMH        Staples           10YR YIELD
+  29,368.44      +1.42%     (1.07%)           4.79
   (0.93%)                                     +3.97%
-Russell 2000   Fin        Utils             VIX
-  2,903.95       (0.80%)    (1.53%)           15.56
+Russell 2000   Fin        Energy            VIX
+  2,903.95       (0.80%)    +0.48%            15.56
   (1.21%)                                     +1.80%
-               Comm       Matls             GOLD
-                 +0.91%     (2.69%)           4,392.80
+               Comm       Utils             GOLD
+                 +0.91%     (1.53%)           4,392.80
                                               (1.65%)
-               Disc       RE                OIL
-                 (1.32%)    (0.57%)           100.24
+               Disc       Matls             OIL
+                 (1.32%)    (2.69%)           100.24
                                               +7.83%
-               Indust
-                 (1.58%)
+               Indust     RE
+                 (1.58%)    (0.57%)
 ```
 
 Indices and macro show **price and percent**; sectors show **percent only**. That is the
