@@ -278,6 +278,19 @@ def test_post_rejects_a_non_numeric_price(client, tmp_db):
     assert db.get_weekly_market_prices(None, "2026-09-14") == {}
 
 
+def test_post_rejects_a_non_numeric_second_price(client, tmp_db):
+    """Mirror of test_post_rejects_a_non_numeric_price: here the FIRST value
+    (monday_open) is valid and the SECOND (current) is junk. This pins that
+    both prices are parsed before any write, so a bad second value can't
+    leave a half-written row (monday_open saved, current missing)."""
+    res = client.post("/api/weekly-board", json={
+        "week_start": "2026-09-14", "instrument": "SPX",
+        "monday_open": "100", "current": "abc"})
+
+    assert res.status_code == 400
+    assert db.get_weekly_market_prices(None, "2026-09-14") == {}
+
+
 def test_post_requires_a_week(client, tmp_db):
     res = client.post("/api/weekly-board", json={
         "week_start": "", "instrument": "SPX",
