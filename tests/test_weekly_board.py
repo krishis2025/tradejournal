@@ -315,6 +315,33 @@ def _weekly_html(client, week="2026-09-14"):
     return client.get("/weekly-review?week=" + week).get_data(as_text=True)
 
 
+def _row_html(html, key):
+    """The single wb-row block for one instrument, div-balanced.
+
+    Needed because every empty instrument on the board renders its own
+    'class="wb-flat">—' dash — a bare substring check for that class can
+    pass against a neighbour's row instead of the row under test.
+    """
+    marker = 'data-instrument="{}"'.format(key)
+    marker_idx = html.index(marker)
+    start = html.rfind("<div", 0, marker_idx)
+    pos = start
+    depth = 0
+    while True:
+        next_open = html.find("<div", pos)
+        next_close = html.find("</div>", pos)
+        if next_close == -1:
+            raise AssertionError("unclosed wb-row for " + key)
+        if next_open != -1 and next_open < next_close:
+            depth += 1
+            pos = next_open + 4
+        else:
+            depth -= 1
+            pos = next_close + 6
+            if depth == 0:
+                return html[start:pos]
+
+
 def test_negative_renders_parenthesised_and_red(client, tmp_db):
     """The accounting convention from the reference board: parentheses for
     negatives, an explicit + for positives. It is why that board reads fast."""
@@ -354,6 +381,7 @@ def test_open_without_current_shows_the_price_and_a_dash(client, tmp_db):
     db.upsert_weekly_market_price(None, "2026-09-14", "SPX", 7600.0, None)
 
     html = _weekly_html(client)
+    row = _row_html(html, "SPX")
 
     assert "7,600.00" in html
-    assert 'class="wb-flat">—' in html
+    assert 'class="wb-flat">—' in row
