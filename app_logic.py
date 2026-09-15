@@ -529,6 +529,107 @@ def get_plan_check_from_date():
     return value or DEFAULT_PLAN_CHECK_FROM_DATE
 
 
+# ── Weekly market board ──────────────────────────────────────────────────────
+# Fixed order, never sorted by performance: stable positions were chosen
+# deliberately so the board can be read from muscle memory week to week.
+# The key is stable and stored; the label is display-only and may change.
+# SMH is not a GICS sector — it sits in the sectors group by request, directly
+# after Tech.
+
+WEEKLY_BOARD = (
+    ("SPX",  "S&P 500",      "indices"),
+    ("NDX",  "Nasdaq 100",   "indices"),
+    ("RUT",  "Russell 2000", "indices"),
+
+    ("XLK",  "Tech",    "sectors"),
+    ("SMH",  "SMH",     "sectors"),
+    ("XLF",  "Fin",     "sectors"),
+    ("XLC",  "Comm",    "sectors"),
+    ("XLY",  "Disc",    "sectors"),
+    ("XLI",  "Indust",  "sectors"),
+    ("XLV",  "Health",  "sectors"),
+    ("XLP",  "Staples", "sectors"),
+    ("XLE",  "Energy",  "sectors"),
+    ("XLU",  "Utils",   "sectors"),
+    ("XLB",  "Matls",   "sectors"),
+    ("XLRE", "RE",      "sectors"),
+
+    ("TLT",  "BONDS",      "macro"),
+    ("TNX",  "10YR YIELD", "macro"),
+    ("VIX",  "VIX",        "macro"),
+    ("GC",   "GOLD",       "macro"),
+    ("CL",   "OIL",        "macro"),
+)
+
+# Indices and macro carry a price and a percent; sectors carry only a move.
+BOARD_GROUPS = (
+    ("indices", "INDICES", True),
+    ("sectors", "SECTORS", False),
+    ("macro",   "MACRO",   True),
+)
+
+
+def board_keys():
+    return {k for k, _, _ in WEEKLY_BOARD}
+
+
+def parse_price(raw):
+    """Coerce a typed price to float, or None when blank.
+
+    Accepts the thousands separators that actually get typed ('7,656.98'),
+    which bare float() rejects. Raises ValueError on anything else, including
+    'nan' and 'inf' — both survive float() and would silently poison every
+    percent computed from them.
+    """
+    import math
+    if raw is None:
+        return None
+    s = str(raw).strip().replace(",", "")
+    if s == "":
+        return None
+    value = float(s)          # raises ValueError on junk
+    if not math.isfinite(value):
+        raise ValueError("not a finite number: {!r}".format(raw))
+    return value
+
+
+def board_pct(monday_open, current):
+    """Percent move from Monday's open, or None when it cannot be computed.
+
+    A missing open is the normal state of every instrument at the start of a
+    week, so the zero/None guard is the common path, not an edge case.
+    """
+    if monday_open is None or current is None or monday_open == 0:
+        return None
+    return (current - monday_open) / monday_open * 100.0
+
+
+def build_weekly_board(account_id, week_start):
+    """Ordered board for one week. All twenty instruments always render."""
+    stored = db.get_weekly_market_prices(account_id, week_start)
+    groups = []
+    any_data = False
+    for gid, glabel, show_price in BOARD_GROUPS:
+        rows = []
+        for key, label, group in WEEKLY_BOARD:
+            if group != gid:
+                continue
+            cell = stored.get(key) or {}
+            mo, cur = cell.get("monday_open"), cell.get("current")
+            if mo is not None or cur is not None:
+                any_data = True
+            # `price` is what the board displays. Spec §"Empty and partial
+            # states": with an open entered and no current yet, the open shows
+            # as the value while the percent stays blank.
+            rows.append({"key": key, "label": label,
+                         "monday_open": mo, "current": cur,
+                         "price": cur if cur is not None else mo,
+                         "pct": board_pct(mo, cur)})
+        groups.append({"id": gid, "label": glabel,
+                       "show_price": show_price, "rows": rows})
+    return {"groups": groups, "any_data": any_data}
+
+
 # ── Trade assessment vocabularies ────────────────────────────────────────────
 # One A/B/C grade plus a small number of diagnostic tags. The grade is always
 # the trader's judgement — never derived — because a formula cannot see which

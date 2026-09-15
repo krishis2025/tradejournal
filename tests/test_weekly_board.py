@@ -114,3 +114,132 @@ def test_null_account_write_does_not_clobber_real_account_row(tmp_db):
     assert count == 2
     assert db.get_weekly_market_prices(acct, "2026-09-14")["XLK"]["current"] == 101.00
     assert db.get_weekly_market_prices(None, "2026-09-14")["XLK"]["current"] == 266.75
+
+
+# ── Instrument list ───────────────────────────────────────────────────────────
+
+def test_board_carries_twenty_instruments_in_fixed_order():
+    keys = [k for k, _, _ in logic.WEEKLY_BOARD]
+
+    assert len(keys) == 20
+    assert keys[:3] == ["SPX", "NDX", "RUT"]
+    # SMH sits directly after Tech, by request
+    assert keys[3:5] == ["XLK", "SMH"]
+    assert keys[-5:] == ["TLT", "TNX", "VIX", "GC", "CL"]
+
+
+def test_board_groups_are_three_twelve_five():
+    groups = {}
+    for _, _, g in logic.WEEKLY_BOARD:
+        groups[g] = groups.get(g, 0) + 1
+
+    assert groups == {"indices": 3, "sectors": 12, "macro": 5}
+
+
+# ── Price parsing ─────────────────────────────────────────────────────────────
+
+def test_parse_price_accepts_typed_thousands_separators():
+    """'7,656.98' is what actually gets typed, and float() rejects it."""
+    assert logic.parse_price("7,656.98") == 7656.98
+    assert logic.parse_price("  4.79 ") == 4.79
+    assert logic.parse_price(265.4) == 265.4
+
+
+def test_parse_price_treats_blank_as_unset():
+    assert logic.parse_price("") is None
+    assert logic.parse_price("   ") is None
+    assert logic.parse_price(None) is None
+
+
+def test_parse_price_rejects_junk_and_non_finite():
+    """'nan' and 'inf' both survive float() and would poison every percent
+    downstream without ever raising."""
+    import pytest
+    for bad in ("abc", "1.2.3", "nan", "inf", "-inf"):
+        with pytest.raises(ValueError):
+            logic.parse_price(bad)
+
+
+# ── Percent ───────────────────────────────────────────────────────────────────
+
+def test_pct_is_percent_of_the_monday_open():
+    assert round(logic.board_pct(4.61, 4.79), 2) == 3.90
+    assert round(logic.board_pct(100.0, 99.0), 2) == -1.0
+
+
+def test_pct_is_none_when_either_price_is_missing():
+    assert logic.board_pct(None, 100.0) is None
+    assert logic.board_pct(100.0, None) is None
+    assert logic.board_pct(None, None) is None
+
+
+def test_pct_is_none_when_the_open_is_zero():
+    """A blank open is the normal state of every instrument on Monday morning;
+    dividing by it is the first thing that would break."""
+    assert logic.board_pct(0, 100.0) is None
+    assert logic.board_pct(0.0, 100.0) is None
+
+
+# ── Builder ───────────────────────────────────────────────────────────────────
+
+def test_builder_renders_all_twenty_for_an_empty_week(tmp_db):
+    """The board never hides itself. A panel that vanishes when empty is a
+    panel that gets forgotten."""
+    board = logic.build_weekly_board(None, "2026-09-14")
+
+    rows = [r for g in board["groups"] for r in g["rows"]]
+    assert len(rows) == 20
+    assert all(r["pct"] is None for r in rows)
+    assert board["any_data"] is False
+
+
+def test_builder_computes_pct_from_stored_prices(tmp_db):
+    db.upsert_weekly_market_price(None, "2026-09-14", "XLK", 100.0, 100.51)
+
+    board = logic.build_weekly_board(None, "2026-09-14")
+    row = [r for g in board["groups"] for r in g["rows"] if r["key"] == "XLK"][0]
+
+    assert round(row["pct"], 2) == 0.51
+    assert board["any_data"] is True
+
+
+def test_builder_keeps_fixed_order_regardless_of_performance(tmp_db):
+    """Fixed positions were chosen over ranking so the board reads from muscle
+    memory. Storing a big mover must not move its row."""
+    db.upsert_weekly_market_price(None, "2026-09-14", "XLRE", 100.0, 140.0)
+
+    board = logic.build_weekly_board(None, "2026-09-14")
+    sectors = [r["key"] for g in board["groups"] if g["id"] == "sectors" for r in g["rows"]]
+
+    assert sectors[0] == "XLK"
+    assert sectors[-1] == "XLRE"
+
+
+def test_price_falls_back_to_the_open_until_a_current_is_entered(tmp_db):
+    """Spec §"Empty and partial states". On Monday you type the open and nothing
+    else; the board must show that number, not a dash, while the percent stays
+    blank because there is nothing yet to compare it to."""
+    db.upsert_weekly_market_price(None, "2026-09-14", "SPX", 7600.0, None)
+
+    board = logic.build_weekly_board(None, "2026-09-14")
+    row = [r for g in board["groups"] for r in g["rows"] if r["key"] == "SPX"][0]
+
+    assert row["price"] == 7600.0
+    assert row["pct"] is None
+
+
+def test_price_prefers_the_current_once_entered(tmp_db):
+    db.upsert_weekly_market_price(None, "2026-09-14", "SPX", 7600.0, 7656.98)
+
+    board = logic.build_weekly_board(None, "2026-09-14")
+    row = [r for g in board["groups"] for r in g["rows"] if r["key"] == "SPX"][0]
+
+    assert row["price"] == 7656.98
+
+
+def test_only_indices_and_macro_show_a_price(tmp_db):
+    """The screenshot's own split: things with a level vs things with a move."""
+    board = logic.build_weekly_board(None, "2026-09-14")
+    show = {g["id"]: g["show_price"] for g in board["groups"]}
+
+    assert show == {"indices": True, "sectors": False, "macro": True}
