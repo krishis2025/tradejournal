@@ -854,6 +854,25 @@ def init_db():
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_weekly_meta ON weekly_meta(account_id, week_start)")
 
+        # Migration: weekly market board — two typed prices per instrument per
+        # week. The percent is computed on read; nothing derived is stored.
+        # `instrument` holds the stable key ('XLK', 'SPX', 'TLT'), never the
+        # display label, so relabelling on screen cannot orphan a row.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS weekly_market_prices (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id  INTEGER REFERENCES accounts(id) ON DELETE CASCADE,
+                week_start  TEXT NOT NULL,
+                instrument  TEXT NOT NULL,
+                monday_open REAL,
+                current     REAL,
+                updated_at  TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+                UNIQUE(account_id, week_start, instrument)
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_wmp_week "
+                     "ON weekly_market_prices(account_id, week_start)")
+
         # Migration: merge phantom NULL-account days into their real account day
         _migrate_merge_null_account_days(conn)
 
@@ -3105,6 +3124,63 @@ def get_entry_fills_for_trades(trade_ids):
         for r in rows:
             out[r["trade_id"]].append(dict(r))
     return out
+
+
+# ── Weekly market board ──────────────────────────────────────────────────────
+# This table carries its own account_id and does NOT join trading_days, so
+# _account_scope_where() does not apply — it emits `d.account_id`. Scope the
+# account explicitly here, including the legacy NULL-account case.
+
+def get_weekly_market_prices(account_id, week_start):
+    """{instrument: {'monday_open': float|None, 'current': float|None}}."""
+    aid = int(account_id) if account_id else None
+    with get_conn() as conn:
+        if aid is None:
+            rows = conn.execute(
+                "SELECT instrument, monday_open, current FROM weekly_market_prices "
+                "WHERE account_id IS NULL AND week_start = ?", (week_start,)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT instrument, monday_open, current FROM weekly_market_prices "
+                "WHERE account_id = ? AND week_start = ?", (aid, week_start)
+            ).fetchall()
+        return {r["instrument"]: {"monday_open": r["monday_open"],
+                                  "current": r["current"]} for r in rows}
+
+
+def upsert_weekly_market_price(account_id, week_start, instrument, monday_open, current):
+    """Write one cell pair. UNIQUE(account_id, week_start, instrument) makes a
+    repeat write an update, so a mid-week refresh replaces rather than stacks.
+
+    SQLite treats NULLs as distinct in a UNIQUE index, so `ON CONFLICT` never
+    fires for the legacy account_id IS NULL rows — every write would insert a
+    duplicate. For that case, UPDATE first and INSERT only if nothing matched.
+    """
+    aid = int(account_id) if account_id else None
+    with get_conn() as conn:
+        if aid is None:
+            cur = conn.execute("""
+                UPDATE weekly_market_prices
+                SET monday_open = ?, current = ?, updated_at = datetime('now','localtime')
+                WHERE account_id IS NULL AND week_start = ? AND instrument = ?
+            """, (monday_open, current, week_start, instrument))
+            if cur.rowcount == 0:
+                conn.execute("""
+                    INSERT INTO weekly_market_prices
+                        (account_id, week_start, instrument, monday_open, current, updated_at)
+                    VALUES (NULL, ?, ?, ?, ?, datetime('now','localtime'))
+                """, (week_start, instrument, monday_open, current))
+        else:
+            conn.execute("""
+                INSERT INTO weekly_market_prices
+                    (account_id, week_start, instrument, monday_open, current, updated_at)
+                VALUES (?, ?, ?, ?, ?, datetime('now','localtime'))
+                ON CONFLICT(account_id, week_start, instrument) DO UPDATE SET
+                    monday_open = excluded.monday_open,
+                    current     = excluded.current,
+                    updated_at  = excluded.updated_at
+            """, (aid, week_start, instrument, monday_open, current))
 
 
 def get_or_create_weekly_review(account_id, week_start):

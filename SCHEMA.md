@@ -676,6 +676,27 @@ Added columns:
 
 ---
 
+### 30. WEEKLY_MARKET_PRICES
+
+| Column       | Type    | Constraints                                       |
+|--------------|---------|---------------------------------------------------|
+| id           | INTEGER | PK AUTOINCREMENT                                  |
+| account_id   | INTEGER | FK → accounts(id) ON DELETE CASCADE, nullable     |
+| week_start   | TEXT    | NOT NULL, Monday ISO (YYYY-MM-DD)                 |
+| instrument   | TEXT    | NOT NULL, stable key ('XLK', 'SPX', 'TLT')        |
+| monday_open  | REAL    | nullable until entered                            |
+| current      | REAL    | nullable until entered                            |
+| updated_at   | TEXT    | NOT NULL DEFAULT (datetime('now','localtime'))    |
+
+**Unique:** (account_id, week_start, instrument)
+
+Two typed prices per instrument per week, backing the weekly market board. The
+percent move is computed on read and never stored. `instrument` holds the stable
+key, never the display label, so relabelling on screen cannot orphan a row. The
+ordered instrument list lives in `app_logic.WEEKLY_BOARD`.
+
+---
+
 ## Foreign Key Summary
 
 ### CASCADE deletes (deleting parent removes children):
