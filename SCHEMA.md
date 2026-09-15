@@ -19,7 +19,8 @@ accounts ──┬──< trading_days ──┬──< trades ──┬──< 
             ├──< trade_strength
             ├──< weekly_reviews ──< weekly_intentions
             ├──< insight_log
-            └──< weekly_meta
+            ├──< weekly_meta
+            └──< weekly_market_prices
 
 setups ──< setup_images
 

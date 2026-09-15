@@ -608,7 +608,6 @@ def build_weekly_board(account_id, week_start):
     """Ordered board for one week. All twenty instruments always render."""
     stored = db.get_weekly_market_prices(account_id, week_start)
     groups = []
-    any_data = False
     for gid, glabel, show_price in BOARD_GROUPS:
         rows = []
         for key, label, group in WEEKLY_BOARD:
@@ -616,8 +615,6 @@ def build_weekly_board(account_id, week_start):
                 continue
             cell = stored.get(key) or {}
             mo, cur = cell.get("monday_open"), cell.get("current")
-            if mo is not None or cur is not None:
-                any_data = True
             # `price` is what the board displays. Spec §"Empty and partial
             # states": with an open entered and no current yet, the open shows
             # as the value while the percent stays blank.
@@ -627,7 +624,7 @@ def build_weekly_board(account_id, week_start):
                          "pct": board_pct(mo, cur)})
         groups.append({"id": gid, "label": glabel,
                        "show_price": show_price, "rows": rows})
-    return {"groups": groups, "any_data": any_data}
+    return {"groups": groups}
 
 
 # ── Trade assessment vocabularies ────────────────────────────────────────────

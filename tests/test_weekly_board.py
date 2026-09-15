@@ -52,6 +52,20 @@ def test_weeks_are_isolated(tmp_db):
     assert db.get_weekly_market_prices(None, "2026-09-14")["XLK"]["current"] == 266.75
 
 
+def test_weeks_are_isolated_for_a_real_account(tmp_db):
+    """Mirror of test_weeks_are_isolated for the real-account branch.
+    get_weekly_market_prices has two separate SQL branches (NULL account and
+    real account); the original test only ever drove the None-account query,
+    so an `AND week_start = ?` dropped from the real-account branch would
+    pass the whole suite."""
+    acct = db.create_account("Test")
+    db.upsert_weekly_market_price(acct, "2026-09-07", "XLK", 260.00, 262.00)
+    db.upsert_weekly_market_price(acct, "2026-09-14", "XLK", 265.40, 266.75)
+
+    assert db.get_weekly_market_prices(acct, "2026-09-07")["XLK"]["current"] == 262.00
+    assert db.get_weekly_market_prices(acct, "2026-09-14")["XLK"]["current"] == 266.75
+
+
 def test_accounts_are_isolated(tmp_db):
     """The legacy NULL account is a real account here, not 'any account'."""
     acct = db.create_account("Test")
@@ -119,13 +133,16 @@ def test_null_account_write_does_not_clobber_real_account_row(tmp_db):
 # ── Instrument list ───────────────────────────────────────────────────────────
 
 def test_board_carries_twenty_instruments_in_fixed_order():
+    """Full equality, not edge slices. The board is read by position, so a
+    shifted row is misread rather than noticed: swapping two adjacent keys,
+    or dropping one instrument while duplicating another, would still pass
+    len == 20 and the group-count test, and only a full-order check catches
+    it."""
     keys = [k for k, _, _ in logic.WEEKLY_BOARD]
 
-    assert len(keys) == 20
-    assert keys[:3] == ["SPX", "NDX", "RUT"]
-    # SMH sits directly after Tech, by request
-    assert keys[3:5] == ["XLK", "SMH"]
-    assert keys[-5:] == ["TLT", "TNX", "VIX", "GC", "CL"]
+    assert keys == ["SPX", "NDX", "RUT", "XLK", "SMH", "XLF", "XLC", "XLY",
+                     "XLI", "XLV", "XLP", "XLE", "XLU", "XLB", "XLRE",
+                     "TLT", "TNX", "VIX", "GC", "CL"]
 
 
 def test_board_groups_are_three_twelve_five():
@@ -190,7 +207,6 @@ def test_builder_renders_all_twenty_for_an_empty_week(tmp_db):
     rows = [r for g in board["groups"] for r in g["rows"]]
     assert len(rows) == 20
     assert all(r["pct"] is None for r in rows)
-    assert board["any_data"] is False
 
 
 def test_builder_computes_pct_from_stored_prices(tmp_db):
@@ -200,7 +216,6 @@ def test_builder_computes_pct_from_stored_prices(tmp_db):
     row = [r for g in board["groups"] for r in g["rows"] if r["key"] == "XLK"][0]
 
     assert round(row["pct"], 2) == 0.51
-    assert board["any_data"] is True
 
 
 def test_builder_keeps_fixed_order_regardless_of_performance(tmp_db):
@@ -289,6 +304,27 @@ def test_post_rejects_a_non_numeric_second_price(client, tmp_db):
 
     assert res.status_code == 400
     assert db.get_weekly_market_prices(None, "2026-09-14") == {}
+
+
+def test_post_with_only_current_nulls_the_stored_monday_open(client, tmp_db):
+    """Pins the pair-post contract, deliberately, rather than changing it.
+    upsert_weekly_market_price always writes both columns, so a POST that
+    carries only one field wipes the other back to NULL instead of leaving
+    it untouched — there is no partial-update path. This is exactly why the
+    client (wbSave in weekly_review.html) must always send both fields on
+    every blur, even the one the user didn't touch. If a future reader adds
+    partial-update semantics to the route, this test should fail and force
+    the client contract to be reconsidered at the same time."""
+    db.upsert_weekly_market_price(None, "2026-09-14", "SPX", 7600.0, 7650.0)
+
+    res = client.post("/api/weekly-board", json={
+        "week_start": "2026-09-14", "instrument": "SPX",
+        "current": "7700.0"})
+
+    assert res.status_code == 200
+    stored = db.get_weekly_market_prices(None, "2026-09-14")["SPX"]
+    assert stored["monday_open"] is None
+    assert stored["current"] == 7700.0
 
 
 def test_post_requires_a_week(client, tmp_db):
@@ -424,3 +460,24 @@ def test_editor_cells_are_never_hidden(client, tmp_db):
 
     assert "display:none" not in editor
     assert "nextElementSibling" not in editor
+
+
+def test_editor_prefill_round_trips_precision_beyond_two_decimals(client, tmp_db):
+    """The editor must never be the thing that rounds a stored price. Rendering
+    the prefill with '{:.2f}'.format() truncates precision the moment the
+    editor is opened, and wbSave reposts both fields on every blur — so just
+    tabbing through a row silently rewrites the stored value, rounded, with
+    no way back. TNX stored at 4.795 read +0.355%; after one blur through a
+    '{:.2f}' prefill it became 4.79, reading +0.418% — an 18% relative error.
+    Python's default str() of a float gives the shortest round-tripping
+    representation, so the fix is to stop formatting and let Jinja's default
+    conversion pass the value through untouched."""
+    db.upsert_weekly_market_price(None, "2026-09-14", "SPX", 7656.98, None)
+    db.upsert_weekly_market_price(None, "2026-09-14", "TNX", 4.795, None)
+
+    html = _weekly_html(client)
+    editor = html[html.index('id="wb-editor"'):]
+    editor = editor[:editor.index("</table>")]
+
+    assert 'value="7656.98"' in editor
+    assert 'value="4.795"' in editor

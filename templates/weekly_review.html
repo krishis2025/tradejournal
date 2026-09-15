@@ -360,11 +360,11 @@ table.wr-table td.num { font-family: 'JetBrains Mono', monospace; text-align: ri
           <td class="wb-t-name">{{ r.label }}</td>
           <td><input class="wb-input" type="text" inputmode="decimal"
                      data-instrument="{{ r.key }}" data-field="monday_open"
-                     value="{{ '' if r.monday_open is none else '{:.2f}'.format(r.monday_open) }}"
+                     value="{{ '' if r.monday_open is none else r.monday_open }}"
                      onblur="wbSave('{{ r.key }}')"></td>
           <td><input class="wb-input" type="text" inputmode="decimal"
                      data-instrument="{{ r.key }}" data-field="current"
-                     value="{{ '' if r.current is none else '{:.2f}'.format(r.current) }}"
+                     value="{{ '' if r.current is none else r.current }}"
                      onblur="wbSave('{{ r.key }}')"></td>
         </tr>
         {% endfor %}{% endfor %}
