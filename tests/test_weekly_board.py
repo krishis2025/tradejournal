@@ -243,3 +243,54 @@ def test_only_indices_and_macro_show_a_price(tmp_db):
     show = {g["id"]: g["show_price"] for g in board["groups"]}
 
     assert show == {"indices": True, "sectors": False, "macro": True}
+
+
+# ── API ───────────────────────────────────────────────────────────────────────
+
+def test_post_saves_a_cell_with_typed_commas(client, tmp_db):
+    res = client.post("/api/weekly-board", json={
+        "week_start": "2026-09-14", "instrument": "SPX",
+        "monday_open": "7,600.00", "current": "7,656.98"})
+
+    assert res.status_code == 200
+    stored = db.get_weekly_market_prices(None, "2026-09-14")["SPX"]
+    assert stored["monday_open"] == 7600.00
+    assert stored["current"] == 7656.98
+
+
+def test_post_rejects_an_unknown_instrument(client, tmp_db):
+    """The instrument list is a closed vocabulary. A typo must not create a
+    phantom row that nothing renders and nobody can find."""
+    res = client.post("/api/weekly-board", json={
+        "week_start": "2026-09-14", "instrument": "XLZ",
+        "monday_open": "1", "current": "2"})
+
+    assert res.status_code == 400
+    assert db.get_weekly_market_prices(None, "2026-09-14") == {}
+
+
+def test_post_rejects_a_non_numeric_price(client, tmp_db):
+    res = client.post("/api/weekly-board", json={
+        "week_start": "2026-09-14", "instrument": "SPX",
+        "monday_open": "abc", "current": "2"})
+
+    assert res.status_code == 400
+    assert db.get_weekly_market_prices(None, "2026-09-14") == {}
+
+
+def test_post_requires_a_week(client, tmp_db):
+    res = client.post("/api/weekly-board", json={
+        "week_start": "", "instrument": "SPX",
+        "monday_open": "1", "current": "2"})
+
+    assert res.status_code == 400
+
+
+def test_weekly_payload_carries_the_board(client, tmp_db):
+    db.upsert_weekly_market_price(None, "2026-09-14", "XLK", 100.0, 100.51)
+
+    data = logic.build_weekly_review_data(None, "2026-09-14")
+
+    assert "board" in data
+    row = [r for g in data["board"]["groups"] for r in g["rows"] if r["key"] == "XLK"][0]
+    assert round(row["pct"], 2) == 0.51

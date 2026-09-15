@@ -1982,6 +1982,25 @@ def api_save_weekly_review():
     return jsonify({"ok": True})
 
 
+@app.route("/api/weekly-board", methods=["POST"])
+def api_save_weekly_board():
+    account_id = request.args.get("account") or None
+    body = request.get_json(silent=True) or {}
+    week = (body.get("week_start") or "").strip()
+    instrument = (body.get("instrument") or "").strip()
+    if not week:
+        return jsonify({"error": "week_start is required"}), 400
+    if instrument not in logic.board_keys():
+        return jsonify({"error": "unknown instrument"}), 400
+    try:
+        monday_open = logic.parse_price(body.get("monday_open"))
+        current = logic.parse_price(body.get("current"))
+    except ValueError:
+        return jsonify({"error": "prices must be numbers"}), 400
+    db.upsert_weekly_market_price(account_id, week, instrument, monday_open, current)
+    return jsonify({"ok": True})
+
+
 @app.route("/api/weekly-intention", methods=["POST"])
 def api_add_weekly_intention():
     body = request.get_json(silent=True) or {}

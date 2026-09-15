@@ -2912,6 +2912,8 @@ def build_weekly_review_data(account_id, week_start):
     months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     week_label = f"Week of {months[m-1]} {d}, {y}"
 
+    board = build_weekly_board(account_id, mon)
+
     return {
         "account_id": account_id,
         "week_start": mon, "week_end": sun,
@@ -2947,4 +2949,5 @@ def build_weekly_review_data(account_id, week_start):
         "trajectory": trajectory,
         "tracked_detectors": [{"id": did, "label": DETECTOR_REGISTRY[did]["label"]}
                               for did in tracked_detectors()],
+        "board": board,
     }
