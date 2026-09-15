@@ -5,6 +5,45 @@
 {%- if v is none -%}—{%- else -%}{{ '+' if v >= 0 else '-' }}${{ '{:,.0f}'.format(v|abs) }}{%- endif -%}
 {%- endmacro %}
 
+{% macro wb_pct(v) -%}
+{%- if v is none -%}<span class="wb-flat">—</span>
+{%- elif v < 0 -%}<span class="wb-neg">({{ '{:.2f}'.format(v|abs) }}%)</span>
+{%- else -%}<span class="wb-pos">+{{ '{:.2f}'.format(v) }}%</span>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro wb_price(v) -%}
+{%- if v is none -%}<span class="wb-flat">—</span>
+{%- else -%}{{ '{:,.2f}'.format(v) }}
+{%- endif -%}
+{%- endmacro %}
+
+{% macro wb_icon(key) -%}
+<svg class="wb-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"
+     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+{%- if key in ('SPX','NDX','RUT') -%}<polyline points="3 17 9 11 13 15 21 7"/>
+{%- elif key == 'XLK' -%}<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/>
+{%- elif key == 'SMH' -%}<rect x="7" y="7" width="10" height="10"/><path d="M3 10h4M3 14h4M17 10h4M17 14h4"/>
+{%- elif key == 'XLF' -%}<path d="M3 21h18M5 21V9l7-5 7 5v12"/>
+{%- elif key == 'XLC' -%}<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+{%- elif key == 'XLY' -%}<path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/>
+{%- elif key == 'XLI' -%}<path d="M2 20h20V10l-6 4V10l-6 4V4H2z"/>
+{%- elif key == 'XLV' -%}<path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 00-7.8 7.8l8.8 8.8 8.8-8.8a5.5 5.5 0 000-7.8z"/>
+{%- elif key == 'XLP' -%}<path d="M5 8h14l-1 13H6zM9 8V5a3 3 0 016 0v3"/>
+{%- elif key == 'XLE' -%}<polygon points="13 2 3 14 12 14 11 22 21 10 12 10"/>
+{%- elif key == 'XLU' -%}<path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.7V17h8v-2.3A7 7 0 0012 2z"/>
+{%- elif key == 'XLB' -%}<path d="M12 2l9 5v10l-9 5-9-5V7z"/>
+{%- elif key == 'XLRE' -%}<path d="M3 11l9-7 9 7v9a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+{%- elif key == 'TLT' -%}<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>
+{%- elif key == 'TNX' -%}<path d="M3 3v18h18"/><polyline points="7 14 11 10 14 13 20 7"/>
+{%- elif key == 'VIX' -%}<polyline points="3 12 7 12 9 5 13 19 16 12 21 12"/>
+{%- elif key == 'GC' -%}<path d="M3 17h7l-1-5H4zM14 17h7l-1-5h-5zM8.5 11h7l-1-5h-5z"/>
+{%- elif key == 'CL' -%}<path d="M7 4h10v16H7z"/><path d="M7 9h10M7 14h10"/>
+{%- else -%}<circle cx="12" cy="12" r="9"/>
+{%- endif -%}
+</svg>
+{%- endmacro %}
+
 {% macro dollars(t) -%}
 {%- if not t.this_week_qualifying -%}<span class="wr-muted">—</span> this wk
 {%- elif t.this_week_drag == 0 -%}$0 this wk
@@ -222,6 +261,32 @@ table.wr-table td.num { font-family: 'JetBrains Mono', monospace; text-align: ri
 .wr-card.v-mixed { border-left-color: #ffb347; } .wr-card.v-mixed .wr-card-verdict { color: #ffb347; }
 .wr-card.v-too_soon, .wr-card.v-no_target { border-left-color: var(--border2); } .wr-card.v-too_soon .wr-card-verdict, .wr-card.v-no_target .wr-card-verdict { color: var(--muted2); }
 .wr-target-select { background: var(--surface2); border: 0.5px solid var(--border2); border-radius: 6px; padding: 8px 10px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 12px; }
+
+/* Weekly market board */
+.wb-board { border:1px solid var(--border); border-radius:8px; padding:14px 16px; margin:14px 0; }
+.wb-board-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.wb-board-title { font-size:11px; letter-spacing:1.5px; color:var(--muted); }
+.wb-edit-btn { background:transparent; border:1px solid var(--border2); color:var(--muted);
+               border-radius:5px; padding:4px 10px; font-size:11px; cursor:pointer; }
+.wb-edit-btn:hover { border-color:var(--accent); color:var(--text); }
+
+/* Four columns: indices, sectors (itself two columns), macro. */
+.wb-cols { display:grid; grid-template-columns: 1fr 2fr 1fr; gap:20px; }
+.wb-group-sectors .wb-group-rows { column-count:2; column-gap:20px; }
+.wb-group-label { font-size:10px; letter-spacing:1.5px; color:var(--muted); margin-bottom:8px; }
+.wb-row { break-inside:avoid; margin-bottom:10px; }
+.wb-name { font-size:13px; color:var(--text); }
+.wb-icon { vertical-align:-2px; margin-right:5px; color:var(--muted); }
+.wb-price { font-family:var(--font-mono); font-size:15px; color:var(--text); }
+.wb-move { font-family:var(--font-mono); font-size:13px; }
+
+.wb-pos { color:#2ecc70; }
+.wb-neg { color:#ff4d6d; }
+.wb-flat { color:var(--muted); }
+
+@media (max-width: 1100px) { .wb-cols { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 700px)  { .wb-cols { grid-template-columns: 1fr; }
+                             .wb-group-sectors .wb-group-rows { column-count:1; } }
 {% endblock %}
 
 {% block content %}
@@ -247,6 +312,30 @@ table.wr-table td.num { font-family: 'JetBrains Mono', monospace; text-align: ri
     <div class="wr-kpi"><div class="wr-kpi-label">Win Rate</div><div class="wr-kpi-val">{{ '{:.0f}'.format(k.win_rate) }}%</div><div class="wr-kpi-label" style="margin-top:2px;">{{ k.wins }}W / {{ k.losses }}L</div></div>
     <div class="wr-kpi"><div class="wr-kpi-label">Trades</div><div class="wr-kpi-val">{{ k.trades }}</div></div>
     <div class="wr-kpi"><div class="wr-kpi-label">Days</div><div class="wr-kpi-val">{{ k.days }}</div></div>
+  </div>
+
+  <!-- Market board — see docs/superpowers/specs/2026-09-14-weekly-market-board-design.md -->
+  <div class="wb-board">
+    <div class="wb-board-head">
+      <span class="wb-board-title">MARKET — {{ data.week_label }}</span>
+      <button type="button" class="wb-edit-btn" onclick="wbToggleEditor()">Edit values</button>
+    </div>
+    <div class="wb-cols">
+      {% for g in data.board.groups %}
+      <div class="wb-group wb-group-{{ g.id }}">
+        <div class="wb-group-label">{{ g.label }}</div>
+        <div class="wb-group-rows">
+          {% for r in g.rows %}
+          <div class="wb-row" data-instrument="{{ r.key }}">
+            <div class="wb-name">{{ wb_icon(r.key) }} {{ r.label }}</div>
+            {% if g.show_price %}<div class="wb-price">{{ wb_price(r.price) }}</div>{% endif %}
+            <div class="wb-move">{{ wb_pct(r.pct) }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
   </div>
 
   <!-- Zone 1 — The Story -->

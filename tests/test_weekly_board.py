@@ -307,3 +307,53 @@ def test_weekly_payload_carries_the_board(client, tmp_db):
     assert "board" in data
     row = [r for g in data["board"]["groups"] for r in g["rows"] if r["key"] == "XLK"][0]
     assert round(row["pct"], 2) == 0.51
+
+
+# ── Rendering ─────────────────────────────────────────────────────────────────
+
+def _weekly_html(client, week="2026-09-14"):
+    return client.get("/weekly-review?week=" + week).get_data(as_text=True)
+
+
+def test_negative_renders_parenthesised_and_red(client, tmp_db):
+    """The accounting convention from the reference board: parentheses for
+    negatives, an explicit + for positives. It is why that board reads fast."""
+    db.upsert_weekly_market_price(None, "2026-09-14", "XLK", 100.0, 99.20)
+
+    html = _weekly_html(client)
+
+    assert 'class="wb-neg">(0.80%)' in html
+
+
+def test_positive_renders_signed_and_green(client, tmp_db):
+    db.upsert_weekly_market_price(None, "2026-09-14", "XLK", 100.0, 100.51)
+
+    html = _weekly_html(client)
+
+    assert 'class="wb-pos">+0.51%' in html
+
+
+def test_vix_rising_renders_green_not_bearish_red(client, tmp_db):
+    """Deliberate divergence from the internals delta pills, where a rising VIX
+    is dark red. The board is a market surface: green means up. Spec §Colour.
+    If this test is ever 'fixed' to expect red, read the spec first."""
+    db.upsert_weekly_market_price(None, "2026-09-14", "VIX", 15.00, 15.27)
+
+    html = _weekly_html(client)
+
+    assert 'class="wb-pos">+1.80%' in html
+
+
+def test_empty_week_still_renders_every_instrument(client, tmp_db):
+    html = _weekly_html(client)
+
+    assert html.count('class="wb-row"') == 20
+
+
+def test_open_without_current_shows_the_price_and_a_dash(client, tmp_db):
+    db.upsert_weekly_market_price(None, "2026-09-14", "SPX", 7600.0, None)
+
+    html = _weekly_html(client)
+
+    assert "7,600.00" in html
+    assert 'class="wb-flat">—' in html
