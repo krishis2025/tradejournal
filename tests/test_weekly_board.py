@@ -385,3 +385,42 @@ def test_open_without_current_shows_the_price_and_a_dash(client, tmp_db):
 
     assert "7,600.00" in html
     assert 'class="wb-flat">—' in row
+
+
+# ── Entry table ───────────────────────────────────────────────────────────────
+
+def test_editor_renders_two_real_inputs_per_instrument(client, tmp_db):
+    """The tab-order invariant. 4.10.0 had to rebuild the internals grid because
+    its cells hid their inputs behind a click, and a display:none input is not
+    focusable — Tab skipped them. Forty real inputs is what makes the table
+    fillable from the keyboard."""
+    html = _weekly_html(client)
+
+    editor = html[html.index('id="wb-editor"'):]
+    editor = editor[:editor.index("</table>")]
+    assert editor.count("<input") == 40
+
+
+def test_editor_inputs_are_ordered_open_then_current_per_row(client, tmp_db):
+    """Tab follows DOM order, so the pairs must be adjacent and in that order —
+    open, current, next instrument. Any other order sends the cursor sideways,
+    which is the exact complaint that drove the 4.10.0 transpose."""
+    import re
+    html = _weekly_html(client)
+    editor = html[html.index('id="wb-editor"'):]
+    editor = editor[:editor.index("</table>")]
+
+    fields = re.findall(r'data-field="(monday_open|current)"', editor)
+
+    assert fields[:4] == ["monday_open", "current", "monday_open", "current"]
+    assert len(fields) == 40
+
+
+def test_editor_cells_are_never_hidden(client, tmp_db):
+    """The specific failure mode: a cell that reveals its input on click."""
+    html = _weekly_html(client)
+    editor = html[html.index('id="wb-editor"'):]
+    editor = editor[:editor.index("</table>")]
+
+    assert "display:none" not in editor
+    assert "nextElementSibling" not in editor

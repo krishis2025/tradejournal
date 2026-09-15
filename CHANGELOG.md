@@ -2,6 +2,26 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [4.11.0] — 2026-09-14
+
+### Added
+
+- **A market board on the weekly review page.** Twenty instruments — three cash indices, twelve
+  sectors including SMH, five macro — each showing its percent move from Monday's open, in the
+  screenshot's four-column shape and the app's dark palette. Values are entered in an inline table
+  that autosaves on blur; Monday's open is typed once a week and the current price is retyped on a
+  refresh.
+- Percent is computed on read and never stored. Prices accept the thousands separators that
+  actually get typed, and `nan`/`inf` are rejected at the boundary rather than poisoning a percent
+  downstream.
+
+### Note
+
+- The board colours **green for up and red for down on every instrument**, including VIX, the 10-year
+  yield and oil — deliberately unlike the internals delta pills, where a rise in those three is
+  bearish and shows dark red. Internals is a signal surface; the board is a market surface. See
+  `docs/superpowers/specs/2026-09-14-weekly-market-board-design.md`.
+
 ## [4.10.0] — 2026-09-14
 
 ### Changed

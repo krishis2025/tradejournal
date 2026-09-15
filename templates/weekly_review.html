@@ -287,6 +287,19 @@ table.wr-table td.num { font-family: 'JetBrains Mono', monospace; text-align: ri
 @media (max-width: 1100px) { .wb-cols { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 700px)  { .wb-cols { grid-template-columns: 1fr; }
                              .wb-group-sectors .wb-group-rows { column-count:1; } }
+
+.wb-editor { margin:0 0 14px; border:1px solid var(--border); border-radius:8px; padding:10px 14px; }
+.wb-table { width:100%; border-collapse:collapse; }
+.wb-table th { font-size:10px; letter-spacing:1px; color:var(--muted);
+               text-align:left; font-weight:500; padding:4px 8px; }
+.wb-table td { padding:2px 8px; }
+.wb-t-name { font-size:12px; color:var(--text); width:140px; }
+.wb-input { background:transparent; border:1px solid transparent; border-radius:4px;
+            color:var(--text); font-family:var(--font-mono); font-size:13px;
+            padding:4px 8px; width:110px; outline:none; }
+.wb-input:hover { border-color:var(--border2); }
+.wb-input:focus { border-color:var(--accent); }
+.wb-row-bad .wb-input { border-color:#ff4d6d; }
 {% endblock %}
 
 {% block content %}
@@ -336,6 +349,27 @@ table.wr-table td.num { font-family: 'JetBrains Mono', monospace; text-align: ri
       </div>
       {% endfor %}
     </div>
+  </div>
+
+  <div class="wb-editor" id="wb-editor" hidden data-week="{{ data.week_start }}">
+    <table class="wb-table">
+      <thead><tr><th>Instrument</th><th>Mon open</th><th>Current</th></tr></thead>
+      <tbody>
+        {% for g in data.board.groups %}{% for r in g.rows %}
+        <tr>
+          <td class="wb-t-name">{{ r.label }}</td>
+          <td><input class="wb-input" type="text" inputmode="decimal"
+                     data-instrument="{{ r.key }}" data-field="monday_open"
+                     value="{{ '' if r.monday_open is none else '{:.2f}'.format(r.monday_open) }}"
+                     onblur="wbSave('{{ r.key }}')"></td>
+          <td><input class="wb-input" type="text" inputmode="decimal"
+                     data-instrument="{{ r.key }}" data-field="current"
+                     value="{{ '' if r.current is none else '{:.2f}'.format(r.current) }}"
+                     onblur="wbSave('{{ r.key }}')"></td>
+        </tr>
+        {% endfor %}{% endfor %}
+      </tbody>
+    </table>
   </div>
 
   <!-- Zone 1 — The Story -->
@@ -651,6 +685,35 @@ table.wr-table td.num { font-family: 'JetBrains Mono', monospace; text-align: ri
 <script>
 const WR = {{ data_json|safe }};
 const WR_ACCT = document.getElementById('wr-root').dataset.account || '';
+
+function wbToggleEditor() {
+  const el = document.getElementById('wb-editor');
+  el.hidden = !el.hidden;
+  if (!el.hidden) { const f = el.querySelector('.wb-input'); if (f) f.focus(); }
+}
+
+// Both cells for an instrument post together: the API writes the pair, so
+// sending only the blurred field would null the other one.
+async function wbSave(instrument) {
+  const el = document.getElementById('wb-editor');
+  const pick = f => {
+    const i = el.querySelector(`[data-instrument="${instrument}"][data-field="${f}"]`);
+    return i ? i.value : '';
+  };
+  const acct = document.getElementById('wr-root').dataset.account;
+  try {
+    const res = await fetch('/api/weekly-board' + (acct ? '?account=' + acct : ''), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        week_start: el.dataset.week, instrument: instrument,
+        monday_open: pick('monday_open'), current: pick('current'),
+      }),
+    });
+    const row = el.querySelector(`[data-instrument="${instrument}"]`).closest('tr');
+    row.classList.toggle('wb-row-bad', !res.ok);
+  } catch (e) { console.error('Board save failed', e); }
+}
 
 async function wrPost(url, method, body) {
   const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
