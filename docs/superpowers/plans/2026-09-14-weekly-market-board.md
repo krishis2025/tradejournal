@@ -25,6 +25,15 @@
 - **Commit straight to main. Never branch, never open a PR. COMMIT ONLY — do not push to any remote.**
 - **Every new test must be mutation-checked**: reintroduce the bug it guards, watch that specific test fail, restore. A test that passes with the bug present is worse than no test. State the result in the task report.
 
+## Controller rulings applied before execution
+
+**Ruling 1 — the board displays `price`, not `current`.** Spec §"Empty and partial states"
+requires that an instrument with an open but no current yet shows the open as its value. The
+first draft of this plan rendered `r.current`, which would show `—` instead and fails Task 4's
+own `test_open_without_current_shows_the_price_and_a_dash`. Task 2's builder therefore emits a
+`price` field (`current` if present, else `monday_open`) and Task 4 renders it. Two tests in
+Task 2 cover the fallback and the preference.
+
 ---
 
 ### Task 1: Table, migration, and the database layer
@@ -268,7 +277,7 @@ git commit -m "feat: weekly market board storage"
   - `logic.board_pct(monday_open, current) -> float|None`
   - `logic.build_weekly_board(account_id, week_start) -> dict` shaped
     `{"groups": [{"id","label","show_price","rows":[…]}], "any_data": bool}`
-    where each row is `{"key","label","monday_open","current","pct"}`
+    where each row is `{"key","label","monday_open","current","price","pct"}`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -372,6 +381,28 @@ def test_builder_keeps_fixed_order_regardless_of_performance(tmp_db):
 
     assert sectors[0] == "XLK"
     assert sectors[-1] == "XLRE"
+
+
+def test_price_falls_back_to_the_open_until_a_current_is_entered(tmp_db):
+    """Spec §"Empty and partial states". On Monday you type the open and nothing
+    else; the board must show that number, not a dash, while the percent stays
+    blank because there is nothing yet to compare it to."""
+    db.upsert_weekly_market_price(None, "2026-09-14", "SPX", 7600.0, None)
+
+    board = logic.build_weekly_board(None, "2026-09-14")
+    row = [r for g in board["groups"] for r in g["rows"] if r["key"] == "SPX"][0]
+
+    assert row["price"] == 7600.0
+    assert row["pct"] is None
+
+
+def test_price_prefers_the_current_once_entered(tmp_db):
+    db.upsert_weekly_market_price(None, "2026-09-14", "SPX", 7600.0, 7656.98)
+
+    board = logic.build_weekly_board(None, "2026-09-14")
+    row = [r for g in board["groups"] for r in g["rows"] if r["key"] == "SPX"][0]
+
+    assert row["price"] == 7656.98
 
 
 def test_only_indices_and_macro_show_a_price(tmp_db):
@@ -481,8 +512,12 @@ def build_weekly_board(account_id, week_start):
             mo, cur = cell.get("monday_open"), cell.get("current")
             if mo is not None or cur is not None:
                 any_data = True
+            # `price` is what the board displays. Spec §"Empty and partial
+            # states": with an open entered and no current yet, the open shows
+            # as the value while the percent stays blank.
             rows.append({"key": key, "label": label,
                          "monday_open": mo, "current": cur,
+                         "price": cur if cur is not None else mo,
                          "pct": board_pct(mo, cur)})
         groups.append({"id": gid, "label": glabel,
                        "show_price": show_price, "rows": rows})
@@ -492,7 +527,7 @@ def build_weekly_board(account_id, week_start):
 - [ ] **Step 4: Run the tests and watch them pass**
 
 Run: `python3 -m pytest tests/test_weekly_board.py -q`
-Expected: 18 passed.
+Expected: 20 passed.
 
 - [ ] **Step 5: Mutation-check three tests**
 
@@ -625,7 +660,7 @@ and include `"board": board,` in the returned dict. Find the existing `return {`
 - [ ] **Step 5: Run the tests and watch them pass**
 
 Run: `python3 -m pytest tests/test_weekly_board.py -q`
-Expected: 23 passed.
+Expected: 25 passed.
 
 - [ ] **Step 6: Mutation-check the vocabulary guard**
 
@@ -753,7 +788,7 @@ Inside `{% block content %}`, after the `wr-kpis` div:
           {% for r in g.rows %}
           <div class="wb-row" data-instrument="{{ r.key }}">
             <div class="wb-name">{{ r.label }}</div>
-            {% if g.show_price %}<div class="wb-price">{{ wb_price(r.current) }}</div>{% endif %}
+            {% if g.show_price %}<div class="wb-price">{{ wb_price(r.price) }}</div>{% endif %}
             <div class="wb-move">{{ wb_pct(r.pct) }}</div>
           </div>
           {% endfor %}
@@ -837,7 +872,7 @@ Use it in the row: `<div class="wb-name">{{ wb_icon(r.key) }} {{ r.label }}</div
 - [ ] **Step 7: Run the tests and watch them pass**
 
 Run: `python3 -m pytest tests/test_weekly_board.py -q`
-Expected: 28 passed.
+Expected: 30 passed.
 
 - [ ] **Step 8: Mutation-check the rendering tests**
 
@@ -1029,7 +1064,7 @@ The board above the editor does not live-update — it refreshes on the next pag
 - [ ] **Step 6: Run the tests and watch them pass**
 
 Run: `python3 -m pytest tests/test_weekly_board.py -q`
-Expected: 31 passed.
+Expected: 33 passed.
 
 - [ ] **Step 7: Mutation-check the tab-order tests**
 
