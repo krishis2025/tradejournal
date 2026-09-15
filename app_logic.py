@@ -604,6 +604,31 @@ def board_pct(monday_open, current):
     return (current - monday_open) / monday_open * 100.0
 
 
+def board_cell(price, pct):
+    """The two display strings for one board row, plus the percent's colour class.
+
+    Lives here rather than in the template because two surfaces need it: the
+    server-rendered board, and the save response that updates a row in place
+    without a reload. A second copy in JavaScript would drift from this one the
+    first time the format changed.
+
+    Green for up and red for down on every instrument, including VIX, TNX and
+    CL — deliberately unlike the internals delta pills, where a rise in those
+    three is bearish. See the spec's "Colour" section; do not align them.
+    """
+    if pct is None:
+        pct_text, pct_class = "\u2014", "wb-flat"
+    elif pct < 0:
+        pct_text, pct_class = "({:.2f}%)".format(abs(pct)), "wb-neg"
+    else:
+        pct_text, pct_class = "+{:.2f}%".format(pct), "wb-pos"
+    return {
+        "price": "\u2014" if price is None else "{:,.2f}".format(price),
+        "pct": pct_text,
+        "pct_class": pct_class,
+    }
+
+
 def build_weekly_board(account_id, week_start):
     """Ordered board for one week. All twenty instruments always render."""
     stored = db.get_weekly_market_prices(account_id, week_start)

@@ -481,3 +481,106 @@ def test_editor_prefill_round_trips_precision_beyond_two_decimals(client, tmp_db
 
     assert 'value="7656.98"' in editor
     assert 'value="4.795"' in editor
+
+
+# ── Live board refresh ────────────────────────────────────────────────────────
+# The board sits directly above the editor, so typing into a row while the board
+# still shows a dash reads as "nothing saved" even though the write succeeded.
+# The save response carries the recomputed cell so the row can update in place.
+
+def test_board_cell_formats_price_and_percent():
+    cell = logic.board_cell(7587.0, -0.32)
+
+    assert cell["price"] == "7,587.00"
+    assert cell["pct"] == "(0.32%)"
+    assert cell["pct_class"] == "wb-neg"
+
+
+def test_board_cell_signs_a_positive_and_dashes_a_missing_value():
+    assert logic.board_cell(28980.0, 0.31)["pct"] == "+0.31%"
+    assert logic.board_cell(28980.0, 0.31)["pct_class"] == "wb-pos"
+
+    blank = logic.board_cell(None, None)
+    assert blank["price"] == "—"
+    assert blank["pct"] == "—"
+    assert blank["pct_class"] == "wb-flat"
+
+
+def test_rendered_board_uses_the_same_formatter_as_the_save_response(client, tmp_db):
+    """One formatter, two surfaces. If the template kept its own copy of the
+    format, a change to either would silently drift the live-updated cell away
+    from what a page reload shows."""
+    db.upsert_weekly_market_price(None, "2026-09-14", "SPX", 7611.44, 7587.0)
+
+    rendered = _row_html(_weekly_html(client), "SPX")
+    cell = logic.board_cell(7587.0, logic.board_pct(7611.44, 7587.0))
+
+    assert cell["price"] in rendered
+    assert cell["pct"] in rendered
+    assert cell["pct_class"] in rendered
+
+
+def test_save_response_carries_the_recomputed_cell(client, tmp_db):
+    """Without this the client would have to recompute the percent in JS — a
+    second implementation of a rule that already lives in app_logic."""
+    res = client.post("/api/weekly-board", json={
+        "week_start": "2026-09-14", "instrument": "SPX",
+        "monday_open": "7,611.44", "current": "7,587.00"})
+
+    body = res.get_json()
+    assert body["ok"] is True
+    assert body["cell"]["price"] == "7,587.00"
+    assert body["cell"]["pct"] == "(0.32%)"
+    assert body["cell"]["pct_class"] == "wb-neg"
+    assert body["cell"]["instrument"] == "SPX"
+
+
+def test_save_response_cell_is_blank_when_both_prices_are_cleared(client, tmp_db):
+    """Clearing a row must push the dash back onto the board, not leave the old
+    number sitting there looking current."""
+    db.upsert_weekly_market_price(None, "2026-09-14", "SPX", 7611.44, 7587.0)
+
+    res = client.post("/api/weekly-board", json={
+        "week_start": "2026-09-14", "instrument": "SPX",
+        "monday_open": "", "current": ""})
+
+    assert res.get_json()["cell"]["price"] == "—"
+    assert res.get_json()["cell"]["pct"] == "—"
+
+
+def test_board_row_exposes_the_hooks_the_live_update_writes_into(client, tmp_db):
+    """wbPaintCell reaches for `.wb-row[data-instrument=…]`, then `.wb-price`
+    and `.wb-move span` inside it. None of that is reachable by a Python test
+    directly — this pins the markup contract so a template refactor cannot
+    silently stop the board updating while every other test stays green.
+
+    A sector row legitimately has no `.wb-price` (sectors show only a move),
+    which is why the JS guards that lookup.
+    """
+    db.upsert_weekly_market_price(None, "2026-09-14", "SPX", 7611.44, 7587.0)
+    db.upsert_weekly_market_price(None, "2026-09-14", "XLK", 183.0, 184.2)
+    html = _weekly_html(client)
+
+    index = _row_html(html, "SPX")           # an index: price + move
+    assert 'class="wb-price"' in index
+    assert 'class="wb-move"' in index
+    assert "<span" in index[index.index('class="wb-move"'):]
+
+    sector = _row_html(html, "XLK")          # a sector: move only
+    assert 'class="wb-price"' not in sector
+    assert "<span" in sector[sector.index('class="wb-move"'):]
+
+
+def test_live_update_and_a_reload_agree_on_the_same_numbers(client, tmp_db):
+    """The whole point of sharing one formatter. What the save response paints
+    onto a row must be exactly what the next page load renders there."""
+    res = client.post("/api/weekly-board", json={
+        "week_start": "2026-09-14", "instrument": "SPX",
+        "monday_open": "7611.44", "current": "7587"})
+    painted = res.get_json()["cell"]
+
+    reloaded = _row_html(_weekly_html(client), "SPX")
+
+    assert painted["price"] in reloaded
+    assert painted["pct"] in reloaded
+    assert painted["pct_class"] in reloaded

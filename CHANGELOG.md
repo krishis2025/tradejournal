@@ -2,6 +2,18 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [4.11.1] — 2026-09-15
+
+### Fixed
+
+- **The weekly board now updates as you type.** Values saved on blur, but the board sits directly
+  above the editor and kept showing dashes until the page was reloaded — so a working save looked
+  like a broken one. Each row now repaints the moment it saves. The 4.11.0 decision that the board
+  "refreshes on the next page load" was wrong about where the user is looking.
+- The save response carries the recomputed cell, formatted server-side by a new
+  `app_logic.board_cell`. The board's Jinja macros call the same function, so a live-updated cell
+  and a reloaded one cannot drift apart, and the percent rule is never reimplemented in JavaScript.
+
 ## [4.11.0] — 2026-09-14
 
 ### Added

@@ -5,16 +5,16 @@
 {%- if v is none -%}—{%- else -%}{{ '+' if v >= 0 else '-' }}${{ '{:,.0f}'.format(v|abs) }}{%- endif -%}
 {%- endmacro %}
 
+{# Both macros delegate to app_logic.board_cell, which the save response also
+   uses — so a live-updated cell and a reloaded one can never disagree. #}
 {% macro wb_pct(v) -%}
-{%- if v is none -%}<span class="wb-flat">—</span>
-{%- elif v < 0 -%}<span class="wb-neg">({{ '{:.2f}'.format(v|abs) }}%)</span>
-{%- else -%}<span class="wb-pos">+{{ '{:.2f}'.format(v) }}%</span>
-{%- endif -%}
+{%- set c = board_cell(None, v) -%}
+<span class="{{ c.pct_class }}">{{ c.pct }}</span>
 {%- endmacro %}
 
 {% macro wb_price(v) -%}
 {%- if v is none -%}<span class="wb-flat">—</span>
-{%- else -%}{{ '{:,.2f}'.format(v) }}
+{%- else -%}{{ board_cell(v, None).price }}
 {%- endif -%}
 {%- endmacro %}
 
@@ -692,6 +692,24 @@ function wbToggleEditor() {
   if (!el.hidden) { const f = el.querySelector('.wb-input'); if (f) f.focus(); }
 }
 
+// Write the saved row straight back onto the board above. The board sits
+// directly over the editor, so leaving it showing a dash while you type reads
+// as "nothing saved" even though the write succeeded. The server sends the
+// formatted cell — nothing is recomputed here.
+function wbPaintCell(body) {
+  const cell = body && body.cell;
+  if (!cell) return;
+  const row = document.querySelector(`.wb-row[data-instrument="${cell.instrument}"]`);
+  if (!row) return;
+  const price = row.querySelector('.wb-price');
+  if (price) price.textContent = cell.price;   // sectors have no price cell
+  const move = row.querySelector('.wb-move span');
+  if (move) {
+    move.textContent = cell.pct;
+    move.className = cell.pct_class;
+  }
+}
+
 // Both cells for an instrument post together: the API writes the pair, so
 // sending only the blurred field would null the other one.
 async function wbSave(instrument) {
@@ -712,6 +730,7 @@ async function wbSave(instrument) {
     });
     const row = el.querySelector(`[data-instrument="${instrument}"]`).closest('tr');
     row.classList.toggle('wb-row-bad', !res.ok);
+    if (res.ok) wbPaintCell(await res.json());
   } catch (e) { console.error('Board save failed', e); }
 }
 

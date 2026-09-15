@@ -11,6 +11,9 @@ import app_logic as logic
 import json, os, uuid
 
 app = Flask(__name__)
+# Exposed to templates so the board's macros and the save response share one
+# implementation of the price/percent format (see app_logic.board_cell).
+app.jinja_env.globals["board_cell"] = logic.board_cell
 app.config["MAX_CONTENT_LENGTH"] = 32 * 1024 * 1024  # 32 MB
 
 IMAGES_DIR = os.path.join(os.path.dirname(__file__), "data", "images")
@@ -1998,7 +2001,13 @@ def api_save_weekly_board():
     except ValueError:
         return jsonify({"error": "prices must be numbers"}), 400
     db.upsert_weekly_market_price(account_id, week, instrument, monday_open, current)
-    return jsonify({"ok": True})
+    # Hand back the recomputed cell so the board above the editor can update in
+    # place. The percent is derived here, not in the browser, so there is only
+    # ever one implementation of the rule.
+    price = current if current is not None else monday_open
+    cell = logic.board_cell(price, logic.board_pct(monday_open, current))
+    cell["instrument"] = instrument
+    return jsonify({"ok": True, "cell": cell})
 
 
 @app.route("/api/weekly-intention", methods=["POST"])
