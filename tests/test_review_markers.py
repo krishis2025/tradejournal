@@ -373,3 +373,95 @@ def test_analytics_count_every_emotion_in_a_list(tmp_db):
 
     assert result["summary"]["bc_diagnosis"]["top_emotion"][0] == "greed"
     assert result["summary"]["bc_diagnosis"]["top_emotion"][1] == 2
+
+
+# ── API ───────────────────────────────────────────────────────────────────────
+
+def test_get_returns_every_group_with_flags(client, tmp_db):
+    groups = {g["id"]: g for g in client.get("/api/settings/review-markers").get_json()["groups"]}
+
+    assert set(groups) == {"management", "management_driver", "management_issue",
+                           "emotion", "process_violation"}
+    assert groups["emotion"]["multi"] is True
+    assert groups["management"]["fixed_set"] is True
+    assert groups["management"]["tags"][0]["locked"] is True
+
+
+def test_post_saves_labels_order_and_the_multi_flag(client, tmp_db):
+    res = client.post("/api/settings/review-markers/process_violation", json={
+        "tags": [{"key": "none", "label": "Clean", "at_entry": True},
+                 {"key": "overtraded", "label": "Overtraded", "at_entry": True}],
+        "multi": False})
+
+    assert res.status_code == 200
+    assert logic.marker_label("process_violation", "none") == "Clean"
+    assert db.get_group_multi("process_violation", True) is False
+
+
+def test_post_refuses_to_delete_a_locked_tag(client, tmp_db):
+    """`none` is what the A-grade rule keys off. Losing it would make every
+    A-grade save fail with a message about a value the trader cannot see."""
+    res = client.post("/api/settings/review-markers/process_violation", json={
+        "tags": [{"key": "overtraded", "label": "Overtraded", "at_entry": True}]})
+
+    assert res.status_code == 400
+    assert "none" in res.get_json()["error"]
+    assert "none" in logic.marker_keys("process_violation")
+
+
+def test_post_allows_renaming_a_locked_tag(client, tmp_db):
+    """Locked blocks deletion, not renaming — only the key is load-bearing."""
+    res = client.post("/api/settings/review-markers/process_violation", json={
+        "tags": [{"key": "none", "label": "Clean", "at_entry": True},
+                 {"key": "overtraded", "label": "Overtraded", "at_entry": True}]})
+
+    assert res.status_code == 200
+    assert logic.marker_label("process_violation", "none") == "Clean"
+
+
+def test_post_refuses_a_new_tag_on_a_fixed_set_group(client, tmp_db):
+    """Nothing branches on a third management state, so it could never be read."""
+    res = client.post("/api/settings/review-markers/management", json={
+        "tags": [{"key": "followed", "label": "Followed process", "at_entry": True},
+                 {"key": "deviated", "label": "Deviated", "at_entry": True},
+                 {"key": "partly", "label": "Partly", "at_entry": True}]})
+
+    assert res.status_code == 400
+    assert logic.marker_keys("management") == ("followed", "deviated")
+
+
+def test_post_rejects_an_unknown_group(client, tmp_db):
+    res = client.post("/api/settings/review-markers/not_a_group", json={"tags": []})
+
+    assert res.status_code == 400
+
+
+def test_reset_restores_the_defaults(client, tmp_db):
+    client.post("/api/settings/review-markers/process_violation", json={
+        "tags": [{"key": "none", "label": "Clean", "at_entry": True}]})
+
+    client.post("/api/settings/review-markers/process_violation/reset")
+
+    assert logic.marker_label("process_violation", "none") == "None"
+    assert len(logic.marker_keys("process_violation")) == 5
+
+
+def test_legacy_tag_route_now_persists_its_multi_flag(client, tmp_db):
+    """The Settings toggle has never saved anything: saveGroup posted {tags}
+    only and the card re-rendered from a constant. Fixed here for the existing
+    groups too, or the two new multi sections would be equally decorative."""
+    client.post("/api/settings/tags/volume", json={"tags": ["Avg"], "multi": True})
+
+    assert db.get_group_multi("volume", False) is True
+
+
+def test_assessment_route_stores_a_multi_field_as_a_list(client, tmp_db, day_id):
+    trade_id = db.insert_trade(day_id, 1, "Long", 1, 7700.0, 7710.0, -50.0, "10:00", "10:30")
+
+    res = client.post(f"/api/trade/{trade_id}/assessment",
+                      json={"grade": "C", "emotion": ["greed", "impatience"]})
+
+    assert res.status_code == 200
+    with db.get_conn() as conn:
+        stored = conn.execute("SELECT emotion FROM trades WHERE id = ?", (trade_id,)).fetchone()[0]
+    assert db.decode_marker_list(stored) == ["greed", "impatience"]

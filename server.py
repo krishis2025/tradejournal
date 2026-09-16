@@ -748,7 +748,62 @@ def api_save_tag_config(group_id):
     if not isinstance(tags, list):
         return jsonify({"error": "tags must be a list"}), 400
     db.save_tag_config(group_id, [t for t in tags if t.strip()])
+    if "multi" in body:
+        db.set_group_multi(group_id, bool(body["multi"]))
     return jsonify({"ok": True, "group_id": group_id, "tags": tags})
+
+
+@app.route("/api/settings/review-markers", methods=["GET"])
+def api_get_review_markers():
+    return jsonify({"groups": logic.get_review_markers()})
+
+
+@app.route("/api/settings/review-markers/<group_id>", methods=["POST"])
+def api_save_review_markers(group_id):
+    defaults = {g["id"]: g for g in logic.REVIEW_MARKER_GROUPS}
+    if group_id not in defaults:
+        return jsonify({"error": "unknown group"}), 400
+    body = request.get_json(silent=True) or {}
+    tags = body.get("tags", [])
+    if not isinstance(tags, list):
+        return jsonify({"error": "tags must be a list"}), 400
+
+    cleaned = []
+    for t in tags:
+        key = str(t.get("key", "")).strip()
+        label = str(t.get("label", "")).strip()
+        if not key or not label:
+            return jsonify({"error": "every tag needs a key and a label"}), 400
+        cleaned.append({"key": key, "label": label,
+                        "at_entry": bool(t.get("at_entry", True))})
+
+    default = defaults[group_id]
+    default_keys = {t["key"] for t in default["tags"]}
+    sent_keys = {t["key"] for t in cleaned}
+
+    missing = [t["key"] for t in default["tags"] if t["locked"] and t["key"] not in sent_keys]
+    if missing:
+        return jsonify({"error": "cannot delete locked tag(s): " + ", ".join(missing)}), 400
+
+    if default["fixed_set"] and sent_keys != default_keys:
+        return jsonify({"error": "this group's options are fixed; labels may be edited"}), 400
+
+    db.save_review_marker_group(group_id, cleaned)
+    if "multi" in body and not default["fixed_set"]:
+        db.set_group_multi(group_id, bool(body["multi"]))
+    return jsonify({"ok": True, "group_id": group_id})
+
+
+@app.route("/api/settings/review-markers/<group_id>/reset", methods=["POST"])
+def api_reset_review_markers(group_id):
+    defaults = {g["id"]: g for g in logic.REVIEW_MARKER_GROUPS}
+    if group_id not in defaults:
+        return jsonify({"error": "unknown group"}), 400
+    db.save_review_marker_group(group_id, [
+        {"key": t["key"], "label": t["label"], "at_entry": t["at_entry"]}
+        for t in defaults[group_id]["tags"]])
+    db.set_group_multi(group_id, defaults[group_id]["multi"])
+    return jsonify({"ok": True, "group_id": group_id})
 
 
 @app.route("/api/settings/tags/<group_id>/reset", methods=["POST"])
@@ -1025,8 +1080,9 @@ def api_delete_headline_helper(hid):
 def api_create_trade_strength():
     body = request.get_json(silent=True) or {}
     entry_emotion = body.get("emotion_entry")
-    if entry_emotion and entry_emotion not in logic.ENTRY_EMOTIONS:
-        return jsonify({"error": f"emotion_entry must be one of {', '.join(logic.ENTRY_EMOTIONS)}"}), 400
+    if entry_emotion and entry_emotion not in logic.entry_emotion_keys():
+        return jsonify({"error": "emotion_entry must be one of "
+                                 + ", ".join(logic.entry_emotion_keys())}), 400
     try:
         strength_id = db.create_trade_strength(
             context_id=body.get("context_id") or None,
