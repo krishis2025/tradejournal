@@ -346,8 +346,8 @@ def test_the_a_grade_rule_survives_relabelling_none(tmp_db):
 # ── Readers ───────────────────────────────────────────────────────────────────
 
 def test_analytics_count_every_emotion_in_a_list(tmp_db):
-    """Counting the raw column would score '["greed","impatience"]' as one
-    exotic emotion and report it as the top one.
+    """Counting the raw column would score '["impatience","greed"]' as one
+    exotic emotion rather than crediting `greed` at all.
 
     build_grade_analytics does not exist; the emotion tally actually lives in
     build_plan_execution(trades), which takes a plain list of trade dicts (no
@@ -355,10 +355,18 @@ def test_analytics_count_every_emotion_in_a_list(tmp_db):
     other field is read with .get(...) — so a minimal dict carrying `id`,
     `grade`, and `emotion` is enough to exercise it without touching the DB
     through insert_trade.
+
+    `greed` is deliberately placed SECOND in both rows. A tally that only
+    reads decoded[0] per trade would score `impatience` and `frustration`
+    once each and `greed` zero times, so it fails this fixture instead of
+    accidentally landing on the right answer by counting just the first
+    element of every list. Do not "simplify" this back into a shape where
+    the winning emotion happens to lead every list — that stops testing that
+    every element counts, not just the first one.
     """
     rows = [
-        {"id": 1, "grade": "C", "emotion": db.encode_marker_list(["greed", "impatience"])},
-        {"id": 2, "grade": "C", "emotion": db.encode_marker_list(["greed"])},
+        {"id": 1, "grade": "C", "emotion": db.encode_marker_list(["impatience", "greed"])},
+        {"id": 2, "grade": "C", "emotion": db.encode_marker_list(["frustration", "greed"])},
     ]
 
     result = logic.build_plan_execution(rows)
