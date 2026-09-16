@@ -8,7 +8,7 @@ from datetime import date, datetime, timedelta
 from werkzeug.utils import secure_filename
 import database as db
 import app_logic as logic
-import json, os, uuid
+import json, os, re, uuid
 
 app = Flask(__name__)
 # Exposed to templates so the board's macros and the save response share one
@@ -745,6 +745,14 @@ def api_db_import():
 
 @app.route("/api/settings/tags/<group_id>", methods=["POST"])
 def api_save_tag_config(group_id):
+    # Review-marker groups are key-addressed and live in a separate world
+    # (see database.py's "Review markers" section); routing one through this
+    # label-addressed legacy path would wipe its key rows and jam every later
+    # save through /api/settings/review-markers on a UNIQUE(group_id, tag)
+    # collision. Not reachable from today's Settings page, but refused here
+    # so it can never become an unfixable-from-the-UI dead end.
+    if group_id in logic.REVIEW_MARKER_IDS:
+        return jsonify({"error": "use /api/settings/review-markers/" + group_id}), 400
     body = request.get_json(silent=True) or {}
     tags = body.get("tags", [])
     if not isinstance(tags, list):
@@ -758,6 +766,13 @@ def api_save_tag_config(group_id):
 @app.route("/api/settings/review-markers", methods=["GET"])
 def api_get_review_markers():
     return jsonify({"groups": logic.get_review_markers()})
+
+
+# Keys are interpolated into an HTML data-key attribute and into a
+# single-quoted JS onclick() string (chipBtn in live_v2.html); an apostrophe
+# or angle bracket in a key would break the review chain, so the charset is
+# restricted rather than escaped.
+_TAG_KEY_RE = re.compile(r"^[a-z0-9_]+$")
 
 
 @app.route("/api/settings/review-markers/<group_id>", methods=["POST"])
@@ -774,14 +789,24 @@ def api_save_review_markers(group_id):
 
     cleaned = []
     seen_keys = set()
+    seen_labels = set()
     for t in tags:
         key = str(t.get("key", "")).strip()
         label = str(t.get("label", "")).strip()
         if not key or not label:
             return jsonify({"error": "every tag needs a key and a label"}), 400
+        if not _TAG_KEY_RE.match(key):
+            return jsonify({"error": "tag key must be lowercase letters, digits, "
+                            "or underscores: " + key}), 400
         if key in seen_keys:
             return jsonify({"error": "duplicate tag key: " + key}), 400
         seen_keys.add(key)
+        # tag_config has UNIQUE(group_id, tag): a duplicate label reaches the
+        # DB as an IntegrityError (a 500 the client's rmSave() cannot parse as
+        # JSON, shown to the trader as "Network error") unless caught here.
+        if label.lower() in seen_labels:
+            return jsonify({"error": "duplicate tag label: " + label}), 400
+        seen_labels.add(label.lower())
         cleaned.append({"key": key, "label": label,
                         "at_entry": bool(t.get("at_entry", True))})
 
@@ -820,6 +845,10 @@ def api_reset_review_markers(group_id):
 
 @app.route("/api/settings/tags/<group_id>/reset", methods=["POST"])
 def api_reset_tag_config(group_id):
+    # Same reasoning as api_save_tag_config above: review-marker groups must
+    # never route through the legacy label-addressed reset path.
+    if group_id in logic.REVIEW_MARKER_IDS:
+        return jsonify({"error": "use /api/settings/review-markers/" + group_id + "/reset"}), 400
     db.reset_tag_config(group_id)
     if group_id == "obs_categories":
         return jsonify({"ok": True, "tags": logic.OBSERVATION_CATEGORIES})

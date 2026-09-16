@@ -22,10 +22,6 @@ def _driver(trade_id):
                             (trade_id,)).fetchone()["management_driver"]
 
 
-def test_vocabulary_is_three_values():
-    assert logic.MANAGEMENT_DRIVERS == ("market_thesis", "pnl", "both")
-
-
 def test_column_exists_on_both_tables(tmp_db):
     for table in ("trades", "live_trades"):
         assert "management_driver" in _cols(table), f"missing from {table}"

@@ -44,6 +44,13 @@
   margin-bottom: 32px;
 }
 
+.tag-config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
 .tag-config-card, .rm-card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1248,18 +1255,53 @@
     if (!label) return;
     const key = rmSlug(label);
     if (!key) return;
+    const status = document.getElementById('rm-status-' + groupId);
     const list = document.getElementById('rm-list-' + groupId);
-    if (list.querySelector(`[data-key="${key}"]`)) return;   // already present
-    const entry = document.querySelector(`.rm-card[data-group="${groupId}"] .rm-entry`)
-      ? `<label class="rm-entry"><input type="checkbox" checked
-           onchange="rmMarkDirty('${groupId}')"> entry</label>` : '';
+    if (list.querySelector(`[data-key="${key}"]`)) {
+      // A silent no-op here just left the trader wondering why nothing
+      // happened. Clear the input and say why in the card's status pill.
+      input.value = '';
+      if (status) {
+        status.textContent = '✗ "' + label + '" already exists';
+        status.className = 'save-status error';
+        setTimeout(() => { status.textContent = '—'; status.className = 'save-status'; }, 2500);
+      }
+      return;
+    }
+    const hasEntry = !!document.querySelector(`.rm-card[data-group="${groupId}"] .rm-entry`);
+
+    // Built with createElement/property assignment rather than innerHTML —
+    // `label` is trader-typed text; a `"` or `<` in it would otherwise break
+    // out of the `value="..."` attribute or the markup itself.
     const row = document.createElement('div');
     row.className = 'tag-item rm-row';
     row.dataset.key = key;
     row.dataset.locked = 'false';
-    row.innerHTML = `<input class="tag-item-text rm-label" value="${label}"
-        oninput="rmMarkDirty('${groupId}')">${entry}
-        <span class="rm-del" onclick="rmDeleteRow(this, '${groupId}')">✕</span>`;
+
+    const labelInput = document.createElement('input');
+    labelInput.className = 'tag-item-text rm-label';
+    labelInput.value = label;
+    labelInput.addEventListener('input', () => rmMarkDirty(groupId));
+    row.appendChild(labelInput);
+
+    if (hasEntry) {
+      const entryLabel = document.createElement('label');
+      entryLabel.className = 'rm-entry';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = true;
+      cb.addEventListener('change', () => rmMarkDirty(groupId));
+      entryLabel.appendChild(cb);
+      entryLabel.appendChild(document.createTextNode(' entry'));
+      row.appendChild(entryLabel);
+    }
+
+    const del = document.createElement('span');
+    del.className = 'rm-del';
+    del.textContent = '✕';
+    del.addEventListener('click', () => rmDeleteRow(del, groupId));
+    row.appendChild(del);
+
     list.appendChild(row);
     input.value = '';
     rmMarkDirty(groupId);

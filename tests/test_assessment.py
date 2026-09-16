@@ -95,25 +95,11 @@ def test_set_trade_assessment_with_no_known_fields_is_a_noop(tmp_db, day_id):
                             (trade_id,)).fetchone()["grade"] == "A"
 
 
-def test_vocabularies_match_the_spec():
+def test_grades_is_still_a_module_constant():
+    """Unlike the five review-marker vocabularies, GRADES has no editable
+    Settings UI and no config-backed reader — assessment_vocab() and
+    build_plan_execution both still close over it directly."""
     assert logic.GRADES == ("A", "B", "C")
-    assert logic.MANAGEMENT == ("followed", "deviated")
-    assert logic.MANAGEMENT_ISSUES == (
-        "none", "early_exit", "late_exit", "stop_change",
-        "overmanaged", "under_managed", "premature_scale_out")
-    assert logic.EMOTIONS == (
-        "calm", "fear_of_loss", "fear_of_giving_back", "greed",
-        "frustration", "impatience", "overconfidence", "distracted")
-    assert logic.PROCESS_VIOLATIONS == (
-        "none", "traded_outside_plan", "exceeded_risk", "revenge_trade", "overtraded")
-
-
-def test_entry_emotions_exclude_the_two_that_need_an_open_position():
-    """Fear of loss and fear of giving back cannot precede a trade."""
-    assert "fear_of_loss" not in logic.ENTRY_EMOTIONS
-    assert "fear_of_giving_back" not in logic.ENTRY_EMOTIONS
-    assert set(logic.ENTRY_EMOTIONS) < set(logic.EMOTIONS)
-    assert len(logic.ENTRY_EMOTIONS) == 6
 
 
 def test_validate_accepts_a_good_payload(tmp_db):

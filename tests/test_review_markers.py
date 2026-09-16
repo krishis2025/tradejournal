@@ -343,6 +343,37 @@ def test_the_a_grade_rule_survives_relabelling_none(tmp_db):
     assert bad_err is not None
 
 
+def test_a_deleted_key_still_resent_by_the_ui_does_not_brick_the_field(tmp_db):
+    """toggleReviewField always resends the trade's whole current list, not
+    just the clicked key. Once "impatience" is deleted from Settings, every
+    click on this trade's emotion field — including the one meant to clear
+    the stale value — resends a list containing it. A strict "every element
+    must be in the live vocabulary" check would 400 that forever."""
+    db.save_review_marker_group("emotion", [
+        {"key": "calm", "label": "Calm", "at_entry": True},
+        {"key": "greed", "label": "Greed", "at_entry": True},
+    ])  # "impatience" no longer in the vocabulary
+    current = {"emotion": db.encode_marker_list(["greed", "impatience"])}
+
+    cleaned, err = logic.validate_assessment(
+        {"grade": "C", "emotion": ["greed", "impatience", "calm"]}, current)
+
+    assert err is None
+    assert cleaned["emotion"] == ["greed", "impatience", "calm"]
+
+
+def test_an_unknown_key_absent_from_current_is_still_rejected(tmp_db):
+    """Tolerance is scoped to what this trade already has stored — the
+    vocabulary is still closed to anything else."""
+    current = {"emotion": db.encode_marker_list(["greed"])}
+
+    cleaned, err = logic.validate_assessment(
+        {"grade": "C", "emotion": ["greed", "elated"]}, current)
+
+    assert cleaned == {}
+    assert "emotion" in err
+
+
 # ── Readers ───────────────────────────────────────────────────────────────────
 
 def test_analytics_count_every_emotion_in_a_list(tmp_db):
@@ -404,14 +435,19 @@ def test_get_reflects_a_saved_customisation(client, tmp_db):
 
 
 def test_post_saves_labels_order_and_the_multi_flag(client, tmp_db):
+    # "overtraded" before "none" — the reverse of both the default vocabulary
+    # order and this payload's own key order — so a save that silently
+    # resorted (alphabetically, or back to the default order) is caught
+    # rather than coincidentally matching.
     res = client.post("/api/settings/review-markers/process_violation", json={
-        "tags": [{"key": "none", "label": "Clean", "at_entry": True},
-                 {"key": "overtraded", "label": "Overtraded", "at_entry": True}],
+        "tags": [{"key": "overtraded", "label": "Overtraded", "at_entry": True},
+                 {"key": "none", "label": "Clean", "at_entry": True}],
         "multi": False})
 
     assert res.status_code == 200
     assert logic.marker_label("process_violation", "none") == "Clean"
     assert db.get_group_multi("process_violation", True) is False
+    assert logic.marker_keys("process_violation") == ("overtraded", "none")
 
 
 def test_post_refuses_to_delete_a_locked_tag(client, tmp_db):
@@ -473,6 +509,34 @@ def test_post_rejects_duplicate_tag_keys(client, tmp_db):
     assert logic.marker_keys("management_driver") == ("market_thesis", "pnl", "both")
 
 
+def test_post_rejects_duplicate_tag_labels(client, tmp_db):
+    """tag_config has UNIQUE(group_id, tag). Two distinct keys sharing a label
+    reach the DB as an IntegrityError — a 500 the client's rmSave() cannot
+    parse as JSON, shown to the trader as '✗ Network error' — unless
+    caught here first."""
+    res = client.post("/api/settings/review-markers/management_driver", json={
+        "tags": [{"key": "market_thesis", "label": "Both", "at_entry": True},
+                 {"key": "pnl", "label": "Both", "at_entry": True}]})
+
+    assert res.status_code == 400
+    assert "label" in res.get_json()["error"]
+    assert logic.marker_keys("management_driver") == ("market_thesis", "pnl", "both")
+
+
+def test_post_rejects_a_key_with_a_disallowed_character(client, tmp_db):
+    """Keys are interpolated into an HTML data-key attribute and into a
+    single-quoted JS onclick() string (chipBtn) — an apostrophe or angle
+    bracket in a key would break the review chain rather than merely render
+    oddly."""
+    res = client.post("/api/settings/review-markers/management_driver", json={
+        "tags": [{"key": "it's", "label": "It's complicated", "at_entry": True},
+                 {"key": "pnl", "label": "P&L", "at_entry": True},
+                 {"key": "both", "label": "Both", "at_entry": True}]})
+
+    assert res.status_code == 400
+    assert logic.marker_keys("management_driver") == ("market_thesis", "pnl", "both")
+
+
 def test_reset_restores_the_defaults(client, tmp_db):
     client.post("/api/settings/review-markers/process_violation", json={
         "tags": [{"key": "none", "label": "Clean", "at_entry": True}]})
@@ -486,10 +550,42 @@ def test_reset_restores_the_defaults(client, tmp_db):
 def test_legacy_tag_route_now_persists_its_multi_flag(client, tmp_db):
     """The Settings toggle has never saved anything: saveGroup posted {tags}
     only and the card re-rendered from a constant. Fixed here for the existing
-    groups too, or the two new multi sections would be equally decorative."""
+    groups too, or the two new multi sections would be equally decorative.
+
+    Asserting only the raw db write (as the original version of this test
+    did) passes even when get_tag_groups() never reads it back — which is
+    exactly the bug: the route wrote the flag, the page never displayed it.
+    Assert through the reader the page actually calls."""
     client.post("/api/settings/tags/volume", json={"tags": ["Avg"], "multi": True})
 
     assert db.get_group_multi("volume", False) is True
+    groups = {g["id"]: g for g in logic.get_tag_groups()}
+    assert groups["volume"]["multi"] is True
+
+
+def test_legacy_save_route_refuses_a_review_marker_group_id(client, tmp_db):
+    """save_tag_config / reset_tag_config delete WHERE group_id = ? with no
+    tag_key scoping. If a review-marker id ever reached them they would wipe
+    that group's key-addressed rows and leave label-addressed ones behind,
+    after which save_review_marker_group collides on UNIQUE(group_id, tag)
+    and every later save (and Reset) 500s forever. Refused here instead."""
+    res = client.post("/api/settings/tags/process_violation", json={"tags": ["Clean", "Overtraded"]})
+
+    assert res.status_code == 400
+    assert logic.marker_keys("process_violation") == (
+        "none", "traded_outside_plan", "exceeded_risk", "revenge_trade", "overtraded")
+
+
+def test_legacy_reset_route_refuses_a_review_marker_group_id(client, tmp_db):
+    db.save_review_marker_group("process_violation", [
+        {"key": "none", "label": "Clean", "at_entry": True},
+        {"key": "overtraded", "label": "Overtraded", "at_entry": True},
+    ])
+
+    res = client.post("/api/settings/tags/process_violation/reset")
+
+    assert res.status_code == 400
+    assert logic.marker_label("process_violation", "none") == "Clean"
 
 
 def test_assessment_route_stores_a_multi_field_as_a_list(client, tmp_db, day_id):
@@ -610,6 +706,23 @@ def test_live_page_no_longer_derives_labels_from_slugs(client, tmp_db):
     assert "market_thesis: 'Market / Thesis'" not in html
 
 
+def test_a_renamed_management_label_reaches_the_management_buttons(client, tmp_db):
+    """live_v2.html still hardcoded mgmtBtn('followed', 'Followed process') and
+    mgmtBtn('deviated', 'Deviated') — the two management buttons were the one
+    place a renamed label could not reach, even though the group is
+    configurable specifically so labels can be renamed."""
+    db.save_review_marker_group("management", [
+        {"key": "followed", "label": "On plan", "at_entry": True},
+        {"key": "deviated", "label": "Off plan", "at_entry": True},
+    ])
+
+    html = client.get("/live-v2").get_data(as_text=True)
+
+    assert "On plan" in html
+    assert "Off plan" in html
+    assert "Followed process" not in html
+
+
 def _review_markers_payload(html):
     """The `const REVIEW_MARKERS = ...;` assignment, isolated from every other
     bootstrapped constant on the page — `tags_json` (the legacy `with`/`pre`
@@ -620,6 +733,24 @@ def _review_markers_payload(html):
     start = html.index("const REVIEW_MARKERS = ") + len("const REVIEW_MARKERS = ")
     end = html.index("\nconst RM_BY_ID", start)
     return html[start:end]
+
+
+def test_management_issue_chips_exclude_none_but_process_violation_keeps_it(client, tmp_db):
+    """'What changed?' only renders when management is 'deviated', where
+    'nothing changed' contradicts the premise. `none` stays LOCKED (validation
+    still reads it) — only the rendered chip row omits it. process_violation's
+    chip row is a different question and must still offer it."""
+    html = client.get("/live-v2").get_data(as_text=True)
+    chain_start = html.index("function chipBtn")
+
+    mgmt_issue_row = html.index("RM_BY_ID.management_issue.tags", chain_start)
+    mgmt_issue_line = html[mgmt_issue_row:html.index("\n", mgmt_issue_row)]
+    violation_row = html.index("RM_BY_ID.process_violation.tags", chain_start)
+    violation_line = html[violation_row:html.index("\n", violation_row)]
+
+    assert "filter(t => t.key !== 'none')" in mgmt_issue_line
+    assert "filter(t => t.key !== 'none')" not in violation_line
+    assert logic.marker_keys("management_issue")[0] == "none"  # still locked
 
 
 def test_multi_groups_are_marked_multi_in_the_payload(client, tmp_db):

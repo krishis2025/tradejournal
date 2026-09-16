@@ -640,6 +640,11 @@
 .ef-toggle.sel-long { background: rgba(52,211,153,0.12); color: var(--green); border-color: var(--green); }
 .ef-toggle.sel-short { background: rgba(255,77,109,0.12); color: var(--red); border-color: var(--red); }
 .ef-toggle.active { color: var(--accent2); border-color: var(--accent2); background: rgba(0,207,255,0.08); }
+/* Generic fallback so a newly added emotion key (no per-key rule below yet)
+   still renders as selected — emotionBtn emits `selected` alongside
+   `sel-${key}`. Declared before the per-key rules so those still win for
+   the keys they know about. */
+.ef-toggle.selected { background: #b71c1c; color: #fff; border-color: #b71c1c; }
 /* Strength audit: mental state & confidence solid fills */
 .ef-toggle.sel-calm { background: #2e7d32; color: #fff; border-color: #2e7d32; }
 .ef-toggle.sel-fomo { background: #b71c1c; color: #fff; border-color: #b71c1c; }
@@ -4925,7 +4930,10 @@ function renderStrengthAudit(el) {
   }
   function emotionBtn(val) {
     const active = strengthEmotion === val;
-    const activeCls = active ? `sel-${val}` : '';
+    // `selected` is the generic fallback (styles a newly added emotion with
+    // no per-key CSS rule yet); `sel-${val}` keeps the existing per-key
+    // colours winning for the emotions that have one.
+    const activeCls = active ? `selected sel-${val}` : '';
     const t = RM_BY_ID.emotion.tags.find(x => x.key === val);
     const label = t ? t.label : val;
     return `<button class="ef-toggle ${activeCls}" onclick="setStrengthEmotion('${val}')">${label}</button>`;
@@ -5283,8 +5291,7 @@ function renderReviewCenter(el, trade) {
           <div class="rv2-q-title">How did you manage it?</div>
           <div class="rv2-q-sub">Everything after entry until flat, including the exit.</div>
           <div class="rv2-q-row">
-            ${mgmtBtn('followed', 'Followed process')}
-            ${mgmtBtn('deviated', 'Deviated')}
+            ${RM_BY_ID.management.tags.map(t => mgmtBtn(t.key, t.label)).join('')}
           </div>
         </div>
 
@@ -5299,7 +5306,7 @@ function renderReviewCenter(el, trade) {
         <div class="rv2-section">
           <div class="rv2-q-title">What changed?</div>
           <div class="rv2-chip-row">
-            ${RM_BY_ID.management_issue.tags.map(t => chipBtn('management_issue', t.key)).join('')}
+            ${RM_BY_ID.management_issue.tags.filter(t => t.key !== 'none').map(t => chipBtn('management_issue', t.key)).join('')}
           </div>
           <div class="rv2-q-sub">Early exit means premature or unjustified relative to your process — not merely that price continued after you got out.</div>
         </div>` : ''}

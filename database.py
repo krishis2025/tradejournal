@@ -1863,8 +1863,11 @@ def save_tag_config(group_id, tags):
         for old_name, new_name in renames:
             _cascade_tag_rename(conn, group_id, old_name, new_name)
 
-        # 4. Replace tag_config (existing logic)
-        conn.execute("DELETE FROM tag_config WHERE group_id = ?", (group_id,))
+        # 4. Replace tag_config (existing logic). Scoped to the label-addressed
+        # rows only: a review-marker group's key-addressed rows (tag_key NOT
+        # NULL) must never be touched by this legacy rename-cascade path — see
+        # the "Review markers" section below.
+        conn.execute("DELETE FROM tag_config WHERE group_id = ? AND tag_key IS NULL", (group_id,))
         for i, tag in enumerate(new_tags):
             conn.execute(
                 "INSERT OR REPLACE INTO tag_config (group_id, tag, position, enabled) VALUES (?, ?, ?, 1)",
@@ -1873,9 +1876,14 @@ def save_tag_config(group_id, tags):
 
 
 def reset_tag_config(group_id):
-    """Delete custom config for a group so it falls back to app_logic defaults."""
+    """Delete custom config for a group so it falls back to app_logic defaults.
+
+    Scoped to tag_key IS NULL for the same reason as save_tag_config above:
+    a review-marker group's key-addressed rows must never route through the
+    legacy label-addressed path.
+    """
     with get_conn() as conn:
-        conn.execute("DELETE FROM tag_config WHERE group_id = ?", (group_id,))
+        conn.execute("DELETE FROM tag_config WHERE group_id = ? AND tag_key IS NULL", (group_id,))
 
 
 # ── Analytics ─────────────────────────────────────────────────────────────────

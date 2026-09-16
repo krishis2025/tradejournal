@@ -67,15 +67,18 @@ def get_tag_groups():
     """
     Return TAG_GROUPS with tags replaced by any custom DB config.
     Falls back to hardcoded defaults for groups not yet configured.
+
+    `multi` is resolved through db.get_group_multi, mirroring
+    get_review_markers() — without this the Settings Multi-select toggle
+    writes a flag that is never read back.
     """
-    custom = db.get_tag_config()  # {group_id: [tag, ...]} or None
-    if not custom:
-        return TAG_GROUPS
+    custom = db.get_tag_config() or {}  # {group_id: [tag, ...]}
     result = []
     for g in TAG_GROUPS:
         merged = dict(g)
         if g["id"] in custom:
             merged["tags"] = custom[g["id"]]
+        merged["multi"] = db.get_group_multi(g["id"], g["multi"])
         result.append(merged)
     return result
 
@@ -658,22 +661,6 @@ def build_weekly_board(account_id, week_start):
 # version of them showed up, and P&L has no vote either way.
 
 GRADES = ("A", "B", "C")
-MANAGEMENT = ("followed", "deviated")
-MANAGEMENT_ISSUES = ("none", "early_exit", "late_exit", "stop_change",
-                     "overmanaged", "under_managed", "premature_scale_out")
-EMOTIONS = ("calm", "fear_of_loss", "fear_of_giving_back", "greed",
-            "frustration", "impatience", "overconfidence", "distracted")
-# Fear of loss and fear of giving back both require an open position, so
-# offering them before entry invites a nonsense answer.
-ENTRY_EMOTIONS = tuple(e for e in EMOTIONS
-                       if e not in ("fear_of_loss", "fear_of_giving_back"))
-PROCESS_VIOLATIONS = ("none", "traded_outside_plan", "exceeded_risk",
-                      "revenge_trade", "overtraded")
-# What the management decisions were actually reacting to. Market and thesis are
-# one choice on purpose: both are reasons outside the trader's own money, which
-# is the line this question exists to draw. Splitting them would spread the
-# P&L signal across two buckets and make the drift harder to see.
-MANAGEMENT_DRIVERS = ("market_thesis", "pnl", "both")
 
 def assessment_vocab():
     """Valid values per assessment field, read at request time.
@@ -681,11 +668,22 @@ def assessment_vocab():
     Was a module constant. The five review vocabularies are now editable, so
     closing over them at import would validate against a stale list until the
     process restarted.
+
+    Reads get_review_markers() exactly once and builds every entry from that
+    single result — marker_keys()/entry_emotion_keys() would each re-run
+    get_review_markers() (and its DB round trip) on their own, for 36 total
+    connections per call.
     """
+    groups = get_review_markers()
+    by_id = {g["id"]: g for g in groups}
     vocab = {"grade": GRADES}
     for group_id in REVIEW_MARKER_IDS:
-        vocab[group_id] = marker_keys(group_id)
-    vocab["emotion_entry"] = entry_emotion_keys()
+        g = by_id.get(group_id)
+        vocab[group_id] = tuple(t["key"] for t in g["tags"]) if g else ()
+    emotion = by_id.get("emotion")
+    vocab["emotion_entry"] = (
+        tuple(t["key"] for t in emotion["tags"] if t.get("at_entry", True))
+        if emotion else ())
     return vocab
 
 
@@ -850,8 +848,20 @@ def validate_assessment(fields, current=None):
             # A bare scalar is accepted so a caller that has not moved to lists
             # yet keeps working.
             values = list(value) if isinstance(value, (list, tuple)) else [value]
+            # The vocabulary is closed for NEW entries, not retroactively. The
+            # UI resends the trade's whole current list on every chip click
+            # (toggleReviewField), so once a key is deleted from Settings a
+            # strict "every value must be in vocab" check would 400 forever —
+            # including the very click meant to clear the stale value, because
+            # it too resends the list containing it. A key already stored on
+            # this trade is tolerated; a key that is unknown AND was never
+            # stored here is still rejected.
+            stored = (current or {}).get(key)
+            if isinstance(stored, str):
+                stored = db.decode_marker_list(stored)
+            stored = stored or []
             for v in values:
-                if v not in vocab:
+                if v not in vocab and v not in stored:
                     return {}, f"{key} must be one of {', '.join(vocab)}"
             # The `none`-wins collapse happens after the cross-field checks
             # below, not here: collapsing first would erase a real violation

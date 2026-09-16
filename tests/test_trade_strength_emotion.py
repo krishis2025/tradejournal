@@ -99,7 +99,10 @@ def test_post_trade_strength_absent_or_empty_entry_emotion_is_fine(client, tmp_d
 
 
 def test_post_trade_strength_accepts_every_legal_entry_emotion(client, tmp_db):
-    for emotion in logic.ENTRY_EMOTIONS:
+    """Drives the route from logic.entry_emotion_keys() — the same function
+    the route validates against — rather than the now-deleted ENTRY_EMOTIONS
+    constant, which only coincided with it by accident."""
+    for emotion in logic.entry_emotion_keys():
         res = client.post("/api/trade-strength", json={
             "value": 1, "volume": 1, "trend": 1, "adh": 1,
             "confidence": "high", "emotion_entry": emotion,
