@@ -502,3 +502,85 @@ def test_assessment_route_stores_a_multi_field_as_a_list(client, tmp_db, day_id)
     with db.get_conn() as conn:
         stored = conn.execute("SELECT emotion FROM trades WHERE id = ?", (trade_id,)).fetchone()[0]
     assert db.decode_marker_list(stored) == ["greed", "impatience"]
+
+
+# ── Settings UI ───────────────────────────────────────────────────────────────
+
+def _settings_html(client):
+    return client.get("/settings").get_data(as_text=True)
+
+
+def _rm_card(html, group_id):
+    """The single review-marker card block for one group, div-balanced.
+
+    Needed because every card carries the same classes — a bare substring check
+    for a lock icon or an entry checkbox can pass against a neighbouring card
+    instead of the one under test.
+    """
+    marker = 'data-group="{}"'.format(group_id)
+    idx = html.index('class="rm-card"')
+    while marker not in html[idx:html.index(">", idx) + 1]:
+        idx = html.index('class="rm-card"', idx + 1)
+    start = html.rfind("<div", 0, idx)
+    pos, depth = start, 0
+    while True:
+        nxt_open = html.find("<div", pos)
+        nxt_close = html.find("</div>", pos)
+        if nxt_close == -1:
+            raise AssertionError("unclosed rm-card for " + group_id)
+        if nxt_open != -1 and nxt_open < nxt_close:
+            depth += 1
+            pos = nxt_open + 4
+        else:
+            depth -= 1
+            pos = nxt_close + 6
+            if depth == 0:
+                return html[start:pos]
+
+
+def test_review_markers_is_the_second_sub_tab(client, tmp_db):
+    html = _settings_html(client)
+    order = [html.index(label) for label in
+             ("Technical Markers", "Review Markers", "Observation Markers", "Day Markers")]
+
+    assert order == sorted(order)
+
+
+def test_all_five_cards_render(client, tmp_db):
+    html = _settings_html(client)
+
+    for group_id in ("management", "management_driver", "management_issue",
+                     "emotion", "process_violation"):
+        assert 'data-group="{}"'.format(group_id) in html
+
+
+def test_a_locked_row_has_no_delete_control_but_keeps_its_text_input(client, tmp_db):
+    """Locked blocks deletion only — the label must stay editable."""
+    card = _rm_card(_settings_html(client), "process_violation")
+    none_row = card[card.index('data-key="none"'):]
+    none_row = none_row[:none_row.index("</div>")]
+
+    assert 'data-locked="true"' in none_row
+    assert "rm-del" not in none_row
+    assert "<input" in none_row
+
+
+def test_an_unlocked_row_keeps_its_delete_control(client, tmp_db):
+    card = _rm_card(_settings_html(client), "process_violation")
+    row = card[card.index('data-key="overtraded"'):]
+    row = row[:row.index("</div>")]
+
+    assert "rm-del" in row
+
+
+def test_the_entry_checkbox_appears_only_on_the_emotion_card(client, tmp_db):
+    html = _settings_html(client)
+
+    assert "rm-entry" in _rm_card(html, "emotion")
+    assert "rm-entry" not in _rm_card(html, "process_violation")
+
+
+def test_a_fixed_set_card_offers_no_add_box(client, tmp_db):
+    """Adding a third management state would produce a value nothing reads."""
+    assert "rm-add" not in _rm_card(_settings_html(client), "management")
+    assert "rm-add" in _rm_card(_settings_html(client), "emotion")

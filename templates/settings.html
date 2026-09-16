@@ -44,7 +44,7 @@
   margin-bottom: 32px;
 }
 
-.tag-config-card {
+.tag-config-card, .rm-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 2px;
@@ -313,6 +313,15 @@
 }
 .sub-tab:hover { color:var(--text); }
 .sub-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+/* Review markers */
+.rm-row { display:flex; align-items:center; gap:8px; }
+.rm-entry { font-size:11px; color:var(--muted); display:flex; align-items:center; gap:4px; white-space:nowrap; }
+.rm-lock { opacity:0.55; font-size:12px; cursor:help; }
+.rm-del { cursor:pointer; opacity:0.6; padding:0 4px; }
+.rm-del:hover { opacity:1; color:var(--red); }
+.rm-add-row { display:flex; gap:8px; margin-top:8px; }
+.rm-add { flex:1; }
 {% endblock %}
 
 {% block nav_actions %}
@@ -376,6 +385,7 @@
       <!-- Sub-tabs -->
       <div class="sub-tabs">
         <button class="sub-tab active" onclick="showSubTab('trade-tags', this)">Technical Markers</button>
+        <button class="sub-tab" onclick="showSubTab('review-markers', this)">Review Markers</button>
         <button class="sub-tab" onclick="showSubTab('obs-cats', this)">Observation Markers</button>
         <button class="sub-tab" onclick="showSubTab('day-markers', this)">Day Markers</button>
       </div>
@@ -438,6 +448,61 @@
                 <button class="btn btn-ghost" style="padding:5px 14px;font-size:10px;"
                         onclick="saveGroup('{{ g.id }}')">Save</button>
               </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Review Markers sub-tab -->
+      <div class="sub-tab-content" id="subtab-review-markers" style="display:none;">
+        <div class="tag-config-grid">
+          {% for g in review_marker_groups %}
+          <div class="rm-card" data-group="{{ g.id }}"
+               data-fixed="{{ 'true' if g.fixed_set else 'false' }}">
+            <div class="tag-config-header">
+              <div class="tag-config-title">{{ g.label }}
+                <span class="tag-count">({{ g.tags|length }} tags)</span></div>
+              {% if not g.fixed_set %}
+              <div class="multi-toggle">
+                <span>Multi-select</span>
+                <div class="toggle-switch {{ 'on' if g.multi else '' }}" id="rm-multi-{{ g.id }}"
+                     onclick="rmToggleMulti('{{ g.id }}', this)"></div>
+              </div>
+              {% endif %}
+            </div>
+            <div class="tag-config-body">
+              <div id="rm-list-{{ g.id }}">
+                {% for t in g.tags %}
+                <div class="tag-item rm-row" data-key="{{ t.key }}"
+                     data-locked="{{ 'true' if t.locked else 'false' }}">
+                  <input class="tag-item-text rm-label" value="{{ t.label }}"
+                         oninput="rmMarkDirty('{{ g.id }}')">
+                  {% if g.entry_flag %}
+                  <label class="rm-entry" title="Offer this before entry">
+                    <input type="checkbox" {{ 'checked' if t.at_entry else '' }}
+                           onchange="rmMarkDirty('{{ g.id }}')"> entry
+                  </label>
+                  {% endif %}
+                  {% if t.locked %}
+                  <span class="rm-lock" title="Required — the review logic reads this option. You can rename it.">🔒</span>
+                  {% else %}
+                  <span class="rm-del" onclick="rmDeleteRow(this, '{{ g.id }}')">✕</span>
+                  {% endif %}
+                </div>
+                {% endfor %}
+              </div>
+              {% if not g.fixed_set %}
+              <div class="rm-add-row">
+                <input class="rm-add" id="rm-add-{{ g.id }}" placeholder="Add new tag…">
+                <button onclick="rmAddRow('{{ g.id }}')">+ Add</button>
+              </div>
+              {% endif %}
+            </div>
+            <div class="tag-config-footer">
+              <span class="save-status" id="rm-status-{{ g.id }}">—</span>
+              <span onclick="rmReset('{{ g.id }}')">↺ Reset to defaults</span>
+              <button onclick="rmSave('{{ g.id }}')">SAVE</button>
             </div>
           </div>
           {% endfor %}
@@ -1160,15 +1225,98 @@
       .filter(Boolean);
   }
 
+  // ── Review markers ──────────────────────────────────────────────────────
+  // Rows are key-addressed: the label is editable, the key never changes. A new
+  // row's key is slugified from its label once, at creation.
+  function rmMarkDirty(groupId) {
+    const el = document.getElementById('rm-status-' + groupId);
+    el.textContent = 'Unsaved'; el.className = 'save-status saving';
+  }
+
+  function rmToggleMulti(groupId, el) {
+    el.classList.toggle('on');
+    rmMarkDirty(groupId);
+  }
+
+  function rmSlug(label) {
+    return label.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  }
+
+  function rmAddRow(groupId) {
+    const input = document.getElementById('rm-add-' + groupId);
+    const label = input.value.trim();
+    if (!label) return;
+    const key = rmSlug(label);
+    if (!key) return;
+    const list = document.getElementById('rm-list-' + groupId);
+    if (list.querySelector(`[data-key="${key}"]`)) return;   // already present
+    const entry = document.querySelector(`.rm-card[data-group="${groupId}"] .rm-entry`)
+      ? `<label class="rm-entry"><input type="checkbox" checked
+           onchange="rmMarkDirty('${groupId}')"> entry</label>` : '';
+    const row = document.createElement('div');
+    row.className = 'tag-item rm-row';
+    row.dataset.key = key;
+    row.dataset.locked = 'false';
+    row.innerHTML = `<input class="tag-item-text rm-label" value="${label}"
+        oninput="rmMarkDirty('${groupId}')">${entry}
+        <span class="rm-del" onclick="rmDeleteRow(this, '${groupId}')">✕</span>`;
+    list.appendChild(row);
+    input.value = '';
+    rmMarkDirty(groupId);
+  }
+
+  function rmDeleteRow(el, groupId) {
+    el.closest('.rm-row').remove();
+    rmMarkDirty(groupId);
+  }
+
+  async function rmSave(groupId) {
+    const card = document.querySelector(`.rm-card[data-group="${groupId}"]`);
+    const tags = [...card.querySelectorAll('.rm-row')].map(row => {
+      const box = row.querySelector('.rm-entry input');
+      return { key: row.dataset.key,
+               label: row.querySelector('.rm-label').value.trim(),
+               at_entry: box ? box.checked : true };
+    }).filter(t => t.label);
+    const toggle = document.getElementById('rm-multi-' + groupId);
+    const payload = { tags: tags };
+    if (toggle) payload.multi = toggle.classList.contains('on');
+    const status = document.getElementById('rm-status-' + groupId);
+    status.textContent = 'Saving…'; status.className = 'save-status saving';
+    try {
+      const res = await fetch('/api/settings/review-markers/' + groupId, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload) });
+      if (res.ok) {
+        status.textContent = '✓ Saved'; status.className = 'save-status saved';
+        setTimeout(() => { status.textContent = '—'; status.className = 'save-status'; }, 2500);
+      } else {
+        const err = await res.json();
+        status.textContent = '✗ ' + (err.error || 'Error');
+        status.className = 'save-status error';
+      }
+    } catch (e) {
+      status.textContent = '✗ Network error'; status.className = 'save-status error';
+    }
+  }
+
+  async function rmReset(groupId) {
+    await fetch('/api/settings/review-markers/' + groupId + '/reset', { method: 'POST' });
+    location.reload();
+  }
+
   // ── Save ───────────────────────────────────────────────────────────────
   async function saveGroup(groupId) {
     const tags = getTagsFromDOM(groupId);
+    const toggle = document.getElementById('multi-' + groupId);
+    const body = { tags };
+    if (toggle) body.multi = toggle.classList.contains('on');
     setStatus(groupId, 'Saving…', 'saving');
     try {
       const res = await fetch(`/api/settings/tags/${groupId}`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ tags })
+        body: JSON.stringify(body)
       });
       if (res.ok) {
         dirty.delete(groupId);

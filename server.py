@@ -363,6 +363,7 @@ def settings_view():
         signals=db.get_all_signals(),
         signals_json=json.dumps(db.get_all_signals()),
         headline_helpers=db.get_all_headline_helpers(),
+        review_marker_groups=logic.get_review_markers(),
     )
 
 
