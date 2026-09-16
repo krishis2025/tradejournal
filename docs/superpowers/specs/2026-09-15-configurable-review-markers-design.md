@@ -53,6 +53,10 @@ special-case map for `market_thesis` and `pnl`). That derivation goes away — l
 **Locked keys:** `management.followed`, `management.deviated`, `management_issue.none`,
 `process_violation.none`. Everything else is freely addable and deletable.
 
+Locking is per tag and blocks deletion only. Blocking *addition* is a separate, group-level
+property — `fixed_set` — set on `management` alone. Without it, locking both of management's
+options would still leave an "+ Add new tag" box that produces a third state nothing can read.
+
 ## Multi-select
 
 **The existing Multi-select toggle in Settings does not work.** Clicking it flips the switch and
@@ -63,8 +67,11 @@ marks the card dirty; pressing SAVE reports "✓ Saved"; the flag is never sent 
 This work makes the flag real and persisted, for the existing groups as well as the new ones —
 otherwise the toggle on the two new sections would be decorative in the same way.
 
-Per-group storage goes in `app_config` under `tag_multi:<group_id>`, falling back to the constant's
-value when unset, so current behaviour is unchanged until the toggle is used.
+Per-group storage goes in `app_config` under `tag_multi:<group_id>`, falling back to a default when
+unset, so current behaviour is unchanged until the toggle is used. For the four existing groups the
+default is the current `TAG_GROUPS` constant. The five new groups have no constant to inherit, so
+their defaults are declared explicitly: `emotion` and `process_violation` multi; `management`,
+`management_issue` and `management_driver` single.
 
 **`none` is exclusive.** In a multi-select group, choosing the `none` key clears the others and
 choosing any other clears `none`. "None plus Overtraded" is not a state worth recording.
