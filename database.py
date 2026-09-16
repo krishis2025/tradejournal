@@ -876,6 +876,18 @@ def init_db():
         # Migration: merge phantom NULL-account days into their real account day
         _migrate_merge_null_account_days(conn)
 
+        # Migration: review markers are key-addressed. `tag` stays the display
+        # label; `tag_key` is the stable identity that trades store and code
+        # branches on. Legacy tag groups leave tag_key NULL and keep using the
+        # label as identity.
+        tc_cols = [r[1] for r in conn.execute("PRAGMA table_info(tag_config)").fetchall()]
+        if "tag_key" not in tc_cols:
+            conn.execute("ALTER TABLE tag_config ADD COLUMN tag_key TEXT")
+        if "locked" not in tc_cols:
+            conn.execute("ALTER TABLE tag_config ADD COLUMN locked INTEGER NOT NULL DEFAULT 0")
+        if "at_entry" not in tc_cols:
+            conn.execute("ALTER TABLE tag_config ADD COLUMN at_entry INTEGER NOT NULL DEFAULT 1")
+
         # One-shot: retire the 'exit' tag group. Its vocabulary is superseded by
         # management_issue (what changed), emotion (why) and the target-fit ratio
         # (what price did). get_tag_groups() serves a DB override wholesale, so
@@ -1520,7 +1532,8 @@ def get_tag_config():
     """Return {group_id: [tag, ...]} for enabled tags in order. None if no custom config."""
     with get_conn() as conn:
         rows = conn.execute(
-            "SELECT group_id, tag FROM tag_config WHERE enabled=1 ORDER BY group_id, position"
+            "SELECT group_id, tag FROM tag_config WHERE enabled=1 AND tag_key IS NULL "
+            "ORDER BY group_id, position"
         ).fetchall()
         if not rows:
             return None
@@ -1528,6 +1541,68 @@ def get_tag_config():
         for r in rows:
             result.setdefault(r["group_id"], []).append(r["tag"])
         return result
+
+
+# ── Review markers ───────────────────────────────────────────────────────────
+# These share tag_config with the legacy label-addressed groups but are a
+# separate world: identity is `tag_key`, never the label. They must never be
+# routed through save_tag_config or _cascade_tag_rename — that path treats the
+# label as identity and cascades renames across trades, which is exactly what
+# keys exist to avoid.
+
+def get_review_marker_config():
+    """{group_id: [{"key","label","locked","at_entry"}, ...]} or None."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT group_id, tag, tag_key, locked, at_entry FROM tag_config "
+            "WHERE enabled = 1 AND tag_key IS NOT NULL ORDER BY group_id, position"
+        ).fetchall()
+        if not rows:
+            return None
+        result = {}
+        for r in rows:
+            result.setdefault(r["group_id"], []).append({
+                "key": r["tag_key"], "label": r["tag"],
+                "locked": bool(r["locked"]), "at_entry": bool(r["at_entry"]),
+            })
+        return result
+
+
+def save_review_marker_group(group_id, tags):
+    """Replace one group's tags with the provided ordered list.
+
+    `tags` is [{"key","label","at_entry"}, ...]. No rename cascade runs: trades
+    store keys, so a changed label reaches every existing trade for free.
+    `locked` is not accepted from the caller — it is a property of the default
+    vocabulary, reapplied here from REVIEW_MARKER_GROUPS.
+    """
+    import app_logic
+    locked_keys = set()
+    for g in app_logic.REVIEW_MARKER_GROUPS:
+        if g["id"] == group_id:
+            locked_keys = {t["key"] for t in g["tags"] if t["locked"]}
+    with get_conn() as conn:
+        conn.execute("DELETE FROM tag_config WHERE group_id = ? AND tag_key IS NOT NULL",
+                     (group_id,))
+        for position, t in enumerate(tags):
+            conn.execute(
+                "INSERT INTO tag_config (group_id, tag, tag_key, position, enabled, locked, at_entry) "
+                "VALUES (?, ?, ?, ?, 1, ?, ?)",
+                (group_id, t["label"], t["key"], position,
+                 1 if t["key"] in locked_keys else 0,
+                 1 if t.get("at_entry", True) else 0))
+
+
+def get_group_multi(group_id, default):
+    """Whether a tag group is multi-select. Falls back to `default` when unset."""
+    raw = get_config("tag_multi:" + group_id, "")
+    if raw == "":
+        return bool(default)
+    return raw == "1"
+
+
+def set_group_multi(group_id, value):
+    set_config("tag_multi:" + group_id, "1" if value else "0")
 
 
 def _cascade_obs_category_rename(conn, old_name, new_name):

@@ -686,6 +686,80 @@ _ASSESSMENT_VOCAB = {
 }
 
 
+# ── Review markers ───────────────────────────────────────────────────────────
+# Editable vocabularies for the trade review. Each tag carries a stable `key`
+# that trades store and code branches on, plus a `label` the trader may rename
+# at will. Because identity is the key, a rename needs no cascade — which is
+# also why the 4.8.1 delete-read-as-rename bug cannot occur in these groups.
+#
+# locked    — the tag cannot be deleted (it may still be renamed)
+# fixed_set — the group accepts no new tags at all
+
+REVIEW_MARKER_GROUPS = [
+    {
+        "id": "management", "label": "How did you manage it?",
+        "multi": False, "fixed_set": True, "entry_flag": False,
+        "tags": [
+            # Relabel-only: the review chain branches on `deviated` to decide
+            # whether to ask "What changed?". A third state would be unreadable.
+            {"key": "followed", "label": "Followed process", "locked": True, "at_entry": True},
+            {"key": "deviated", "label": "Deviated", "locked": True, "at_entry": True},
+        ],
+    },
+    {
+        "id": "management_driver", "label": "What primarily drove your management decisions?",
+        "multi": False, "fixed_set": False, "entry_flag": False,
+        "tags": [
+            {"key": "market_thesis", "label": "Market / Thesis", "locked": False, "at_entry": True},
+            {"key": "pnl", "label": "P&L", "locked": False, "at_entry": True},
+            {"key": "both", "label": "Both", "locked": False, "at_entry": True},
+        ],
+    },
+    {
+        "id": "management_issue", "label": "What changed?",
+        "multi": False, "fixed_set": False, "entry_flag": False,
+        "tags": [
+            {"key": "none", "label": "None", "locked": True, "at_entry": True},
+            {"key": "early_exit", "label": "Early exit", "locked": False, "at_entry": True},
+            {"key": "late_exit", "label": "Late exit", "locked": False, "at_entry": True},
+            {"key": "stop_change", "label": "Stop change", "locked": False, "at_entry": True},
+            {"key": "overmanaged", "label": "Overmanaged", "locked": False, "at_entry": True},
+            {"key": "under_managed", "label": "Under managed", "locked": False, "at_entry": True},
+            {"key": "premature_scale_out", "label": "Premature scale out", "locked": False, "at_entry": True},
+        ],
+    },
+    {
+        "id": "emotion", "label": "What were you feeling?",
+        "multi": True, "fixed_set": False, "entry_flag": True,
+        "tags": [
+            {"key": "calm", "label": "Calm", "locked": False, "at_entry": True},
+            # Both fear states need an open position, so offering them before
+            # entry invites a nonsense answer.
+            {"key": "fear_of_loss", "label": "Fear of loss", "locked": False, "at_entry": False},
+            {"key": "fear_of_giving_back", "label": "Fear of giving back", "locked": False, "at_entry": False},
+            {"key": "greed", "label": "Greed", "locked": False, "at_entry": True},
+            {"key": "frustration", "label": "Frustration", "locked": False, "at_entry": True},
+            {"key": "impatience", "label": "Impatience", "locked": False, "at_entry": True},
+            {"key": "overconfidence", "label": "Overconfidence", "locked": False, "at_entry": True},
+            {"key": "distracted", "label": "Distracted", "locked": False, "at_entry": True},
+        ],
+    },
+    {
+        "id": "process_violation", "label": "Process violation",
+        "multi": True, "fixed_set": False, "entry_flag": False,
+        "tags": [
+            {"key": "none", "label": "None", "locked": True, "at_entry": True},
+            {"key": "traded_outside_plan", "label": "Traded outside plan", "locked": False, "at_entry": True},
+            {"key": "exceeded_risk", "label": "Exceeded risk", "locked": False, "at_entry": True},
+            {"key": "revenge_trade", "label": "Revenge trade", "locked": False, "at_entry": True},
+            {"key": "overtraded", "label": "Overtraded", "locked": False, "at_entry": True},
+        ],
+    },
+]
+
+REVIEW_MARKER_IDS = tuple(g["id"] for g in REVIEW_MARKER_GROUPS)
+
+
 def validate_assessment(fields, current=None):
     """Clean and check an assessment payload against the trade's current state.
 

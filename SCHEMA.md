@@ -186,8 +186,19 @@ Custom tag configuration per tag group.
 | tag      | TEXT    | NOT NULL               |
 | position | INTEGER | NOT NULL DEFAULT 0     |
 | enabled  | INTEGER | NOT NULL DEFAULT 1     |
+| tag_key  | TEXT    |                        |
+| locked   | INTEGER | NOT NULL DEFAULT 0     |
+| at_entry | INTEGER | NOT NULL DEFAULT 1     |
 
 **Unique:** (group_id, tag)
+
+`tag_key` is NULL for the legacy label-addressed groups (Technicals, Volume, Setup, Pre-trade),
+whose identity is the label itself and whose renames cascade across trades. It is non-NULL for the
+five review-marker groups (`management`, `management_driver`, `management_issue`, `emotion`,
+`process_violation`), whose identity is the key — trades store the key, so a label may be renamed
+freely with no cascade. `locked` blocks deletion of a tag; `at_entry` controls whether an emotion is
+offered on the pre-entry question. Per-group multi-select lives in `app_config` under
+`tag_multi:<group_id>`.
 
 ---
 
