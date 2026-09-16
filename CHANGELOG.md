@@ -2,6 +2,34 @@
 
 All notable changes to Trade Journal are documented here.
 
+## [4.12.0] — 2026-09-15
+
+### Added
+
+- **Review markers are configurable.** The five review vocabularies — How did you manage it, What
+  primarily drove your management decisions, What changed, What were you feeling, and Process
+  violation — are editable under Settings → Tags → **Review Markers**, a new second tab.
+- **Emotions and process violations are multi-select.** A trade is rarely one feeling or one
+  mistake. Choosing "None" clears the rest and choosing anything else clears "None".
+- Each emotion carries an **offer at entry** flag, replacing the hardcoded rule that excluded the
+  two fear states from the pre-entry question.
+
+### Changed
+
+- Each tag now has a stable key the code reads plus a label you can rename. Trades store the key,
+  so renaming an option never touches stored data and never needs a cascade — the mechanism behind
+  the 4.8.1 relabelling bug cannot apply to these groups.
+- A locked option can be **renamed but not deleted**. Four are locked because the review logic reads
+  them: both management states, and the "None" in What changed and Process violation.
+- `management` accepts no new options. The code branches on exactly two states, so a third would be
+  unreadable; its labels are still editable.
+
+### Fixed
+
+- **The Multi-select toggle in Settings now saves.** It has never persisted anything — the payload
+  carried only the tag list and the card re-rendered from a hardcoded constant, so the switch moved
+  and the setting was silently discarded. It now applies to the original tag groups too.
+
 ## [4.11.1] — 2026-09-15
 
 ### Fixed

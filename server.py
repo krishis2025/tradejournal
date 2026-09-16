@@ -419,6 +419,7 @@ def live_trade_v2_page():
         closed_trades_json=json.dumps(closed_trades),
         strength_json=json.dumps(strength_map),
         signal_library_json=json.dumps(signal_library),
+        review_markers_json=json.dumps(logic.get_review_markers()),
     )
 
 

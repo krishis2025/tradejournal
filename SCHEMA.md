@@ -110,9 +110,9 @@ Individual trades recorded per day.
 | grade              | TEXT    | Nullable. 'A' \| 'B' \| 'C'. The trader's judgement of which game they played. Never derived. |
 | management         | TEXT    | Nullable. 'followed' \| 'deviated'. Everything after entry until flat, including the exit. |
 | management_issue   | TEXT    | Nullable. none \| early_exit \| late_exit \| stop_change \| overmanaged \| under_managed \| premature_scale_out. Only meaningful when management='deviated'. |
-| emotion            | TEXT    | Nullable. calm \| fear_of_loss \| fear_of_giving_back \| greed \| frustration \| impatience \| overconfidence \| distracted. Recorded at review. |
-| emotion_entry      | TEXT    | Nullable. Same vocabulary minus the two fear states, which require an open position. Recorded at entry. |
-| process_violation  | TEXT    | Nullable. none \| traded_outside_plan \| exceeded_risk \| revenge_trade \| overtraded. Only asked when grade is B or C. |
+| emotion            | TEXT    | Nullable. JSON array of emotion keys, e.g. ["greed","impatience"]. Multi-select; keys come from tag_config (group `emotion`). Recorded at review. |
+| emotion_entry      | TEXT    | Nullable. Shares the `emotion` vocabulary, limited to keys flagged `at_entry` in tag_config. Recorded at entry. |
+| process_violation  | TEXT    | Nullable. JSON array of violation keys, e.g. ["overtraded"]. Multi-select; `none` is exclusive. Keys come from tag_config (group `process_violation`). Only asked when grade is B or C. |
 | pre_tags_late      | INTEGER | NOT NULL DEFAULT 0. 1 when pre-trade tags were first filled at review rather than at entry. |
 | management_driver  | TEXT    | Nullable. market_thesis | pnl | both. What the management decisions were reacting to. No cross-field rule — always askable. |
 

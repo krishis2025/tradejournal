@@ -584,3 +584,33 @@ def test_a_fixed_set_card_offers_no_add_box(client, tmp_db):
     """Adding a third management state would produce a value nothing reads."""
     assert "rm-add" not in _rm_card(_settings_html(client), "management")
     assert "rm-add" in _rm_card(_settings_html(client), "emotion")
+
+
+# ── Review chain ──────────────────────────────────────────────────────────────
+
+def test_live_page_carries_the_configured_vocabulary(client, tmp_db):
+    """The chips are built in JS from a payload the server renders. A renamed
+    label must reach the page without a code change."""
+    db.save_review_marker_group("process_violation", [
+        {"key": "none", "label": "Clean", "at_entry": True},
+        {"key": "overtraded", "label": "Traded too much", "at_entry": True},
+    ])
+
+    html = client.get("/live-v2").get_data(as_text=True)
+
+    assert "Traded too much" in html
+    assert '"key": "overtraded"' in html or '"key":"overtraded"' in html
+
+
+def test_live_page_no_longer_derives_labels_from_slugs(client, tmp_db):
+    """chipLabel used to title-case the stored key and special-case two of them.
+    Two sources of truth for a label is how they drift."""
+    html = client.get("/live-v2").get_data(as_text=True)
+
+    assert "market_thesis: 'Market / Thesis'" not in html
+
+
+def test_multi_groups_are_marked_multi_in_the_payload(client, tmp_db):
+    html = client.get("/live-v2").get_data(as_text=True)
+
+    assert '"multi": true' in html.lower() or '"multi":true' in html.lower()

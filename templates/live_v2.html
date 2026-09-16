@@ -3160,6 +3160,8 @@ const SERVER_OPEN = {{ open_trades_json|safe }};
 const SERVER_CLOSED = {{ closed_trades_json|safe }};
 const STRENGTH_MAP = {{ strength_json|safe }};
 const SIGNAL_LIBRARY = {{ signal_library_json|safe }};
+const REVIEW_MARKERS = {{ review_markers_json|safe }};
+const RM_BY_ID = Object.fromEntries(REVIEW_MARKERS.map(g => [g.id, g]));
 
 /* ── State ─────────────────────────────────────────────────────────────────── */
 let activeTrade = null;       // key like 'T1'
@@ -4924,7 +4926,8 @@ function renderStrengthAudit(el) {
   function emotionBtn(val) {
     const active = strengthEmotion === val;
     const activeCls = active ? `sel-${val}` : '';
-    const label = val.charAt(0).toUpperCase() + val.slice(1).replace(/_/g, ' ');
+    const t = RM_BY_ID.emotion.tags.find(x => x.key === val);
+    const label = t ? t.label : val;
     return `<button class="ef-toggle ${activeCls}" onclick="setStrengthEmotion('${val}')">${label}</button>`;
   }
   function confBtn(val) {
@@ -4960,8 +4963,7 @@ function renderStrengthAudit(el) {
         <div class="sa-bottom-group">
           <div class="sa-bottom-label">EMOTION</div>
           <div class="ef-toggle-group sa-emotion-group">
-            ${['calm','impatience','frustration','greed','overconfidence','distracted']
-              .map(e => emotionBtn(e)).join('')}
+            ${RM_BY_ID.emotion.tags.filter(t => t.at_entry).map(t => emotionBtn(t.key)).join('')}
           </div>
         </div>
         <div class="sa-bottom-group">
@@ -5116,6 +5118,14 @@ function setEntryDir(d) { saveEntryFields(); formDir = d; renderCenter(TRADES[ac
 function setEntryInst(i) { saveEntryFields(); formInst = i; renderCenter(TRADES[activeTrade]); }
 
 /* ── REVIEW CENTER ── */
+// Stored as a JSON array of keys; older rows may still hold a bare string.
+function rmList(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try { const p = JSON.parse(raw); return Array.isArray(p) ? p : [raw]; }
+  catch (e) { return [raw]; }
+}
+
 function renderReviewCenter(el, trade) {
   if (!trade) {
     el.innerHTML = '<div class="phase-empty"><span>No trade to review</span></div>';
@@ -5193,8 +5203,8 @@ function renderReviewCenter(el, trade) {
     const reviewGrade = trade.grade || '';
     const reviewMgmt = trade.management || '';
     const reviewMgmtIssue = trade.management_issue || '';
-    const reviewEmotion = trade.emotion || '';
-    const reviewViolation = trade.process_violation || '';
+    const reviewEmotion = rmList(trade.emotion);
+    const reviewViolation = rmList(trade.process_violation);
     const reviewDriver = trade.management_driver || '';
 
     // pre_tags_late's "had none at entry" baseline is captured once, the first
@@ -5216,22 +5226,27 @@ function renderReviewCenter(el, trade) {
       return `<div class="rv2-mgmt-btn${reviewMgmt === value ? ' selected' : ''}" onclick="setReviewField(${trade.id}, 'management', '${value}')">${label}</div>`;
     }
 
-    function chipLabel(value) {
-      // Market and thesis are one choice; the slash is the label, not a separator
-      // between two options. Spelling it out here keeps the stored value a single
-      // token while the chip reads the way the question is asked.
-      const SPECIAL = { market_thesis: 'Market / Thesis', pnl: 'P&L' };
-      if (SPECIAL[value]) return SPECIAL[value];
-      const s = value.replace(/_/g, ' ');
-      return s.charAt(0).toUpperCase() + s.slice(1);
+    // Labels come from Settings → Tags → Review Markers. The old version
+    // title-cased the stored key and special-cased two of them, which meant a
+    // renamed option still rendered its slug.
+    function chipLabel(field, value) {
+      const g = RM_BY_ID[field];
+      const t = g && g.tags.find(x => x.key === value);
+      return t ? t.label : value;
     }
 
-    function chipBtn(field, value) {
+    // emotion and process_violation hold a list; the others hold one key.
+    function chipSelected(field, value) {
       const current = field === 'management_issue' ? reviewMgmtIssue
         : field === 'emotion' ? reviewEmotion
         : field === 'process_violation' ? reviewViolation
         : field === 'management_driver' ? reviewDriver : '';
-      return `<div class="rv2-chip${current === value ? ' selected' : ''}" onclick="setReviewField(${trade.id}, '${field}', '${value}')">${chipLabel(value)}</div>`;
+      return Array.isArray(current) ? current.indexOf(value) !== -1 : current === value;
+    }
+
+    function chipBtn(field, value) {
+      return `<div class="rv2-chip${chipSelected(field, value) ? ' selected' : ''}"
+        onclick="toggleReviewField(${trade.id}, '${field}', '${value}')">${chipLabel(field, value)}</div>`;
     }
 
     el.innerHTML = `
@@ -5276,7 +5291,7 @@ function renderReviewCenter(el, trade) {
         <div class="rv2-section">
           <div class="rv2-q-title">What primarily drove your management decisions?</div>
           <div class="rv2-chip-row">
-            ${['market_thesis','pnl','both'].map(v => chipBtn('management_driver', v)).join('')}
+            ${RM_BY_ID.management_driver.tags.map(t => chipBtn('management_driver', t.key)).join('')}
           </div>
         </div>
 
@@ -5284,8 +5299,7 @@ function renderReviewCenter(el, trade) {
         <div class="rv2-section">
           <div class="rv2-q-title">What changed?</div>
           <div class="rv2-chip-row">
-            ${['early_exit','late_exit','stop_change','overmanaged','under_managed','premature_scale_out']
-              .map(v => chipBtn('management_issue', v)).join('')}
+            ${RM_BY_ID.management_issue.tags.map(t => chipBtn('management_issue', t.key)).join('')}
           </div>
           <div class="rv2-q-sub">Early exit means premature or unjustified relative to your process — not merely that price continued after you got out.</div>
         </div>` : ''}
@@ -5293,8 +5307,7 @@ function renderReviewCenter(el, trade) {
         <div class="rv2-section">
           <div class="rv2-q-title">What were you feeling?</div>
           <div class="rv2-chip-row">
-            ${['calm','fear_of_loss','fear_of_giving_back','greed','frustration','impatience','overconfidence','distracted']
-              .map(v => chipBtn('emotion', v)).join('')}
+            ${RM_BY_ID.emotion.tags.map(t => chipBtn('emotion', t.key)).join('')}
           </div>
         </div>
 
@@ -5302,8 +5315,7 @@ function renderReviewCenter(el, trade) {
         <div class="rv2-section">
           <div class="rv2-q-title">Process violation</div>
           <div class="rv2-chip-row">
-            ${['none','traded_outside_plan','exceeded_risk','revenge_trade','overtraded']
-              .map(v => chipBtn('process_violation', v)).join('')}
+            ${RM_BY_ID.process_violation.tags.map(t => chipBtn('process_violation', t.key)).join('')}
           </div>
         </div>` : ''}
       </div>
@@ -8648,14 +8660,36 @@ function setReviewField(tradeId, field, value) {
   const trade = TRADES[activeTrade];
   const fields = { [field]: value };
   if (field === 'grade' && value === 'A' &&
-      trade && trade.process_violation && trade.process_violation !== 'none') {
-    fields.process_violation = null;
+      trade && rmList(trade.process_violation).some(v => v !== 'none')) {
+    fields.process_violation = [];
   }
   if (field === 'management' && value !== 'deviated' &&
       trade && trade.management_issue && trade.management_issue !== 'none') {
     fields.management_issue = null;
   }
   saveReviewAssessment(tradeId, fields);
+}
+
+// Single-select fields replace their value; multi-select fields toggle within a
+// list. Choosing `none` clears the rest and choosing anything else clears
+// `none` — "None plus Overtraded" is not a state worth recording.
+function toggleReviewField(tradeId, field, value) {
+  const group = RM_BY_ID[field];
+  if (!group || !group.multi) return setReviewField(tradeId, field, value);
+
+  const trade = TRADES[activeTrade];
+  const currentRaw = field === 'emotion' ? rmList(trade && trade.emotion)
+    : field === 'process_violation' ? rmList(trade && trade.process_violation) : [];
+  let next = currentRaw.slice();
+  const at = next.indexOf(value);
+  if (at !== -1) {
+    next.splice(at, 1);
+  } else if (value === 'none') {
+    next = ['none'];
+  } else {
+    next = next.filter(v => v !== 'none').concat([value]);
+  }
+  setReviewField(tradeId, field, next);
 }
 
 /* ── IMAGES ── */
