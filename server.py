@@ -797,7 +797,11 @@ def api_save_review_markers(group_id):
         return jsonify({"error": "this group's options are fixed; labels may be edited"}), 400
 
     db.save_review_marker_group(group_id, cleaned)
-    if "multi" in body and not default["fixed_set"]:
+    # Multi-select only means anything for a column Task 2 actually migrated to
+    # a JSON array. An older client may still send `multi` for a group that
+    # isn't multi-capable; ignore it rather than 400, since the tag save
+    # itself is still valid.
+    if "multi" in body and group_id in logic.MULTI_MARKER_FIELDS:
         db.set_group_multi(group_id, bool(body["multi"]))
     return jsonify({"ok": True, "group_id": group_id})
 

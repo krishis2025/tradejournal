@@ -463,7 +463,7 @@
             <div class="tag-config-header">
               <div class="tag-config-title">{{ g.label }}
                 <span class="tag-count">({{ g.tags|length }} tags)</span></div>
-              {% if not g.fixed_set %}
+              {% if g.multi_capable %}
               <div class="multi-toggle">
                 <span>Multi-select</span>
                 <div class="toggle-switch {{ 'on' if g.multi else '' }}" id="rm-multi-{{ g.id }}"

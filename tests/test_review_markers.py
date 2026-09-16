@@ -610,7 +610,54 @@ def test_live_page_no_longer_derives_labels_from_slugs(client, tmp_db):
     assert "market_thesis: 'Market / Thesis'" not in html
 
 
-def test_multi_groups_are_marked_multi_in_the_payload(client, tmp_db):
-    html = client.get("/live-v2").get_data(as_text=True)
+def _review_markers_payload(html):
+    """The `const REVIEW_MARKERS = ...;` assignment, isolated from every other
+    bootstrapped constant on the page — `tags_json` (the legacy `with`/`pre`
+    tag groups) already contains a `"multi": true` of its own, so a bare
+    substring check against the whole page can pass without the review-markers
+    payload carrying anything at all.
+    """
+    start = html.index("const REVIEW_MARKERS = ") + len("const REVIEW_MARKERS = ")
+    end = html.index("\nconst RM_BY_ID", start)
+    return html[start:end]
 
-    assert '"multi": true' in html.lower() or '"multi":true' in html.lower()
+
+def test_multi_groups_are_marked_multi_in_the_payload(client, tmp_db):
+    payload = _review_markers_payload(client.get("/live-v2").get_data(as_text=True))
+
+    assert '"multi": true' in payload.lower() or '"multi":true' in payload.lower()
+
+
+# ── Multi-select is only offered where storage supports a list ────────────────
+
+def test_multi_capable_matches_the_columns_migrated_to_lists(client, tmp_db):
+    """emotion and process_violation are the only columns Task 2 migrated to
+    JSON arrays. multi_capable must track that exactly, not `fixed_set` —
+    management_driver and management_issue are not fixed_set but still store
+    a single scalar."""
+    groups = {g["id"]: g for g in logic.get_review_markers()}
+
+    assert groups["management_issue"]["multi_capable"] is False
+    assert groups["management_driver"]["multi_capable"] is False
+    assert groups["emotion"]["multi_capable"] is True
+    assert groups["process_violation"]["multi_capable"] is True
+
+
+def test_settings_offers_no_multi_toggle_on_a_non_capable_card(client, tmp_db):
+    html = _settings_html(client)
+
+    assert "multi-toggle" not in _rm_card(html, "management_issue")
+    assert "multi-toggle" in _rm_card(html, "emotion")
+
+
+def test_posting_multi_to_a_non_capable_group_is_ignored(client, tmp_db):
+    """A stale client may still send `multi` for a group the storage can't
+    hold a list for. The save must not error, and must not flip the flag."""
+    resp = client.post("/api/settings/review-markers/management_issue", json={
+        "tags": [{"key": "none", "label": "None", "at_entry": True},
+                 {"key": "early_exit", "label": "Early exit", "at_entry": True}],
+        "multi": True,
+    })
+
+    assert resp.status_code == 200
+    assert db.get_group_multi("management_issue", False) is False

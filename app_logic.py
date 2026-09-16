@@ -769,13 +769,22 @@ MARKER_NONE_KEY = "none"
 
 
 def get_review_markers():
-    """The five groups, defaults overlaid with any saved config."""
+    """The five groups, defaults overlaid with any saved config.
+
+    `multi_capable` is the single source of truth for whether a group's
+    storage can hold a list at all — it is True only for the columns Task 2
+    migrated to JSON arrays (`MULTI_MARKER_FIELDS`). `multi` is merely the
+    trader's on/off preference within that; letting the preference flip on
+    for a column that still stores a scalar is how the Settings toggle and
+    the assessment validator drift into disagreeing about the same fact.
+    """
     saved = db.get_review_marker_config() or {}
     groups = []
     for g in REVIEW_MARKER_GROUPS:
         merged = dict(g)
         if g["id"] in saved:
             merged["tags"] = saved[g["id"]]
+        merged["multi_capable"] = g["id"] in MULTI_MARKER_FIELDS
         merged["multi"] = db.get_group_multi(g["id"], g["multi"])
         groups.append(merged)
     return groups
