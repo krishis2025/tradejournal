@@ -527,6 +527,11 @@ def api_save_trade_assessment(trade_id):
     cleaned, err = logic.validate_assessment(request.get_json(silent=True) or {}, current)
     if err:
         return jsonify({"error": err}), 400
+    # emotion/process_violation come back as lists from validate_assessment;
+    # the trades table stores them as JSON-encoded strings.
+    for field in logic.MULTI_MARKER_FIELDS:
+        if field in cleaned:
+            cleaned[field] = db.encode_marker_list(cleaned[field])
     db.set_trade_assessment(trade_id, **cleaned)
     return jsonify({"ok": True})
 
@@ -538,6 +543,11 @@ def api_save_live_assessment(live_id):
     cleaned, err = logic.validate_assessment(request.get_json(silent=True) or {}, current)
     if err:
         return jsonify({"error": err}), 400
+    # emotion/process_violation come back as lists from validate_assessment;
+    # live_trades stores them as JSON-encoded strings, same as trades.
+    for field in logic.MULTI_MARKER_FIELDS:
+        if field in cleaned:
+            cleaned[field] = db.encode_marker_list(cleaned[field])
     if cleaned:
         db.update_live_trade(live_id, **cleaned)
     return jsonify({"ok": True})

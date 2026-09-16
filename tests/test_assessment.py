@@ -179,7 +179,7 @@ def test_post_assessment_to_a_journal_trade(client, tmp_db, day_id):
     assert res.status_code == 200
     with db.get_conn() as conn:
         row = conn.execute("SELECT * FROM trades WHERE id = ?", (trade_id,)).fetchone()
-    assert (row["grade"], row["management"], row["emotion"]) == ("A", "followed", "calm")
+    assert (row["grade"], row["management"], row["emotion"]) == ("A", "followed", '["calm"]')
 
 
 def test_post_assessment_rejects_an_invalid_value(client, tmp_db, day_id):
@@ -199,7 +199,7 @@ def test_post_assessment_to_a_live_trade(client, tmp_db):
     assert res.status_code == 200
     lt = db.get_live_trade(live_id)
     assert lt["grade"] == "C"
-    assert lt["process_violation"] == "revenge_trade"
+    assert lt["process_violation"] == '["revenge_trade"]'
 
 
 # ── Cross-field rules must see stored state, not just this payload ──────────
@@ -277,7 +277,7 @@ def test_post_assessment_allows_clearing_the_violation_in_the_same_request(clien
     with db.get_conn() as conn:
         row = conn.execute("SELECT grade, process_violation FROM trades WHERE id = ?",
                             (trade_id,)).fetchone()
-    assert (row["grade"], row["process_violation"]) == ("A", "none")
+    assert (row["grade"], row["process_violation"]) == ("A", '["none"]')
 
 
 def test_post_assessment_allows_clearing_deviation_and_issue_together(client, tmp_db, day_id):
