@@ -179,3 +179,71 @@ def test_multi_flag_round_trips_and_defaults(tmp_db):
     db.set_group_multi("management", True)
 
     assert db.get_group_multi("management", False) is True
+
+
+# ── Multi-value storage ───────────────────────────────────────────────────────
+
+def test_decode_handles_arrays_scalars_and_blanks():
+    """Scalars must decode too: the migration runs once, but a row written by an
+    older build sitting in a backup, or restored later, would otherwise crash
+    the review page rather than degrade."""
+    assert db.decode_marker_list('["greed","impatience"]') == ["greed", "impatience"]
+    assert db.decode_marker_list("greed") == ["greed"]
+    assert db.decode_marker_list("") == []
+    assert db.decode_marker_list(None) == []
+    assert db.decode_marker_list("not json {") == ["not json {"]
+
+
+def test_encode_round_trips_and_blanks_to_none():
+    assert db.decode_marker_list(db.encode_marker_list(["greed"])) == ["greed"]
+    assert db.encode_marker_list([]) is None
+
+
+def test_migration_wraps_existing_scalars(tmp_db, day_id):
+    trade_id = db.insert_trade(day_id, 1, "Long", 1, 7700.0, 7710.0, 50.0, "10:00", "10:30")
+    with db.get_conn() as conn:
+        conn.execute("UPDATE trades SET emotion = 'greed', process_violation = 'overtraded' "
+                     "WHERE id = ?", (trade_id,))
+        conn.execute("DELETE FROM app_config WHERE key = 'migration_markers_to_lists'")
+
+    db.init_db()
+
+    with db.get_conn() as conn:
+        row = conn.execute("SELECT emotion, process_violation FROM trades WHERE id = ?",
+                           (trade_id,)).fetchone()
+    assert row["emotion"] == '["greed"]'
+    assert row["process_violation"] == '["overtraded"]'
+
+
+def test_migration_is_idempotent_and_leaves_arrays_alone(tmp_db, day_id):
+    """init_db runs on every request. A second pass must not wrap an array
+    inside another array — the failure would be silent and unrecoverable."""
+    trade_id = db.insert_trade(day_id, 1, "Long", 1, 7700.0, 7710.0, 50.0, "10:00", "10:30")
+    with db.get_conn() as conn:
+        conn.execute("UPDATE trades SET emotion = 'greed' WHERE id = ?", (trade_id,))
+        conn.execute("DELETE FROM app_config WHERE key = 'migration_markers_to_lists'")
+
+    db.init_db()
+    with db.get_conn() as conn:
+        conn.execute("DELETE FROM app_config WHERE key = 'migration_markers_to_lists'")
+    db.init_db()
+
+    with db.get_conn() as conn:
+        row = conn.execute("SELECT emotion FROM trades WHERE id = ?", (trade_id,)).fetchone()
+    assert row["emotion"] == '["greed"]'
+
+
+def test_migration_leaves_blanks_and_nulls_alone(tmp_db, day_id):
+    trade_id = db.insert_trade(day_id, 1, "Long", 1, 7700.0, 7710.0, 50.0, "10:00", "10:30")
+    with db.get_conn() as conn:
+        conn.execute("UPDATE trades SET emotion = '', process_violation = NULL WHERE id = ?",
+                     (trade_id,))
+        conn.execute("DELETE FROM app_config WHERE key = 'migration_markers_to_lists'")
+
+    db.init_db()
+
+    with db.get_conn() as conn:
+        row = conn.execute("SELECT emotion, process_violation FROM trades WHERE id = ?",
+                           (trade_id,)).fetchone()
+    assert row["emotion"] == ''
+    assert row["process_violation"] is None

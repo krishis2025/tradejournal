@@ -888,6 +888,27 @@ def init_db():
         if "at_entry" not in tc_cols:
             conn.execute("ALTER TABLE tag_config ADD COLUMN at_entry INTEGER NOT NULL DEFAULT 1")
 
+        # One-shot: emotion and process_violation became multi-select, so their
+        # scalar values are wrapped into single-item JSON arrays. Guarded by a
+        # flag because init_db runs on every request; rows already holding an
+        # array are skipped by the `NOT LIKE '[%'` filter, so a lost flag
+        # cannot double-wrap.
+        if not conn.execute(
+            "SELECT 1 FROM app_config WHERE key = 'migration_markers_to_lists'"
+        ).fetchone():
+            for table in ("trades", "live_trades"):
+                for column in ("emotion", "process_violation"):
+                    conn.execute(f"""
+                        UPDATE {table}
+                           SET {column} = '["' || {column} || '"]'
+                         WHERE {column} IS NOT NULL
+                           AND {column} <> ''
+                           AND {column} NOT LIKE '[%'
+                    """)
+            conn.execute(
+                "INSERT OR REPLACE INTO app_config (key, value) "
+                "VALUES ('migration_markers_to_lists', '1')")
+
         # One-shot: retire the 'exit' tag group. Its vocabulary is superseded by
         # management_issue (what changed), emotion (why) and the target-fit ratio
         # (what price did). get_tag_groups() serves a DB override wholesale, so
@@ -1359,6 +1380,41 @@ def get_trade_assessment(trade_id):
             (trade_id,)
         ).fetchone()
         return dict(row) if row else None
+
+
+# ── Multi-value review markers ───────────────────────────────────────────────
+# emotion and process_violation hold a JSON array of keys. The column stays
+# TEXT; only the shape of its content changed.
+
+def decode_marker_list(raw):
+    """Keys stored in a marker column, as a list.
+
+    Tolerates a bare scalar. The migration converts every row once, but a
+    database restored from an older backup would otherwise break the review
+    page instead of simply reading as a single-item list.
+    """
+    import json
+    if raw is None or raw == "":
+        return []
+    text = str(raw).strip()
+    if text.startswith("["):
+        try:
+            parsed = json.loads(text)
+        except ValueError:
+            return [text]
+        if isinstance(parsed, list):
+            return [str(v) for v in parsed if v not in (None, "")]
+        return [str(parsed)]
+    return [text]
+
+
+def encode_marker_list(values):
+    """JSON array for storage, or None when nothing is selected."""
+    import json
+    cleaned = [str(v) for v in (values or []) if v not in (None, "")]
+    if not cleaned:
+        return None
+    return json.dumps(cleaned)
 
 
 def set_trade_mfe(trade_id, mfe_price, mfe_timing, mfe_window_minutes):
