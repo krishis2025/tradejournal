@@ -588,6 +588,47 @@ def test_legacy_reset_route_refuses_a_review_marker_group_id(client, tmp_db):
     assert logic.marker_label("process_violation", "none") == "Clean"
 
 
+def test_save_tag_config_does_not_wipe_review_marker_rows(tmp_db):
+    """The route guards in api_save_tag_config/api_reset_tag_config refuse a
+    review-marker group id, but that is a different layer from the DB-level
+    `AND tag_key IS NULL` scoping on save_tag_config's/reset_tag_config's
+    DELETEs. This calls the DB function directly, bypassing the route guard
+    entirely, to prove the DB-level guard itself — not just the route in
+    front of it — is what keeps a legacy tag_config save from wiping a
+    review-marker group's key-addressed rows.
+
+    The new tags list is a different length from, and shares no label text
+    with, the existing review-marker rows, so this exercises the DELETE's
+    scoping alone — not the separate rename-cascade detection (which only
+    fires when old and new lists are the same length) or an incidental
+    UNIQUE(group_id, tag) collision (which only fires on matching label
+    text) — either of which would confound what this test is isolating."""
+    db.save_review_marker_group("emotion", [
+        {"key": "calm", "label": "Calm", "at_entry": True},
+        {"key": "greed", "label": "Greed", "at_entry": True},
+    ])
+
+    db.save_tag_config("emotion", ["Foo", "Bar", "Baz"])
+
+    assert logic.marker_keys("emotion") == ("calm", "greed")
+    assert logic.marker_label("emotion", "greed") == "Greed"
+
+
+def test_reset_tag_config_does_not_wipe_review_marker_rows(tmp_db):
+    """Same guard, other DB function: reset_tag_config's DELETE must also stay
+    scoped to tag_key IS NULL so it cannot erase a review-marker group's rows
+    when called directly, bypassing the route guard."""
+    db.save_review_marker_group("emotion", [
+        {"key": "calm", "label": "Calm", "at_entry": True},
+        {"key": "greed", "label": "Greed", "at_entry": True},
+    ])
+
+    db.reset_tag_config("emotion")
+
+    assert logic.marker_keys("emotion") == ("calm", "greed")
+    assert logic.marker_label("emotion", "greed") == "Greed"
+
+
 def test_assessment_route_stores_a_multi_field_as_a_list(client, tmp_db, day_id):
     trade_id = db.insert_trade(day_id, 1, "Long", 1, 7700.0, 7710.0, -50.0, "10:00", "10:30")
 
