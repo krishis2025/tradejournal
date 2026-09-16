@@ -116,7 +116,7 @@ def test_entry_emotions_exclude_the_two_that_need_an_open_position():
     assert len(logic.ENTRY_EMOTIONS) == 6
 
 
-def test_validate_accepts_a_good_payload():
+def test_validate_accepts_a_good_payload(tmp_db):
     cleaned, err = logic.validate_assessment(
         {"grade": "B", "management": "deviated", "management_issue": "early_exit",
          "emotion": "fear_of_giving_back", "process_violation": "revenge_trade"})
@@ -124,49 +124,49 @@ def test_validate_accepts_a_good_payload():
     assert cleaned["grade"] == "B"
 
 
-def test_validate_rejects_a_value_outside_its_vocabulary():
+def test_validate_rejects_a_value_outside_its_vocabulary(tmp_db):
     _, err = logic.validate_assessment({"grade": "D"})
     assert err is not None and "grade" in err
 
 
-def test_validate_rejects_management_issue_without_deviated():
+def test_validate_rejects_management_issue_without_deviated(tmp_db):
     """The issue describes what the deviation was; it is meaningless otherwise."""
     _, err = logic.validate_assessment(
         {"management": "followed", "management_issue": "early_exit"})
     assert err is not None and "management_issue" in err
 
 
-def test_validate_allows_management_issue_none_when_followed():
+def test_validate_allows_management_issue_none_when_followed(tmp_db):
     cleaned, err = logic.validate_assessment(
         {"management": "followed", "management_issue": "none"})
     assert err is None
     assert cleaned["management_issue"] == "none"
 
 
-def test_validate_rejects_a_process_violation_on_an_a_grade():
+def test_validate_rejects_a_process_violation_on_an_a_grade(tmp_db):
     """The field is only asked on B or C; an A-game violation is a contradiction."""
     _, err = logic.validate_assessment(
         {"grade": "A", "process_violation": "revenge_trade"})
     assert err is not None and "process_violation" in err
 
 
-def test_validate_allows_process_violation_none_on_an_a_grade():
+def test_validate_allows_process_violation_none_on_an_a_grade(tmp_db):
     cleaned, err = logic.validate_assessment({"grade": "A", "process_violation": "none"})
     assert err is None
 
 
-def test_validate_rejects_a_fear_emotion_at_entry():
+def test_validate_rejects_a_fear_emotion_at_entry(tmp_db):
     _, err = logic.validate_assessment({"emotion_entry": "fear_of_giving_back"})
     assert err is not None and "emotion_entry" in err
 
 
-def test_validate_drops_unknown_keys_without_erroring():
+def test_validate_drops_unknown_keys_without_erroring(tmp_db):
     cleaned, err = logic.validate_assessment({"grade": "A", "sneaky": "value"})
     assert err is None
     assert "sneaky" not in cleaned
 
 
-def test_validate_accepts_an_empty_payload():
+def test_validate_accepts_an_empty_payload(tmp_db):
     cleaned, err = logic.validate_assessment({})
     assert err is None and cleaned == {}
 
@@ -208,13 +208,13 @@ def test_post_assessment_to_a_live_trade(client, tmp_db):
 # rejects a legitimate single-field edit and false-accepts a forbidden
 # combination when the conflicting half is already in the database.
 
-def test_validate_assessment_with_no_current_arg_behaves_as_before():
+def test_validate_assessment_with_no_current_arg_behaves_as_before(tmp_db):
     cleaned, err = logic.validate_assessment({"grade": "A", "process_violation": "none"})
     assert err is None
-    assert cleaned == {"grade": "A", "process_violation": "none"}
+    assert cleaned == {"grade": "A", "process_violation": ["none"]}
 
 
-def test_validate_assessment_merges_current_state_for_the_management_issue_rule():
+def test_validate_assessment_merges_current_state_for_the_management_issue_rule(tmp_db):
     """management='deviated' is already stored; sending the issue alone must pass."""
     cleaned, err = logic.validate_assessment(
         {"management_issue": "early_exit"}, current={"management": "deviated"})
@@ -222,7 +222,7 @@ def test_validate_assessment_merges_current_state_for_the_management_issue_rule(
     assert cleaned == {"management_issue": "early_exit"}
 
 
-def test_validate_assessment_merges_current_state_to_catch_a_stranded_violation():
+def test_validate_assessment_merges_current_state_to_catch_a_stranded_violation(tmp_db):
     """grade='A' is already stored; adding a violation alone must be rejected."""
     cleaned, err = logic.validate_assessment(
         {"process_violation": "revenge_trade"}, current={"grade": "A"})

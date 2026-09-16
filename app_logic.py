@@ -675,15 +675,18 @@ PROCESS_VIOLATIONS = ("none", "traded_outside_plan", "exceeded_risk",
 # P&L signal across two buckets and make the drift harder to see.
 MANAGEMENT_DRIVERS = ("market_thesis", "pnl", "both")
 
-_ASSESSMENT_VOCAB = {
-    "grade": GRADES,
-    "management": MANAGEMENT,
-    "management_issue": MANAGEMENT_ISSUES,
-    "emotion": EMOTIONS,
-    "emotion_entry": ENTRY_EMOTIONS,
-    "process_violation": PROCESS_VIOLATIONS,
-    "management_driver": MANAGEMENT_DRIVERS,
-}
+def assessment_vocab():
+    """Valid values per assessment field, read at request time.
+
+    Was a module constant. The five review vocabularies are now editable, so
+    closing over them at import would validate against a stale list until the
+    process restarted.
+    """
+    vocab = {"grade": GRADES}
+    for group_id in REVIEW_MARKER_IDS:
+        vocab[group_id] = marker_keys(group_id)
+    vocab["emotion_entry"] = entry_emotion_keys()
+    return vocab
 
 
 # ── Review markers ───────────────────────────────────────────────────────────
@@ -759,6 +762,56 @@ REVIEW_MARKER_GROUPS = [
 
 REVIEW_MARKER_IDS = tuple(g["id"] for g in REVIEW_MARKER_GROUPS)
 
+MULTI_MARKER_FIELDS = ("emotion", "process_violation")
+# Both multi groups carry a `none` key meaning "nothing to record". Choosing it
+# alongside a real value is not a state worth storing, so `none` wins.
+MARKER_NONE_KEY = "none"
+
+
+def get_review_markers():
+    """The five groups, defaults overlaid with any saved config."""
+    saved = db.get_review_marker_config() or {}
+    groups = []
+    for g in REVIEW_MARKER_GROUPS:
+        merged = dict(g)
+        if g["id"] in saved:
+            merged["tags"] = saved[g["id"]]
+        merged["multi"] = db.get_group_multi(g["id"], g["multi"])
+        groups.append(merged)
+    return groups
+
+
+def _marker_group(group_id):
+    for g in get_review_markers():
+        if g["id"] == group_id:
+            return g
+    return None
+
+
+def marker_keys(group_id):
+    g = _marker_group(group_id)
+    return tuple(t["key"] for t in g["tags"]) if g else ()
+
+
+def marker_label(group_id, key):
+    """Display label for a key, falling back to the key itself.
+
+    A trade may carry a key later deleted from the vocabulary; the review page
+    must render it rather than raise.
+    """
+    g = _marker_group(group_id)
+    if g:
+        for t in g["tags"]:
+            if t["key"] == key:
+                return t["label"]
+    return key
+
+
+def entry_emotion_keys():
+    """Emotions offered before entry — those flagged `at_entry`."""
+    g = _marker_group("emotion")
+    return tuple(t["key"] for t in g["tags"] if t.get("at_entry", True)) if g else ()
+
 
 def validate_assessment(fields, current=None):
     """Clean and check an assessment payload against the trade's current state.
@@ -777,12 +830,25 @@ def validate_assessment(fields, current=None):
     through when the conflicting half is already in the database.
     """
     cleaned = {}
-    for key, vocab in _ASSESSMENT_VOCAB.items():
+    for key, vocab in assessment_vocab().items():
         if key not in fields:
             continue
         value = fields[key]
-        if value in (None, ""):
-            cleaned[key] = None
+        if value in (None, "", []):
+            cleaned[key] = [] if key in MULTI_MARKER_FIELDS else None
+            continue
+        if key in MULTI_MARKER_FIELDS:
+            # A bare scalar is accepted so a caller that has not moved to lists
+            # yet keeps working.
+            values = list(value) if isinstance(value, (list, tuple)) else [value]
+            for v in values:
+                if v not in vocab:
+                    return {}, f"{key} must be one of {', '.join(vocab)}"
+            # The `none`-wins collapse happens after the cross-field checks
+            # below, not here: collapsing first would erase a real violation
+            # sent alongside `none` before the A-grade rule ever saw it,
+            # letting ["none", "revenge_trade"] slip through on an A grade.
+            cleaned[key] = values
             continue
         if value not in vocab:
             return {}, f"{key} must be one of {', '.join(vocab)}"
@@ -805,10 +871,21 @@ def validate_assessment(fields, current=None):
     # The violation field is only asked on a B or C grade. A grade change that
     # would leave a stored violation stranded on an A grade is rejected rather
     # than silently cleared — that would discard something the trader
-    # deliberately recorded.
-    violation = merged.get("process_violation")
-    if violation and violation != "none" and merged.get("grade") == "A":
+    # deliberately recorded. Keyed off MARKER_NONE_KEY, so relabelling "None"
+    # cannot break it.
+    violations = merged.get("process_violation") or []
+    if isinstance(violations, str):
+        violations = db.decode_marker_list(violations)
+    if any(v != MARKER_NONE_KEY for v in violations) and merged.get("grade") == "A":
         return {}, "process_violation cannot be set on an A grade — clear it in the same request"
+
+    # Choosing `none` alongside a real value is not a state worth storing, so
+    # `none` wins — applied last, now that the cross-field checks above have
+    # had a chance to see the real value that was actually requested.
+    for key in MULTI_MARKER_FIELDS:
+        values = cleaned.get(key)
+        if values and MARKER_NONE_KEY in values and len(values) > 1:
+            cleaned[key] = [MARKER_NONE_KEY]
 
     return cleaned, None
 
@@ -1103,8 +1180,11 @@ def build_plan_execution(trades):
             bc_count += 1
             if r["management_issue"] and r["management_issue"] != "none":
                 bc_issues[r["management_issue"]] = bc_issues.get(r["management_issue"], 0) + 1
-            if r["emotion"]:
-                bc_emotions[r["emotion"]] = bc_emotions.get(r["emotion"], 0) + 1
+            # emotion holds a list of keys now; every one counts toward its own
+            # tally. Counting the raw column would score a two-emotion trade as
+            # one exotic value and report it as the most common.
+            for e in db.decode_marker_list(r["emotion"]):
+                bc_emotions[e] = bc_emotions.get(e, 0) + 1
 
     def _finish(d):
         caps = d.pop("captures")

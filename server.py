@@ -14,6 +14,9 @@ app = Flask(__name__)
 # Exposed to templates so the board's macros and the save response share one
 # implementation of the price/percent format (see app_logic.board_cell).
 app.jinja_env.globals["board_cell"] = logic.board_cell
+# Exposed so templates can render a stored marker key through its current
+# (possibly renamed) label rather than the raw key.
+app.jinja_env.globals["marker_label"] = logic.marker_label
 app.config["MAX_CONTENT_LENGTH"] = 32 * 1024 * 1024  # 32 MB
 
 IMAGES_DIR = os.path.join(os.path.dirname(__file__), "data", "images")

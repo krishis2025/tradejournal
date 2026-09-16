@@ -49,19 +49,19 @@ def test_insert_trade_accepts_it(tmp_db, day_id):
     assert _driver(trade_id) == "pnl"
 
 
-def test_validate_accepts_each_legal_value():
+def test_validate_accepts_each_legal_value(tmp_db):
     for value in ("market_thesis", "pnl", "both"):
         cleaned, err = logic.validate_assessment({"management_driver": value})
         assert err is None, f"{value} should be accepted"
         assert cleaned["management_driver"] == value
 
 
-def test_validate_rejects_a_value_outside_the_vocabulary():
+def test_validate_rejects_a_value_outside_the_vocabulary(tmp_db):
     _, err = logic.validate_assessment({"management_driver": "vibes"})
     assert err is not None and "management_driver" in err
 
 
-def test_validate_clears_it_on_empty():
+def test_validate_clears_it_on_empty(tmp_db):
     cleaned, err = logic.validate_assessment({"management_driver": ""})
     assert err is None
     assert cleaned["management_driver"] is None

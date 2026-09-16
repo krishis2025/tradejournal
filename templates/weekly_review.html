@@ -470,7 +470,7 @@ table.wr-table td.num { font-family: 'JetBrains Mono', monospace; text-align: ri
       <span class="fear">{{ s.bc_diagnosis.top_issue[0].replace('_', ' ') }}</span>
       ({{ s.bc_diagnosis.top_issue[1] }}){% endif %}{% if s.bc_diagnosis.top_issue and s.bc_diagnosis.top_emotion %};
       {% endif %}{% if s.bc_diagnosis.top_emotion %}most common emotion
-      <span class="fear">{{ s.bc_diagnosis.top_emotion[0].replace('_', ' ') }}</span>
+      <span class="fear">{{ marker_label('emotion', s.bc_diagnosis.top_emotion[0]) }}</span>
       ({{ s.bc_diagnosis.top_emotion[1] }}){% endif %}.
     </div>
     {% endif %}

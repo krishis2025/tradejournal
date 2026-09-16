@@ -247,3 +247,121 @@ def test_migration_leaves_blanks_and_nulls_alone(tmp_db, day_id):
                            (trade_id,)).fetchone()
     assert row["emotion"] == ''
     assert row["process_violation"] is None
+
+
+# ── Runtime vocabulary ────────────────────────────────────────────────────────
+
+def test_configured_labels_override_defaults_without_touching_keys(tmp_db):
+    """The whole point of keys: a rename changes what you read, never what is
+    stored or branched on."""
+    db.save_review_marker_group("process_violation", [
+        {"key": "none", "label": "Clean", "at_entry": True},
+        {"key": "overtraded", "label": "Traded too much", "at_entry": True},
+    ])
+
+    assert logic.marker_label("process_violation", "none") == "Clean"
+    assert logic.marker_keys("process_violation") == ("none", "overtraded")
+
+
+def test_unconfigured_groups_fall_back_to_defaults(tmp_db):
+    assert logic.marker_label("emotion", "fear_of_loss") == "Fear of loss"
+    assert "calm" in logic.marker_keys("emotion")
+
+
+def test_marker_label_falls_back_to_the_key_for_a_retired_tag(tmp_db):
+    """A trade tagged with an emotion later deleted from the vocabulary must
+    still render something rather than raising on the review page."""
+    assert logic.marker_label("emotion", "wistful") == "wistful"
+
+
+def test_entry_emotions_follow_the_at_entry_flag(tmp_db):
+    assert "fear_of_loss" not in logic.entry_emotion_keys()
+    assert "calm" in logic.entry_emotion_keys()
+
+    db.save_review_marker_group("emotion", [
+        {"key": "calm", "label": "Calm", "at_entry": False},
+        {"key": "fear_of_loss", "label": "Fear of loss", "at_entry": True},
+    ])
+
+    assert logic.entry_emotion_keys() == ("fear_of_loss",)
+
+
+# ── Validation ────────────────────────────────────────────────────────────────
+
+def test_multi_fields_accept_and_clean_a_list(tmp_db):
+    cleaned, err = logic.validate_assessment(
+        {"grade": "C", "emotion": ["greed", "impatience"]})
+
+    assert err is None
+    assert cleaned["emotion"] == ["greed", "impatience"]
+
+
+def test_multi_fields_still_accept_a_bare_scalar(tmp_db):
+    """The live_v2 review chain sends one value per click today; it must keep
+    working while the UI catches up in Task 6."""
+    cleaned, err = logic.validate_assessment({"grade": "C", "emotion": "greed"})
+
+    assert err is None
+    assert cleaned["emotion"] == ["greed"]
+
+
+def test_an_unknown_key_is_still_rejected(tmp_db):
+    """The vocabulary moved to config; it did not stop being closed."""
+    cleaned, err = logic.validate_assessment({"grade": "C", "emotion": ["elated"]})
+
+    assert cleaned == {}
+    assert "emotion" in err
+
+
+def test_none_wins_over_everything_else_in_a_multi_field(tmp_db):
+    cleaned, err = logic.validate_assessment(
+        {"grade": "C", "process_violation": ["none", "overtraded"]})
+
+    assert err is None
+    assert cleaned["process_violation"] == ["none"]
+
+
+def test_any_real_violation_still_conflicts_with_an_a_grade(tmp_db):
+    cleaned, err = logic.validate_assessment(
+        {"grade": "A", "process_violation": ["none", "revenge_trade"]})
+
+    assert cleaned == {}
+    assert "A grade" in err
+
+
+def test_the_a_grade_rule_survives_relabelling_none(tmp_db):
+    """It keys off `none`, not the word 'None'."""
+    db.save_review_marker_group("process_violation", [
+        {"key": "none", "label": "Clean", "at_entry": True},
+        {"key": "overtraded", "label": "Overtraded", "at_entry": True},
+    ])
+
+    _, ok_err = logic.validate_assessment({"grade": "A", "process_violation": ["none"]})
+    _, bad_err = logic.validate_assessment({"grade": "A", "process_violation": ["overtraded"]})
+
+    assert ok_err is None
+    assert bad_err is not None
+
+
+# ── Readers ───────────────────────────────────────────────────────────────────
+
+def test_analytics_count_every_emotion_in_a_list(tmp_db):
+    """Counting the raw column would score '["greed","impatience"]' as one
+    exotic emotion and report it as the top one.
+
+    build_grade_analytics does not exist; the emotion tally actually lives in
+    build_plan_execution(trades), which takes a plain list of trade dicts (no
+    account or date range) and only ever indexes a row by `t["id"]` — every
+    other field is read with .get(...) — so a minimal dict carrying `id`,
+    `grade`, and `emotion` is enough to exercise it without touching the DB
+    through insert_trade.
+    """
+    rows = [
+        {"id": 1, "grade": "C", "emotion": db.encode_marker_list(["greed", "impatience"])},
+        {"id": 2, "grade": "C", "emotion": db.encode_marker_list(["greed"])},
+    ]
+
+    result = logic.build_plan_execution(rows)
+
+    assert result["summary"]["bc_diagnosis"]["top_emotion"][0] == "greed"
+    assert result["summary"]["bc_diagnosis"]["top_emotion"][1] == 2
