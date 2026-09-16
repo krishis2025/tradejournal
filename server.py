@@ -767,13 +767,19 @@ def api_save_review_markers(group_id):
     tags = body.get("tags", [])
     if not isinstance(tags, list):
         return jsonify({"error": "tags must be a list"}), 400
+    if not tags:
+        return jsonify({"error": "a group must keep at least one tag"}), 400
 
     cleaned = []
+    seen_keys = set()
     for t in tags:
         key = str(t.get("key", "")).strip()
         label = str(t.get("label", "")).strip()
         if not key or not label:
             return jsonify({"error": "every tag needs a key and a label"}), 400
+        if key in seen_keys:
+            return jsonify({"error": "duplicate tag key: " + key}), 400
+        seen_keys.add(key)
         cleaned.append({"key": key, "label": label,
                         "at_entry": bool(t.get("at_entry", True))})
 

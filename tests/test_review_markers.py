@@ -387,6 +387,22 @@ def test_get_returns_every_group_with_flags(client, tmp_db):
     assert groups["management"]["tags"][0]["locked"] is True
 
 
+def test_get_reflects_a_saved_customisation(client, tmp_db):
+    """The GET route must read back what was actually saved, not the
+    REVIEW_MARKER_GROUPS literal — a route that returned the constant would
+    satisfy every static-flag assertion above while ignoring every save."""
+    client.post("/api/settings/review-markers/process_violation", json={
+        "tags": [{"key": "none", "label": "Clean slate", "at_entry": True},
+                 {"key": "overtraded", "label": "Overtraded", "at_entry": True}],
+        "multi": False})
+
+    groups = {g["id"]: g for g in client.get("/api/settings/review-markers").get_json()["groups"]}
+
+    assert groups["process_violation"]["multi"] is False
+    labels = {t["key"]: t["label"] for t in groups["process_violation"]["tags"]}
+    assert labels["none"] == "Clean slate"
+
+
 def test_post_saves_labels_order_and_the_multi_flag(client, tmp_db):
     res = client.post("/api/settings/review-markers/process_violation", json={
         "tags": [{"key": "none", "label": "Clean", "at_entry": True},
@@ -434,6 +450,27 @@ def test_post_rejects_an_unknown_group(client, tmp_db):
     res = client.post("/api/settings/review-markers/not_a_group", json={"tags": []})
 
     assert res.status_code == 400
+
+
+def test_post_refuses_to_empty_a_group_entirely(client, tmp_db):
+    """A vocabulary with zero options is never valid — the review chain would
+    render a question with no answers. Unlocked groups (emotion,
+    management_driver) have no locked tag to catch this by accident."""
+    res = client.post("/api/settings/review-markers/emotion", json={"tags": []})
+
+    assert res.status_code == 400
+    assert len(logic.marker_keys("emotion")) > 0
+
+
+def test_post_rejects_duplicate_tag_keys(client, tmp_db):
+    """Two tags keyed 'pnl' would both surface from get_review_marker_config,
+    so the chip renders twice and marker_label becomes first-match-wins."""
+    res = client.post("/api/settings/review-markers/management_driver", json={
+        "tags": [{"key": "pnl", "label": "P&L", "at_entry": True},
+                 {"key": "pnl", "label": "Profit and loss", "at_entry": True}]})
+
+    assert res.status_code == 400
+    assert logic.marker_keys("management_driver") == ("market_thesis", "pnl", "both")
 
 
 def test_reset_restores_the_defaults(client, tmp_db):
