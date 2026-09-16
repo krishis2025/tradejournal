@@ -22,6 +22,13 @@ def test_defaults_declare_five_groups_with_the_expected_keys():
 
     assert list(groups) == ["management", "management_driver", "management_issue",
                             "emotion", "process_violation"]
+    assert [t["key"] for t in groups["management"]["tags"]] == [
+        "followed", "deviated"]
+    assert [t["key"] for t in groups["management_driver"]["tags"]] == [
+        "market_thesis", "pnl", "both"]
+    assert [t["key"] for t in groups["management_issue"]["tags"]] == [
+        "none", "early_exit", "late_exit", "stop_change", "overmanaged",
+        "under_managed", "premature_scale_out"]
     assert [t["key"] for t in groups["process_violation"]["tags"]] == [
         "none", "traded_outside_plan", "exceeded_risk", "revenge_trade", "overtraded"]
     assert [t["key"] for t in groups["emotion"]["tags"]] == [
@@ -95,6 +102,41 @@ def test_review_marker_rows_never_collide_with_legacy_tag_groups(tmp_db):
     assert "emotion" not in legacy
 
 
+def test_review_marker_config_excludes_legacy_rows(tmp_db):
+    """The reverse of the collision guard above. Nothing previously covered
+    get_review_marker_config() excluding a legacy, label-addressed row
+    (tag_key NULL) — only that get_tag_config() excludes review-marker rows."""
+    db.save_review_marker_group("emotion", [
+        {"key": "calm", "label": "Calm", "at_entry": True}])
+
+    with db.get_conn() as conn:
+        conn.execute(
+            "INSERT INTO tag_config (group_id, tag, position, enabled) "
+            "VALUES ('technicals', 'Support/Resistance', 0, 1)")
+
+    cfg = db.get_review_marker_config()
+
+    assert "technicals" not in cfg
+
+
+def test_deleting_a_tag_on_first_save_does_not_touch_trades(tmp_db, day_id):
+    """Cheap companion to the two-save guard below: even a first-ever save for
+    a group must not disturb a trade's stored key, though this shape alone
+    cannot catch a cascade that diffs against previously-saved rows — see
+    test_deleting_a_tag_does_not_touch_trades_that_used_it for that."""
+    trade_id = db.insert_trade(day_id, 1, "Long", 1, 7700.0, 7710.0, -50.0, "10:00", "10:30")
+    db.set_trade_assessment(trade_id, grade="C", emotion="greed")
+
+    db.save_review_marker_group("emotion", [
+        {"key": "calm", "label": "Calm", "at_entry": True},
+    ])
+
+    with db.get_conn() as conn:
+        stored = conn.execute("SELECT emotion FROM trades WHERE id = ?",
+                              (trade_id,)).fetchone()[0]
+    assert stored == "greed", "a vocabulary edit must never rewrite trade data"
+
+
 def test_deleting_a_tag_does_not_touch_trades_that_used_it(tmp_db, day_id):
     """The 4.8.1 guard, re-pinned for keys.
 
@@ -103,9 +145,22 @@ def test_deleting_a_tag_does_not_touch_trades_that_used_it(tmp_db, day_id):
     11 real trades. Review markers store keys and run no cascade, so removing a
     tag from the vocabulary must leave every trade's stored key exactly as it
     was. The trade then renders via marker_label's key fallback.
+
+    Two saves, not one: the realistic cascade shape (the one that mirrors
+    _cascade_tag_rename) diffs the new tags against the group's
+    previously-saved rows, not against a first-ever save with no prior rows to
+    diff against. So this test first establishes a custom vocabulary that
+    includes the emotion the trade actually used, then saves again with that
+    emotion removed — the edit-an-existing-vocabulary shape a cascade bug
+    would actually trigger on.
     """
     trade_id = db.insert_trade(day_id, 1, "Long", 1, 7700.0, 7710.0, -50.0, "10:00", "10:30")
     db.set_trade_assessment(trade_id, grade="C", emotion="greed")
+
+    db.save_review_marker_group("emotion", [
+        {"key": "calm", "label": "Calm", "at_entry": True},
+        {"key": "greed", "label": "Greed", "at_entry": True},
+    ])
 
     db.save_review_marker_group("emotion", [
         {"key": "calm", "label": "Calm", "at_entry": True},
