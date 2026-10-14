@@ -783,10 +783,10 @@ function renderVitals() {
   // whole session is fillable without touching the mouse — which only works
   // because every metric cell below holds a real input (see valueCell).
   const VITALS_METRICS = [
+    { field: 'vol_pct', label: 'Vol %' },
     { field: 'vix',     label: 'VIX'   },
     { field: 'cl',      label: '/CL'   },
     { field: 'tnx',     label: 'TNX'   },
-    { field: 'vol_pct', label: 'Vol %' },
     { field: 'adh',     label: 'ADH'   },
   ];
   const BAND = { vol_pct: volPillClass, adh: adhPillClass };
