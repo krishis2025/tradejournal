@@ -5419,6 +5419,13 @@ function buildPocKpisSection(trade, h, isLong, closed, dotSlots, bePrice, beBuff
 
     <div class="poc-kpi-block">
       <div class="poc-kpi-row">
+        <span class="poc-lbl">ENTRY PRICE</span>
+        <span class="poc-kpi-time">${_pocFmtPrice(entryPrice)}</span>
+      </div>
+    </div>
+
+    <div class="poc-kpi-block">
+      <div class="poc-kpi-row">
         <span class="poc-lbl">TIME IN TRADE</span>
         <span class="poc-kpi-time">${elapsedStr || '—'}</span>
       </div>
